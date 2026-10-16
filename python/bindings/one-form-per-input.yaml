@@ -1,0 +1,2 @@
+skill: python/skills/one-form-per-input
+paths: ["**/*.py"]

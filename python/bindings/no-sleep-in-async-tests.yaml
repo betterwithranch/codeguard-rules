@@ -1,0 +1,2 @@
+skill: python/skills/no-sleep-in-async-tests
+paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]

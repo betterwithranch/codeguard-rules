@@ -1,0 +1,2 @@
+skill: python/skills/no-overlapping-responsibility
+paths: ["**/*.py"]

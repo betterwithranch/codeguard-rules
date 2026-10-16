@@ -1,0 +1,2 @@
+skill: python/skills/one-responsibility-per-type
+paths: ["**/*.py"]

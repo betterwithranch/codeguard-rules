@@ -1,0 +1,3 @@
+id: enum-usage
+valid: [literal_severity.py]
+invalid: [shipment_status.py]

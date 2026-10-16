@@ -1,0 +1,2 @@
+skill: python/skills/package-cohesion
+paths: ["**/*.py"]

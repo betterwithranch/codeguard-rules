@@ -1,0 +1,2 @@
+skill: python/skills/integration-tests-catch-wiring
+paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]

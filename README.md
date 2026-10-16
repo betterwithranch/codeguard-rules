@@ -1,33 +1,97 @@
 # codeguard-rules
 
 Rulesets for [codeguard](https://github.com/betterwithranch/codeguard). Each ruleset is a
-directory a project opts into from its `.codeguard/config.yaml`.
+directory a project opts into from its `.codeguard/config.yaml`. The rules supplement a
+linter; they don't repeat one. A Python project should run
+[ruff](https://docs.astral.sh/ruff/) for what it covers, such as `print` (T201), imports
+inside functions (PLC0415), `getattr` with a literal (B009) and `TYPE_CHECKING` (TID251).
 
 ## Rulesets
 
 ### `python`
 
-Rules for any Python project. No framework rules.
+Rules for any Python project. No framework rules. Each rule checks one thing, so a
+project can exclude any of them.
 
-Pattern rules (ast-grep):
+Pattern rule (ast-grep):
 
 | Rule | Checks |
 |---|---|
-| `no-print` | No `print` calls. Use a logger, or `sys.stdout` in a command-line tool. |
 | `no-del-param` | No `del` of a parameter to mark it unused. Prefix it with `_`. |
-| `no-type-checking` | No `if TYPE_CHECKING:` blocks. Fix the import cycle. |
-| `import-at-module-level` | No imports inside functions. |
-| `no-getattr-literal` | No `getattr(obj, "name")`. Write `obj.name`. |
 
-Judge rules (Claude reads each changed file against the skill):
+Judge rules on every `.py` file (Claude reads each changed file against the rule's skill):
 
-| Rule | Files | Checks |
-|---|---|---|
-| `python-code-quality` | `**/*.py` | Naming, module structure, responsibility, function design, typing, duplication. |
-| `test-quality` | test files and `conftest.py` | Determinism, signal, mocking, assertions, helpers, fixtures. |
-| `python-generics` | `**/*.py` | TypeVar binding, parameterized annotations, variance. |
+| Rule | Checks |
+|---|---|
+| `all-only-in-init` | `__all__` only in `__init__.py` |
+| `behavior-on-data-owner` | Behavior lives on the type whose data it reads |
+| `comments-and-docstrings` | Comments and docstrings only where no structure or name can hold the reason |
+| `constructor-dependencies` | Constructor state over repeated arguments |
+| `enum-usage` | Pass enum members, never `.value` or a bare literal |
+| `explicit-discriminated-unions` | Discriminated unions are explicit |
+| `function-has-owner` | Every loose function has an owner |
+| `generic-subclass-type-args` | Pass type arguments through subclasses |
+| `interfaces-earn-existence` | Interfaces must earn their existence |
+| `map-models-field-by-field` | Map between models field by field |
+| `names-match-behavior` | Names match what the code does |
+| `narrow-collaborator-params` | Pass only what a collaborator needs |
+| `no-anonymous-tuples` | No anonymous tuples or dicts for concepts |
+| `no-any` | No `Any` unless the type can't be known |
+| `no-branch-and-accumulate` | No branch-and-accumulate loops |
+| `no-dead-code` | No dead code |
+| `no-duplicate-logic` | No duplicate logic |
+| `no-overlapping-responsibility` | No overlapping responsibility |
+| `no-pre-derived-arguments` | No pre-derived arguments |
+| `no-reimplemented-orchestration` | Do not re-implement orchestration |
+| `no-shared-stateful-generics` | No shared instances of stateful generic classes |
+| `one-concept-per-module` | One concept per module |
+| `one-form-per-input` | One way to specify each input |
+| `one-home-for-defaults` | One home for defaults |
+| `one-responsibility-per-function` | One responsibility per function |
+| `one-responsibility-per-type` | One responsibility per type |
+| `package-cohesion` | Package cohesion |
+| `package-public-interface` | Package public interface |
+| `parameterized-generics` | Parameterize generic annotations |
+| `parameterized-helper` | One parameterized helper, not one method per variant |
+| `parse-boundary-data-once` | Parse boundary data once |
+| `state-model-own-module` | Threaded state models get their own module |
+| `strenum-vs-literal` | `StrEnum` or `Literal`, by how the value is used |
+| `trust-established-invariants` | Trust established invariants |
+| `type-args-in-init-subclass` | Read type arguments in `__init_subclass__` |
+| `type-name-suffixes` | Standard type-name suffixes |
+| `typed-dispatch-registries` | Typed registries for dispatch |
+| `types-live-with-producer` | Types live with their producer |
+| `types-model-domain-concepts` | Types model real domain concepts |
+| `typevar-bound-by-class` | Every TypeVar in an annotation is bound by the class |
+| `typevar-variance` | Variance matches use |
+| `value-form-matches-role` | A supplied value's form matches its role |
 
-Each judge rule makes one Claude call per changed file it matches.
+Judge rules on test files (`test_*.py`, `*_test.py`, `tests/**`, `conftest.py`):
+
+| Rule | Checks |
+|---|---|
+| `arrange-act-assert-in-test` | Arrange, act, and assert stay in the test body |
+| `assert-whole-objects` | Assert whole result objects |
+| `build-through-factory` | Build through the production factory |
+| `configure-shared-fakes` | Extend shared fakes by configuration |
+| `deterministic-tests` | Tests are deterministic |
+| `equality-over-in` | Prefer `==` over `in` |
+| `fixture-shape` | Fixture shape |
+| `helpers-only-set-up` | Helpers set up; they never perform the act |
+| `integration-tests-catch-wiring` | Integration tests catch a wiring bug |
+| `mock-only-at-boundary` | Mock only at the process boundary |
+| `no-normalized-results` | Do not normalize the result before asserting |
+| `no-sleep-in-async-tests` | Wait on events, not sleeps, in async tests |
+| `no-wrapper-fixtures` | No wrapper or projection fixtures |
+| `real-test-data` | Use real data, real parents, and real ids |
+| `reuse-test-helpers` | Reuse shared fakes and helpers |
+| `test-has-signal` | Every test has signal |
+| `test-helper-parameters` | Construction helper parameters |
+| `test-isolation` | Test isolation |
+| `test-names-match-assertions` | Test names match assertions and vocabulary |
+
+Each judge rule makes one Claude call per changed file it matches, so exclude the rules a
+project doesn't want rather than paying for them.
 
 ## Use a ruleset
 
@@ -36,12 +100,12 @@ In the project's `.codeguard/config.yaml`:
 ```yaml
 packages:
   - git: https://github.com/betterwithranch/codeguard-rules.git
-    ref: v0.1.0
+    ref: v0.2.0
     rulesets:
       python:
-        exclude: [no-print]
+        exclude: [no-del-param, no-any]
         rules:
-          python-code-quality:
+          no-dead-code:
             paths: ["src/**/*.py"]
             severity: warning
 ```
@@ -50,22 +114,34 @@ packages:
 - `rules.<id>` overrides `paths` or `severity`, and `model` on a judge rule.
 - `codeguard update` moves `ref` to the newest tag.
 
-Diagnostics name a rule by package, ruleset and id: `betterwithranch/python/no-print`.
+Diagnostics name a rule by package, ruleset and id: `betterwithranch/python/no-del-param`.
+
+The pattern rules work with ast-grep `>=0.45,<0.46`, set in `codeguard-package.yaml`. A
+project that sets `ast-grep` in its config must pick a version in that range.
 
 ## Layout
 
 ```
-codeguard-package.yaml                 # name and rulesets
+codeguard-package.yaml                 # name, rulesets and supported ast-grep versions
 python/
   rules/pattern/<id>.yml               # ast-grep rules
   rule-tests/pattern/<id>-test.yml     # their tests and __snapshots__/
   skills/<id>/SKILL.md                 # judge rules
   bindings/<id>.yaml                   # skill path (from the repo root) and default paths
+  rule-evals/<id>-eval.yml             # judge rule evals
+  rule-evals/<id>/                     # their case files
 ```
+
+codeguard rejects any other entry in a ruleset directory.
 
 ## Test
 
 ```sh
-codeguard test               # every ruleset's pattern rule tests
+codeguard test               # pattern rule tests
 codeguard test --update-all  # regenerate snapshots
+codeguard eval               # judge rule evals; calls Claude
 ```
+
+An eval lists case files the judge must pass (`valid`) and must flag at the confidence
+threshold (`invalid`). Name case files for their code, not their expected result, because
+the judge reads their directory.

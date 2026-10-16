@@ -1,0 +1,2 @@
+skill: python/skills/arrange-act-assert-in-test
+paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]

@@ -1,0 +1,2 @@
+skill: python/skills/typed-dispatch-registries
+paths: ["**/*.py"]

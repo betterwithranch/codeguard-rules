@@ -1,0 +1,2 @@
+skill: python/skills/parse-boundary-data-once
+paths: ["**/*.py"]
