@@ -1,0 +1,29 @@
+id: import-at-module-level
+valid:
+  # Module-level import
+  - |
+    import json
+
+    def load(text):
+        return json.loads(text)
+
+  # Module-level conditional import
+  - |
+    try:
+        import tomllib
+    except ImportError:
+        import tomli as tomllib
+
+invalid:
+  # import inside a function
+  - |
+    def load(text):
+        import json
+        return json.loads(text)
+
+  # from-import inside a method
+  - |
+    class ExampleLoader:
+        def load(self, text):
+            from json import loads
+            return loads(text)

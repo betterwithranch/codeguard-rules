@@ -1,0 +1,14 @@
+id: import-at-module-level
+language: python
+severity: error
+message: Import at the top of the module, not inside a function.
+note: |
+  An import inside a function hides a dependency and often a circular import. Move it
+  to the top of the module. If that creates a cycle, fix the cycle.
+rule:
+  any:
+    - kind: import_statement
+    - kind: import_from_statement
+  inside:
+    kind: function_definition
+    stopBy: end

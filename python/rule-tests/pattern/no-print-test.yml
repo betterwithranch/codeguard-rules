@@ -1,0 +1,18 @@
+id: no-print
+valid:
+  # Logger call
+  - |
+    logger.info("Loaded %s", name)
+
+  # Output written to stdout
+  - |
+    sys.stdout.write(f"{result}\n")
+
+invalid:
+  # print call
+  - |
+    print("Loaded", name)
+
+  # print to a stream
+  - |
+    print(result, file=sys.stderr)

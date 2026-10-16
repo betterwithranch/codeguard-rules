@@ -1,0 +1,37 @@
+id: no-del-param
+valid:
+  # Underscore-prefixed unused parameter
+  - |
+    def handle(_request, response):
+        return response
+
+  # del of a local variable
+  - |
+    def handle(request):
+        secret = load_secret()
+        use(secret)
+        del secret
+
+  # del of a dictionary key
+  - |
+    def handle(request):
+        del request.headers["Authorization"]
+
+invalid:
+  # del of a positional parameter
+  - |
+    def handle(request, response):
+        del request
+        return response
+
+  # del of a typed parameter
+  - |
+    def handle(request: ExampleRequest, response):
+        del request
+        return response
+
+  # del of a keyword-only parameter in a method
+  - |
+    class ExampleHandler:
+        def handle(self, *, request=None):
+            del request

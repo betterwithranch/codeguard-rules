@@ -1,0 +1,16 @@
+id: no-getattr-literal
+snapshots:
+  ? |
+    total = getattr(order, "total")
+  : labels:
+    - source: getattr(order, "total")
+      style: primary
+      start: 8
+      end: 31
+  ? |
+    total = getattr(order, 'total')
+  : labels:
+    - source: getattr(order, 'total')
+      style: primary
+      start: 8
+      end: 31

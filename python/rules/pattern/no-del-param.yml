@@ -1,0 +1,20 @@
+id: no-del-param
+language: python
+severity: error
+message: Don't del a parameter to mark it unused.
+note: |
+  Prefix the unused parameter with an underscore (`request` -> `_request`). The prefix
+  signals intent without a runtime statement.
+rule:
+  pattern: del $NAME
+  inside:
+    kind: function_definition
+    stopBy: end
+    has:
+      field: parameters
+      has:
+        stopBy: end
+        pattern: $NAME
+constraints:
+  NAME:
+    kind: identifier

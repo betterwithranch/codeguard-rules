@@ -1,0 +1,21 @@
+id: no-type-checking
+valid:
+  # Import at module level
+  - |
+    from example.orders import ExampleOrder
+
+  # Other condition
+  - |
+    if DEBUG:
+        configure_debugging()
+
+invalid:
+  # Imported TYPE_CHECKING
+  - |
+    if TYPE_CHECKING:
+        from example.orders import ExampleOrder
+
+  # typing.TYPE_CHECKING
+  - |
+    if typing.TYPE_CHECKING:
+        from example.orders import ExampleOrder

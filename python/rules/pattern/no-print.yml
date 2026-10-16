@@ -1,0 +1,10 @@
+id: no-print
+language: python
+severity: error
+message: Use logging, not print.
+note: |
+  print bypasses log levels and handlers. Call a module logger
+  (`logger = logging.getLogger(__name__)`) instead. A command-line tool writes its
+  output to `sys.stdout`.
+rule:
+  pattern: print($$$ARGS)
