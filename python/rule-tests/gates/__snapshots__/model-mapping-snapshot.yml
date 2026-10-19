@@ -1,0 +1,36 @@
+id: model-mapping
+snapshots:
+  ? |
+    target = Target(sku=source.sku)
+  : labels:
+    - source: Target(sku=source.sku)
+      style: primary
+      start: 9
+      end: 31
+    - source: Target
+      style: secondary
+      start: 9
+      end: 15
+    - source: source.sku
+      style: secondary
+      start: 20
+      end: 30
+    - source: sku=source.sku
+      style: secondary
+      start: 16
+      end: 30
+    - source: sku=source.sku
+      style: secondary
+      start: 16
+      end: 30
+  ? |
+    target = Target.model_validate(source.model_dump())
+  : labels:
+    - source: Target.model_validate(source.model_dump())
+      style: primary
+      start: 9
+      end: 51
+    - source: Target.model_validate
+      style: secondary
+      start: 9
+      end: 30

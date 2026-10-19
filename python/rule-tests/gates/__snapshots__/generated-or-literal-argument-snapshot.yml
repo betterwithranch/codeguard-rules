@@ -1,0 +1,28 @@
+id: generated-or-literal-argument
+snapshots:
+  ? |
+    create(order_id=uuid4())
+  : labels:
+    - source: uuid4()
+      style: primary
+      start: 16
+      end: 23
+    - source: uuid4
+      style: secondary
+      start: 16
+      end: 21
+  ? |
+    ship(order, status='shipped')
+  : labels:
+    - source: (order, status='shipped')
+      style: primary
+      start: 4
+      end: 29
+    - source: '''shipped'''
+      style: secondary
+      start: 19
+      end: 28
+    - source: status='shipped'
+      style: secondary
+      start: 12
+      end: 28

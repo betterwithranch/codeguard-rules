@@ -1,0 +1,21 @@
+id: tag-value
+language: python
+rule:
+  any:
+  - kind: subscript
+    has:
+      field: value
+      regex: ^(typing\.)?Literal$
+  - kind: generic_type
+    regex: ^(typing\.)?Literal\[
+  - kind: class_definition
+    has:
+      field: superclasses
+      regex: \b(Str|Int)?Enum\b
+  - kind: comparison_operator
+    has:
+      kind: string
+  - kind: case_pattern
+    has:
+      kind: string
+      stopBy: end

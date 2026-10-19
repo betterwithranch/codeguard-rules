@@ -1,0 +1,15 @@
+id: construction-helper
+language: python
+rule:
+  kind: function_definition
+  not:
+    has:
+      field: name
+      regex: ^test
+  has:
+    stopBy: end
+    kind: call
+    has:
+      field: function
+      kind: identifier
+      regex: ^[A-Z]

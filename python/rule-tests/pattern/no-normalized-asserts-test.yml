@@ -1,0 +1,28 @@
+id: no-normalized-asserts
+valid:
+  # Whole result compared
+  - |
+    def test_order():
+        assert result == ExampleOrder(id=order_id, total=1)
+
+  # Copy made outside an assert
+  - |
+    def test_order():
+        expected = replace(template, total=1)
+        assert result == expected
+
+invalid:
+  # dataclasses.replace on the result
+  - |
+    def test_order():
+        assert replace(result, id=None) == ExampleOrder(id=None, total=1)
+
+  # Pydantic copy with an update
+  - |
+    def test_order():
+        assert result.model_copy(update={"id": None}) == expected
+
+  # Dump that excludes a field
+  - |
+    def test_order():
+        assert result.model_dump(exclude={"id"}) == {"total": 1}

@@ -1,0 +1,7 @@
+id: suffixed-type-name
+language: python
+rule:
+  kind: class_definition
+  has:
+    field: name
+    regex: (Builder|Request|Factory)$

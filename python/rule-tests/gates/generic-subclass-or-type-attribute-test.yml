@@ -1,0 +1,12 @@
+id: generic-subclass-or-type-attribute
+valid:
+- |
+  class Order(Base):
+      total: int
+invalid:
+- |
+  class OrderRepository(Repository[Order]):
+      pass
+- |
+  class Repository:
+      record_type: type[Order]

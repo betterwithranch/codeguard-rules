@@ -1,0 +1,15 @@
+id: return-collection
+valid:
+- |
+  def total():
+      return order.total
+invalid:
+- |
+  def review():
+      return reason, held
+- |
+  def pack(a):
+      return {'a': a}
+- |
+  def review() -> tuple[str, bool]:
+      return result

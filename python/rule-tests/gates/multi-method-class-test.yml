@@ -1,0 +1,19 @@
+id: multi-method-class
+valid:
+- |
+  class Order:
+      total: int
+
+      def tax(self):
+          return 1
+invalid:
+- |
+  class Order:
+      def tax(self):
+          return 1
+
+      def total(self):
+          return 2
+- |
+  def fetch_and_validate(order):
+      return order

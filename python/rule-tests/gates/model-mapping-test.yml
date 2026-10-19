@@ -1,0 +1,11 @@
+id: model-mapping
+valid:
+- |
+  total = order.total()
+- |
+  line = Line(sku='A1')
+invalid:
+- |
+  target = Target.model_validate(source.model_dump())
+- |
+  target = Target(sku=source.sku)

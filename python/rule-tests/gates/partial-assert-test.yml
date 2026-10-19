@@ -1,0 +1,11 @@
+id: partial-assert
+valid:
+- |
+  assert result == Invoice(number='42')
+invalid:
+- |
+  assert result.number == '42'
+- |
+  assert len(items) == 1
+- |
+  assert items[0] == line

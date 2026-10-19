@@ -1,0 +1,21 @@
+id: generated-or-literal-argument
+language: python
+rule:
+  any:
+  - kind: call
+    has:
+      field: function
+      regex: (^|\.)uuid4$
+  - kind: argument_list
+    has:
+      any:
+      - kind: string
+      - kind: integer
+      - kind: keyword_argument
+        has:
+          field: value
+          any:
+          - kind: string
+          - kind: integer
+          - kind: 'true'
+          - kind: 'false'

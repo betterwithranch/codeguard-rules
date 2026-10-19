@@ -5,7 +5,15 @@ directory a project opts into from its `.codeguard/config.yaml`. The rules suppl
 linter; they don't repeat one. A Python project should run
 [ruff](https://docs.astral.sh/ruff/) for what it covers, such as `print` (T201), imports
 inside functions (PLC0415), `getattr` with a literal (B009) and `TYPE_CHECKING` (TID251),
-and [basedpyright](https://docs.basedpyright.com) with `reportExplicitAny` for `Any`.
+and [basedpyright](https://docs.basedpyright.com) with these rules on:
+
+- `reportExplicitAny`: no `Any`.
+- `reportMissingTypeArgument`: generic annotations and base classes are parameterized.
+- `reportGeneralTypeIssues` (on in `standard`): every TypeVar is bound by its class, and
+  variance matches use.
+- `reportArgumentType` (on in `standard`): pass enum members, never a bare literal.
+- `reportUnnecessaryIsInstance`, `reportUnnecessaryComparison`: no re-checks of a fact
+  the types already guarantee.
 
 ## Rulesets
 
@@ -25,10 +33,14 @@ code skip test files:
 | `no-assert-on-lookup-field` | Don't assert the field used to find an item |
 | `no-bucket-module-names` | No `utils`, `helpers`, `common`, `shared`, or `contracts` modules |
 | `no-comments-in-tests` | No comments in test files, except tool directives |
+| `no-constructed-test-constants` | No module-level `UPPER = SomeClass(...)` in test files; build it in a fixture |
 | `no-default-constructor-fixtures` | No fixture or test helper that only returns `SomeClass()` |
 | `no-del-param` | No `del` of a parameter to mark it unused. Prefix it with `_`. |
 | `no-dict-round-trip-between-models` | No `asdict`/`model_dump` round-trip from one model into another |
 | `no-field-tuple-asserts` | Don't assert a tuple of one value's fields; compare the whole object |
+| `no-len-asserts` | Don't assert only a collection's length |
+| `no-manual-kwargs-check` | No hand-written `TypeError` for unexpected `**kwargs` keys |
+| `no-normalized-asserts` | No `replace`, `model_copy` or `model_dump(exclude=...)` of the result inside an assert |
 | `no-pop-from-kwargs` | No `.pop()` from a `**kwargs` parameter in test code |
 | `no-sleep-in-async-tests` | No `sleep` in an `async def test_…`; wait on an event |
 | `no-tuple-fixtures` | A pytest fixture returns or yields one object, never a tuple |
@@ -42,10 +54,9 @@ against the rule's skill). `comments-and-docstrings` also runs on test files.
 | `behavior-on-data-owner` | Behavior lives on the type whose data it reads |
 | `comments-and-docstrings` | Comments and docstrings only where no structure or name can hold the reason |
 | `constructor-dependencies` | Constructor state over repeated arguments |
-| `enum-usage` | Pass enum members, never `.value` or a bare literal |
+| `enum-usage` | No `.value` on an enum member |
 | `explicit-discriminated-unions` | Discriminated unions are explicit |
 | `function-has-owner` | Every loose function has an owner |
-| `generic-subclass-type-args` | Pass type arguments through subclasses |
 | `interfaces-earn-existence` | Interfaces must earn their existence |
 | `map-models-field-by-field` | Map between models field by field |
 | `names-match-behavior` | Names match what the code does |
@@ -65,7 +76,6 @@ against the rule's skill). `comments-and-docstrings` also runs on test files.
 | `one-responsibility-per-type` | One responsibility per type |
 | `package-cohesion` | Package cohesion |
 | `package-public-interface` | Package public interface |
-| `parameterized-generics` | Parameterize generic annotations |
 | `parameterized-helper` | One parameterized helper, not one method per variant |
 | `parse-boundary-data-once` | Parse boundary data once |
 | `state-model-own-module` | Threaded state models get their own module |
@@ -75,8 +85,6 @@ against the rule's skill). `comments-and-docstrings` also runs on test files.
 | `type-name-suffixes` | Standard type-name suffixes |
 | `types-live-with-producer` | Types live with their producer |
 | `types-model-domain-concepts` | Types model real domain concepts |
-| `typevar-bound-by-class` | Every TypeVar in an annotation is bound by the class |
-| `typevar-variance` | Variance matches use |
 | `value-form-matches-role` | A supplied value's form matches its role |
 
 Judge rules on test files (`test_*.py`, `*_test.py`, `tests/**`, `conftest.py`):
@@ -91,7 +99,7 @@ Judge rules on test files (`test_*.py`, `*_test.py`, `tests/**`, `conftest.py`):
 | `equality-over-in` | Prefer `==` over `in` |
 | `fixture-shape` | Fixture shape |
 | `helpers-only-set-up` | Helpers set up; they never perform the act |
-| `integration-tests-catch-wiring` | Integration tests catch a wiring bug |
+| `integration-tests-catch-wiring` | Integration tests catch a wiring bug (files under `integration/` or `e2e/`, or named for them) |
 | `mock-only-at-boundary` | Mock only at the process boundary |
 | `no-normalized-results` | Do not normalize the result before asserting |
 | `no-wrapper-fixtures` | No wrapper or projection fixtures |
@@ -102,9 +110,11 @@ Judge rules on test files (`test_*.py`, `*_test.py`, `tests/**`, `conftest.py`):
 | `test-isolation` | Test isolation |
 | `test-names-match-assertions` | Test names match assertions and vocabulary |
 
-Each judge rule makes one Claude call per changed file it matches, so exclude the rules a
-project doesn't want rather than paying for them. A rule ast-grep can check is a pattern
-rule, never a judge rule.
+A judge rule runs on a changed file only when a changed line falls inside code it could
+flag. Its binding's `triggers` names that code: a change kind built into codeguard, such
+as `fixture` or `import`, or a gate in `python/gates/`, an ast-grep rule such as
+`mock-use`. A rule ast-grep or the type checker can check is a pattern rule or a checker
+setting, never a judge rule.
 
 ## Use a ruleset
 
@@ -140,6 +150,8 @@ codeguard-package.yaml                 # name, rulesets and supported ast-grep v
 python/
   rules/pattern/<id>.yml               # ast-grep rules
   rule-tests/pattern/<id>-test.yml     # their tests and __snapshots__/
+  gates/<id>.yml                       # ast-grep rules that decide when a judge rule runs
+  rule-tests/gates/<id>-test.yml       # their tests and __snapshots__/
   skills/<id>/SKILL.md                 # judge rules
   bindings/<id>.yaml                   # a skill or pattern rule and its default paths
   rule-evals/<id>-eval.yml             # judge rule evals
@@ -151,9 +163,9 @@ codeguard rejects any other entry in a ruleset directory.
 ## Test
 
 ```sh
-codeguard test               # pattern rule tests
+codeguard test               # pattern rule and gate tests; warns on broad triggers
 codeguard test --update-all  # regenerate snapshots
-codeguard eval               # judge rule evals; calls Claude
+codeguard eval               # judge rule evals and the rule review; calls Claude
 ```
 
 An eval lists case files the judge must pass (`valid`) and must flag at the confidence

@@ -1,0 +1,14 @@
+id: module-constant
+language: python
+rule:
+  any:
+  - kind: assignment
+    inside:
+      kind: expression_statement
+      inside:
+        kind: module
+    has:
+      field: left
+      regex: ^[A-Z][A-Z0-9_]+$
+  - kind: import_from_statement
+    regex: import .*\b[A-Z][A-Z0-9_]{2,}\b

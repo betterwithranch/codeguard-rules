@@ -1,0 +1,9 @@
+id: module-constant
+valid:
+- |
+  order = make_order()
+invalid:
+- |
+  ORDER = Order(id=7)
+- |
+  from tests.data import ORDER_ID

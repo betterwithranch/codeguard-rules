@@ -1,0 +1,14 @@
+id: guard-check
+language: python
+rule:
+  any:
+  - kind: call
+    has:
+      field: function
+      regex: ^(isinstance|cast|typing\.cast)$
+  - kind: if_statement
+    has:
+      field: consequence
+      has:
+        kind: raise_statement
+  - kind: assert_statement

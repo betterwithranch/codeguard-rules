@@ -1,3 +1,4 @@
 skill: python/skills/one-home-for-defaults
 paths: ["**/*.py"]
 exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
+triggers: [defaulted-value]

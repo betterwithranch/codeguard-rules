@@ -1,0 +1,9 @@
+id: literal-annotation
+snapshots:
+  ? |
+    kind: Literal['card'] = 'card'
+  : labels:
+    - source: Literal['card']
+      style: primary
+      start: 6
+      end: 21

@@ -1,0 +1,44 @@
+id: raw-data-access
+snapshots:
+  ? |
+    def parse(raw: dict[str, Any]):
+        return raw
+  : labels:
+    - source: dict[str, Any]
+      style: primary
+      start: 15
+      end: 29
+  ? |
+    head = parts[0]
+  : labels:
+    - source: parts[0]
+      style: primary
+      start: 7
+      end: 15
+    - source: '0'
+      style: secondary
+      start: 13
+      end: 14
+  ? |
+    if isinstance(x, int):
+        pass
+  : labels:
+    - source: isinstance(x, int)
+      style: primary
+      start: 3
+      end: 21
+    - source: isinstance
+      style: secondary
+      start: 3
+      end: 13
+  ? |
+    rest = loc[2:]
+  : labels:
+    - source: loc[2:]
+      style: primary
+      start: 7
+      end: 14
+    - source: '2:'
+      style: secondary
+      start: 11
+      end: 13

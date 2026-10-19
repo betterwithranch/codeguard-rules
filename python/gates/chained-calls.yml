@@ -1,0 +1,16 @@
+id: chained-calls
+language: python
+rule:
+  any:
+  - kind: assignment
+    has:
+      field: right
+      kind: call
+    inside:
+      kind: function_definition
+      stopBy: end
+  - kind: call
+    has:
+      field: arguments
+      has:
+        kind: call

@@ -1,0 +1,34 @@
+id: method-with-parameters
+snapshots:
+  ? |
+    class Order:
+        def total(self, rate):
+            return rate
+  : labels:
+    - source: |-
+        def total(self, rate):
+                return rate
+      style: primary
+      start: 17
+      end: 59
+    - source: |-
+        class Order:
+            def total(self, rate):
+                return rate
+      style: secondary
+      start: 0
+      end: 59
+    - source: |-
+        def total(self, rate):
+                return rate
+      style: secondary
+      start: 17
+      end: 59
+    - source: rate
+      style: secondary
+      start: 33
+      end: 37
+    - source: rate
+      style: secondary
+      start: 33
+      end: 37

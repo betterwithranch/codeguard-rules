@@ -1,0 +1,11 @@
+id: function
+valid:
+- |
+  class Order:
+      total = 1
+- |
+  x = [1]
+invalid:
+- |
+  def total():
+      return 1

@@ -1,0 +1,7 @@
+id: enum-value-access
+language: python
+rule:
+  kind: attribute
+  has:
+    field: attribute
+    regex: ^value$

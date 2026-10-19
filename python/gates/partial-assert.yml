@@ -1,0 +1,13 @@
+id: partial-assert
+language: python
+rule:
+  kind: assert_statement
+  has:
+    kind: comparison_operator
+    has:
+      nthChild: 1
+      any:
+      - kind: attribute
+      - kind: subscript
+      - kind: call
+        regex: ^len\(

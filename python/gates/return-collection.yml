@@ -1,0 +1,18 @@
+id: return-collection
+language: python
+rule:
+  any:
+  - kind: return_statement
+    has:
+      any:
+      - kind: tuple
+      - kind: expression_list
+      - kind: dictionary
+      - kind: list_comprehension
+      - kind: set_comprehension
+      - kind: dictionary_comprehension
+  - kind: type
+    inside:
+      kind: function_definition
+      field: return_type
+    regex: ^tuple\[

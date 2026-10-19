@@ -1,0 +1,11 @@
+id: validator
+valid:
+- |
+  @property
+  def total(self):
+      return 1
+invalid:
+- |
+  @field_validator('sku')
+  def check(cls, value):
+      return value

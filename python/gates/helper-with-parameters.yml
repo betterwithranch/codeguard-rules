@@ -1,0 +1,19 @@
+id: helper-with-parameters
+language: python
+rule:
+  kind: function_definition
+  not:
+    has:
+      field: name
+      regex: ^test
+  has:
+    field: parameters
+    has:
+      any:
+      - kind: identifier
+      - kind: typed_parameter
+      - kind: default_parameter
+      - kind: typed_default_parameter
+      - kind: dictionary_splat_pattern
+      not:
+        regex: ^(self|cls)$

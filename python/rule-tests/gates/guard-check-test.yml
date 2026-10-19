@@ -1,0 +1,11 @@
+id: guard-check
+valid:
+- |
+  def handle(request):
+      return request.payload
+invalid:
+- |
+  if not isinstance(request.payload, Refund):
+      raise TypeError('refund')
+- |
+  assert request.payload

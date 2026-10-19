@@ -1,0 +1,12 @@
+id: class
+snapshots:
+  ? |
+    class Order:
+        pass
+  : labels:
+    - source: |-
+        class Order:
+            pass
+      style: primary
+      start: 0
+      end: 21

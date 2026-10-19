@@ -1,0 +1,12 @@
+id: helper-with-parameters
+valid:
+- |
+  def test_total(order):
+      assert order.total == 1
+- |
+  def order():
+      return Order()
+invalid:
+- |
+  def make_order(lines, **overrides):
+      return Order(lines=lines, **overrides)

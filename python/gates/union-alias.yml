@@ -1,0 +1,24 @@
+id: union-alias
+language: python
+rule:
+  any:
+  - kind: type_alias_statement
+  - kind: subscript
+    has:
+      field: value
+      regex: ^(typing\.)?Union$
+  - kind: generic_type
+    regex: ^(typing\.)?Union\[
+  - kind: keyword_argument
+    has:
+      field: name
+      regex: ^discriminator$
+  - kind: assignment
+    inside:
+      kind: expression_statement
+      inside:
+        kind: module
+    has:
+      field: right
+      kind: binary_operator
+      regex: ^[A-Z][\w.\[\], ]* *\| *[A-Z]

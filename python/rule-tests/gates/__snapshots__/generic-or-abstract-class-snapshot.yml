@@ -1,0 +1,16 @@
+id: generic-or-abstract-class
+snapshots:
+  ? |
+    class Validator(ABC, Generic[TRecord]):
+        pass
+  : labels:
+    - source: |-
+        class Validator(ABC, Generic[TRecord]):
+            pass
+      style: primary
+      start: 0
+      end: 48
+    - source: (ABC, Generic[TRecord])
+      style: secondary
+      start: 15
+      end: 38

@@ -1,0 +1,17 @@
+id: isolation-risk
+valid:
+- |
+  @pytest.fixture
+  def order():
+      return Order()
+invalid:
+- |
+  @pytest.fixture(scope='session')
+  def db():
+      return connect()
+- |
+  os.environ['A'] = '1'
+- |
+  @pytest.fixture
+  def nothing():
+      pass

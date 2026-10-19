@@ -1,0 +1,22 @@
+id: chained-calls
+snapshots:
+  ? |
+    def run(self):
+        plan = self.planner.plan()
+        return self.applier.apply(plan)
+  : labels:
+    - source: plan = self.planner.plan()
+      style: primary
+      start: 19
+      end: 45
+    - source: |-
+        def run(self):
+            plan = self.planner.plan()
+            return self.applier.apply(plan)
+      style: secondary
+      start: 0
+      end: 81
+    - source: self.planner.plan()
+      style: secondary
+      start: 26
+      end: 45

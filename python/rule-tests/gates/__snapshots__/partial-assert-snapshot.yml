@@ -1,0 +1,47 @@
+id: partial-assert
+snapshots:
+  ? |
+    assert items[0] == line
+  : labels:
+    - source: assert items[0] == line
+      style: primary
+      start: 0
+      end: 23
+    - source: items[0]
+      style: secondary
+      start: 7
+      end: 15
+    - source: items[0] == line
+      style: secondary
+      start: 7
+      end: 23
+  ? |
+    assert len(items) == 1
+  : labels:
+    - source: assert len(items) == 1
+      style: primary
+      start: 0
+      end: 22
+    - source: len(items)
+      style: secondary
+      start: 7
+      end: 17
+    - source: len(items) == 1
+      style: secondary
+      start: 7
+      end: 22
+  ? |
+    assert result.number == '42'
+  : labels:
+    - source: assert result.number == '42'
+      style: primary
+      start: 0
+      end: 28
+    - source: result.number
+      style: secondary
+      start: 7
+      end: 20
+    - source: result.number == '42'
+      style: secondary
+      start: 7
+      end: 28

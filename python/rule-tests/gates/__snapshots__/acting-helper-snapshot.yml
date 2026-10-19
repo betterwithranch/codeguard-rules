@@ -1,0 +1,22 @@
+id: acting-helper
+snapshots:
+  ? |
+    def submit_and_resume(workflow, result):
+        assert result.status
+        return workflow.resume(result.job_id)
+  : labels:
+    - source: |-
+        def submit_and_resume(workflow, result):
+            assert result.status
+            return workflow.resume(result.job_id)
+      style: primary
+      start: 0
+      end: 107
+    - source: assert result.status
+      style: secondary
+      start: 45
+      end: 65
+    - source: assert result.status
+      style: secondary
+      start: 45
+      end: 65

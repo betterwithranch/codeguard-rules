@@ -1,0 +1,15 @@
+id: definition
+language: python
+rule:
+  any:
+  - kind: function_definition
+  - kind: class_definition
+  - kind: assignment
+    inside:
+      kind: expression_statement
+      inside:
+        kind: module
+    not:
+      has:
+        field: left
+        regex: ^__all__$

@@ -1,0 +1,9 @@
+id: derived-argument
+valid:
+- |
+  quote(lines, ctx)
+- |
+  quote(select(cart))
+invalid:
+- |
+  quote(lines=select(cart, ctx), context=ctx)

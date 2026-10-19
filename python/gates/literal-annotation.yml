@@ -1,0 +1,10 @@
+id: literal-annotation
+language: python
+rule:
+  any:
+  - kind: subscript
+    has:
+      field: value
+      regex: ^(typing\.)?Literal$
+  - kind: generic_type
+    regex: ^(typing\.)?Literal\[

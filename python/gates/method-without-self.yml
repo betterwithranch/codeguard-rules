@@ -1,0 +1,22 @@
+id: method-without-self
+language: python
+rule:
+  kind: function_definition
+  any:
+  - inside:
+      kind: block
+      inside:
+        kind: class_definition
+  - inside:
+      kind: decorated_definition
+      inside:
+        kind: block
+        inside:
+          kind: class_definition
+  not:
+    has:
+      field: body
+      has:
+        kind: identifier
+        regex: ^self$
+        stopBy: end

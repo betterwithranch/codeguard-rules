@@ -1,0 +1,9 @@
+id: fixture-module-import
+snapshots:
+  ? |
+    from tests.fakes import FakeQueue
+  : labels:
+    - source: from tests.fakes import FakeQueue
+      style: primary
+      start: 0
+      end: 33

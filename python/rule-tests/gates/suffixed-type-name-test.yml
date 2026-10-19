@@ -1,0 +1,12 @@
+id: suffixed-type-name
+valid:
+- |
+  class InvoiceComposer:
+      pass
+invalid:
+- |
+  class InvoiceBuilder:
+      pass
+- |
+  class QuoteRequest:
+      pass

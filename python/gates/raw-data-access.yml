@@ -1,0 +1,17 @@
+id: raw-data-access
+language: python
+rule:
+  any:
+  - kind: subscript
+    has:
+      field: subscript
+      any:
+      - kind: integer
+      - kind: slice
+      - kind: unary_operator
+  - kind: call
+    has:
+      field: function
+      regex: ^(isinstance|json\.loads?)$
+  - kind: type
+    regex: \bAny\b|^dict\[

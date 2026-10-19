@@ -1,0 +1,58 @@
+id: no-constructed-test-constants
+snapshots:
+  ? |
+    ORDER = ExampleOrder(id=7)
+  : labels:
+    - source: ORDER = ExampleOrder(id=7)
+      style: primary
+      start: 0
+      end: 26
+    - source: ORDER
+      style: secondary
+      start: 0
+      end: 5
+    - source: ExampleOrder
+      style: secondary
+      start: 8
+      end: 20
+    - source: ExampleOrder(id=7)
+      style: secondary
+      start: 8
+      end: 26
+    - source: |
+        ORDER = ExampleOrder(id=7)
+      style: secondary
+      start: 0
+      end: 27
+    - source: ORDER = ExampleOrder(id=7)
+      style: secondary
+      start: 0
+      end: 26
+  ? |
+    ORDER_ID = ExampleId(7)
+  : labels:
+    - source: ORDER_ID = ExampleId(7)
+      style: primary
+      start: 0
+      end: 23
+    - source: ORDER_ID
+      style: secondary
+      start: 0
+      end: 8
+    - source: ExampleId
+      style: secondary
+      start: 11
+      end: 20
+    - source: ExampleId(7)
+      style: secondary
+      start: 11
+      end: 23
+    - source: |
+        ORDER_ID = ExampleId(7)
+      style: secondary
+      start: 0
+      end: 24
+    - source: ORDER_ID = ExampleId(7)
+      style: secondary
+      start: 0
+      end: 23

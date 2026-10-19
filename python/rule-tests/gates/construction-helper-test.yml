@@ -1,0 +1,10 @@
+id: construction-helper
+valid:
+- |
+  def test_total():
+      assert Order().total == 1
+invalid:
+- |
+  @pytest.fixture
+  def order():
+      return Order(lines=[Line()])

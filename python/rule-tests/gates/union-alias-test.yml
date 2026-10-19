@@ -1,0 +1,14 @@
+id: union-alias
+valid:
+- |
+  def pay(method: Card | None):
+      return method
+invalid:
+- |
+  type Payment = Card | Transfer
+- |
+  Payment = Card | Transfer
+- |
+  payment: Union[Card, Transfer]
+- |
+  payment: Payment = Field(discriminator='kind')

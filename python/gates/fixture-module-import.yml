@@ -1,0 +1,5 @@
+id: fixture-module-import
+language: python
+rule:
+  kind: import_from_statement
+  regex: (conftest|fixtures?|helpers?|factories|fakes?)

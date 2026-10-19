@@ -1,0 +1,16 @@
+id: accumulating-loop
+language: python
+rule:
+  kind: for_statement
+  all:
+  - has:
+      kind: if_statement
+      stopBy: end
+  - has:
+      stopBy: end
+      any:
+      - kind: call
+        has:
+          field: function
+          regex: \.(append|add|extend)$
+      - kind: augmented_assignment

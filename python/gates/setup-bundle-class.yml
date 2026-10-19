@@ -1,0 +1,7 @@
+id: setup-bundle-class
+language: python
+rule:
+  kind: class_definition
+  has:
+    field: name
+    regex: (Setup|Resources)$

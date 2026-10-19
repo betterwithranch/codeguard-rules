@@ -1,0 +1,12 @@
+id: interface-class
+valid:
+- |
+  class Order(Base):
+      pass
+invalid:
+- |
+  class Pricer(Protocol):
+      def price(self): ...
+- |
+  class Pricer(ABC):
+      pass

@@ -1,3 +1,4 @@
 skill: python/skills/types-model-domain-concepts
 paths: ["**/*.py"]
 exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
+triggers: [class, keyed-collection-build]

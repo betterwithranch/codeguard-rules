@@ -1,0 +1,28 @@
+id: generic-subclass-or-type-attribute
+snapshots:
+  ? |
+    class OrderRepository(Repository[Order]):
+        pass
+  : labels:
+    - source: |-
+        class OrderRepository(Repository[Order]):
+            pass
+      style: primary
+      start: 0
+      end: 50
+    - source: Repository[Order]
+      style: secondary
+      start: 22
+      end: 39
+    - source: Repository[Order]
+      style: secondary
+      start: 22
+      end: 39
+  ? |
+    class Repository:
+        record_type: type[Order]
+  : labels:
+    - source: type[Order]
+      style: primary
+      start: 35
+      end: 46

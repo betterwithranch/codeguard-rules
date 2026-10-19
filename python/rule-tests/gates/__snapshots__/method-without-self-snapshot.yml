@@ -1,0 +1,26 @@
+id: method-without-self
+snapshots:
+  ? |
+    class Composer:
+        def key(self, line):
+            return line.sku
+  : labels:
+    - source: |-
+        def key(self, line):
+                return line.sku
+      style: primary
+      start: 20
+      end: 64
+    - source: |-
+        class Composer:
+            def key(self, line):
+                return line.sku
+      style: secondary
+      start: 0
+      end: 64
+    - source: |-
+        def key(self, line):
+                return line.sku
+      style: secondary
+      start: 20
+      end: 64

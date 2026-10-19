@@ -1,0 +1,7 @@
+id: nondeterminism
+language: python
+rule:
+  kind: call
+  has:
+    field: function
+    regex: (^|\.)(uuid[14]|now|utcnow|today|time|monotonic|random|randint|choice|shuffle|sleep)$

@@ -1,0 +1,2 @@
+rule: no-manual-kwargs-check
+paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]

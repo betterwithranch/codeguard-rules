@@ -1,0 +1,9 @@
+id: test-data-construction
+valid:
+- |
+  order = Order(lines=[line])
+invalid:
+- |
+  order = Order(lines=[])
+- |
+  line = Line(order_id=uuid4())

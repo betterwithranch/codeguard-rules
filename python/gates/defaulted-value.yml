@@ -1,0 +1,11 @@
+id: defaulted-value
+language: python
+rule:
+  any:
+  - kind: default_parameter
+  - kind: typed_default_parameter
+  - kind: comparison_operator
+    regex: \bis (not )?None\b
+  - kind: boolean_operator
+    regex: ' or '
+  - kind: conditional_expression

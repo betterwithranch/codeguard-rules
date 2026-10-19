@@ -1,0 +1,17 @@
+id: raw-data-access
+valid:
+- |
+  name = order.name
+- |
+  value = lookup['key']
+invalid:
+- |
+  head = parts[0]
+- |
+  rest = loc[2:]
+- |
+  if isinstance(x, int):
+      pass
+- |
+  def parse(raw: dict[str, Any]):
+      return raw

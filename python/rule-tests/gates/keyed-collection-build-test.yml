@@ -1,0 +1,10 @@
+id: keyed-collection-build
+valid:
+- |
+  index = {line.sku: line for line in lines}
+invalid:
+- |
+  for line in lines:
+      index[line.sku] = line
+- |
+  groups.setdefault(key, [])

@@ -1,0 +1,11 @@
+id: validator
+snapshots:
+  ? |
+    @field_validator('sku')
+    def check(cls, value):
+        return value
+  : labels:
+    - source: '@field_validator(''sku'')'
+      style: primary
+      start: 0
+      end: 23

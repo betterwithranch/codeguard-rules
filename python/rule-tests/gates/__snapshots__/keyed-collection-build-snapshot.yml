@@ -1,0 +1,31 @@
+id: keyed-collection-build
+snapshots:
+  ? |
+    for line in lines:
+        index[line.sku] = line
+  : labels:
+    - source: index[line.sku] = line
+      style: primary
+      start: 23
+      end: 45
+    - source: |-
+        for line in lines:
+            index[line.sku] = line
+      style: secondary
+      start: 0
+      end: 45
+    - source: index[line.sku]
+      style: secondary
+      start: 23
+      end: 38
+  ? |
+    groups.setdefault(key, [])
+  : labels:
+    - source: groups.setdefault(key, [])
+      style: primary
+      start: 0
+      end: 26
+    - source: groups.setdefault
+      style: secondary
+      start: 0
+      end: 17

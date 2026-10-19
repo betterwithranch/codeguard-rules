@@ -1,0 +1,9 @@
+id: subclass
+valid:
+- |
+  class TestOrder:
+      pass
+invalid:
+- |
+  class CheckingQueue(FakeQueue):
+      pass

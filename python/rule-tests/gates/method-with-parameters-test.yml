@@ -1,0 +1,14 @@
+id: method-with-parameters
+valid:
+- |
+  class Order:
+      def total(self):
+          return 1
+- |
+  def total(a, b):
+      return a
+invalid:
+- |
+  class Order:
+      def total(self, rate):
+          return rate

@@ -1,0 +1,22 @@
+id: no-manual-kwargs-check
+valid:
+  # Overrides passed to one target
+  - |
+    def make_order(**overrides):
+        return ExampleOrder(**overrides)
+
+  # TypeError without keyword arguments
+  - |
+    def make_order(kind):
+        if kind not in KINDS:
+            raise TypeError(kind)
+        return ExampleOrder(kind=kind)
+
+invalid:
+  # Unexpected keys rejected by hand
+  - |
+    def make_order(**kwargs):
+        unknown = set(kwargs) - {"total"}
+        if unknown:
+            raise TypeError(f"unexpected {unknown}")
+        return ExampleOrder(**kwargs)

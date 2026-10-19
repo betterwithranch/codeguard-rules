@@ -1,0 +1,10 @@
+id: chained-calls
+valid:
+- |
+  def run(self):
+      return self.total
+invalid:
+- |
+  def run(self):
+      plan = self.planner.plan()
+      return self.applier.apply(plan)

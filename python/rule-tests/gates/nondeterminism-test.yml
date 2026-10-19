@@ -1,0 +1,9 @@
+id: nondeterminism
+valid:
+- |
+  result = total(order)
+invalid:
+- |
+  key = uuid4()
+- |
+  stamp = datetime.now()

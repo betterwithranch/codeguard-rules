@@ -1,0 +1,13 @@
+id: module-function-with-parameters
+valid:
+- |
+  def total():
+      return 1
+- |
+  class Order:
+      def total(self, rate):
+          return rate
+invalid:
+- |
+  def total(order):
+      return order.amount

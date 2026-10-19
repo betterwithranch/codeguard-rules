@@ -1,0 +1,10 @@
+id: module-instance
+valid:
+- |
+  def create():
+      return OrderValidator()
+- |
+  LIMIT = 3
+invalid:
+- |
+  validator = OrderValidator(region='eu')

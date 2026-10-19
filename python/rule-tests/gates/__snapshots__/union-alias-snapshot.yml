@@ -1,0 +1,47 @@
+id: union-alias
+snapshots:
+  ? |
+    Payment = Card | Transfer
+  : labels:
+    - source: Payment = Card | Transfer
+      style: primary
+      start: 0
+      end: 25
+    - source: |
+        Payment = Card | Transfer
+      style: secondary
+      start: 0
+      end: 26
+    - source: Payment = Card | Transfer
+      style: secondary
+      start: 0
+      end: 25
+    - source: Card | Transfer
+      style: secondary
+      start: 10
+      end: 25
+  ? |
+    payment: Payment = Field(discriminator='kind')
+  : labels:
+    - source: discriminator='kind'
+      style: primary
+      start: 25
+      end: 45
+    - source: discriminator
+      style: secondary
+      start: 25
+      end: 38
+  ? |
+    payment: Union[Card, Transfer]
+  : labels:
+    - source: Union[Card, Transfer]
+      style: primary
+      start: 9
+      end: 30
+  ? |
+    type Payment = Card | Transfer
+  : labels:
+    - source: type Payment = Card | Transfer
+      style: primary
+      start: 0
+      end: 30

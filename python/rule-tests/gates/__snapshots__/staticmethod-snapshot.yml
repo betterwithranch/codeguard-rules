@@ -1,0 +1,19 @@
+id: staticmethod
+snapshots:
+  ? |
+    class Order:
+        @staticmethod
+        def key(line):
+            return line.sku
+  : labels:
+    - source: |-
+        @staticmethod
+            def key(line):
+                return line.sku
+      style: primary
+      start: 17
+      end: 73
+    - source: '@staticmethod'
+      style: secondary
+      start: 17
+      end: 30

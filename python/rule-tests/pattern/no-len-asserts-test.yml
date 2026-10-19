@@ -1,0 +1,22 @@
+id: no-len-asserts
+valid:
+  # Whole collection compared
+  - |
+    def test_lines():
+        assert [line.sku for line in lines] == ["A1", "B2"]
+
+  # len used outside an assert
+  - |
+    def test_lines():
+        count = len(lines)
+
+invalid:
+  # Length compared to a number
+  - |
+    def test_lines():
+        assert len(lines) == 2
+
+  # Bare length check
+  - |
+    def test_lines():
+        assert len(lines)

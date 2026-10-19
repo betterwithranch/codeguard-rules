@@ -1,0 +1,14 @@
+id: function-with-parameters
+language: python
+rule:
+  kind: function_definition
+  has:
+    field: parameters
+    has:
+      any:
+      - kind: identifier
+      - kind: typed_parameter
+      - kind: default_parameter
+      - kind: typed_default_parameter
+      not:
+        regex: ^(self|cls)$

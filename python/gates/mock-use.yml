@@ -1,0 +1,10 @@
+id: mock-use
+language: python
+rule:
+  any:
+  - kind: call
+    has:
+      field: function
+      regex: (^|\.)(Mock|MagicMock|AsyncMock|create_autospec)$|(^|\.)patch(\.object|\.dict|\.multiple)?$|^monkeypatch\.setattr$|^mocker\.
+  - kind: decorator
+    regex: patch

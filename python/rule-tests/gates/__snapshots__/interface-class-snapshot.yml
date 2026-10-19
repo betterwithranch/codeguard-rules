@@ -1,0 +1,30 @@
+id: interface-class
+snapshots:
+  ? |
+    class Pricer(ABC):
+        pass
+  : labels:
+    - source: |-
+        class Pricer(ABC):
+            pass
+      style: primary
+      start: 0
+      end: 27
+    - source: (ABC)
+      style: secondary
+      start: 12
+      end: 17
+  ? |
+    class Pricer(Protocol):
+        def price(self): ...
+  : labels:
+    - source: |-
+        class Pricer(Protocol):
+            def price(self): ...
+      style: primary
+      start: 0
+      end: 48
+    - source: (Protocol)
+      style: secondary
+      start: 12
+      end: 22

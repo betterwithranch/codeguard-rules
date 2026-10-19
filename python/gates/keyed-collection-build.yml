@@ -1,0 +1,15 @@
+id: keyed-collection-build
+language: python
+rule:
+  any:
+  - kind: assignment
+    has:
+      field: left
+      kind: subscript
+    inside:
+      kind: for_statement
+      stopBy: end
+  - kind: call
+    has:
+      field: function
+      regex: \.setdefault$

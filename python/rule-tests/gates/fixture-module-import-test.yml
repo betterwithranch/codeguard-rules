@@ -1,0 +1,7 @@
+id: fixture-module-import
+valid:
+- |
+  from orders import Order
+invalid:
+- |
+  from tests.fakes import FakeQueue

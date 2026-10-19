@@ -1,0 +1,20 @@
+id: model-mapping
+language: python
+rule:
+  any:
+  - kind: call
+    has:
+      field: function
+      regex: (^|\.)(model_dump|model_dump_json|model_validate|parse_obj|dict|to_dict|from_dict|asdict)$
+  - kind: call
+    all:
+    - has:
+        field: function
+        regex: ^[A-Z]
+    - has:
+        field: arguments
+        has:
+          kind: keyword_argument
+          has:
+            field: value
+            kind: attribute

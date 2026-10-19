@@ -1,0 +1,20 @@
+id: helper-with-parameters
+snapshots:
+  ? |
+    def make_order(lines, **overrides):
+        return Order(lines=lines, **overrides)
+  : labels:
+    - source: |-
+        def make_order(lines, **overrides):
+            return Order(lines=lines, **overrides)
+      style: primary
+      start: 0
+      end: 78
+    - source: lines
+      style: secondary
+      start: 15
+      end: 20
+    - source: lines
+      style: secondary
+      start: 15
+      end: 20

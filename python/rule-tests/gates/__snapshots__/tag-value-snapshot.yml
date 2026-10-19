@@ -1,0 +1,35 @@
+id: tag-value
+snapshots:
+  ? |
+    class Status(StrEnum):
+        SHIPPED = 'shipped'
+  : labels:
+    - source: |-
+        class Status(StrEnum):
+            SHIPPED = 'shipped'
+      style: primary
+      start: 0
+      end: 46
+    - source: (StrEnum)
+      style: secondary
+      start: 12
+      end: 21
+  ? |
+    if status == 'shipped':
+        pass
+  : labels:
+    - source: status == 'shipped'
+      style: primary
+      start: 3
+      end: 22
+    - source: '''shipped'''
+      style: secondary
+      start: 13
+      end: 22
+  ? |
+    kind: Literal['card']
+  : labels:
+    - source: Literal['card']
+      style: primary
+      start: 6
+      end: 21

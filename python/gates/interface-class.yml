@@ -1,0 +1,7 @@
+id: interface-class
+language: python
+rule:
+  kind: class_definition
+  has:
+    field: superclasses
+    regex: \b(Protocol|ABC|ABCMeta)\b

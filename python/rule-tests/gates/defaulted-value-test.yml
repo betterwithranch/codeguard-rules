@@ -1,0 +1,14 @@
+id: defaulted-value
+valid:
+- |
+  def total(order):
+      return order.amount
+invalid:
+- |
+  def total(order=None):
+      return order
+- |
+  key = key or uuid4()
+- |
+  if key is None:
+      key = derive(name)

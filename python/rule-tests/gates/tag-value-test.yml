@@ -1,0 +1,14 @@
+id: tag-value
+valid:
+- |
+  if count > 1:
+      pass
+invalid:
+- |
+  if status == 'shipped':
+      pass
+- |
+  class Status(StrEnum):
+      SHIPPED = 'shipped'
+- |
+  kind: Literal['card']

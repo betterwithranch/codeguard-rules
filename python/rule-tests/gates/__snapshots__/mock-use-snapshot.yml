@@ -1,0 +1,33 @@
+id: mock-use
+snapshots:
+  ? |
+    @patch('a.b')
+    def test_x(b):
+        pass
+  : labels:
+    - source: '@patch(''a.b'')'
+      style: primary
+      start: 0
+      end: 13
+  ? |
+    client = MagicMock()
+  : labels:
+    - source: MagicMock()
+      style: primary
+      start: 9
+      end: 20
+    - source: MagicMock
+      style: secondary
+      start: 9
+      end: 18
+  ? |
+    monkeypatch.setattr(module, 'load', fake)
+  : labels:
+    - source: monkeypatch.setattr(module, 'load', fake)
+      style: primary
+      start: 0
+      end: 41
+    - source: monkeypatch.setattr
+      style: secondary
+      start: 0
+      end: 19

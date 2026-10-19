@@ -1,0 +1,52 @@
+id: multi-method-class
+snapshots:
+  ? |
+    class Order:
+        def tax(self):
+            return 1
+
+        def total(self):
+            return 2
+  : labels:
+    - source: |-
+        class Order:
+            def tax(self):
+                return 1
+
+            def total(self):
+                return 2
+      style: primary
+      start: 0
+      end: 87
+    - source: |-
+        def tax(self):
+                return 1
+      style: secondary
+      start: 17
+      end: 48
+    - source: |-
+        def total(self):
+                return 2
+      style: secondary
+      start: 54
+      end: 87
+    - source: |-
+        def total(self):
+                return 2
+      style: secondary
+      start: 54
+      end: 87
+  ? |
+    def fetch_and_validate(order):
+        return order
+  : labels:
+    - source: |-
+        def fetch_and_validate(order):
+            return order
+      style: primary
+      start: 0
+      end: 47
+    - source: fetch_and_validate
+      style: secondary
+      start: 4
+      end: 22

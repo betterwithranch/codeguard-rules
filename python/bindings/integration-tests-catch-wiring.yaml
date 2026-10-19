@@ -1,2 +1,3 @@
 skill: python/skills/integration-tests-catch-wiring
-paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
+paths: ["**/integration/**/*.py", "**/e2e/**/*.py", "**/test_*integration*.py", "**/test_*e2e*.py"]
+triggers: [test-function]

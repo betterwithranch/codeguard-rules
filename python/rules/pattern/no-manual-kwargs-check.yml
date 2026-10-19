@@ -1,0 +1,17 @@
+id: no-manual-kwargs-check
+language: python
+severity: error
+message: Don't raise TypeError for unexpected keyword arguments by hand.
+note: |
+  Python already raises TypeError for an unknown keyword. Declare typed parameters, or
+  pass `**overrides` untouched to one typed target.
+rule:
+  kind: function_definition
+  all:
+    - has: {field: parameters, has: {kind: dictionary_splat_pattern}}
+    - has:
+        field: body
+        has:
+          stopBy: end
+          kind: raise_statement
+          regex: "TypeError"

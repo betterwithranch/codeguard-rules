@@ -1,2 +1,3 @@
 skill: python/skills/test-has-signal
 paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
+triggers: [test-function]

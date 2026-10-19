@@ -1,0 +1,13 @@
+id: staticmethod
+valid:
+- |
+  class Order:
+      @classmethod
+      def create(cls):
+          return cls()
+invalid:
+- |
+  class Order:
+      @staticmethod
+      def key(line):
+          return line.sku

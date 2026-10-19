@@ -1,0 +1,29 @@
+id: module-constant
+snapshots:
+  ? |
+    ORDER = Order(id=7)
+  : labels:
+    - source: ORDER = Order(id=7)
+      style: primary
+      start: 0
+      end: 19
+    - source: |
+        ORDER = Order(id=7)
+      style: secondary
+      start: 0
+      end: 20
+    - source: ORDER = Order(id=7)
+      style: secondary
+      start: 0
+      end: 19
+    - source: ORDER
+      style: secondary
+      start: 0
+      end: 5
+  ? |
+    from tests.data import ORDER_ID
+  : labels:
+    - source: from tests.data import ORDER_ID
+      style: primary
+      start: 0
+      end: 31

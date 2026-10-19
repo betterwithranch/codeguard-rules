@@ -1,0 +1,25 @@
+id: derived-argument
+snapshots:
+  ? |
+    quote(lines=select(cart, ctx), context=ctx)
+  : labels:
+    - source: (lines=select(cart, ctx), context=ctx)
+      style: primary
+      start: 5
+      end: 43
+    - source: select(cart, ctx)
+      style: secondary
+      start: 12
+      end: 29
+    - source: lines=select(cart, ctx)
+      style: secondary
+      start: 6
+      end: 29
+    - source: ctx
+      style: secondary
+      start: 39
+      end: 42
+    - source: context=ctx
+      style: secondary
+      start: 31
+      end: 42

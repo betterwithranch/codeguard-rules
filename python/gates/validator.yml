@@ -1,0 +1,5 @@
+id: validator
+language: python
+rule:
+  kind: decorator
+  regex: (field_|model_)?validator\b

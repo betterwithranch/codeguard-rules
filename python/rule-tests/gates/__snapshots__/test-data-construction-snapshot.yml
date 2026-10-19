@@ -1,0 +1,28 @@
+id: test-data-construction
+snapshots:
+  ? |
+    line = Line(order_id=uuid4())
+  : labels:
+    - source: uuid4()
+      style: primary
+      start: 21
+      end: 28
+    - source: uuid4
+      style: secondary
+      start: 21
+      end: 26
+  ? |
+    order = Order(lines=[])
+  : labels:
+    - source: (lines=[])
+      style: primary
+      start: 13
+      end: 23
+    - source: '[]'
+      style: secondary
+      start: 20
+      end: 22
+    - source: lines=[]
+      style: secondary
+      start: 14
+      end: 22

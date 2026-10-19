@@ -1,0 +1,16 @@
+id: no-constructed-test-constants
+language: python
+severity: error
+message: Don't build test data in a module-level constant.
+note: |
+  A module-level object is shared by every test in the file, so one test can change
+  another's data. Build it in a fixture. Plain scalars, like a token string, are fine.
+rule:
+  kind: assignment
+  inside: {kind: expression_statement, inside: {kind: module}}
+  all:
+    - has: {field: left, regex: "^[A-Z][A-Z0-9_]+$"}
+    - has:
+        field: right
+        kind: call
+        has: {field: function, regex: "^[A-Z]"}

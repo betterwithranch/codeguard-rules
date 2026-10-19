@@ -1,0 +1,16 @@
+id: returns-a-call
+language: python
+rule:
+  kind: function_definition
+  not:
+    has:
+      field: name
+      regex: ^test
+  has:
+    field: body
+    has:
+      kind: return_statement
+      has:
+        any:
+        - kind: call
+        - kind: attribute

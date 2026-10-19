@@ -1,0 +1,13 @@
+id: field-class
+language: python
+rule:
+  kind: class_definition
+  has:
+    field: body
+    has:
+      kind: expression_statement
+      has:
+        kind: assignment
+        has:
+          field: type
+          kind: type

@@ -1,0 +1,27 @@
+id: guard-check
+snapshots:
+  ? |
+    assert request.payload
+  : labels:
+    - source: assert request.payload
+      style: primary
+      start: 0
+      end: 22
+  ? |
+    if not isinstance(request.payload, Refund):
+        raise TypeError('refund')
+  : labels:
+    - source: |-
+        if not isinstance(request.payload, Refund):
+            raise TypeError('refund')
+      style: primary
+      start: 0
+      end: 73
+    - source: raise TypeError('refund')
+      style: secondary
+      start: 48
+      end: 73
+    - source: raise TypeError('refund')
+      style: secondary
+      start: 48
+      end: 73

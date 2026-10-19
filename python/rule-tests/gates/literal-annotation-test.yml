@@ -1,0 +1,7 @@
+id: literal-annotation
+valid:
+- |
+  kind: str = 'card'
+invalid:
+- |
+  kind: Literal['card'] = 'card'

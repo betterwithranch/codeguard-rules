@@ -1,0 +1,25 @@
+id: defaulted-value
+snapshots:
+  ? |
+    def total(order=None):
+        return order
+  : labels:
+    - source: order=None
+      style: primary
+      start: 10
+      end: 20
+  ? |
+    if key is None:
+        key = derive(name)
+  : labels:
+    - source: key is None
+      style: primary
+      start: 3
+      end: 14
+  ? |
+    key = key or uuid4()
+  : labels:
+    - source: key or uuid4()
+      style: primary
+      start: 6
+      end: 20

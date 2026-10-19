@@ -1,0 +1,18 @@
+id: module-definitions
+valid:
+- |
+  def total():
+      return 1
+- |
+  from a import b
+invalid:
+- |
+  class Order:
+      pass
+- |
+  def total():
+      return 1
+
+
+  def tax():
+      return 2

@@ -1,0 +1,13 @@
+id: mock-use
+valid:
+- |
+  queue = FakeQueue()
+invalid:
+- |
+  client = MagicMock()
+- |
+  monkeypatch.setattr(module, 'load', fake)
+- |
+  @patch('a.b')
+  def test_x(b):
+      pass
