@@ -1,0 +1,140 @@
+id: no-dict-round-trip-between-models
+snapshots:
+  ? |
+    target = ExampleTarget(**asdict(source), total=0)
+  : labels:
+    - source: ExampleTarget(**asdict(source), total=0)
+      style: primary
+      start: 9
+      end: 49
+    - source: ExampleTarget
+      style: secondary
+      start: 9
+      end: 22
+    - source: asdict(source)
+      style: secondary
+      start: 25
+      end: 39
+    - source: '**asdict(source)'
+      style: secondary
+      start: 23
+      end: 39
+    - source: '**asdict(source)'
+      style: secondary
+      start: 23
+      end: 39
+  ? |
+    target = ExampleTarget(**dataclasses.asdict(source))
+  : labels:
+    - source: ExampleTarget(**dataclasses.asdict(source))
+      style: primary
+      start: 9
+      end: 52
+    - source: ExampleTarget
+      style: secondary
+      start: 9
+      end: 22
+    - source: dataclasses.asdict(source)
+      style: secondary
+      start: 25
+      end: 51
+    - source: '**dataclasses.asdict(source)'
+      style: secondary
+      start: 23
+      end: 51
+    - source: '**dataclasses.asdict(source)'
+      style: secondary
+      start: 23
+      end: 51
+  ? |
+    target = ExampleTarget(**source._asdict())
+  : labels:
+    - source: ExampleTarget(**source._asdict())
+      style: primary
+      start: 9
+      end: 42
+    - source: ExampleTarget
+      style: secondary
+      start: 9
+      end: 22
+    - source: source._asdict()
+      style: secondary
+      start: 25
+      end: 41
+    - source: '**source._asdict()'
+      style: secondary
+      start: 23
+      end: 41
+    - source: '**source._asdict()'
+      style: secondary
+      start: 23
+      end: 41
+  ? |
+    target = ExampleTarget.from_dict(asdict(source))
+  : labels:
+    - source: ExampleTarget.from_dict(asdict(source))
+      style: primary
+      start: 9
+      end: 48
+    - source: ExampleTarget
+      style: secondary
+      start: 9
+      end: 22
+    - source: ExampleTarget.from_dict
+      style: secondary
+      start: 9
+      end: 32
+    - source: asdict(source)
+      style: secondary
+      start: 33
+      end: 47
+    - source: asdict(source)
+      style: secondary
+      start: 33
+      end: 47
+  ? |
+    target = ExampleTarget.model_validate(source.model_dump())
+  : labels:
+    - source: ExampleTarget.model_validate(source.model_dump())
+      style: primary
+      start: 9
+      end: 58
+    - source: ExampleTarget
+      style: secondary
+      start: 9
+      end: 22
+    - source: ExampleTarget.model_validate
+      style: secondary
+      start: 9
+      end: 37
+    - source: source.model_dump()
+      style: secondary
+      start: 38
+      end: 57
+    - source: source.model_dump()
+      style: secondary
+      start: 38
+      end: 57
+  ? |
+    target = models.ExampleTarget(**source.model_dump(exclude={"id"}))
+  : labels:
+    - source: models.ExampleTarget(**source.model_dump(exclude={"id"}))
+      style: primary
+      start: 9
+      end: 66
+    - source: models.ExampleTarget
+      style: secondary
+      start: 9
+      end: 29
+    - source: source.model_dump(exclude={"id"})
+      style: secondary
+      start: 32
+      end: 65
+    - source: '**source.model_dump(exclude={"id"})'
+      style: secondary
+      start: 30
+      end: 65
+    - source: '**source.model_dump(exclude={"id"})'
+      style: secondary
+      start: 30
+      end: 65

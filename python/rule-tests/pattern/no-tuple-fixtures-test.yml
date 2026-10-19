@@ -1,0 +1,83 @@
+id: no-tuple-fixtures
+valid:
+  # Fixture that returns one object
+  - |
+    @pytest.fixture
+    def example_model():
+        return ExampleModel()
+
+  # Fixture that yields one object
+  - |
+    @pytest.fixture
+    def example_model():
+        model = ExampleModel()
+        yield model
+        model.close()
+
+  # Parenthesized single value
+  - |
+    @pytest.fixture
+    def example_model():
+        return (ExampleModel())
+
+  # Tuple returned by a function nested inside a fixture
+  - |
+    @pytest.fixture
+    def make_pair():
+        def make():
+            return ExampleModel(), ExampleRecord()
+        return make
+
+  # Helper that is not a fixture
+  - |
+    def example_pair():
+        return ExampleModel(), ExampleRecord()
+
+  # Fixture annotated with a single type
+  - |
+    @pytest.fixture
+    def example_model() -> ExampleModel:
+        return ExampleModel()
+
+  # Fixture whose parameter, not its return, is annotated as a tuple
+  - |
+    @pytest.fixture
+    def example_model(example_pair: tuple[int, int]) -> ExampleModel:
+        return ExampleModel(example_pair)
+
+  # Fixture annotated with a type whose name starts with "tuple"
+  - |
+    @pytest.fixture
+    def example_model() -> TupleStore:
+        return TupleStore()
+
+invalid:
+  # Unparenthesized tuple returned
+  - |
+    @pytest.fixture
+    def example_pair():
+        return ExampleModel(), ExampleRecord()
+
+  # Parenthesized tuple returned
+  - |
+    @pytest.fixture(scope="module")
+    def example_pair():
+        return (ExampleModel(), ExampleRecord())
+
+  # Tuple yielded
+  - |
+    @fixture
+    def example_pair():
+        yield ExampleModel(), ExampleRecord()
+
+  # Return annotation is a tuple
+  - |
+    @pytest.fixture
+    def example_pair(example_store) -> tuple[ExampleModel, ExampleRecord]:
+        return example_store.pair()
+
+  # Return annotation is an iterator of tuples
+  - |
+    @pytest.fixture
+    def example_pair(example_store) -> Iterator[tuple[ExampleModel, ExampleRecord]]:
+        yield example_store.pair()

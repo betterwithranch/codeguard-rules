@@ -1,0 +1,17 @@
+id: all-only-in-init
+language: python
+severity: error
+message: Define `__all__` only in a package's `__init__.py`.
+note: |
+  Only a package `__init__.py` or a `.pyi` stub may define `__all__`. Mark a private
+  name with a leading underscore instead.
+ignores:
+  - "**/__init__.py"
+  - "**/*.pyi"
+rule:
+  any:
+    - kind: assignment
+    - kind: augmented_assignment
+  has:
+    field: left
+    regex: ^__all__$

@@ -1,0 +1,33 @@
+id: typed-dispatch-registries
+language: python
+severity: error
+message: Take a registry class, not a `dict[str, Callable]`.
+note: |
+  Wrap the mapping in a named registry class with a `resolve` method, and take the
+  registry instead.
+utils:
+  callable-mapping:
+    kind: type
+    regex: ^(dict|Dict|Mapping|MutableMapping)\[\s*str\s*,\s*(typing\.|collections\.abc\.)?Callable
+rule:
+  matches: callable-mapping
+  any:
+    - inside:
+        any:
+          - kind: typed_parameter
+          - kind: typed_default_parameter
+        inside:
+          kind: function_definition
+          regex: ^def\s+__init__\b
+          stopBy: end
+          inside:
+            kind: class_definition
+            stopBy: end
+    - inside:
+        kind: assignment
+        inside:
+          kind: expression_statement
+          inside:
+            kind: block
+            inside:
+              kind: class_definition

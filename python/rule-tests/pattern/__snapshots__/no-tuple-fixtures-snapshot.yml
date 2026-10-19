@@ -1,0 +1,156 @@
+id: no-tuple-fixtures
+snapshots:
+  ? |
+    @fixture
+    def example_pair():
+        yield ExampleModel(), ExampleRecord()
+  : labels:
+    - source: yield ExampleModel(), ExampleRecord()
+      style: primary
+      start: 33
+      end: 70
+    - source: ExampleModel(), ExampleRecord()
+      style: secondary
+      start: 39
+      end: 70
+    - source: '@fixture'
+      style: secondary
+      start: 0
+      end: 8
+    - source: |-
+        @fixture
+        def example_pair():
+            yield ExampleModel(), ExampleRecord()
+      style: secondary
+      start: 0
+      end: 70
+    - source: |-
+        def example_pair():
+            yield ExampleModel(), ExampleRecord()
+      style: secondary
+      start: 9
+      end: 70
+  ? |
+    @pytest.fixture
+    def example_pair():
+        return ExampleModel(), ExampleRecord()
+  : labels:
+    - source: return ExampleModel(), ExampleRecord()
+      style: primary
+      start: 40
+      end: 78
+    - source: ExampleModel(), ExampleRecord()
+      style: secondary
+      start: 47
+      end: 78
+    - source: '@pytest.fixture'
+      style: secondary
+      start: 0
+      end: 15
+    - source: |-
+        @pytest.fixture
+        def example_pair():
+            return ExampleModel(), ExampleRecord()
+      style: secondary
+      start: 0
+      end: 78
+    - source: |-
+        def example_pair():
+            return ExampleModel(), ExampleRecord()
+      style: secondary
+      start: 16
+      end: 78
+  ? |
+    @pytest.fixture
+    def example_pair(example_store) -> Iterator[tuple[ExampleModel, ExampleRecord]]:
+        yield example_store.pair()
+  : labels:
+    - source: Iterator[tuple[ExampleModel, ExampleRecord]]
+      style: primary
+      start: 51
+      end: 95
+    - source: |-
+        def example_pair(example_store) -> Iterator[tuple[ExampleModel, ExampleRecord]]:
+            yield example_store.pair()
+      style: secondary
+      start: 16
+      end: 127
+    - source: '@pytest.fixture'
+      style: secondary
+      start: 0
+      end: 15
+    - source: |-
+        @pytest.fixture
+        def example_pair(example_store) -> Iterator[tuple[ExampleModel, ExampleRecord]]:
+            yield example_store.pair()
+      style: secondary
+      start: 0
+      end: 127
+    - source: |-
+        def example_pair(example_store) -> Iterator[tuple[ExampleModel, ExampleRecord]]:
+            yield example_store.pair()
+      style: secondary
+      start: 16
+      end: 127
+  ? |
+    @pytest.fixture
+    def example_pair(example_store) -> tuple[ExampleModel, ExampleRecord]:
+        return example_store.pair()
+  : labels:
+    - source: tuple[ExampleModel, ExampleRecord]
+      style: primary
+      start: 51
+      end: 85
+    - source: |-
+        def example_pair(example_store) -> tuple[ExampleModel, ExampleRecord]:
+            return example_store.pair()
+      style: secondary
+      start: 16
+      end: 118
+    - source: '@pytest.fixture'
+      style: secondary
+      start: 0
+      end: 15
+    - source: |-
+        @pytest.fixture
+        def example_pair(example_store) -> tuple[ExampleModel, ExampleRecord]:
+            return example_store.pair()
+      style: secondary
+      start: 0
+      end: 118
+    - source: |-
+        def example_pair(example_store) -> tuple[ExampleModel, ExampleRecord]:
+            return example_store.pair()
+      style: secondary
+      start: 16
+      end: 118
+  ? |
+    @pytest.fixture(scope="module")
+    def example_pair():
+        return (ExampleModel(), ExampleRecord())
+  : labels:
+    - source: return (ExampleModel(), ExampleRecord())
+      style: primary
+      start: 56
+      end: 96
+    - source: (ExampleModel(), ExampleRecord())
+      style: secondary
+      start: 63
+      end: 96
+    - source: '@pytest.fixture(scope="module")'
+      style: secondary
+      start: 0
+      end: 31
+    - source: |-
+        @pytest.fixture(scope="module")
+        def example_pair():
+            return (ExampleModel(), ExampleRecord())
+      style: secondary
+      start: 0
+      end: 96
+    - source: |-
+        def example_pair():
+            return (ExampleModel(), ExampleRecord())
+      style: secondary
+      start: 32
+      end: 96

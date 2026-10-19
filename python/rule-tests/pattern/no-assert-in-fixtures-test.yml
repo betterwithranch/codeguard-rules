@@ -1,0 +1,75 @@
+id: no-assert-in-fixtures
+valid:
+  # Assertion in the test body
+  - |
+    def test_example_model_is_active(example_model):
+        assert example_model.active
+
+  # Fixture that only builds its value
+  - |
+    @pytest.fixture
+    def example_model():
+        return ExampleModel(active=True)
+
+  # Assertion in a helper that is not a fixture
+  - |
+    def assert_active(example_model):
+        assert example_model.active
+
+  # Assertion in a function nested inside a fixture
+  - |
+    @pytest.fixture
+    def check_example_model():
+        def check(example_model):
+            assert example_model.active
+        return check
+
+  # Decorator whose name only contains "fixture"
+  - |
+    @fixture_factory
+    def example_model():
+        assert ready()
+        return ExampleModel()
+
+invalid:
+  # Assertion in a bare pytest.fixture
+  - |
+    @pytest.fixture
+    def example_model():
+        model = ExampleModel()
+        assert model.active
+        return model
+
+  # Assertion in a fixture with arguments
+  - |
+    @pytest.fixture(scope="module")
+    def example_model():
+        model = ExampleModel()
+        assert model.active
+        return model
+
+  # Assertion in a yield fixture imported as fixture
+  - |
+    @fixture
+    def example_model():
+        model = ExampleModel()
+        yield model
+        assert model.closed
+
+  # Assertion in a pytest_asyncio fixture
+  - |
+    @pytest_asyncio.fixture
+    async def example_model():
+        model = await ExampleModel.create()
+        assert model.active
+        return model
+
+  # Assertion nested in a block of a fixture method
+  - |
+    class TestExampleModel:
+        @pytest.fixture
+        def example_model(self):
+            model = ExampleModel()
+            if model.active:
+                assert model.ready
+            return model

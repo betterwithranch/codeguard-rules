@@ -1,0 +1,199 @@
+id: no-append-in-every-branch
+snapshots:
+  ? |
+    async def collect(items):
+        results = []
+        async for item in items:
+            if item.active:
+                results.append(item.name)
+            else:
+                results.append(item.id)
+        return results
+  : labels:
+    - source: |-
+        async for item in items:
+                if item.active:
+                    results.append(item.name)
+                else:
+                    results.append(item.id)
+      style: primary
+      start: 47
+      end: 183
+    - source: results.append(item.name)
+      style: secondary
+      start: 108
+      end: 133
+    - source: results.append(item.name)
+      style: secondary
+      start: 108
+      end: 133
+    - source: results.append(item.name)
+      style: secondary
+      start: 108
+      end: 133
+    - source: results.append(item.id)
+      style: secondary
+      start: 160
+      end: 183
+    - source: results.append(item.id)
+      style: secondary
+      start: 160
+      end: 183
+    - source: results.append(item.id)
+      style: secondary
+      start: 160
+      end: 183
+    - source: |-
+        else:
+                    results.append(item.id)
+      style: secondary
+      start: 142
+      end: 183
+    - source: |-
+        if item.active:
+                    results.append(item.name)
+                else:
+                    results.append(item.id)
+      style: secondary
+      start: 80
+      end: 183
+    - source: |-
+        if item.active:
+                    results.append(item.name)
+                else:
+                    results.append(item.id)
+      style: secondary
+      start: 80
+      end: 183
+  ? |
+    for item in items:
+        if item.active:
+            results.append(item.name)
+        elif item.pending:
+            results.append(item.label)
+        else:
+            results.append(item.id)
+  : labels:
+    - source: |-
+        for item in items:
+            if item.active:
+                results.append(item.name)
+            elif item.pending:
+                results.append(item.label)
+            else:
+                results.append(item.id)
+      style: primary
+      start: 0
+      end: 172
+    - source: results.append(item.name)
+      style: secondary
+      start: 47
+      end: 72
+    - source: results.append(item.name)
+      style: secondary
+      start: 47
+      end: 72
+    - source: results.append(item.name)
+      style: secondary
+      start: 47
+      end: 72
+    - source: results.append(item.id)
+      style: secondary
+      start: 149
+      end: 172
+    - source: results.append(item.id)
+      style: secondary
+      start: 149
+      end: 172
+    - source: results.append(item.id)
+      style: secondary
+      start: 149
+      end: 172
+    - source: |-
+        else:
+                results.append(item.id)
+      style: secondary
+      start: 135
+      end: 172
+    - source: |-
+        if item.active:
+                results.append(item.name)
+            elif item.pending:
+                results.append(item.label)
+            else:
+                results.append(item.id)
+      style: secondary
+      start: 23
+      end: 172
+    - source: |-
+        if item.active:
+                results.append(item.name)
+            elif item.pending:
+                results.append(item.label)
+            else:
+                results.append(item.id)
+      style: secondary
+      start: 23
+      end: 172
+  ? |
+    for item in items:
+        if item.active:
+            results.append(item.name)
+        else:
+            results.append(item.id)
+  : labels:
+    - source: |-
+        for item in items:
+            if item.active:
+                results.append(item.name)
+            else:
+                results.append(item.id)
+      style: primary
+      start: 0
+      end: 114
+    - source: results.append(item.name)
+      style: secondary
+      start: 47
+      end: 72
+    - source: results.append(item.name)
+      style: secondary
+      start: 47
+      end: 72
+    - source: results.append(item.name)
+      style: secondary
+      start: 47
+      end: 72
+    - source: results.append(item.id)
+      style: secondary
+      start: 91
+      end: 114
+    - source: results.append(item.id)
+      style: secondary
+      start: 91
+      end: 114
+    - source: results.append(item.id)
+      style: secondary
+      start: 91
+      end: 114
+    - source: |-
+        else:
+                results.append(item.id)
+      style: secondary
+      start: 77
+      end: 114
+    - source: |-
+        if item.active:
+                results.append(item.name)
+            else:
+                results.append(item.id)
+      style: secondary
+      start: 23
+      end: 114
+    - source: |-
+        if item.active:
+                results.append(item.name)
+            else:
+                results.append(item.id)
+      style: secondary
+      start: 23
+      end: 114

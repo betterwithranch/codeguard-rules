@@ -1,0 +1,76 @@
+id: no-assert-on-lookup-field
+valid:
+  # Set of keys present
+  - |
+    def test_skus():
+        assert {i.sku for i in result.items} == {"A1", "B2"}
+
+  # Found by one field, asserts a different one
+  - |
+    def test_qty():
+        assert next(i for i in result.items if i.sku == "A1").qty == 2
+
+  # Found item in a variable, asserts a different field
+  - |
+    def test_qty():
+        line = next(i for i in result.items if i.sku == "A1")
+        assert line.qty == 2
+
+  # Same field asserted on a different value
+  - |
+    def test_sku():
+        line = next(i for i in result.items if i.sku == "A1")
+        assert other.sku == "A1"
+
+  # Lookup field read outside an assert
+  - |
+    def test_sku():
+        line = next(i for i in result.items if i.sku == "A1")
+        print(line.sku)
+
+  # Found by a comparison other than equality
+  - |
+    def test_qty():
+        assert next(i for i in result.items if i.qty > 1).qty == 2
+
+invalid:
+  # next() over a generator
+  - |
+    def test_sku():
+        assert next(i for i in result.items if i.sku == "A1").sku == "A1"
+
+  # next() over a generator, value on the left of the condition
+  - |
+    def test_sku():
+        assert next(i for i in result.items if "A1" == i.sku).sku == "A1"
+
+  # next() with a default
+  - |
+    def test_sku():
+        assert next((i for i in result.items if i.sku == "A1"), None).sku == "A1"
+
+  # next() with a default, value on the left of the condition
+  - |
+    def test_sku():
+        assert next((i for i in result.items if "A1" == i.sku), None).sku == "A1"
+
+  # Indexed list comprehension
+  - |
+    def test_sku():
+        assert [i for i in result.items if i.sku == "A1"][0].sku == "A1"
+
+  # Indexed list comprehension, value on the left of the condition
+  - |
+    def test_sku():
+        assert [i for i in result.items if "A1" == i.sku][0].sku == "A1"
+
+  # Lookup on the right of the assert
+  - |
+    def test_sku():
+        assert "A1" == next(i for i in result.items if i.sku == "A1").sku
+
+  # Found item assigned to a variable first
+  - |
+    def test_sku():
+        line = next(i for i in result.items if i.sku == "A1")
+        assert line.sku == "A1"

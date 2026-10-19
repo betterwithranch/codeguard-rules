@@ -1,0 +1,44 @@
+id: no-sleep-in-async-tests
+snapshots:
+  ? |
+    async def test_example_completes():
+        await asyncio.sleep(0.1)
+  : labels:
+    - source: asyncio.sleep(0.1)
+      style: primary
+      start: 46
+      end: 64
+    - source: |-
+        async def test_example_completes():
+            await asyncio.sleep(0.1)
+      style: secondary
+      start: 0
+      end: 64
+  ? |
+    async def test_example_completes():
+        await sleep(0.1)
+  : labels:
+    - source: sleep(0.1)
+      style: primary
+      start: 46
+      end: 56
+    - source: |-
+        async def test_example_completes():
+            await sleep(0.1)
+      style: secondary
+      start: 0
+      end: 56
+  ? |
+    async def test_example_completes():
+        time.sleep(0.1)
+  : labels:
+    - source: time.sleep(0.1)
+      style: primary
+      start: 40
+      end: 55
+    - source: |-
+        async def test_example_completes():
+            time.sleep(0.1)
+      style: secondary
+      start: 0
+      end: 55

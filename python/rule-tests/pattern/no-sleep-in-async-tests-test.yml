@@ -1,0 +1,32 @@
+id: no-sleep-in-async-tests
+valid:
+  # Async test waits on an event
+  - |
+    async def test_example_completes(event):
+        await event.wait()
+
+  # Sync test may sleep
+  - |
+    def test_example_completes():
+        time.sleep(0.1)
+
+  # Async helper that is not a test
+  - |
+    async def poll_example():
+        await asyncio.sleep(0.1)
+
+invalid:
+  # asyncio.sleep in an async test
+  - |
+    async def test_example_completes():
+        await asyncio.sleep(0.1)
+
+  # time.sleep in an async test
+  - |
+    async def test_example_completes():
+        time.sleep(0.1)
+
+  # Imported sleep in an async test
+  - |
+    async def test_example_completes():
+        await sleep(0.1)

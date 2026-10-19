@@ -1,0 +1,18 @@
+id: no-assert-in-fixtures
+language: python
+severity: error
+message: Don't assert inside a fixture.
+note: |
+  A fixture supplies a thing; the test body holds the assertions. Move the `assert`
+  into the tests that use the fixture.
+rule:
+  kind: assert_statement
+  inside:
+    kind: function_definition
+    stopBy:
+      kind: function_definition
+    inside:
+      kind: decorated_definition
+      has:
+        kind: decorator
+        regex: ^@(pytest\.|pytest_asyncio\.)?fixture\b

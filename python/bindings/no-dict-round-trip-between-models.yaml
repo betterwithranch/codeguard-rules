@@ -1,0 +1,3 @@
+rule: no-dict-round-trip-between-models
+paths: ["**/*.py"]
+exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]

@@ -1,0 +1,18 @@
+id: no-bucket-module-names
+language: python
+severity: error
+message: Don't name a module `utils`, `helpers`, `common`, `shared`, or `contracts`.
+note: |
+  A bucket name invites unrelated code. Name the module after its domain purpose or its
+  primary type, and move each unrelated concept to its own module.
+files:
+  - "**/utils.py"
+  - "**/helpers.py"
+  - "**/common.py"
+  - "**/shared.py"
+  - "**/_utils.py"
+  - "**/_helpers.py"
+  - "**/contracts.py"
+  - "**/contracts/**/*.py"
+rule:
+  kind: module

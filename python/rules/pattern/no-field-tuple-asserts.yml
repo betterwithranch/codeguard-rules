@@ -1,0 +1,14 @@
+id: no-field-tuple-asserts
+language: python
+severity: error
+message: Don't assert a tuple of one value's fields.
+note: |
+  A tuple of fields drops the field names, so a failure shows positions instead of
+  fields. Compare the whole object (`assert result == ExampleModel(name="a", total=1)`).
+  If the type has no usable `__eq__`, assert each field on its own line.
+rule:
+  any:
+    - pattern: assert ($A.$F, $A.$G) == $_
+    - pattern: assert ($A.$F, $A.$G, $$$) == $_
+    - pattern: assert $_ == ($A.$F, $A.$G)
+    - pattern: assert $_ == ($A.$F, $A.$G, $$$)

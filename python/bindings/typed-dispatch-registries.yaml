@@ -1,2 +1,3 @@
-skill: python/skills/typed-dispatch-registries
+rule: typed-dispatch-registries
 paths: ["**/*.py"]
+exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]

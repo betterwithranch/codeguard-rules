@@ -4,7 +4,8 @@ Rulesets for [codeguard](https://github.com/betterwithranch/codeguard). Each rul
 directory a project opts into from its `.codeguard/config.yaml`. The rules supplement a
 linter; they don't repeat one. A Python project should run
 [ruff](https://docs.astral.sh/ruff/) for what it covers, such as `print` (T201), imports
-inside functions (PLC0415), `getattr` with a literal (B009) and `TYPE_CHECKING` (TID251).
+inside functions (PLC0415), `getattr` with a literal (B009) and `TYPE_CHECKING` (TID251),
+and [basedpyright](https://docs.basedpyright.com) with `reportExplicitAny` for `Any`.
 
 ## Rulesets
 
@@ -13,17 +14,31 @@ inside functions (PLC0415), `getattr` with a literal (B009) and `TYPE_CHECKING` 
 Rules for any Python project. No framework rules. Each rule checks one thing, so a
 project can exclude any of them.
 
-Pattern rule (ast-grep):
+Pattern rules (ast-grep). Rules about tests run only on test files; rules about app
+code skip test files:
 
 | Rule | Checks |
 |---|---|
+| `all-only-in-init` | `__all__` only in `__init__.py` or a `.pyi` stub |
+| `no-assert-in-fixtures` | No `assert` inside a pytest fixture |
+| `no-append-in-every-branch` | No loop `if`/`else` that appends to the same list in every branch |
+| `no-assert-on-lookup-field` | Don't assert the field used to find an item |
+| `no-bucket-module-names` | No `utils`, `helpers`, `common`, `shared`, or `contracts` modules |
+| `no-comments-in-tests` | No comments in test files, except tool directives |
+| `no-default-constructor-fixtures` | No fixture or test helper that only returns `SomeClass()` |
 | `no-del-param` | No `del` of a parameter to mark it unused. Prefix it with `_`. |
+| `no-dict-round-trip-between-models` | No `asdict`/`model_dump` round-trip from one model into another |
+| `no-field-tuple-asserts` | Don't assert a tuple of one value's fields; compare the whole object |
+| `no-pop-from-kwargs` | No `.pop()` from a `**kwargs` parameter in test code |
+| `no-sleep-in-async-tests` | No `sleep` in an `async def test_…`; wait on an event |
+| `no-tuple-fixtures` | A pytest fixture returns or yields one object, never a tuple |
+| `typed-dispatch-registries` | A class takes a registry, not a `dict[str, Callable]` |
 
-Judge rules on every `.py` file (Claude reads each changed file against the rule's skill):
+Judge rules on every `.py` file except test files (Claude reads each changed file
+against the rule's skill). `comments-and-docstrings` also runs on test files.
 
 | Rule | Checks |
 |---|---|
-| `all-only-in-init` | `__all__` only in `__init__.py` |
 | `behavior-on-data-owner` | Behavior lives on the type whose data it reads |
 | `comments-and-docstrings` | Comments and docstrings only where no structure or name can hold the reason |
 | `constructor-dependencies` | Constructor state over repeated arguments |
@@ -36,7 +51,6 @@ Judge rules on every `.py` file (Claude reads each changed file against the rule
 | `names-match-behavior` | Names match what the code does |
 | `narrow-collaborator-params` | Pass only what a collaborator needs |
 | `no-anonymous-tuples` | No anonymous tuples or dicts for concepts |
-| `no-any` | No `Any` unless the type can't be known |
 | `no-branch-and-accumulate` | No branch-and-accumulate loops |
 | `no-dead-code` | No dead code |
 | `no-duplicate-logic` | No duplicate logic |
@@ -59,7 +73,6 @@ Judge rules on every `.py` file (Claude reads each changed file against the rule
 | `trust-established-invariants` | Trust established invariants |
 | `type-args-in-init-subclass` | Read type arguments in `__init_subclass__` |
 | `type-name-suffixes` | Standard type-name suffixes |
-| `typed-dispatch-registries` | Typed registries for dispatch |
 | `types-live-with-producer` | Types live with their producer |
 | `types-model-domain-concepts` | Types model real domain concepts |
 | `typevar-bound-by-class` | Every TypeVar in an annotation is bound by the class |
@@ -81,7 +94,6 @@ Judge rules on test files (`test_*.py`, `*_test.py`, `tests/**`, `conftest.py`):
 | `integration-tests-catch-wiring` | Integration tests catch a wiring bug |
 | `mock-only-at-boundary` | Mock only at the process boundary |
 | `no-normalized-results` | Do not normalize the result before asserting |
-| `no-sleep-in-async-tests` | Wait on events, not sleeps, in async tests |
 | `no-wrapper-fixtures` | No wrapper or projection fixtures |
 | `real-test-data` | Use real data, real parents, and real ids |
 | `reuse-test-helpers` | Reuse shared fakes and helpers |
@@ -91,7 +103,8 @@ Judge rules on test files (`test_*.py`, `*_test.py`, `tests/**`, `conftest.py`):
 | `test-names-match-assertions` | Test names match assertions and vocabulary |
 
 Each judge rule makes one Claude call per changed file it matches, so exclude the rules a
-project doesn't want rather than paying for them.
+project doesn't want rather than paying for them. A rule ast-grep can check is a pattern
+rule, never a judge rule.
 
 ## Use a ruleset
 
@@ -103,7 +116,7 @@ packages:
     ref: v0.2.0
     rulesets:
       python:
-        exclude: [no-del-param, no-any]
+        exclude: [no-del-param, no-dead-code]
         rules:
           no-dead-code:
             paths: ["src/**/*.py"]
@@ -111,7 +124,8 @@ packages:
 ```
 
 - `exclude` turns rules off.
-- `rules.<id>` overrides `paths` or `severity`, and `model` on a judge rule.
+- `rules.<id>` overrides `paths`, `exclude_paths` or `severity`, and `model` on a judge
+  rule. `exclude_paths: []` brings test files back into an app rule.
 - `codeguard update` moves `ref` to the newest tag.
 
 Diagnostics name a rule by package, ruleset and id: `betterwithranch/python/no-del-param`.
@@ -127,7 +141,7 @@ python/
   rules/pattern/<id>.yml               # ast-grep rules
   rule-tests/pattern/<id>-test.yml     # their tests and __snapshots__/
   skills/<id>/SKILL.md                 # judge rules
-  bindings/<id>.yaml                   # skill path (from the repo root) and default paths
+  bindings/<id>.yaml                   # a skill or pattern rule and its default paths
   rule-evals/<id>-eval.yml             # judge rule evals
   rule-evals/<id>/                     # their case files
 ```

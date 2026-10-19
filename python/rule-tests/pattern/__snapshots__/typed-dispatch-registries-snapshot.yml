@@ -1,0 +1,80 @@
+id: typed-dispatch-registries
+snapshots:
+  ? |
+    class ExampleDispatcher:
+        def __init__(self, handlers: Mapping[str, Callable] = {}):
+            self._handlers = handlers
+  : labels:
+    - source: Mapping[str, Callable]
+      style: primary
+      start: 58
+      end: 80
+    - source: |-
+        class ExampleDispatcher:
+            def __init__(self, handlers: Mapping[str, Callable] = {}):
+                self._handlers = handlers
+      style: secondary
+      start: 0
+      end: 121
+    - source: |-
+        def __init__(self, handlers: Mapping[str, Callable] = {}):
+                self._handlers = handlers
+      style: secondary
+      start: 29
+      end: 121
+    - source: 'handlers: Mapping[str, Callable] = {}'
+      style: secondary
+      start: 48
+      end: 85
+  ? |
+    class ExampleDispatcher:
+        def __init__(self, handlers: dict[str, Callable[[int], None]]):
+            self._handlers = handlers
+  : labels:
+    - source: dict[str, Callable[[int], None]]
+      style: primary
+      start: 58
+      end: 90
+    - source: |-
+        class ExampleDispatcher:
+            def __init__(self, handlers: dict[str, Callable[[int], None]]):
+                self._handlers = handlers
+      style: secondary
+      start: 0
+      end: 126
+    - source: |-
+        def __init__(self, handlers: dict[str, Callable[[int], None]]):
+                self._handlers = handlers
+      style: secondary
+      start: 29
+      end: 126
+    - source: 'handlers: dict[str, Callable[[int], None]]'
+      style: secondary
+      start: 48
+      end: 90
+  ? |
+    class ExampleRouter:
+        routes: dict[str, Callable[[int], None]]
+  : labels:
+    - source: dict[str, Callable[[int], None]]
+      style: primary
+      start: 33
+      end: 65
+    - source: |-
+        class ExampleRouter:
+            routes: dict[str, Callable[[int], None]]
+      style: secondary
+      start: 0
+      end: 65
+    - source: 'routes: dict[str, Callable[[int], None]]'
+      style: secondary
+      start: 25
+      end: 65
+    - source: 'routes: dict[str, Callable[[int], None]]'
+      style: secondary
+      start: 25
+      end: 65
+    - source: 'routes: dict[str, Callable[[int], None]]'
+      style: secondary
+      start: 25
+      end: 65

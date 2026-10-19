@@ -1,0 +1,42 @@
+id: no-pop-from-kwargs
+valid:
+  # Typed parameters with kwargs passed untouched
+  - |
+    def make_example_model(name: str, **overrides):
+        return ExampleModel(name=name, **overrides)
+
+  # pop on a local list
+  - |
+    def make_example_model(**overrides):
+        names = ["a", "b"]
+        names.pop()
+        return ExampleModel(**overrides)
+
+  # pop on a regular dict parameter
+  - |
+    def make_example_model(fields: dict):
+        name = fields.pop("name")
+        return ExampleModel(name=name)
+
+invalid:
+  # pop from **kwargs
+  - |
+    def make_example_model(**kwargs):
+        name = kwargs.pop("name", "default")
+        return ExampleModel(name=name, **kwargs)
+
+  # pop from **overrides in a method
+  - |
+    class ExampleFactory:
+        def build(self, **overrides):
+            active = overrides.pop("active")
+            return ExampleModel(active=active, **overrides)
+
+  # pop from **kwargs in a fixture
+  - |
+    @pytest.fixture
+    def make_example_model():
+        def make(**kwargs):
+            kwargs.pop("name")
+            return ExampleModel(**kwargs)
+        return make

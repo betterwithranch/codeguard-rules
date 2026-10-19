@@ -1,0 +1,21 @@
+id: no-pop-from-kwargs
+language: python
+severity: error
+message: Don't pop keys out of a `**kwargs` parameter in test code.
+note: |
+  Popping keys out of `**kwargs` hides the helper's real parameters. Declare each one as
+  a typed parameter, and pass any remaining `**kwargs` untouched to one typed target.
+rule:
+  pattern: $KWARGS.pop($$$)
+  inside:
+    kind: function_definition
+    stopBy: end
+    has:
+      field: parameters
+      has:
+        kind: dictionary_splat_pattern
+        has:
+          pattern: $KWARGS
+constraints:
+  KWARGS:
+    kind: identifier

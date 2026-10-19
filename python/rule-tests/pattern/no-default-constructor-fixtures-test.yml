@@ -1,0 +1,62 @@
+id: no-default-constructor-fixtures
+valid:
+  # Fixture that passes configuration
+  - |
+    @pytest.fixture
+    def example_model():
+        return ExampleModel(active=True)
+
+  # Fixture with scope set in the decorator
+  - |
+    @pytest.fixture(scope="session")
+    def example_client():
+        return ExampleClient()
+
+  # Fixture that does more than construct
+  - |
+    @pytest.fixture
+    def example_model():
+        model = ExampleModel()
+        model.start()
+        return model
+
+  # Test function returning a constructor call
+  - |
+    def test_example_model():
+        return ExampleModel()
+
+  # Method on a fake class
+  - |
+    class FakeExampleClock:
+        def now(self):
+            return ExampleTime()
+
+  # Helper that passes an argument
+  - |
+    def make_example_model(name):
+        return ExampleModel(name)
+
+invalid:
+  # Bare fixture returning a no-argument constructor call
+  - |
+    @pytest.fixture
+    def example_model():
+        return ExampleModel()
+
+  # Fixture with empty call parentheses and a docstring
+  - |
+    @pytest.fixture()
+    def example_model():
+        """An example model."""
+        return ExampleModel()
+
+  # Fixture that requests another fixture and ignores it
+  - |
+    @pytest.fixture
+    def example_repository(example_database):
+        return ExampleRepository()
+
+  # Module-level helper returning a no-argument factory call
+  - |
+    def make_example_model():
+        return factories.example_model()

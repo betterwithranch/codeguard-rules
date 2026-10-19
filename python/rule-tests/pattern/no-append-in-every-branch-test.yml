@@ -1,0 +1,113 @@
+id: no-append-in-every-branch
+valid:
+  # Comprehension over a per-item function
+  - |
+    results = [example_result(item) for item in items]
+
+  # Single filtering guard
+  - |
+    for item in items:
+        if item.active:
+            results.append(item)
+
+  # if/elif without else filters items
+  - |
+    for item in items:
+        if item.active:
+            results.append(item.name)
+        elif item.pending:
+            results.append(item.id)
+
+  # Branches append to different lists
+  - |
+    for item in items:
+        if item.active:
+            active.append(item)
+        else:
+            inactive.append(item)
+
+  # An elif branch appends to a different list
+  - |
+    for item in items:
+        if item.active:
+            results.append(item.name)
+        elif item.pending:
+            pending.append(item)
+        else:
+            results.append(item.id)
+
+  # Running total read from the list itself
+  - |
+    for item in items:
+        if results:
+            results.append(results[-1] + item)
+        else:
+            results.append(item)
+
+  # Cross-item state updated in a branch
+  - |
+    for item in items:
+        if item.id in seen:
+            results.append(None)
+        else:
+            seen.add(item.id)
+            results.append(item)
+
+  # Loop body has a statement besides the if
+  - |
+    for item in items:
+        total += item.size
+        if item.active:
+            results.append(item.name)
+        else:
+            results.append(item.id)
+
+  # An elif branch does more than append
+  - |
+    for item in items:
+        if item.active:
+            results.append(item.name)
+        elif item.pending:
+            log(item)
+        else:
+            results.append(item.id)
+
+  # for/else
+  - |
+    for item in items:
+        if item.active:
+            results.append(item.name)
+        else:
+            results.append(item.id)
+    else:
+        results.append(None)
+
+invalid:
+  # if/else
+  - |
+    for item in items:
+        if item.active:
+            results.append(item.name)
+        else:
+            results.append(item.id)
+
+  # if/elif/else
+  - |
+    for item in items:
+        if item.active:
+            results.append(item.name)
+        elif item.pending:
+            results.append(item.label)
+        else:
+            results.append(item.id)
+
+  # async for
+  - |
+    async def collect(items):
+        results = []
+        async for item in items:
+            if item.active:
+                results.append(item.name)
+            else:
+                results.append(item.id)
+        return results

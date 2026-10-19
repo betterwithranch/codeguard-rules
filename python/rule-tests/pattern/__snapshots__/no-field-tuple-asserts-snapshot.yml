@@ -1,0 +1,42 @@
+id: no-field-tuple-asserts
+snapshots:
+  ? |
+    def test_line():
+        assert (result.line.sku, result.line.qty) == (expected.sku, expected.qty)
+  : labels:
+    - source: assert (result.line.sku, result.line.qty) == (expected.sku, expected.qty)
+      style: primary
+      start: 21
+      end: 94
+  ? |
+    def test_total():
+        assert ("a", 1) == (result.name, result.total)
+  : labels:
+    - source: assert ("a", 1) == (result.name, result.total)
+      style: primary
+      start: 22
+      end: 68
+  ? |
+    def test_total():
+        assert ("a", 1, True) == (result.name, result.total, result.paid)
+  : labels:
+    - source: assert ("a", 1, True) == (result.name, result.total, result.paid)
+      style: primary
+      start: 22
+      end: 87
+  ? |
+    def test_total():
+        assert (result.name, result.total) == ("a", 1)
+  : labels:
+    - source: assert (result.name, result.total) == ("a", 1)
+      style: primary
+      start: 22
+      end: 68
+  ? |
+    def test_total():
+        assert (result.name, result.total, result.paid) == ("a", 1, True)
+  : labels:
+    - source: assert (result.name, result.total, result.paid) == ("a", 1, True)
+      style: primary
+      start: 22
+      end: 87

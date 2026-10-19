@@ -1,0 +1,35 @@
+id: typed-dispatch-registries
+valid:
+  # Class takes a registry
+  - |
+    class ExampleDispatcher:
+        def __init__(self, handlers: ExampleRegistry):
+            self._handlers = handlers
+
+  # Loose function takes the mapping
+  - |
+    def dispatch(handlers: dict[str, Callable], name: str):
+        return handlers[name]()
+
+  # Class field maps to values, not callables
+  - |
+    class ExampleCounts:
+        counts: dict[str, int]
+
+invalid:
+  # __init__ parameter
+  - |
+    class ExampleDispatcher:
+        def __init__(self, handlers: dict[str, Callable[[int], None]]):
+            self._handlers = handlers
+
+  # __init__ parameter with a default
+  - |
+    class ExampleDispatcher:
+        def __init__(self, handlers: Mapping[str, Callable] = {}):
+            self._handlers = handlers
+
+  # Class field
+  - |
+    class ExampleRouter:
+        routes: dict[str, Callable[[int], None]]

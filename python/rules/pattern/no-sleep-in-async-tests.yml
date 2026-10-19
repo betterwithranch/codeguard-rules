@@ -1,0 +1,16 @@
+id: no-sleep-in-async-tests
+language: python
+severity: error
+message: Don't coordinate an async test with sleep.
+note: |
+  Wait on an `asyncio.Event`, `Condition`, or similar primitive instead, so the test
+  waits exactly as long as the code it tests.
+rule:
+  any:
+    - pattern: asyncio.sleep($$$)
+    - pattern: time.sleep($$$)
+    - pattern: sleep($$$)
+  inside:
+    kind: function_definition
+    regex: ^async\s+def\s+test_
+    stopBy: end

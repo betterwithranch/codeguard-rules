@@ -1,0 +1,45 @@
+id: no-assert-on-lookup-field
+language: python
+severity: error
+message: Don't assert the field you used to find the item.
+note: |
+  An item found by `sku == "A1"` always has `sku == "A1"`, so the assert can't fail.
+  Assert the set of keys present (`assert {i.sku for i in result.items} == {"A1", "B2"}`),
+  or find by one field and assert a different one.
+utils:
+  lookup-by-field:
+    any:
+      - pattern: next($I for $I in $_ if $I.$F == $_)
+      - pattern: next($I for $I in $_ if $_ == $I.$F)
+      - pattern: next(($I for $I in $_ if $I.$F == $_), $$$)
+      - pattern: next(($I for $I in $_ if $_ == $I.$F), $$$)
+      - pattern: "[$I for $I in $_ if $I.$F == $_][$_]"
+      - pattern: "[$I for $I in $_ if $_ == $I.$F][$_]"
+rule:
+  pattern: $FOUND.$F
+  inside:
+    kind: comparison_operator
+    inside:
+      kind: assert_statement
+  any:
+    - has:
+        field: object
+        matches: lookup-by-field
+    - all:
+        - has:
+            field: object
+            kind: identifier
+        - inside:
+            stopBy: end
+            kind: assert_statement
+            follows:
+              stopBy: end
+              has:
+                kind: assignment
+                all:
+                  - has:
+                      field: left
+                      pattern: $FOUND
+                  - has:
+                      field: right
+                      matches: lookup-by-field

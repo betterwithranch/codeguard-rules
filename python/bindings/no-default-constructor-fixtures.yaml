@@ -1,2 +1,2 @@
-skill: python/skills/no-sleep-in-async-tests
+rule: no-default-constructor-fixtures
 paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]

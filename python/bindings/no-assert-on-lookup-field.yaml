@@ -1,0 +1,2 @@
+rule: no-assert-on-lookup-field
+paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]

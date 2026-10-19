@@ -1,0 +1,2 @@
+rule: no-pop-from-kwargs
+paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]

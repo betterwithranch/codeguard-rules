@@ -1,0 +1,166 @@
+id: no-assert-in-fixtures
+snapshots:
+  ? |
+    @fixture
+    def example_model():
+        model = ExampleModel()
+        yield model
+        assert model.closed
+  : labels:
+    - source: assert model.closed
+      style: primary
+      start: 77
+      end: 96
+    - source: '@fixture'
+      style: secondary
+      start: 0
+      end: 8
+    - source: |-
+        @fixture
+        def example_model():
+            model = ExampleModel()
+            yield model
+            assert model.closed
+      style: secondary
+      start: 0
+      end: 96
+    - source: |-
+        def example_model():
+            model = ExampleModel()
+            yield model
+            assert model.closed
+      style: secondary
+      start: 9
+      end: 96
+  ? |
+    @pytest.fixture
+    def example_model():
+        model = ExampleModel()
+        assert model.active
+        return model
+  : labels:
+    - source: assert model.active
+      style: primary
+      start: 68
+      end: 87
+    - source: '@pytest.fixture'
+      style: secondary
+      start: 0
+      end: 15
+    - source: |-
+        @pytest.fixture
+        def example_model():
+            model = ExampleModel()
+            assert model.active
+            return model
+      style: secondary
+      start: 0
+      end: 104
+    - source: |-
+        def example_model():
+            model = ExampleModel()
+            assert model.active
+            return model
+      style: secondary
+      start: 16
+      end: 104
+  ? |
+    @pytest.fixture(scope="module")
+    def example_model():
+        model = ExampleModel()
+        assert model.active
+        return model
+  : labels:
+    - source: assert model.active
+      style: primary
+      start: 84
+      end: 103
+    - source: '@pytest.fixture(scope="module")'
+      style: secondary
+      start: 0
+      end: 31
+    - source: |-
+        @pytest.fixture(scope="module")
+        def example_model():
+            model = ExampleModel()
+            assert model.active
+            return model
+      style: secondary
+      start: 0
+      end: 120
+    - source: |-
+        def example_model():
+            model = ExampleModel()
+            assert model.active
+            return model
+      style: secondary
+      start: 32
+      end: 120
+  ? |
+    @pytest_asyncio.fixture
+    async def example_model():
+        model = await ExampleModel.create()
+        assert model.active
+        return model
+  : labels:
+    - source: assert model.active
+      style: primary
+      start: 95
+      end: 114
+    - source: '@pytest_asyncio.fixture'
+      style: secondary
+      start: 0
+      end: 23
+    - source: |-
+        @pytest_asyncio.fixture
+        async def example_model():
+            model = await ExampleModel.create()
+            assert model.active
+            return model
+      style: secondary
+      start: 0
+      end: 131
+    - source: |-
+        async def example_model():
+            model = await ExampleModel.create()
+            assert model.active
+            return model
+      style: secondary
+      start: 24
+      end: 131
+  ? |
+    class TestExampleModel:
+        @pytest.fixture
+        def example_model(self):
+            model = ExampleModel()
+            if model.active:
+                assert model.ready
+            return model
+  : labels:
+    - source: assert model.ready
+      style: primary
+      start: 141
+      end: 159
+    - source: '@pytest.fixture'
+      style: secondary
+      start: 28
+      end: 43
+    - source: |-
+        @pytest.fixture
+            def example_model(self):
+                model = ExampleModel()
+                if model.active:
+                    assert model.ready
+                return model
+      style: secondary
+      start: 28
+      end: 180
+    - source: |-
+        def example_model(self):
+                model = ExampleModel()
+                if model.active:
+                    assert model.ready
+                return model
+      style: secondary
+      start: 48
+      end: 180

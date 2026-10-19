@@ -1,0 +1,23 @@
+id: all-only-in-init
+valid:
+  # Private name marked with an underscore
+  - |
+    def _helper():
+        return 1
+
+  # Attribute named __all__ on another object
+  - |
+    registry.__all__ = ["handle"]
+
+invalid:
+  # Plain assignment
+  - |
+    __all__ = ["handle"]
+
+  # Annotated assignment
+  - |
+    __all__: list[str] = ["handle"]
+
+  # Augmented assignment
+  - |
+    __all__ += ["handle"]

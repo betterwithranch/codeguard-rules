@@ -1,0 +1,75 @@
+id: no-comments-in-tests
+valid:
+  # noqa directive
+  - |
+    from example import ExampleModel  # noqa: F401
+
+  # type: directive
+  - |
+    def test_name():
+        value = ExampleModel()  # type: ignore[call-arg]
+        assert value.name == "a"
+
+  # pragma directive
+  - |
+    def test_name():
+        assert ExampleModel().name == "a"  # pragma: no cover
+
+  # fmt directives
+  - |
+    # fmt: off
+    def test_items():
+        assert [1,2] == [1,2]
+    # fmt: on
+
+  # File-level checker directives
+  - |
+    # mypy: disable-error-code="attr-defined"
+    # pyright: strict
+    # ruff: noqa: E501
+    # pylint: disable=unused-argument
+    import example  # isort: skip
+
+  # ast-grep-ignore directive
+  - |
+    def test_name():  # ast-grep-ignore: no-del-param
+        assert ExampleModel().name == "a"
+
+  # Shebang and encoding lines
+  - |
+    #!/usr/bin/env python
+    # -*- coding: utf-8 -*-
+    def test_name():
+        assert ExampleModel().name == "a"
+
+  # Docstring and a string that starts with #
+  - |
+    def test_name():
+        """Docstrings are not comments."""
+        assert "# not a comment" == "# not a comment"
+
+invalid:
+  # Comment on its own line in a test body
+  - |
+    def test_name():
+        # Arrange the model
+        value = ExampleModel()
+        assert value.name == "a"
+
+  # Trailing comment
+  - |
+    def test_name():
+        value = ExampleModel()  # build the model
+        assert value.name == "a"
+
+  # Module-level comment
+  - |
+    # Tests for the total
+    def test_total():
+        assert total() == 1
+
+  # Comment that starts like a directive
+  - |
+    def test_total():
+        # type of the order
+        assert total() == 1

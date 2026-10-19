@@ -1,0 +1,46 @@
+id: no-dict-round-trip-between-models
+language: python
+severity: error
+message: Don't convert one model into another through a dict.
+note: |
+  A dict round-trip drops type checking on every field. Build the target by assigning
+  each field explicitly from the source. Serialize to a dict only when the dict is the
+  destination (JSON, a database column, a wire payload).
+utils:
+  model-as-dict:
+    any:
+      - pattern: asdict($SOURCE)
+      - pattern: dataclasses.asdict($SOURCE)
+      - pattern: $SOURCE._asdict()
+      - pattern: $SOURCE.model_dump($$$)
+  class-name:
+    regex: (^|\.)[A-Z]\w*$
+    not:
+      regex: (^|\.)(OrderedDict|Counter|ChainMap|UserDict|MappingProxyType)$
+rule:
+  any:
+    - kind: call
+      all:
+        - has:
+            field: function
+            matches: class-name
+        - has:
+            field: arguments
+            has:
+              kind: dictionary_splat
+              has:
+                matches: model-as-dict
+    - kind: call
+      all:
+        - has:
+            field: function
+            kind: attribute
+            regex: \.(model_validate|from_dict)$
+            has:
+              field: object
+              matches: class-name
+        - has:
+            field: arguments
+            has:
+              nthChild: 1
+              matches: model-as-dict

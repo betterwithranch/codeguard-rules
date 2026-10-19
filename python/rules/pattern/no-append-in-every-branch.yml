@@ -1,0 +1,55 @@
+id: no-append-in-every-branch
+language: python
+severity: error
+message: Don't append to the same list in every branch of a loop's `if`/`else`.
+note: |
+  The loop mixes mapping one item with iterating. Extract the `if`/`elif`/`else` to a
+  function that returns one result per item, and build the list with a comprehension.
+utils:
+  append-only-block:
+    kind: block
+    has:
+      kind: expression_statement
+      all:
+        - nthChild: 1
+        - nthChild:
+            position: 1
+            reverse: true
+      has:
+        pattern: $LIST.append($_)
+        not:
+          has:
+            field: arguments
+            has:
+              stopBy: end
+              pattern: $LIST
+rule:
+  kind: for_statement
+  not:
+    has:
+      field: alternative
+      kind: else_clause
+  has:
+    field: body
+    has:
+      kind: if_statement
+      all:
+        - nthChild: 1
+        - nthChild:
+            position: 1
+            reverse: true
+        - has:
+            field: consequence
+            matches: append-only-block
+        - has:
+            kind: else_clause
+            has:
+              field: body
+              matches: append-only-block
+        - not:
+            has:
+              kind: elif_clause
+              not:
+                has:
+                  field: consequence
+                  matches: append-only-block

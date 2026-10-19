@@ -1,0 +1,7 @@
+id: no-bucket-module-names
+valid: []
+invalid:
+  # Any module content in a bucket-named file
+  - |
+    def format_example(value: str) -> str:
+        return value.strip()

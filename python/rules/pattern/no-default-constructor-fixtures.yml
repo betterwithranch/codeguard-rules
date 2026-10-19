@@ -1,0 +1,41 @@
+id: no-default-constructor-fixtures
+language: python
+severity: error
+message: Don't wrap a no-argument constructor call in a fixture or helper.
+note: |
+  A fixture or helper whose body only returns `SomeClass()` adds a name and nothing else.
+  Delete it and call `SomeClass()` in the test body.
+rule:
+  kind: function_definition
+  any:
+    - inside:
+        kind: decorated_definition
+        has:
+          kind: decorator
+          regex: ^@(pytest\.|pytest_asyncio\.)?fixture(\(\))?$
+    - inside:
+        kind: module
+      not:
+        has:
+          field: name
+          regex: ^(test_|pytest_)
+  has:
+    field: body
+    all:
+      - has:
+          kind: return_statement
+          has:
+            kind: call
+            has:
+              field: arguments
+              regex: ^\(\s*\)$
+      - not:
+          has:
+            not:
+              any:
+                - kind: return_statement
+                - kind: comment
+                - kind: expression_statement
+                  nthChild: 1
+                  has:
+                    kind: string

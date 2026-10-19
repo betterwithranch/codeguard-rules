@@ -1,0 +1,39 @@
+id: no-comments-in-tests
+snapshots:
+  ? |
+    # Tests for the total
+    def test_total():
+        assert total() == 1
+  : labels:
+    - source: '# Tests for the total'
+      style: primary
+      start: 0
+      end: 21
+  ? |
+    def test_name():
+        # Arrange the model
+        value = ExampleModel()
+        assert value.name == "a"
+  : labels:
+    - source: '# Arrange the model'
+      style: primary
+      start: 21
+      end: 40
+  ? |
+    def test_name():
+        value = ExampleModel()  # build the model
+        assert value.name == "a"
+  : labels:
+    - source: '# build the model'
+      style: primary
+      start: 45
+      end: 62
+  ? |
+    def test_total():
+        # type of the order
+        assert total() == 1
+  : labels:
+    - source: '# type of the order'
+      style: primary
+      start: 22
+      end: 41

@@ -1,0 +1,13 @@
+id: no-comments-in-tests
+language: python
+severity: error
+message: Don't put comments in test files.
+note: |
+  A test explains itself through its name, its arrange/act/assert steps, and the values
+  it builds. Move the reason into the test name or a well-named helper, then delete the
+  comment. Tool directives (`# noqa`, `# type:`, `# pragma`, `# fmt:`, `# pyright:`,
+  `# mypy:`, `# pylint:`, `# ruff:`, `# isort:`, `# ast-grep-ignore`) are allowed.
+rule:
+  kind: comment
+  not:
+    regex: ^#!|^#\s*(noqa\b|type:|pragma\b|fmt:|pyright:|mypy:|pylint:|ruff:|isort:|ast-grep-ignore\b|-\*-\s*coding)

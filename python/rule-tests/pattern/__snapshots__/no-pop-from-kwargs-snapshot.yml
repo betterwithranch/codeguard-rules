@@ -1,0 +1,90 @@
+id: no-pop-from-kwargs
+snapshots:
+  ? |
+    @pytest.fixture
+    def make_example_model():
+        def make(**kwargs):
+            kwargs.pop("name")
+            return ExampleModel(**kwargs)
+        return make
+  : labels:
+    - source: kwargs.pop("name")
+      style: primary
+      start: 74
+      end: 92
+    - source: kwargs
+      style: secondary
+      start: 57
+      end: 63
+    - source: '**kwargs'
+      style: secondary
+      start: 55
+      end: 63
+    - source: '**kwargs'
+      style: secondary
+      start: 55
+      end: 63
+    - source: |-
+        def make(**kwargs):
+                kwargs.pop("name")
+                return ExampleModel(**kwargs)
+      style: secondary
+      start: 46
+      end: 130
+  ? |
+    class ExampleFactory:
+        def build(self, **overrides):
+            active = overrides.pop("active")
+            return ExampleModel(active=active, **overrides)
+  : labels:
+    - source: overrides.pop("active")
+      style: primary
+      start: 73
+      end: 96
+    - source: overrides
+      style: secondary
+      start: 44
+      end: 53
+    - source: '**overrides'
+      style: secondary
+      start: 42
+      end: 53
+    - source: '**overrides'
+      style: secondary
+      start: 42
+      end: 53
+    - source: |-
+        def build(self, **overrides):
+                active = overrides.pop("active")
+                return ExampleModel(active=active, **overrides)
+      style: secondary
+      start: 26
+      end: 152
+  ? |
+    def make_example_model(**kwargs):
+        name = kwargs.pop("name", "default")
+        return ExampleModel(name=name, **kwargs)
+  : labels:
+    - source: kwargs.pop("name", "default")
+      style: primary
+      start: 45
+      end: 74
+    - source: kwargs
+      style: secondary
+      start: 25
+      end: 31
+    - source: '**kwargs'
+      style: secondary
+      start: 23
+      end: 31
+    - source: '**kwargs'
+      style: secondary
+      start: 23
+      end: 31
+    - source: |-
+        def make_example_model(**kwargs):
+            name = kwargs.pop("name", "default")
+            return ExampleModel(name=name, **kwargs)
+      style: secondary
+      start: 0
+      end: 119

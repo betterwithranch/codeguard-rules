@@ -1,0 +1,153 @@
+id: no-default-constructor-fixtures
+snapshots:
+  ? |
+    @pytest.fixture
+    def example_model():
+        return ExampleModel()
+  : labels:
+    - source: |-
+        def example_model():
+            return ExampleModel()
+      style: primary
+      start: 16
+      end: 62
+    - source: '@pytest.fixture'
+      style: secondary
+      start: 0
+      end: 15
+    - source: |-
+        @pytest.fixture
+        def example_model():
+            return ExampleModel()
+      style: secondary
+      start: 0
+      end: 62
+    - source: ()
+      style: secondary
+      start: 60
+      end: 62
+    - source: ExampleModel()
+      style: secondary
+      start: 48
+      end: 62
+    - source: return ExampleModel()
+      style: secondary
+      start: 41
+      end: 62
+    - source: return ExampleModel()
+      style: secondary
+      start: 41
+      end: 62
+  ? |
+    @pytest.fixture
+    def example_repository(example_database):
+        return ExampleRepository()
+  : labels:
+    - source: |-
+        def example_repository(example_database):
+            return ExampleRepository()
+      style: primary
+      start: 16
+      end: 88
+    - source: '@pytest.fixture'
+      style: secondary
+      start: 0
+      end: 15
+    - source: |-
+        @pytest.fixture
+        def example_repository(example_database):
+            return ExampleRepository()
+      style: secondary
+      start: 0
+      end: 88
+    - source: ()
+      style: secondary
+      start: 86
+      end: 88
+    - source: ExampleRepository()
+      style: secondary
+      start: 69
+      end: 88
+    - source: return ExampleRepository()
+      style: secondary
+      start: 62
+      end: 88
+    - source: return ExampleRepository()
+      style: secondary
+      start: 62
+      end: 88
+  ? |
+    @pytest.fixture()
+    def example_model():
+        """An example model."""
+        return ExampleModel()
+  : labels:
+    - source: |-
+        def example_model():
+            """An example model."""
+            return ExampleModel()
+      style: primary
+      start: 18
+      end: 92
+    - source: '@pytest.fixture()'
+      style: secondary
+      start: 0
+      end: 17
+    - source: |-
+        @pytest.fixture()
+        def example_model():
+            """An example model."""
+            return ExampleModel()
+      style: secondary
+      start: 0
+      end: 92
+    - source: ()
+      style: secondary
+      start: 90
+      end: 92
+    - source: ExampleModel()
+      style: secondary
+      start: 78
+      end: 92
+    - source: return ExampleModel()
+      style: secondary
+      start: 71
+      end: 92
+    - source: |-
+        """An example model."""
+            return ExampleModel()
+      style: secondary
+      start: 43
+      end: 92
+  ? |
+    def make_example_model():
+        return factories.example_model()
+  : labels:
+    - source: |-
+        def make_example_model():
+            return factories.example_model()
+      style: primary
+      start: 0
+      end: 62
+    - source: |
+        def make_example_model():
+            return factories.example_model()
+      style: secondary
+      start: 0
+      end: 63
+    - source: ()
+      style: secondary
+      start: 60
+      end: 62
+    - source: factories.example_model()
+      style: secondary
+      start: 37
+      end: 62
+    - source: return factories.example_model()
+      style: secondary
+      start: 30
+      end: 62
+    - source: return factories.example_model()
+      style: secondary
+      start: 30
+      end: 62

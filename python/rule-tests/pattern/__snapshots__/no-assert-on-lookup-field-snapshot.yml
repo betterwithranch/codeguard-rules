@@ -1,0 +1,183 @@
+id: no-assert-on-lookup-field
+snapshots:
+  ? |
+    def test_sku():
+        assert "A1" == next(i for i in result.items if i.sku == "A1").sku
+  : labels:
+    - source: next(i for i in result.items if i.sku == "A1").sku
+      style: primary
+      start: 35
+      end: 85
+    - source: next(i for i in result.items if i.sku == "A1")
+      style: secondary
+      start: 35
+      end: 81
+    - source: assert "A1" == next(i for i in result.items if i.sku == "A1").sku
+      style: secondary
+      start: 20
+      end: 85
+    - source: '"A1" == next(i for i in result.items if i.sku == "A1").sku'
+      style: secondary
+      start: 27
+      end: 85
+  ? |
+    def test_sku():
+        assert [i for i in result.items if "A1" == i.sku][0].sku == "A1"
+  : labels:
+    - source: '[i for i in result.items if "A1" == i.sku][0].sku'
+      style: primary
+      start: 27
+      end: 76
+    - source: '[i for i in result.items if "A1" == i.sku][0]'
+      style: secondary
+      start: 27
+      end: 72
+    - source: assert [i for i in result.items if "A1" == i.sku][0].sku == "A1"
+      style: secondary
+      start: 20
+      end: 84
+    - source: '[i for i in result.items if "A1" == i.sku][0].sku == "A1"'
+      style: secondary
+      start: 27
+      end: 84
+  ? |
+    def test_sku():
+        assert [i for i in result.items if i.sku == "A1"][0].sku == "A1"
+  : labels:
+    - source: '[i for i in result.items if i.sku == "A1"][0].sku'
+      style: primary
+      start: 27
+      end: 76
+    - source: '[i for i in result.items if i.sku == "A1"][0]'
+      style: secondary
+      start: 27
+      end: 72
+    - source: assert [i for i in result.items if i.sku == "A1"][0].sku == "A1"
+      style: secondary
+      start: 20
+      end: 84
+    - source: '[i for i in result.items if i.sku == "A1"][0].sku == "A1"'
+      style: secondary
+      start: 27
+      end: 84
+  ? |
+    def test_sku():
+        assert next((i for i in result.items if "A1" == i.sku), None).sku == "A1"
+  : labels:
+    - source: next((i for i in result.items if "A1" == i.sku), None).sku
+      style: primary
+      start: 27
+      end: 85
+    - source: next((i for i in result.items if "A1" == i.sku), None)
+      style: secondary
+      start: 27
+      end: 81
+    - source: assert next((i for i in result.items if "A1" == i.sku), None).sku == "A1"
+      style: secondary
+      start: 20
+      end: 93
+    - source: next((i for i in result.items if "A1" == i.sku), None).sku == "A1"
+      style: secondary
+      start: 27
+      end: 93
+  ? |
+    def test_sku():
+        assert next((i for i in result.items if i.sku == "A1"), None).sku == "A1"
+  : labels:
+    - source: next((i for i in result.items if i.sku == "A1"), None).sku
+      style: primary
+      start: 27
+      end: 85
+    - source: next((i for i in result.items if i.sku == "A1"), None)
+      style: secondary
+      start: 27
+      end: 81
+    - source: assert next((i for i in result.items if i.sku == "A1"), None).sku == "A1"
+      style: secondary
+      start: 20
+      end: 93
+    - source: next((i for i in result.items if i.sku == "A1"), None).sku == "A1"
+      style: secondary
+      start: 27
+      end: 93
+  ? |
+    def test_sku():
+        assert next(i for i in result.items if "A1" == i.sku).sku == "A1"
+  : labels:
+    - source: next(i for i in result.items if "A1" == i.sku).sku
+      style: primary
+      start: 27
+      end: 77
+    - source: next(i for i in result.items if "A1" == i.sku)
+      style: secondary
+      start: 27
+      end: 73
+    - source: assert next(i for i in result.items if "A1" == i.sku).sku == "A1"
+      style: secondary
+      start: 20
+      end: 85
+    - source: next(i for i in result.items if "A1" == i.sku).sku == "A1"
+      style: secondary
+      start: 27
+      end: 85
+  ? |
+    def test_sku():
+        assert next(i for i in result.items if i.sku == "A1").sku == "A1"
+  : labels:
+    - source: next(i for i in result.items if i.sku == "A1").sku
+      style: primary
+      start: 27
+      end: 77
+    - source: next(i for i in result.items if i.sku == "A1")
+      style: secondary
+      start: 27
+      end: 73
+    - source: assert next(i for i in result.items if i.sku == "A1").sku == "A1"
+      style: secondary
+      start: 20
+      end: 85
+    - source: next(i for i in result.items if i.sku == "A1").sku == "A1"
+      style: secondary
+      start: 27
+      end: 85
+  ? |
+    def test_sku():
+        line = next(i for i in result.items if i.sku == "A1")
+        assert line.sku == "A1"
+  : labels:
+    - source: line.sku
+      style: primary
+      start: 85
+      end: 93
+    - source: line
+      style: secondary
+      start: 85
+      end: 89
+    - source: line
+      style: secondary
+      start: 20
+      end: 24
+    - source: next(i for i in result.items if i.sku == "A1")
+      style: secondary
+      start: 27
+      end: 73
+    - source: line = next(i for i in result.items if i.sku == "A1")
+      style: secondary
+      start: 20
+      end: 73
+    - source: line = next(i for i in result.items if i.sku == "A1")
+      style: secondary
+      start: 20
+      end: 73
+    - source: assert line.sku == "A1"
+      style: secondary
+      start: 78
+      end: 101
+    - source: assert line.sku == "A1"
+      style: secondary
+      start: 78
+      end: 101
+    - source: line.sku == "A1"
+      style: secondary
+      start: 85
+      end: 101

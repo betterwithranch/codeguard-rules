@@ -1,0 +1,2 @@
+rule: no-comments-in-tests
+paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]

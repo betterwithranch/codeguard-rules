@@ -1,0 +1,12 @@
+id: no-bucket-module-names
+snapshots:
+  ? |
+    def format_example(value: str) -> str:
+        return value.strip()
+  : labels:
+    - source: |
+        def format_example(value: str) -> str:
+            return value.strip()
+      style: primary
+      start: 0
+      end: 64

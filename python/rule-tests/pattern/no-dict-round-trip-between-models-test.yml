@@ -1,0 +1,58 @@
+id: no-dict-round-trip-between-models
+valid:
+  # Fields assigned explicitly
+  - |
+    target = ExampleTarget(name=source.name, total=source.total)
+
+  # Dict is the destination
+  - |
+    payload = json.dumps(asdict(source))
+
+  # Dict passed to a function, not a class
+  - |
+    insert_row(**asdict(source))
+
+  # Dict copied into a plain dict
+  - |
+    row = dict(**source.model_dump())
+
+  # Dict copied into a standard-library mapping
+  - |
+    counts = OrderedDict(**asdict(source))
+
+  # Class built from a dict that came from outside
+  - |
+    target = ExampleTarget.model_validate(request_body)
+
+  # Class built from a to_dict() whose receiver may not be a model
+  - |
+    target = ExampleTarget.from_dict(form.to_dict())
+
+  # Dumped dict passed positionally, not splatted
+  - |
+    target = ExampleTarget(source.model_dump())
+
+invalid:
+  # Constructor splat of dataclasses.asdict
+  - |
+    target = ExampleTarget(**dataclasses.asdict(source))
+
+  # Constructor splat of imported asdict, with extra fields
+  - |
+    target = ExampleTarget(**asdict(source), total=0)
+
+  # Constructor splat of a NamedTuple's _asdict
+  - |
+    target = ExampleTarget(**source._asdict())
+
+  # Constructor splat of model_dump
+  - |
+    target = models.ExampleTarget(**source.model_dump(exclude={"id"}))
+
+  # model_validate of model_dump
+  - |
+    target = ExampleTarget.model_validate(source.model_dump())
+
+  # from_dict of asdict
+  - |
+    target = ExampleTarget.from_dict(asdict(source))
