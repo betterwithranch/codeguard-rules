@@ -1,0 +1,39 @@
+id: multi-class-module
+valid:
+- |
+  class Order:
+      pass
+- |
+  class Order:
+      pass
+
+
+  class _Line:
+      pass
+- |
+  class Order:
+      pass
+
+
+  def total():
+      return 1
+- |
+  class Order:
+      class Line:
+          pass
+invalid:
+- |
+  class Order:
+      pass
+
+
+  class Invoice:
+      pass
+- |
+  @dataclass
+  class Order:
+      pass
+
+
+  class Invoice:
+      pass

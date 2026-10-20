@@ -1,0 +1,30 @@
+id: multi-class-module
+language: python
+rule:
+  any:
+  - kind: class_definition
+    inside:
+      kind: module
+    has: &public-name
+      field: name
+      regex: ^[^_]
+    any: &public-class-sibling
+    - follows: &public-class
+        stopBy: end
+        any:
+        - kind: class_definition
+          has: *public-name
+        - kind: decorated_definition
+          has:
+            field: definition
+            kind: class_definition
+            has: *public-name
+    - precedes: *public-class
+  - kind: decorated_definition
+    inside:
+      kind: module
+    has:
+      field: definition
+      kind: class_definition
+      has: *public-name
+    any: *public-class-sibling

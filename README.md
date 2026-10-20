@@ -69,6 +69,7 @@ against the rule's skill). `comments-and-docstrings` also runs on test files.
 | `no-pre-derived-arguments` | No pre-derived arguments |
 | `no-reimplemented-orchestration` | Do not re-implement orchestration |
 | `no-shared-stateful-generics` | No shared instances of stateful generic classes |
+| `no-single-use-shape-modules` | No single-use shape modules |
 | `one-concept-per-module` | One concept per module |
 | `one-form-per-input` | One way to specify each input |
 | `one-home-for-defaults` | One home for defaults |
