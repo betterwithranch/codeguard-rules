@@ -1,0 +1,21 @@
+id: returns-a-call
+valid:
+- |
+  def test_total():
+      return Order()
+- |
+  @pytest.mark.slow
+  def test_total():
+      return Order()
+- |
+  def order():
+      order = Order()
+      return order
+invalid:
+- |
+  @pytest.fixture
+  def order():
+      return Order()
+- |
+  def runtime():
+      return build_runtime().context

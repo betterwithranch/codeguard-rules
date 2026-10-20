@@ -1,0 +1,15 @@
+version: "3"
+
+vars:
+  CODEGUARD: '{{.CODEGUARD | default "codeguard"}}'
+
+tasks:
+  test:
+    desc: Run the pattern rule and gate tests, and check each judge rule eval's triggers.
+    cmds:
+      - "{{.CODEGUARD}} test {{.CLI_ARGS}}"
+
+  eval:
+    desc: Judge each judge rule eval case and review each rule. Calls Claude.
+    cmds:
+      - "{{.CODEGUARD}} eval {{.CLI_ARGS}}"

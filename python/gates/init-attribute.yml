@@ -1,0 +1,14 @@
+id: init-attribute
+language: python
+rule:
+  kind: assignment
+  has:
+    field: left
+    kind: attribute
+    regex: ^self\.
+  inside:
+    kind: function_definition
+    stopBy: end
+    has:
+      field: name
+      regex: ^__init__$

@@ -1,0 +1,62 @@
+id: no-normalized-asserts
+snapshots:
+  ? |
+    def test_order():
+        assert replace(result, id=None) == ExampleOrder(id=None, total=1)
+  : labels:
+    - source: assert replace(result, id=None) == ExampleOrder(id=None, total=1)
+      style: primary
+      start: 22
+      end: 87
+    - source: replace
+      style: secondary
+      start: 29
+      end: 36
+    - source: replace(result, id=None)
+      style: secondary
+      start: 29
+      end: 53
+  ? |
+    def test_order():
+        assert result.model_copy(update={"id": None}) == expected
+  : labels:
+    - source: 'assert result.model_copy(update={"id": None}) == expected'
+      style: primary
+      start: 22
+      end: 79
+    - source: result.model_copy
+      style: secondary
+      start: 29
+      end: 46
+    - source: 'result.model_copy(update={"id": None})'
+      style: secondary
+      start: 29
+      end: 67
+  ? |
+    def test_order():
+        assert result.model_dump(exclude={"id"}) == {"total": 1}
+  : labels:
+    - source: 'assert result.model_dump(exclude={"id"}) == {"total": 1}'
+      style: primary
+      start: 22
+      end: 78
+    - source: result.model_dump
+      style: secondary
+      start: 29
+      end: 46
+    - source: exclude
+      style: secondary
+      start: 47
+      end: 54
+    - source: exclude={"id"}
+      style: secondary
+      start: 47
+      end: 61
+    - source: exclude={"id"}
+      style: secondary
+      start: 47
+      end: 61
+    - source: result.model_dump(exclude={"id"})
+      style: secondary
+      start: 29
+      end: 62

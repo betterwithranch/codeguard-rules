@@ -1,4 +1,0 @@
-skill: python/skills/no-dead-code
-paths: ["**/*.py"]
-exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
-triggers: [definition]

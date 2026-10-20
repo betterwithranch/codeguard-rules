@@ -15,4 +15,4 @@ rule:
     inside:
       kind: function_definition
       field: return_type
-    regex: ^tuple\[
+    regex: ^(tuple|dict)\[

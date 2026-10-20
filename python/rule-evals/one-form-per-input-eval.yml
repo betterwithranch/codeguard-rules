@@ -1,0 +1,107 @@
+id: one-form-per-input
+invalid:
+- file: orders/pricing.py
+  after: |
+    from dataclasses import dataclass
+
+
+    @dataclass(frozen=True)
+    class OrderLine:
+        sku: str
+        quantity: int
+
+
+    def build_price_index(catalog: list[tuple[str, int]]) -> dict[str, int]:
+        return dict(catalog)
+
+
+    def price_order(
+        lines: list[OrderLine],
+        catalog: list[tuple[str, int]] | None = None,
+        price_index: dict[str, int] | None = None,
+    ) -> int:
+        if price_index is None and catalog:
+            price_index = build_price_index(catalog)
+        if price_index is None:
+            raise ValueError("a price index or catalog is required")
+        return sum(price_index[line.sku] * line.quantity for line in lines)
+- file: shipments/dispatch.py
+  before: |
+    from dataclasses import dataclass
+
+
+    @dataclass(frozen=True)
+    class Warehouse:
+        code: str
+        city: str
+
+
+    WAREHOUSES = {"BER": Warehouse(code="BER", city="Berlin")}
+
+
+    def dispatch_note(order_id: str, warehouse: Warehouse) -> str:
+        return f"{order_id} ships from {warehouse.city}"
+  after: |
+    from dataclasses import dataclass
+
+
+    @dataclass(frozen=True)
+    class Warehouse:
+        code: str
+        city: str
+
+
+    WAREHOUSES = {"BER": Warehouse(code="BER", city="Berlin")}
+
+
+    def dispatch_note(
+        order_id: str,
+        warehouse: Warehouse | None = None,
+        warehouse_code: str | None = None,
+    ) -> str:
+        if warehouse is None and warehouse_code:
+            warehouse = WAREHOUSES[warehouse_code]
+        if warehouse is None:
+            raise ValueError("a warehouse or warehouse code is required")
+        return f"{order_id} ships from {warehouse.city}"
+valid:
+- file: shipments/dispatch.py
+  after: |
+    from dataclasses import dataclass
+
+
+    @dataclass(frozen=True)
+    class Warehouse:
+        code: str
+        city: str
+
+
+    def dispatch_note(order_id: str, warehouse: Warehouse, is_express: bool = False) -> str:
+        speed = "express" if is_express else "standard"
+        return f"{order_id} ships {speed} from {warehouse.city}"
+skipped:
+- file: shipments/dispatch.py
+  before: |
+    from dataclasses import dataclass
+
+
+    @dataclass(frozen=True)
+    class Warehouse:
+        code: str
+        city: str
+
+
+    def dispatch_note(order_id: str, warehouse: Warehouse) -> str:
+        return f"{order_id} ships from {warehouse.city}"
+  after: |
+    from dataclasses import dataclass
+
+
+    @dataclass(frozen=True)
+    class Warehouse:
+        code: str
+        city: str
+
+
+    def dispatch_note(order_id: str, warehouse: Warehouse) -> str:
+        return f"Order {order_id} ships from {warehouse.city}"

@@ -1,0 +1,33 @@
+name: codeguard-rules CI
+on:
+  push:
+  pull_request:
+env:
+  CODEGUARD_REF: rulesets
+jobs:
+  rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: rules
+      - uses: actions/checkout@v7
+        with:
+          repository: betterwithranch/codeguard
+          ref: ${{ env.CODEGUARD_REF }}
+          path: codeguard
+      - uses: astral-sh/setup-uv@v10.2.0
+      - name: Test rules
+        working-directory: rules
+        run: uv run --frozen --project ../codeguard codeguard test
+      - name: Review codeguard with this branch's rules
+        working-directory: codeguard
+        run: |
+          cat > .codeguard/config.yaml <<'EOF'
+          packages:
+            - kind: path
+              path: ../rules
+              rulesets:
+                python: {}
+          EOF
+          uv run --frozen codeguard review --all --dry-run

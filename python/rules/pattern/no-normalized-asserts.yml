@@ -11,6 +11,10 @@ rule:
     stopBy: end
     any:
       - kind: call
-        has: {field: function, regex: "(^|\\.)(replace|model_copy)$"}
-      - kind: keyword_argument
-        has: {field: name, regex: "^exclude$"}
+        has: {field: function, regex: "^(dataclasses\\.)?replace$|\\.model_copy$"}
+      - kind: call
+        all:
+          - has: {field: function, regex: "\\.(model_dump|model_dump_json|dict|json)$"}
+          - has:
+              field: arguments
+              has: {kind: keyword_argument, has: {field: name, regex: "^exclude$"}}

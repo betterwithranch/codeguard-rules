@@ -1,0 +1,115 @@
+id: behavior-on-data-owner
+invalid:
+- file: invoices/summary.py
+  after: |
+    from dataclasses import dataclass
+
+
+    @dataclass(frozen=True)
+    class InvoiceLine:
+        sku: str
+        position: int
+
+
+    class InvoiceSummaryComposer:
+        def __init__(self, lines: list[InvoiceLine]) -> None:
+            self._lines = lines
+
+        def ordered_skus(self) -> list[str]:
+            return [line.sku for line in sorted(self._lines, key=self._sort_key)]
+
+        @staticmethod
+        def _sort_key(line: InvoiceLine) -> tuple[str, int]:
+            return (line.sku.casefold(), line.position)
+- file: shipments/label_printer.py
+  before: |
+    from dataclasses import dataclass
+
+
+    @dataclass(frozen=True)
+    class Shipment:
+        tracking_number: str
+        weight_kg: float
+
+
+    class ShipmentLabelPrinter:
+        def __init__(self, carrier_name: str) -> None:
+            self._carrier_name = carrier_name
+
+        def label(self, shipment: Shipment) -> str:
+            return f"{self._carrier_name} {shipment.tracking_number}"
+  after: |
+    from dataclasses import dataclass
+
+
+    @dataclass(frozen=True)
+    class Shipment:
+        tracking_number: str
+        weight_kg: float
+
+
+    class ShipmentLabelPrinter:
+        def __init__(self, carrier_name: str) -> None:
+            self._carrier_name = carrier_name
+
+        def label(self, shipment: Shipment) -> str:
+            suffix = " HEAVY" if self._is_heavy(shipment) else ""
+            return f"{self._carrier_name} {shipment.tracking_number}{suffix}"
+
+        def _is_heavy(self, shipment: Shipment) -> bool:
+            return shipment.weight_kg > 30
+valid:
+- file: invoices/summary.py
+  after: |
+    from dataclasses import dataclass
+
+
+    @dataclass(frozen=True)
+    class InvoiceLine:
+        sku: str
+        position: int
+
+        def __lt__(self, other: "InvoiceLine") -> bool:
+            return (self.sku.casefold(), self.position) < (other.sku.casefold(), other.position)
+
+
+    class InvoiceSummaryComposer:
+        def __init__(self, lines: list[InvoiceLine]) -> None:
+            self._lines = lines
+
+        def ordered_skus(self) -> list[str]:
+            return [line.sku for line in sorted(self._lines)]
+skipped:
+- file: invoices/summary.py
+  before: |
+    from dataclasses import dataclass
+
+
+    @dataclass(frozen=True)
+    class InvoiceLine:
+        sku: str
+        amount_cents: int
+
+
+    class InvoiceSummaryComposer:
+        def __init__(self, lines: list[InvoiceLine]) -> None:
+            self._lines = lines
+
+        def total_cents(self) -> int:
+            return sum(line.amount_cents for line in self._lines)
+  after: |
+    from dataclasses import dataclass
+
+
+    @dataclass(frozen=True)
+    class InvoiceLine:
+        sku: str
+        amount_cents: int
+
+
+    class InvoiceSummaryComposer:
+        def __init__(self, lines: list[InvoiceLine]) -> None:
+            self._lines = lines
+
+        def total_cents(self) -> int:
+            return sum(line.amount_cents for line in self._lines if line.amount_cents > 0)

@@ -1,4 +1,4 @@
 skill: python/skills/no-single-use-shape-modules
 paths: ["**/*.py"]
 exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
-triggers: [definition-added-or-removed]
+triggers: [definition-added-or-removed, shape-module-import]

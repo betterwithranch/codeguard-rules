@@ -13,10 +13,9 @@ assert result.lines == [expected_line]
 assert result.totals == {"net": 100, "tax": 20}
 ```
 
-`in` is allowed only when all of these hold:
+`in` on a string is allowed only when both of these hold in the test itself:
 
-- The asserted fragment is exact and complete (a whole line, token, or value the code under test produces), not a loose substring.
-- It sits inside a larger value whose content another component authors (a template, a loaded text file, a separate formatter). A unit that only joins sections does not own their content.
-- Asserting the whole value with `==` would pin that other component's content.
+- The test supplies or loads another component's content and passes it to the code under test, such as a template from `load_template` or a text file it reads.
+- The asserted fragment is a whole line the code under test inserts into that content.
 
-Check: breaking the logic under test fails the assertion, and editing the unrelated component does not.
+Any other `in` on a string is a violation, including a short value inside a result the code under test builds alone, such as `"7" in order_label(order)`. Assert the whole result with `==`.

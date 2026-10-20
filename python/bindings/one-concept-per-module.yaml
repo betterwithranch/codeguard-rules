@@ -2,3 +2,4 @@ skill: python/skills/one-concept-per-module
 paths: ["**/*.py"]
 exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
 triggers: [multi-class-module]
+disable_skips: [renames]

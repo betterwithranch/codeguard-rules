@@ -5,4 +5,4 @@ description: Constructor state over repeated arguments
 
 # Constructor state over repeated arguments
 
-Arguments that every caller passes with the same values (providers, strategies, registries, formatters) are the object's dependencies. Take them in `__init__`; method signatures hold only per-call data.
+A method parameter that is a provider, strategy, registry, formatter, client, repository, or similar collaborator is a dependency. Its kind decides it; you do not need to check the callers. Take dependencies in `__init__`. Method signatures hold only per-call data, such as the records the method works on.

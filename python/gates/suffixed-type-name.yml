@@ -1,7 +1,19 @@
 id: suffixed-type-name
 language: python
 rule:
-  kind: class_definition
-  has:
-    field: name
+  any:
+  - kind: identifier
     regex: (Builder|Request|Factory)$
+    inside:
+      kind: class_definition
+      field: name
+  - kind: identifier
+    inside:
+      kind: function_definition
+      field: name
+      inside:
+        kind: class_definition
+        stopBy: end
+        has:
+          field: name
+          regex: (Builder|Request|Factory)$

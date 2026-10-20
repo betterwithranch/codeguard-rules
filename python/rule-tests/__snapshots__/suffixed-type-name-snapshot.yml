@@ -1,0 +1,46 @@
+id: suffixed-type-name
+snapshots:
+  ? |
+    class InvoiceBuilder:
+        pass
+  : labels:
+    - source: InvoiceBuilder
+      style: primary
+      start: 6
+      end: 20
+    - source: |-
+        class InvoiceBuilder:
+            pass
+      style: secondary
+      start: 0
+      end: 30
+  ? |
+    class InvoiceFactory:
+        def create_for_admin(self, params):
+            return params
+  : labels:
+    - source: InvoiceFactory
+      style: primary
+      start: 6
+      end: 20
+    - source: |-
+        class InvoiceFactory:
+            def create_for_admin(self, params):
+                return params
+      style: secondary
+      start: 0
+      end: 83
+  ? |
+    class QuoteRequest:
+        pass
+  : labels:
+    - source: QuoteRequest
+      style: primary
+      start: 6
+      end: 18
+    - source: |-
+        class QuoteRequest:
+            pass
+      style: secondary
+      start: 0
+      end: 28

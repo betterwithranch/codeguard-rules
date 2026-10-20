@@ -1,0 +1,88 @@
+id: one-home-for-defaults
+invalid:
+- file: invoices/issue.py
+  after: |
+    from dataclasses import dataclass
+    from uuid import uuid4
+
+
+    @dataclass(frozen=True)
+    class Invoice:
+        invoice_id: str
+        total: int
+        currency: str = "EUR"
+
+
+    def issue_invoice(total: int, invoice_id: str | None = None) -> Invoice:
+        return Invoice(invoice_id=invoice_id or str(uuid4()), total=total)
+- file: shipments/booking.py
+  before: |
+    from dataclasses import dataclass
+
+
+    @dataclass(frozen=True)
+    class Shipment:
+        order_id: str
+        carrier: str = "DHL"
+
+
+    def book_shipment(order_id: str) -> Shipment:
+        return Shipment(order_id=order_id)
+  after: |
+    from dataclasses import dataclass
+
+
+    @dataclass(frozen=True)
+    class Shipment:
+        order_id: str
+        carrier: str = "DHL"
+
+
+    def book_shipment(order_id: str, carrier: str | None = None) -> Shipment:
+        return Shipment(order_id=order_id, carrier=carrier if carrier is not None else "DHL")
+valid:
+- file: invoices/issue.py
+  after: |
+    from dataclasses import dataclass, field
+    from uuid import uuid4
+
+
+    def new_invoice_id() -> str:
+        return str(uuid4())
+
+
+    @dataclass(frozen=True)
+    class Invoice:
+        total: int
+        invoice_id: str = field(default_factory=new_invoice_id)
+        currency: str = "EUR"
+
+
+    def issue_invoice(total: int) -> Invoice:
+        return Invoice(total=total)
+skipped:
+- file: shipments/booking.py
+  before: |
+    from dataclasses import dataclass
+
+
+    @dataclass(frozen=True)
+    class Shipment:
+        order_id: str
+        carrier: str = "DHL"
+
+
+    def booking_reference(shipment: Shipment) -> str:
+        return f"{shipment.carrier}-{shipment.order_id}"
+  after: |
+    from dataclasses import dataclass
+
+
+    @dataclass(frozen=True)
+    class Shipment:
+        order_id: str
+        carrier: str = "DHL"
+
+
+    def booking_reference(shipment: Shipment) -> str:
+        return f"{shipment.carrier}/{shipment.order_id}"

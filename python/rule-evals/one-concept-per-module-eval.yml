@@ -1,0 +1,124 @@
+id: one-concept-per-module
+invalid:
+- file: notifications/dispatcher.py
+  after: |
+    class RetryBackoffPolicy:
+        def __init__(self, base_seconds: float) -> None:
+            self._base_seconds = base_seconds
+
+        def delay(self, attempt: int) -> float:
+            return self._base_seconds * 2**attempt
+
+
+    class NotificationDispatcher:
+        def __init__(self, transport) -> None:
+            self._transport = transport
+            self._backoff = RetryBackoffPolicy(base_seconds=0.5)
+
+        def send(self, message: str) -> None:
+            self._transport.deliver(message)
+- file: notifications/dispatcher.py
+  before: |
+    class NotificationDispatcher:
+        def __init__(self, transport) -> None:
+            self._transport = transport
+
+        def send(self, message: str) -> None:
+            self._transport.deliver(message)
+  after: |
+    class NotificationDispatcher:
+        def __init__(self, transport) -> None:
+            self._transport = transport
+
+        def send(self, message: str) -> None:
+            self._transport.deliver(message)
+
+
+    class InvoiceTotals:
+        def __init__(self, line_amounts: list[int]) -> None:
+            self.line_amounts = line_amounts
+
+        def total(self) -> int:
+            return sum(self.line_amounts)
+- file: notifications/dispatcher.py
+  before: |
+    class NotificationDispatcher:
+        def __init__(self, transport) -> None:
+            self._transport = transport
+
+        def send(self, message: str) -> None:
+            self._transport.deliver(message)
+
+
+    class RetryBackoffPolicy:
+        base_seconds = 0.5
+  after: |
+    class NotificationDispatcher:
+        def __init__(self, transport) -> None:
+            self._transport = transport
+
+        def send(self, message: str) -> None:
+            self._transport.deliver(message)
+
+
+    class RetryBackoffPolicy:
+        base_seconds = 1.0
+valid:
+- file: notifications/errors.py
+  after: |
+    class NotificationError(Exception):
+        pass
+
+
+    class DeliveryFailedError(NotificationError):
+        pass
+
+
+    class RecipientRejectedError(NotificationError):
+        pass
+skipped:
+- file: notifications/dispatcher.py
+  before: |
+    class NotificationDispatcher:
+        def send(self, message: str) -> str:
+            return message
+  after: |
+    class NotificationDispatcher:
+        def send(self, message: str) -> str:
+            return message.strip()
+- file: notifications/dispatcher.py
+  before: |
+    class NotificationDispatcher:
+        def send(self, message: str) -> str:
+            return message
+  after: |
+    class NotificationDispatcher:
+        def send(self, message: str) -> str:
+            return message
+
+
+    class _Attempt:
+        number = 1
+- file: notifications/dispatcher.py
+  before: |
+    class NotificationDispatcher:
+        pass
+
+
+    class RetryBackoffPolicy:
+        pass
+
+
+    def dispatch(message: str) -> str:
+        return message
+  after: |
+    class NotificationDispatcher:
+        pass
+
+
+    class RetryBackoffPolicy:
+        pass
+
+
+    def dispatch(message: str) -> str:
+        return message.strip()

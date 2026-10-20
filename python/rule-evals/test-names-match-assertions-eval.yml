@@ -1,0 +1,74 @@
+id: test-names-match-assertions
+invalid:
+- file: tests/test_orders.py
+  after: |
+    from shop.orders import OrderService, OrderStatus
+
+
+    def test_cancel_order_refunds_the_payment(customer):
+        service = OrderService()
+        order = service.place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+        cancelled = service.cancel(order.id)
+
+        assert cancelled.status == OrderStatus.CANCELLED
+- file: tests/test_orders.py
+  before: |
+    from shop.orders import OrderService, OrderStatus
+
+
+    def test_cancel_sets_status_to_cancelled(customer):
+        service = OrderService()
+        order = service.place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+        cancelled = service.cancel(order.id)
+
+        assert cancelled.status == OrderStatus.CANCELLED
+  after: |
+    from shop.orders import OrderService, OrderStatus
+
+
+    def test_cancel_sends_the_cancellation_email(customer):
+        service = OrderService()
+        order = service.place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+        cancelled = service.cancel(order.id)
+
+        assert cancelled.status == OrderStatus.CANCELLED
+valid:
+- file: tests/test_orders.py
+  after: |
+    from shop.orders import OrderService, OrderStatus
+
+
+    def test_cancel_sets_status_to_cancelled(customer):
+        service = OrderService()
+        order = service.place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+        cancelled = service.cancel(order.id)
+
+        assert cancelled.status == OrderStatus.CANCELLED
+skipped:
+- file: tests/test_orders.py
+  before: |
+    from shop.orders import OrderService, OrderStatus
+
+
+    def test_cancel_sets_status_to_cancelled(customer):
+        service = OrderService()
+        order = service.place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+        cancelled = service.cancel(order.id)
+
+        assert cancelled.status == OrderStatus.CANCELLED
+  after: |
+    from shop.ordering import OrderService, OrderStatus
+
+
+    def test_cancel_sets_status_to_cancelled(customer):
+        service = OrderService()
+        order = service.place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+        cancelled = service.cancel(order.id)
+
+        assert cancelled.status == OrderStatus.CANCELLED

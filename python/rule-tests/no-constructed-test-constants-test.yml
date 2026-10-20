@@ -1,0 +1,28 @@
+id: no-constructed-test-constants
+valid:
+  # Scalar constant
+  - |
+    TOKEN = "secret"
+
+  # Object built in a fixture
+  - |
+    @pytest.fixture
+    def order():
+        return ExampleOrder(id=7)
+
+  # Lowercase module value
+  - |
+    registry = ExampleRegistry()
+
+  # Immutable value type
+  - |
+    AST_GREP = Version("0.45.3")
+
+invalid:
+  # Domain object in a constant
+  - |
+    ORDER = ExampleOrder(id=7)
+
+  # Constant built through a module attribute
+  - |
+    ORDER_ID = ExampleId(7)

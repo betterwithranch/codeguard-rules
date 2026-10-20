@@ -1,3 +1,68 @@
 id: enum-usage
-valid: [literal_severity.py]
-invalid: [shipment_label.py]
+invalid:
+- file: shipment_label.py
+  before: |
+    from dataclasses import dataclass
+    from enum import StrEnum
+
+
+    class ShipmentStatus(StrEnum):
+        PENDING = "pending"
+        SHIPPED = "shipped"
+
+
+    @dataclass(frozen=True)
+    class Shipment:
+        status: ShipmentStatus
+
+
+    def label(shipment: Shipment) -> str:
+        return f"Shipment is {shipment.status}"
+  after: |
+    from dataclasses import dataclass
+    from enum import StrEnum
+
+
+    class ShipmentStatus(StrEnum):
+        PENDING = "pending"
+        SHIPPED = "shipped"
+
+
+    @dataclass(frozen=True)
+    class Shipment:
+        status: ShipmentStatus
+
+
+    def label(shipment: Shipment) -> str:
+        return f"Shipment is {shipment.status.value}"
+valid:
+- file: literal_severity.py
+  after: |
+    from dataclasses import dataclass
+    from typing import Literal
+
+    type Severity = Literal["error", "warning"]
+
+
+    @dataclass(frozen=True)
+    class Override:
+        severity: Severity = "error"
+
+
+    def relaxed() -> Override:
+        return Override(severity="warning")
+skipped:
+- file: shipment_label.py
+  before: |
+    from enum import StrEnum
+
+
+    class ShipmentStatus(StrEnum):
+        PENDING = "pending"
+  after: |
+    from enum import StrEnum
+
+
+    class ShipmentStatus(StrEnum):
+        PENDING = "pending"
+        SHIPPED = "shipped"

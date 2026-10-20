@@ -1,0 +1,85 @@
+id: state-model-own-module
+invalid:
+- file: checkout/workflow.py
+  after: |
+    from dataclasses import dataclass, replace
+
+
+    @dataclass(frozen=True)
+    class CheckoutState:
+        completed_steps: tuple[str, ...] = ()
+        errors: tuple[str, ...] = ()
+
+
+    def record_step(state: CheckoutState, step: str) -> CheckoutState:
+        return replace(state, completed_steps=(*state.completed_steps, step))
+
+
+    def record_error(state: CheckoutState, error: str) -> CheckoutState:
+        return replace(state, errors=(*state.errors, error))
+
+
+    def run_checkout(steps) -> CheckoutState:
+        state = CheckoutState()
+        for step in steps:
+            state = record_step(state, step.run())
+        return state
+- file: checkout/workflow.py
+  before: |
+    def run_checkout(steps) -> list[str]:
+        completed: list[str] = []
+        for step in steps:
+            completed.append(step.run())
+        return completed
+  after: |
+    from dataclasses import dataclass, replace
+
+
+    @dataclass(frozen=True)
+    class CheckoutState:
+        completed_steps: tuple[str, ...] = ()
+
+
+    def run_checkout(steps) -> CheckoutState:
+        state = CheckoutState()
+        for step in steps:
+            state = replace(state, completed_steps=(*state.completed_steps, step.run()))
+        return state
+valid:
+- file: checkout/checkout_state.py
+  after: |
+    from dataclasses import dataclass, replace
+
+
+    @dataclass(frozen=True)
+    class CheckoutState:
+        completed_steps: tuple[str, ...] = ()
+        errors: tuple[str, ...] = ()
+
+        def with_step(self, step: str) -> "CheckoutState":
+            return replace(self, completed_steps=(*self.completed_steps, step))
+
+        def with_error(self, error: str) -> "CheckoutState":
+            return replace(self, errors=(*self.errors, error))
+skipped:
+- file: checkout/checkout_state.py
+  before: |
+    from dataclasses import dataclass
+
+
+    @dataclass(frozen=True)
+    class CheckoutState:
+        completed_steps: tuple[str, ...] = ()
+
+        def last_step(self) -> str:
+            return self.completed_steps[-1]
+  after: |
+    from dataclasses import dataclass
+
+
+    @dataclass(frozen=True)
+    class CheckoutState:
+        completed_steps: tuple[str, ...] = ()
+
+        def last_step(self) -> str | None:
+            return self.completed_steps[-1] if self.completed_steps else None

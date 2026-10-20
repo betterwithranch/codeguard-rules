@@ -1,0 +1,13 @@
+id: setup-bundle-class
+valid:
+- |
+  class TestOrder:
+      pass
+invalid:
+- |
+  class OrderSetup:
+      pass
+- |
+  @dataclass
+  class CheckoutSetup:
+      customer: Customer

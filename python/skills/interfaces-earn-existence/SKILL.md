@@ -7,6 +7,9 @@ description: Interfaces must earn their existence
 
 A `Protocol` or `ABC` is justified when it inverts a real dependency, or when two or more implementers exist today. Either alone is enough.
 
+- Count implementers from the code shown. Do not assume implementers you cannot see.
+- A test fake is not an implementer. It does not justify an interface on its own.
+
 - A lower-level package that defines a narrow `Protocol` for what it needs, instead of importing a higher-level concrete type, is correct even with one implementer.
 - Test: would retyping the consumers against the concrete type create an import cycle? Yes: keep. No: delete the interface.
 - A planned second implementer does not justify an interface.

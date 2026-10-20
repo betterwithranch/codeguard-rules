@@ -14,3 +14,7 @@ rule:
         field: right
         kind: call
         has: {field: function, regex: "^[A-Z]"}
+    - not:
+        has:
+          field: right
+          has: {field: function, regex: "^(Version|Path|PurePath|Decimal|UUID|Fraction)$"}

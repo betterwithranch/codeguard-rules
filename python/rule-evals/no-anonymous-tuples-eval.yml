@@ -1,0 +1,82 @@
+id: no-anonymous-tuples
+invalid:
+- file: orders/review.py
+  after: |
+    from dataclasses import dataclass
+
+
+    @dataclass(frozen=True)
+    class Order:
+        order_id: str
+        holds: tuple[str, ...]
+        balance_due: int
+
+
+    def evaluate_order(order: Order) -> tuple[str | None, bool]:
+        rejection_reason = "unpaid balance" if order.balance_due > 0 else None
+        return rejection_reason, bool(order.holds)
+- file: shipments/dispatch.py
+  before: |
+    from dataclasses import dataclass
+
+
+    @dataclass(frozen=True)
+    class Shipment:
+        carrier: str
+        tracking_number: str
+
+
+    def dispatch(shipment: Shipment) -> str:
+        return f"{shipment.carrier}:{shipment.tracking_number}"
+  after: |
+    from dataclasses import dataclass
+
+
+    @dataclass(frozen=True)
+    class Shipment:
+        carrier: str
+        tracking_number: str
+
+
+    def _shipment_payload(carrier: str, tracking_number: str) -> dict[str, str]:
+        return {"carrier": carrier, "tracking_number": tracking_number}
+
+
+    def dispatch(shipment: Shipment) -> dict[str, str]:
+        return _shipment_payload(shipment.carrier, shipment.tracking_number)
+valid:
+- file: orders/review.py
+  after: |
+    from dataclasses import dataclass
+
+
+    @dataclass(frozen=True)
+    class Order:
+        order_id: str
+        holds: tuple[str, ...]
+        balance_due: int
+
+
+    @dataclass(frozen=True)
+    class OrderReview:
+        rejection_reason: str | None
+        is_on_hold: bool
+
+
+    def evaluate_order(order: Order) -> OrderReview:
+        rejection_reason = "unpaid balance" if order.balance_due > 0 else None
+        return OrderReview(rejection_reason=rejection_reason, is_on_hold=bool(order.holds))
+skipped:
+- file: invoices/tax.py
+  before: |
+    TAX_RATE = 0.2
+
+
+    def tax_due(subtotal: int) -> int:
+        return round(subtotal * TAX_RATE)
+  after: |
+    TAX_RATE = 0.2
+
+
+    def tax_due(subtotal: int) -> int:
+        return int(subtotal * TAX_RATE)

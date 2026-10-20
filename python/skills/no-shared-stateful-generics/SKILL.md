@@ -1,11 +1,11 @@
 ---
 name: no-shared-stateful-generics
-description: No shared instances of stateful generic classes
+description: No shared instances of stateful classes
 ---
 
-# No shared instances of stateful generic classes
+# No shared instances of stateful classes
 
-If a generic class accumulates state during method calls (for example, collecting issues), do not share one module-level instance. Create a fresh instance per use, such as through a factory function.
+If a class accumulates state in its methods (for example, collecting issues), do not share one module-level instance. Create a fresh instance per use, such as through a factory function.
 
 Bad:
 

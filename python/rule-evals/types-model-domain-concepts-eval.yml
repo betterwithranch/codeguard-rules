@@ -1,0 +1,79 @@
+id: types-model-domain-concepts
+invalid:
+- file: orders/order_id.py
+  after: |
+    from dataclasses import dataclass
+
+
+    @dataclass(frozen=True)
+    class OrderId:
+        value: str
+- file: shipping/strategies.py
+  before: |
+    class ExpressShippingStrategy:
+        def quote(self, weight_grams: int) -> int:
+            return 1500 + weight_grams // 100
+
+
+    SHIPPING_STRATEGIES = {"express": ExpressShippingStrategy()}
+  after: |
+    class ExpressShippingStrategy:
+        kind = "express"
+
+        def quote(self, weight_grams: int) -> int:
+            return 1500 + weight_grams // 100
+
+
+    SHIPPING_STRATEGIES = {"express": ExpressShippingStrategy()}
+- file: billing/invoice_mailer.py
+  before: |
+    class InvoiceMailer:
+        def __init__(self, customer, smtp) -> None:
+            self.customer = customer
+            self.smtp = smtp
+
+        def send(self, invoice) -> None:
+            self.smtp.send(to=self.customer.email, body=invoice.render())
+  after: |
+    class InvoiceMailer:
+        def __init__(self, customer, smtp) -> None:
+            self.customer = customer
+            self.smtp = smtp
+            self.email = customer.email
+
+        def send(self, invoice) -> None:
+            self.smtp.send(to=self.email, body=invoice.render())
+- file: orders/order_lookup.py
+  before: |
+    def orders_for_customer(orders, customer_id):
+        return [order for order in orders if order.customer_id == customer_id]
+  after: |
+    def orders_for_customer(orders, customer_id):
+        return [order for order in orders if order.customer_id == customer_id]
+
+
+    def order_by_customer(orders):
+        by_customer = {}
+        for order in orders:
+            by_customer[order.customer_id] = order
+        return by_customer
+valid:
+- file: billing/invoice_mailer.py
+  after: |
+    class InvoiceMailer:
+        def __init__(self, customer, smtp) -> None:
+            self.customer = customer
+            self.smtp = smtp
+
+        def send(self, invoice) -> None:
+            self.smtp.send(to=self.customer.email, body=invoice.render())
+skipped:
+- file: shipping/strategies.py
+  before: |
+    class ExpressShippingStrategy:
+        def quote(self, weight_grams: int) -> int:
+            return 1500 + weight_grams // 100
+  after: |
+    class ExpressShippingStrategy:
+        def quote(self, weight_grams: int) -> int:
+            return 1500 + weight_grams // 50

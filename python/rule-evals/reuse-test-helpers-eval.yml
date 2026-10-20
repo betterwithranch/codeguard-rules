@@ -1,0 +1,91 @@
+id: reuse-test-helpers
+invalid:
+- file: tests/test_invoice_reminders.py
+  after: |
+    from billing.reminders import ReminderScheduler
+    from tests.conftest import Invoice
+    from tests.fakes import FakeMailer
+
+
+    def test_schedule_mails_overdue_invoice():
+        mailer = FakeMailer()
+
+        ReminderScheduler(mailer).run([Invoice(number="42", overdue=True)])
+
+        assert mailer.outbox == [("42", "Payment reminder")]
+- file: tests/test_shipment_dispatch.py
+  before: |
+    from datetime import date, datetime
+
+    from shipping.dispatch import Dispatcher, Shipment
+    from tests.fakes import FakeClock
+
+
+    def test_dispatch_before_cutoff_ships_same_day():
+        clock = FakeClock(datetime(2026, 3, 1, 9, 0))
+
+        shipment = Dispatcher(clock).dispatch("shp-1")
+
+        assert shipment == Shipment(id="shp-1", ships_on=date(2026, 3, 1))
+  after: |
+    from datetime import date, datetime
+
+    from shipping.dispatch import Dispatcher, Shipment
+    from tests.fakes import FakeClock
+
+
+    class StubClock:
+        def __init__(self, current):
+            self.current = current
+
+        def now(self):
+            return self.current
+
+
+    def test_dispatch_before_cutoff_ships_same_day():
+        clock = FakeClock(datetime(2026, 3, 1, 9, 0))
+
+        shipment = Dispatcher(clock).dispatch("shp-1")
+
+        assert shipment == Shipment(id="shp-1", ships_on=date(2026, 3, 1))
+
+
+    def test_dispatch_after_cutoff_moves_to_next_day():
+        clock = StubClock(datetime(2026, 3, 1, 18, 0))
+
+        shipment = Dispatcher(clock).dispatch("shp-2")
+
+        assert shipment == Shipment(id="shp-2", ships_on=date(2026, 3, 2))
+valid:
+- file: tests/test_shipment_dispatch.py
+  after: |
+    from datetime import date, datetime
+
+    from shipping.dispatch import Dispatcher, Shipment
+    from tests.fakes import FakeClock
+
+
+    def test_dispatch_before_cutoff_ships_same_day():
+        clock = FakeClock(datetime(2026, 3, 1, 9, 0))
+
+        shipment = Dispatcher(clock).dispatch("shp-1")
+
+        assert shipment == Shipment(id="shp-1", ships_on=date(2026, 3, 1))
+
+
+    def test_dispatch_after_cutoff_moves_to_next_day():
+        clock = FakeClock(datetime(2026, 3, 1, 18, 0))
+
+        shipment = Dispatcher(clock).dispatch("shp-2")
+
+        assert shipment == Shipment(id="shp-2", ships_on=date(2026, 3, 2))
+skipped:
+- file: tests/test_orders.py
+  before: |
+    class TestOrders:
+        def test_total(self):
+            assert total([1]) == 1
+  after: |
+    class TestOrders:
+        def test_total(self):
+            assert total([1, 2]) == 3

@@ -1,0 +1,102 @@
+id: types-live-with-producer
+invalid:
+- file: shipping/shipment.py
+  after: |
+    from pydantic import BaseModel, model_validator
+
+    from shipping.warehouse_registry import warehouse_registry
+
+
+    class Shipment(BaseModel):
+        sku: str
+        warehouse_code: str
+
+        @model_validator(mode="after")
+        def check_warehouse_stocks_sku(self) -> "Shipment":
+            warehouse = warehouse_registry.get(self.warehouse_code)
+            if not warehouse.stocks(self.sku):
+                raise ValueError(f"{self.warehouse_code} does not stock {self.sku}")
+            return self
+- file: shipping/shipment.py
+  before: |
+    from pydantic import BaseModel, field_validator
+
+
+    class Shipment(BaseModel):
+        sku: str
+
+        @field_validator("sku")
+        @classmethod
+        def normalize_sku(cls, value: str) -> str:
+            return value.strip().upper()
+  after: |
+    from pydantic import BaseModel, field_validator
+
+    from shipping.catalog import product_catalog
+
+
+    class Shipment(BaseModel):
+        sku: str
+
+        @field_validator("sku")
+        @classmethod
+        def normalize_sku(cls, value: str) -> str:
+            sku = value.strip().upper()
+            if not product_catalog.contains(sku):
+                raise ValueError(f"unknown sku {sku}")
+            return sku
+- file: shipping/enums.py
+  after: |
+    from enum import StrEnum
+
+
+    class CarrierCode(StrEnum):
+        UPS = "ups"
+        FEDEX = "fedex"
+
+
+    class RefundReason(StrEnum):
+        DAMAGED = "damaged"
+        LATE = "late"
+
+
+    class InvoiceStatus(StrEnum):
+        DRAFT = "draft"
+        PAID = "paid"
+valid:
+- file: shipping/shipment.py
+  after: |
+    from pydantic import BaseModel, field_validator
+
+
+    class Shipment(BaseModel):
+        sku: str
+        quantity: int
+
+        @field_validator("sku")
+        @classmethod
+        def normalize_sku(cls, value: str) -> str:
+            return value.strip().upper()
+
+        @field_validator("quantity")
+        @classmethod
+        def check_quantity_positive(cls, value: int) -> int:
+            if value < 1:
+                raise ValueError("quantity must be at least 1")
+            return value
+skipped:
+- file: shipping/shipment.py
+  before: |
+    class Shipment:
+        def __init__(self, sku: str) -> None:
+            self.sku = sku
+
+        def label(self) -> str:
+            return self.sku
+  after: |
+    class Shipment:
+        def __init__(self, sku: str) -> None:
+            self.sku = sku
+
+        def label(self) -> str:
+            return self.sku.upper()

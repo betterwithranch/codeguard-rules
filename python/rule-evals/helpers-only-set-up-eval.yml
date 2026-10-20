@@ -1,0 +1,93 @@
+id: helpers-only-set-up
+invalid:
+- file: tests/test_invoice_mapper.py
+  after: |
+    from billing.mapper import InvoiceMapper, MappingRules
+    from billing.invoices import Invoice
+
+
+    def map_invoice(raw):
+        return InvoiceMapper(MappingRules(currency="EUR")).map(raw)
+
+
+    def test_map_reads_number_and_total():
+        invoice = map_invoice({"no": "42", "sum": "120.00"})
+
+        assert invoice == Invoice(number="42", total=120, currency="EUR")
+- file: tests/test_checkout_workflow.py
+  before: |
+    from orders.checkout import CheckoutResult, CheckoutWorkflow, Status
+    from tests.fakes import FakePaymentGateway
+
+
+    def test_submit_waits_for_payment():
+        workflow = CheckoutWorkflow(FakePaymentGateway())
+
+        result = workflow.submit(order_id="ord-1")
+
+        assert result == CheckoutResult(order_id="ord-1", status=Status.WAITING)
+  after: |
+    from orders.checkout import CheckoutResult, CheckoutWorkflow, Status
+    from tests.fakes import FakePaymentGateway
+
+
+    def submit_and_resume(workflow, result):
+        assert result.status == Status.WAITING
+        return workflow.resume(result.job_id)
+
+
+    def test_submit_waits_for_payment():
+        workflow = CheckoutWorkflow(FakePaymentGateway())
+
+        result = workflow.submit(order_id="ord-1")
+
+        assert result == CheckoutResult(order_id="ord-1", status=Status.WAITING)
+
+
+    def test_resume_completes_checkout():
+        workflow = CheckoutWorkflow(FakePaymentGateway())
+
+        result = submit_and_resume(workflow, workflow.submit(order_id="ord-2"))
+
+        assert result == CheckoutResult(order_id="ord-2", status=Status.COMPLETE)
+valid:
+- file: tests/test_invoice_mapper.py
+  after: |
+    from billing.mapper import InvoiceMapper, MappingRules
+    from billing.invoices import Invoice
+
+
+    def make_mapper():
+        return InvoiceMapper(MappingRules(currency="EUR"))
+
+
+    def test_map_reads_number_and_total():
+        mapper = make_mapper()
+
+        invoice = mapper.map({"no": "42", "sum": "120.00"})
+
+        assert invoice == Invoice(number="42", total=120, currency="EUR")
+skipped:
+- file: tests/test_checkout_workflow.py
+  before: |
+    from orders.checkout import CheckoutResult, CheckoutWorkflow, Status
+    from tests.fakes import FakePaymentGateway
+
+
+    def test_submit_waits_for_payment():
+        workflow = CheckoutWorkflow(FakePaymentGateway())
+
+        result = workflow.submit(order_id="ord-1")
+
+        assert result == CheckoutResult(order_id="ord-1", status=Status.WAITING)
+  after: |
+    from orders.checkout import CheckoutResult, CheckoutWorkflow, Status
+    from tests.fakes import FakePaymentGateway
+
+
+    def test_submit_waits_for_payment():
+        workflow = CheckoutWorkflow(FakePaymentGateway())
+
+        result = workflow.submit(order_id="ord-9")
+
+        assert result == CheckoutResult(order_id="ord-9", status=Status.WAITING)

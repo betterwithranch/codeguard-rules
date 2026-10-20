@@ -1,0 +1,99 @@
+id: map-models-field-by-field
+invalid:
+- file: orders/summary.py
+  after: |
+    from pydantic import BaseModel
+
+
+    class Order(BaseModel):
+        number: str
+        customer_email: str
+        total_cents: int
+
+
+    class OrderSummary(BaseModel):
+        number: str
+        total_cents: int
+
+        @classmethod
+        def from_order(cls, order: Order) -> "OrderSummary":
+            return cls.model_validate(order.model_dump(include={"number", "total_cents"}))
+- file: invoices/records.py
+  before: |
+    from dataclasses import dataclass
+
+
+    @dataclass(frozen=True)
+    class Invoice:
+        number: str
+        total_cents: int
+
+
+    @dataclass(frozen=True)
+    class InvoiceRecord:
+        number: str
+        total_cents: int
+
+        @classmethod
+        def from_invoice(cls, invoice: Invoice) -> "InvoiceRecord":
+            return cls(number=invoice.number, total_cents=invoice.total_cents)
+  after: |
+    from dataclasses import asdict, dataclass
+
+
+    @dataclass(frozen=True)
+    class Invoice:
+        number: str
+        total_cents: int
+
+
+    @dataclass(frozen=True)
+    class InvoiceRecord:
+        number: str
+        total_cents: int
+
+        @classmethod
+        def from_invoice(cls, invoice: Invoice) -> "InvoiceRecord":
+            return cls(**asdict(invoice))
+valid:
+- file: orders/summary.py
+  after: |
+    from pydantic import BaseModel
+
+
+    class Order(BaseModel):
+        number: str
+        customer_email: str
+        total_cents: int
+
+
+    class OrderSummary(BaseModel):
+        number: str
+        total_cents: int
+
+        @classmethod
+        def from_order(cls, order: Order) -> "OrderSummary":
+            return cls(number=order.number, total_cents=order.total_cents)
+
+        def to_json(self) -> str:
+            return self.model_dump_json()
+skipped:
+- file: orders/summary.py
+  before: |
+    from pydantic import BaseModel
+
+    MAX_SUMMARY_LINES = 20
+
+
+    class OrderSummary(BaseModel):
+        number: str
+        total_cents: int
+  after: |
+    from pydantic import BaseModel
+
+    MAX_SUMMARY_LINES = 50
+
+
+    class OrderSummary(BaseModel):
+        number: str
+        total_cents: int

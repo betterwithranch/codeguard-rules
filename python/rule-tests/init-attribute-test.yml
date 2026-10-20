@@ -1,0 +1,14 @@
+id: init-attribute
+valid:
+- |
+  class Order:
+      def total(self):
+          self.cache = 1
+- |
+  def __init__(self, kind):
+      kind = kind.strip()
+invalid:
+- |
+  class Strategy:
+      def __init__(self, kind):
+          self.kind = kind

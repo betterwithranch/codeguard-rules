@@ -63,12 +63,11 @@ against the rule's skill). `comments-and-docstrings` also runs on test files.
 | `narrow-collaborator-params` | Pass only what a collaborator needs |
 | `no-anonymous-tuples` | No anonymous tuples or dicts for concepts |
 | `no-branch-and-accumulate` | No branch-and-accumulate loops |
-| `no-dead-code` | No dead code |
 | `no-duplicate-logic` | No duplicate logic |
 | `no-overlapping-responsibility` | No overlapping responsibility |
 | `no-pre-derived-arguments` | No pre-derived arguments |
 | `no-reimplemented-orchestration` | Do not re-implement orchestration |
-| `no-shared-stateful-generics` | No shared instances of stateful generic classes |
+| `no-shared-stateful-generics` | No shared instances of stateful classes |
 | `no-single-use-shape-modules` | No single-use shape modules |
 | `one-concept-per-module` | One concept per module |
 | `one-form-per-input` | One way to specify each input |
@@ -127,9 +126,9 @@ packages:
     ref: v0.2.0
     rulesets:
       python:
-        exclude: [no-del-param, no-dead-code]
+        exclude: [no-del-param, no-duplicate-logic]
         rules:
-          no-dead-code:
+          names-match-behavior:
             paths: ["src/**/*.py"]
             severity: warning
 ```
@@ -147,16 +146,14 @@ project that sets `ast-grep` in its config must pick a version in that range.
 ## Layout
 
 ```
-codeguard-package.yaml                 # name, rulesets and supported ast-grep versions
+codeguard-package.yaml       # name, rulesets, and supported ast-grep and codeguard versions
 python/
-  rules/pattern/<id>.yml               # ast-grep rules
-  rule-tests/pattern/<id>-test.yml     # their tests and __snapshots__/
-  gates/<id>.yml                       # ast-grep rules that decide when a judge rule runs
-  rule-tests/gates/<id>-test.yml       # their tests and __snapshots__/
-  skills/<id>/SKILL.md                 # judge rules
-  bindings/<id>.yaml                   # a skill or pattern rule and its default paths
-  rule-evals/<id>-eval.yml             # judge rule evals
-  rule-evals/<id>/                     # their case files
+  rules/pattern/<id>.yml     # ast-grep rules
+  gates/<id>.yml             # ast-grep rules that decide when a judge rule runs
+  rule-tests/<id>-test.yml   # tests for both, with __snapshots__/
+  skills/<id>/SKILL.md       # judge rules
+  bindings/<id>.yaml         # a skill or pattern rule and its default paths
+  rule-evals/<id>-eval.yml   # judge rule evals
 ```
 
 codeguard rejects any other entry in a ruleset directory.
@@ -164,11 +161,18 @@ codeguard rejects any other entry in a ruleset directory.
 ## Test
 
 ```sh
-codeguard test               # pattern rule and gate tests; warns on broad triggers
-codeguard test --update-all  # regenerate snapshots
-codeguard eval               # judge rule evals and the rule review; calls Claude
+task test                # codeguard test: pattern rule and gate tests, eval triggers
+task test -- -U          # the same, regenerating snapshots
+task eval                # codeguard eval: judge each eval case and review each rule; calls Claude
 ```
 
-An eval lists case files the judge must pass (`valid`) and must flag at the confidence
-threshold (`invalid`). Name case files for their code, not their expected result, because
-the judge reads their directory.
+`CODEGUARD=<path>` runs another codeguard build, such as a checkout's `.venv/bin/codeguard`.
+
+[Which test to write](https://github.com/betterwithranch/codeguard#which-test-to-write)
+says which test covers which change. Every judge rule has an eval with `invalid`, `valid`
+and `skipped` edits.
+
+CI runs `codeguard test`, then runs the branch's pattern rules over every file in
+codeguard (`codeguard review --all --dry-run`, which calls no model). A pattern rule
+that flags code there fails the build before a release ships it. CI uses the codeguard
+ref in `CODEGUARD_REF` in `.github/workflows/ci.yaml`.

@@ -1,0 +1,109 @@
+id: parse-boundary-data-once
+invalid:
+- file: carriers/tracking.py
+  after: |
+    from typing import Any
+
+
+    def last_seen_location(payload: dict[str, Any]) -> str:
+        return payload["events"][-1]["location"]
+
+
+    def last_seen_at(payload: dict[str, Any]) -> str:
+        return payload["events"][-1]["timestamp"]
+
+
+    def scan_count(payload: dict[str, Any]) -> int:
+        return len(payload["events"][1:])
+- file: carriers/tracking.py
+  before: |
+    from dataclasses import dataclass
+    from datetime import datetime
+    from typing import Any
+
+
+    @dataclass(frozen=True)
+    class TrackingEvent:
+        location: str
+        occurred_at: datetime
+
+
+    def parse_latest_event(payload: dict[str, Any]) -> TrackingEvent:
+        raw_event = payload["events"][-1]
+        return TrackingEvent(
+            location=raw_event["location"],
+            occurred_at=datetime.fromisoformat(raw_event["timestamp"]),
+        )
+
+
+    def last_seen_location(event: TrackingEvent) -> str:
+        return event.location
+  after: |
+    from dataclasses import dataclass
+    from datetime import datetime
+    from typing import Any
+
+
+    @dataclass(frozen=True)
+    class TrackingEvent:
+        location: str
+        occurred_at: datetime
+
+
+    def parse_latest_event(payload: dict[str, Any]) -> TrackingEvent:
+        raw_event = payload["events"][-1]
+        return TrackingEvent(
+            location=raw_event["location"],
+            occurred_at=datetime.fromisoformat(raw_event["timestamp"]),
+        )
+
+
+    def last_seen_location(event: TrackingEvent) -> str:
+        return event.location
+
+
+    def hours_since_last_scan(payload: dict[str, Any], now: datetime) -> float:
+        scanned_at = datetime.fromisoformat(payload["events"][-1]["timestamp"])
+        return (now - scanned_at).total_seconds() / 3600
+valid:
+- file: carriers/tracking.py
+  after: |
+    from dataclasses import dataclass
+    from datetime import datetime
+    from typing import Any
+
+
+    @dataclass(frozen=True)
+    class TrackingEvent:
+        location: str
+        occurred_at: datetime
+
+
+    def parse_latest_event(payload: dict[str, Any]) -> TrackingEvent:
+        raw_event = payload["events"][-1]
+        return TrackingEvent(
+            location=raw_event["location"],
+            occurred_at=datetime.fromisoformat(raw_event["timestamp"]),
+        )
+
+
+    def last_seen_location(event: TrackingEvent) -> str:
+        return event.location
+
+
+    def hours_since_last_scan(event: TrackingEvent, now: datetime) -> float:
+        return (now - event.occurred_at).total_seconds() / 3600
+skipped:
+- file: carriers/tracking_report.py
+  before: |
+    from .tracking import TrackingEvent
+
+
+    def last_seen_location(event: TrackingEvent) -> str:
+        return event.location
+  after: |
+    from .tracking import TrackingEvent
+
+
+    def last_seen_location(event: TrackingEvent) -> str:
+        return event.location.title()

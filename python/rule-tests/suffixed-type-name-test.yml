@@ -1,0 +1,16 @@
+id: suffixed-type-name
+valid:
+- |
+  class InvoiceComposer:
+      pass
+invalid:
+- |
+  class InvoiceBuilder:
+      pass
+- |
+  class QuoteRequest:
+      pass
+- |
+  class InvoiceFactory:
+      def create_for_admin(self, params):
+          return params

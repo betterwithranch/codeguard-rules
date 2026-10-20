@@ -1,0 +1,149 @@
+id: parameterized-helper
+invalid:
+- file: shipments/shipment_validator.py
+  after: |
+    from abc import ABC, abstractmethod
+    from dataclasses import dataclass
+    from enum import StrEnum
+
+    from .shipment import Shipment
+
+
+    class IssueType(StrEnum):
+        MISSING = "missing"
+        INVALID = "invalid"
+        AMBIGUOUS = "ambiguous"
+
+
+    @dataclass(frozen=True)
+    class ValidationIssue:
+        field: str
+        issue_type: IssueType
+
+
+    class ShipmentValidator(ABC):
+        def __init__(self) -> None:
+            self.issues: list[ValidationIssue] = []
+
+        @abstractmethod
+        def validate(self, shipment: Shipment) -> None: ...
+
+        def _missing(self, field: str) -> None:
+            self.issues.append(ValidationIssue(field, IssueType.MISSING))
+
+        def _invalid(self, field: str) -> None:
+            self.issues.append(ValidationIssue(field, IssueType.INVALID))
+
+        def _ambiguous(self, field: str) -> None:
+            self.issues.append(ValidationIssue(field, IssueType.AMBIGUOUS))
+- file: shipments/shipment_validator.py
+  before: |
+    from abc import ABC, abstractmethod
+    from dataclasses import dataclass
+    from enum import StrEnum
+
+    from .shipment import Shipment
+
+
+    class IssueType(StrEnum):
+        MISSING = "missing"
+        INVALID = "invalid"
+
+
+    @dataclass(frozen=True)
+    class ValidationIssue:
+        field: str
+        issue_type: IssueType
+
+
+    class ShipmentValidator(ABC):
+        def __init__(self) -> None:
+            self.issues: list[ValidationIssue] = []
+
+        @abstractmethod
+        def validate(self, shipment: Shipment) -> None: ...
+
+        def _missing(self, field: str) -> None:
+            self.issues.append(ValidationIssue(field, IssueType.MISSING))
+  after: |
+    from abc import ABC, abstractmethod
+    from dataclasses import dataclass
+    from enum import StrEnum
+
+    from .shipment import Shipment
+
+
+    class IssueType(StrEnum):
+        MISSING = "missing"
+        INVALID = "invalid"
+
+
+    @dataclass(frozen=True)
+    class ValidationIssue:
+        field: str
+        issue_type: IssueType
+
+
+    class ShipmentValidator(ABC):
+        def __init__(self) -> None:
+            self.issues: list[ValidationIssue] = []
+
+        @abstractmethod
+        def validate(self, shipment: Shipment) -> None: ...
+
+        def _missing(self, field: str) -> None:
+            self.issues.append(ValidationIssue(field, IssueType.MISSING))
+
+        def _invalid(self, field: str) -> None:
+            self.issues.append(ValidationIssue(field, IssueType.INVALID))
+valid:
+- file: shipments/shipment_validator.py
+  after: |
+    from abc import ABC, abstractmethod
+    from dataclasses import dataclass
+    from enum import StrEnum
+
+    from .shipment import Shipment
+
+
+    class IssueType(StrEnum):
+        MISSING = "missing"
+        INVALID = "invalid"
+        AMBIGUOUS = "ambiguous"
+
+
+    @dataclass(frozen=True)
+    class ValidationIssue:
+        field: str
+        issue_type: IssueType
+
+
+    class ShipmentValidator(ABC):
+        def __init__(self) -> None:
+            self.issues: list[ValidationIssue] = []
+
+        @abstractmethod
+        def validate(self, shipment: Shipment) -> None: ...
+
+        def _add_issue(self, field: str, issue_type: IssueType) -> None:
+            self.issues.append(ValidationIssue(field, issue_type))
+skipped:
+- file: shipments/shipment_validator.py
+  before: |
+    from enum import StrEnum
+
+    MAX_REPORTED_ISSUES = 50
+
+
+    class IssueType(StrEnum):
+        MISSING = "missing"
+        INVALID = "invalid"
+  after: |
+    from enum import StrEnum
+
+    MAX_REPORTED_ISSUES = 100
+
+
+    class IssueType(StrEnum):
+        MISSING = "missing"
+        INVALID = "invalid"

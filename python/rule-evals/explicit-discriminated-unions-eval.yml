@@ -1,0 +1,120 @@
+id: explicit-discriminated-unions
+invalid:
+- file: payments/methods.py
+  after: |
+    from pydantic import BaseModel
+
+
+    class CardPayment(BaseModel):
+        card_token: str
+        amount_cents: int
+
+
+    class BankTransfer(BaseModel):
+        iban: str
+        amount_cents: int
+
+
+    type PaymentMethod = CardPayment | BankTransfer
+- file: payments/methods.py
+  before: |
+    from typing import Annotated, Literal
+
+    from pydantic import BaseModel, Field
+
+
+    class CardPayment(BaseModel):
+        kind: Literal["card"] = "card"
+        card_token: str
+        amount_cents: int
+
+
+    class BankTransfer(BaseModel):
+        kind: Literal["bank_transfer"] = "bank_transfer"
+        iban: str
+        amount_cents: int
+
+
+    PaymentMethod = Annotated[CardPayment | BankTransfer, Field(discriminator="kind")]
+  after: |
+    from typing import Literal
+
+    from pydantic import BaseModel
+
+
+    class CardPayment(BaseModel):
+        kind: Literal["card"] = "card"
+        card_token: str
+        amount_cents: int
+
+
+    class BankTransfer(BaseModel):
+        kind: Literal["bank_transfer"] = "bank_transfer"
+        iban: str
+        amount_cents: int
+
+
+    PaymentMethod = CardPayment | BankTransfer
+valid:
+- file: payments/methods.py
+  after: |
+    from typing import Annotated, Literal
+
+    from pydantic import BaseModel, Field
+
+
+    class CardPayment(BaseModel):
+        kind: Literal["card"] = "card"
+        card_token: str
+        amount_cents: int
+
+
+    class BankTransfer(BaseModel):
+        kind: Literal["bank_transfer"] = "bank_transfer"
+        iban: str
+        amount_cents: int
+
+
+    PaymentMethod = Annotated[CardPayment | BankTransfer, Field(discriminator="kind")]
+skipped:
+- file: payments/methods.py
+  before: |
+    from typing import Annotated, Literal
+
+    from pydantic import BaseModel, Field
+
+
+    class CardPayment(BaseModel):
+        kind: Literal["card"] = "card"
+        card_token: str
+        amount_cents: int
+
+
+    class BankTransfer(BaseModel):
+        kind: Literal["bank_transfer"] = "bank_transfer"
+        iban: str
+        amount_cents: int
+
+
+    PaymentMethod = Annotated[CardPayment | BankTransfer, Field(discriminator="kind")]
+  after: |
+    from typing import Annotated, Literal
+
+    from pydantic import BaseModel, Field
+
+
+    class CardPayment(BaseModel):
+        kind: Literal["card"] = "card"
+        card_token: str
+        amount_cents: int
+        currency: str = "USD"
+
+
+    class BankTransfer(BaseModel):
+        kind: Literal["bank_transfer"] = "bank_transfer"
+        iban: str
+        amount_cents: int
+        currency: str = "USD"
+
+
+    PaymentMethod = Annotated[CardPayment | BankTransfer, Field(discriminator="kind")]

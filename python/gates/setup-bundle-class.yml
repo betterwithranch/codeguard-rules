@@ -1,7 +1,15 @@
 id: setup-bundle-class
 language: python
 rule:
-  kind: class_definition
-  has:
-    field: name
-    regex: (Setup|Resources)$
+  any:
+  - kind: class_definition
+    has:
+      field: name
+      regex: (Setup|Resources)$
+  - kind: decorated_definition
+    has:
+      field: definition
+      kind: class_definition
+      has:
+        field: name
+        regex: (Setup|Resources)$

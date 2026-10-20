@@ -1,0 +1,57 @@
+id: no-field-tuple-asserts
+valid:
+  # Whole object compared once
+  - |
+    def test_total():
+        assert result == ExampleModel(name="a", total=1)
+
+  # Function that returns a tuple
+  - |
+    def test_divmod():
+        assert divmod(7, 2) == (3, 1)
+
+  # Fields of two different values
+  - |
+    def test_names():
+        assert (left.name, right.name) == ("a", "b")
+
+  # One field on its own line
+  - |
+    def test_name():
+        assert result.name == "a"
+
+  # Tuple held in a variable
+  - |
+    def test_pair():
+        assert pair == (1, 2)
+
+  # Members of an enum
+  - |
+    def test_skips():
+        assert binding.skips == (Skip.RENAMES, Skip.COMMENTS)
+
+invalid:
+  # Two fields on the left
+  - |
+    def test_total():
+        assert (result.name, result.total) == ("a", 1)
+
+  # Three fields on the left
+  - |
+    def test_total():
+        assert (result.name, result.total, result.paid) == ("a", 1, True)
+
+  # Two fields on the right
+  - |
+    def test_total():
+        assert ("a", 1) == (result.name, result.total)
+
+  # Three fields on the right
+  - |
+    def test_total():
+        assert ("a", 1, True) == (result.name, result.total, result.paid)
+
+  # Fields of a nested value
+  - |
+    def test_line():
+        assert (result.line.sku, result.line.qty) == (expected.sku, expected.qty)
