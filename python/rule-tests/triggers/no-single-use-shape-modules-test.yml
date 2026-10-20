@@ -1,0 +1,29 @@
+id: no-single-use-shape-modules
+triggered:
+- file: retry_attempt_params.py
+  after: |
+    class RetryAttemptParams:
+        attempt: int
+- file: retry_attempt_policy.py
+  before: |
+    class RetryAttemptPolicy:
+        def next(self, params):
+            return params
+
+
+    class RetryAttemptParams:
+        attempt: int
+  after: |
+    class RetryAttemptPolicy:
+        def next(self, params):
+            return params
+skipped:
+- file: retry_attempt_policy.py
+  before: |
+    class RetryAttemptPolicy:
+        def next(self, params):
+            return params
+  after: |
+    class RetryAttemptPolicy:
+        def next(self, params):
+            return params.attempt

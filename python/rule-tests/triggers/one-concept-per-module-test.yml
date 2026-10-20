@@ -1,0 +1,87 @@
+id: one-concept-per-module
+triggered:
+- file: notifications.py
+  after: |
+    class NotificationDispatcher:
+        def send(self, message):
+            return message
+
+
+    class RetryBackoffPolicy:
+        delay = 1
+- file: notifications.py
+  before: |
+    class NotificationDispatcher:
+        def send(self, message):
+            return message
+  after: |
+    class NotificationDispatcher:
+        def send(self, message):
+            return message
+
+
+    class RetryBackoffPolicy:
+        delay = 1
+- file: notifications.py
+  before: |
+    class NotificationDispatcher:
+        def send(self, message):
+            return message
+
+
+    class RetryBackoffPolicy:
+        delay = 1
+  after: |
+    class NotificationDispatcher:
+        def send(self, message):
+            return message
+
+
+    class RetryBackoffPolicy:
+        delay = 2
+skipped:
+- file: notifications.py
+  before: |
+    class NotificationDispatcher:
+        def send(self, message):
+            return message
+  after: |
+    class NotificationDispatcher:
+        def send(self, message):
+            return message.strip()
+- file: notifications.py
+  before: |
+    class NotificationDispatcher:
+        def send(self, message):
+            return message
+  after: |
+    class NotificationDispatcher:
+        def send(self, message):
+            return message
+
+
+    class _Attempt:
+        number = 1
+- file: notifications.py
+  before: |
+    class NotificationDispatcher:
+        pass
+
+
+    class RetryBackoffPolicy:
+        pass
+
+
+    def dispatch(message):
+        return message
+  after: |
+    class NotificationDispatcher:
+        pass
+
+
+    class RetryBackoffPolicy:
+        pass
+
+
+    def dispatch(message):
+        return message.strip()
