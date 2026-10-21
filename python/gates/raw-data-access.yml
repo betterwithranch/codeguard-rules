@@ -30,13 +30,6 @@ rule:
         has:
           field: parameters
           has:
-            any:
-            - kind: typed_parameter
-            - kind: typed_default_parameter
-            all:
-            - has:
-                kind: identifier
-                pattern: $RAW
-            - has:
-                kind: type
-                regex: \bAny\b|^dict\[
+            stopBy: end
+            kind: identifier
+            pattern: $RAW

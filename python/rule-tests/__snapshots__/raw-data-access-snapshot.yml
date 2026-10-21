@@ -9,6 +9,36 @@ snapshots:
       start: 15
       end: 29
   ? |
+    def render(alert: Alert) -> str:
+        return alert["service"]
+  : labels:
+    - source: alert["service"]
+      style: primary
+      start: 44
+      end: 60
+    - source: alert
+      style: secondary
+      start: 44
+      end: 49
+    - source: '"service"'
+      style: secondary
+      start: 50
+      end: 59
+    - source: alert
+      style: secondary
+      start: 11
+      end: 16
+    - source: alert
+      style: secondary
+      start: 11
+      end: 16
+    - source: |-
+        def render(alert: Alert) -> str:
+            return alert["service"]
+      style: secondary
+      start: 0
+      end: 60
+  ? |
     def render(alert: Any = None) -> str:
         return alert["service"]
   : labels:
