@@ -1,4 +1,3 @@
-# yaml-language-server: $schema=rule-eval-schema.json
 cases:
   - name: passes a rate provider to each method
     inputs:

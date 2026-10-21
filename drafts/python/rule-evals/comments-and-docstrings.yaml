@@ -1,4 +1,3 @@
-# yaml-language-server: $schema=rule-eval-schema.json
 cases:
   - name: narrates a loop with inline comments
     inputs:

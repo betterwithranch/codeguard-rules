@@ -1,4 +1,3 @@
-# yaml-language-server: $schema=rule-eval-schema.json
 cases:
   - name: falls back to a generated invoice id
     inputs:

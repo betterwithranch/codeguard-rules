@@ -109,8 +109,7 @@ python/
   rule-tests/<id>-test.yml   # tests for both, with __snapshots__/
   skills/<id>/SKILL.md       # judge rules
   bindings/<id>.yaml         # a skill or pattern rule and its default paths
-  rule-evals/<id>.yaml       # judge rule evals, pydantic-evals datasets
-  rule-evals/rule-eval-schema.json  # their schema, written by codeguard test -U
+  rule-evals/<id>.yaml       # judge rule evals: cases codeguard judges with the binding
 ```
 
 codeguard rejects any other entry in a ruleset directory.
@@ -127,8 +126,7 @@ task eval                # codeguard eval: judge each eval case and review each 
 
 [Which test to write](https://github.com/betterwithranch/codeguard#which-test-to-write)
 says which test covers which change. Every judge rule has an eval dataset with `invalid`,
-`valid` and `skipped` cases, each named after what its edit does. `task test -- -U` also
-rewrites `rule-eval-schema.json` when codeguard changes the eval format.
+`valid` and `skipped` cases, each named after what its edit does.
 
 CI runs `codeguard test`, then runs the branch's pattern rules over every file in
 codeguard (`codeguard review --all --dry-run`, which calls no model). A pattern rule

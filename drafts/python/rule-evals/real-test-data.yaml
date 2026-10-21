@@ -1,4 +1,3 @@
-# yaml-language-server: $schema=rule-eval-schema.json
 cases:
   - name: seeds an invoice with a fixed account id
     inputs:
