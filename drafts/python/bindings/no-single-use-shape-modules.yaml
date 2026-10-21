@@ -2,3 +2,5 @@ skill: python/skills/no-single-use-shape-modules
 paths: ["**/*.py"]
 exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
 triggers: [definition-added-or-removed, shape-module-import]
+provider: claude-cli
+model: claude-sonnet-5-5

@@ -2,3 +2,5 @@ skill: python/skills/trust-established-invariants
 paths: ["**/*.py"]
 exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
 triggers: [guard-check]
+provider: claude-cli
+model: claude-sonnet-5-5

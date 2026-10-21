@@ -2,3 +2,5 @@ skill: python/skills/one-responsibility-per-function
 paths: ["**/*.py"]
 exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
 triggers: [function]
+provider: claude-cli
+model: claude-sonnet-5-5

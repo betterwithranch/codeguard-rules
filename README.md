@@ -58,8 +58,13 @@ against the rule's skill):
 
 The other judge rules are drafts in `drafts/python/`, which codeguard doesn't load. A
 draft moves back into `python/` one rule at a time, highest value first, once it passes
-every eval case 3 of 3 runs on each supported judge model and a judged review of
-codeguard finds nothing wrong. [drafts/README.md](drafts/README.md) lists them.
+every eval case 3 of 3 runs on the model its binding names and a judged review of
+codeguard finds nothing wrong.
+
+Each judge rule's binding names its `provider` and `model`. Reviews and evals both
+judge with them, and a project can't override them, so a rule is only ever judged by
+the model its evals pass on. To move a rule to another model, change its binding and
+pass its evals again. [drafts/README.md](drafts/README.md) lists them.
 
 A judge rule runs on a changed file only when a changed line falls inside code it could
 flag. Its binding's `triggers` names that code: a change kind built into codeguard, such
@@ -85,8 +90,8 @@ packages:
 ```
 
 - `exclude` turns rules off.
-- `rules.<id>` overrides `paths`, `exclude_paths` or `severity`, and `model` on a judge
-  rule. `exclude_paths: []` brings test files back into an app rule.
+- `rules.<id>` overrides `paths`, `exclude_paths` or `severity`. `exclude_paths: []`
+  brings test files back into an app rule.
 - `codeguard update` moves `ref` to the newest tag.
 
 Diagnostics name a rule by package, ruleset and id: `betterwithranch/python/no-del-param`.

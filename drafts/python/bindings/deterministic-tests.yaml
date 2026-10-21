@@ -1,3 +1,5 @@
 skill: python/skills/deterministic-tests
 paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
 triggers: [nondeterminism, membership-test]
+provider: claude-cli
+model: claude-sonnet-5-5

@@ -2,3 +2,5 @@ skill: python/skills/behavior-on-data-owner
 paths: ["**/*.py"]
 exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
 triggers: [staticmethod, method-without-self, module-function-with-parameters]
+provider: claude-cli
+model: claude-sonnet-5-5
