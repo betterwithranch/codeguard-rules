@@ -2,4 +2,3 @@ skill: python/skills/explicit-discriminated-unions
 paths: ["**/*.py"]
 exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
 triggers: [literal-annotation, union-alias]
-disable_skips: [renames]

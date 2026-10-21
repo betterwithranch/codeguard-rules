@@ -2,4 +2,3 @@ skill: python/skills/no-anonymous-tuples
 paths: ["**/*.py"]
 exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
 triggers: [return-collection]
-disable_skips: [renames]
