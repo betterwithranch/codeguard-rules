@@ -77,6 +77,17 @@ invalid:
 
     def line(alert: dict[str, object]) -> str:
         return f"{alert['service']}: {alert['level']} {alert['text']}"
+- file: shipping/quote_errors.py
+  after: |
+    from shipping_sdk import QuoteFailed, RateError
+
+
+    def explain(failure: QuoteFailed) -> str:
+        return "; ".join(describe(error) for error in failure.errors())
+
+
+    def describe(error: RateError) -> str:
+        return f"{error['carrier']}: {error['reason']}"
 valid:
 - file: carriers/tracking.py
   after: |
@@ -184,6 +195,65 @@ valid:
         @property
         def is_known(self) -> bool:
             return isinstance(self.kind, CellKind)
+- file: shipping/quote_errors.py
+  after: |
+    from dataclasses import dataclass
+    from typing import Self
+
+    from shipping_sdk import QuoteFailed, RateError
+
+
+    def explain(failure: QuoteFailed) -> str:
+        return "; ".join(str(RateProblem.from_error(error)) for error in failure.errors())
+
+
+    @dataclass(frozen=True)
+    class RateProblem:
+        carrier: str
+        reason: str
+
+        @classmethod
+        def from_error(cls, error: RateError) -> Self:
+            return cls(carrier=error["carrier"], reason=error["reason"])
+
+        def __str__(self) -> str:
+            return f"{self.carrier}: {self.reason}"
+- file: pages/page_text.py
+  after: |
+    from collections.abc import Iterable
+    from dataclasses import dataclass
+
+    from pages.blocks import Block
+
+
+    @dataclass(frozen=True)
+    class PageText:
+        content: str
+
+        def with_edits(self, edits: Iterable[tuple[Block, str]]) -> str:
+            content = self.content
+            for block, text in sorted(edits, key=lambda edit: edit[0].start, reverse=True):
+                content = content[: block.start] + text + content[block.end :]
+            return content
+- file: chat/tool_calls.py
+  after: |
+    from collections.abc import Callable, Mapping
+
+    from chat_sdk import ToolCall
+
+
+    class Toolbox:
+        def __init__(self, tools: Mapping[str, Callable[..., str]]) -> None:
+            self.tools = tools
+
+        def answer(self, call: ToolCall) -> str:
+            tool = self.tools.get(call.name)
+            if tool is None:
+                return f"Error: there is no tool {call.name}."
+            try:
+                return tool(**(call.arguments or {}))
+            except TypeError as error:
+                return f"Error: {error}"
 skipped:
 - file: carriers/tracking_report.py
   before: |

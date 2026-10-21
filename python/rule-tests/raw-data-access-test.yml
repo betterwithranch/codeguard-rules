@@ -6,7 +6,7 @@ valid:
   value = lookup['key']
 - |
   def render(alert: Alert) -> str:
-      return alert["service"]
+      return names["service"]
 invalid:
 - |
   head = parts[0]
@@ -23,4 +23,7 @@ invalid:
       return alert["service"]
 - |
   def render(alert: Any = None) -> str:
+      return alert["service"]
+- |
+  def render(alert: Alert) -> str:
       return alert["service"]
