@@ -1,4 +1,3 @@
 skill: python/skills/test-names-match-assertions
 paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
 triggers: [test-function]
-disable_skips: [renames]

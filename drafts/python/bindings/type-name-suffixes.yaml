@@ -2,4 +2,3 @@ skill: python/skills/type-name-suffixes
 paths: ["**/*.py"]
 exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
 triggers: [suffixed-type-name]
-disable_skips: [renames]
