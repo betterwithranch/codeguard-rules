@@ -7,9 +7,11 @@ description: Parse boundary data once
 
 Untyped data entering from outside (`dict[str, Any]`, `list[str | int]`, a positional tuple, a third-party error format, external JSON) is parsed once, at the seam where it enters, into a named frozen value object. Domain code uses that type, never the raw shape.
 
-Signals of in-place interpretation:
+A violation is code outside the parse that reads the raw shape. Signs:
 
 - Index arithmetic on an untyped sequence: `loc[2:]`, `parts[0]`, `isinstance(x[-1], int)`.
-- The same raw layout read in more than one method.
+- The same raw layout read in more than one function or method.
 - `isinstance` used to decide what a raw segment means.
 - A foreign primitive type passed several calls deep into domain methods.
+
+The parse itself is not a violation: the function that builds the named type reads the raw shape, indexing and keys included, to build it.
