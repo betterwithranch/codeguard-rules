@@ -125,7 +125,7 @@ task eval                # codeguard eval: judge each eval case and review each 
 `CODEGUARD=<path>` runs another codeguard build, such as a checkout's `.venv/bin/codeguard`.
 
 [Which test to write](https://github.com/betterwithranch/codeguard#which-test-to-write)
-says which test covers which change. Every judge rule has an eval dataset with `invalid`,
+says which test covers which change. Every judge rule has a rule eval with `invalid`,
 `valid` and `skipped` cases, each named after what its edit does.
 
 CI runs `codeguard test`, then runs the branch's pattern rules over every file in
