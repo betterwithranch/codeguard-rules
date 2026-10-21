@@ -34,10 +34,6 @@ jobs:
   judge-evals:
     needs: rules
     runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        judge: [claude, gemini]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -48,23 +44,12 @@ jobs:
           ref: ${{ env.CODEGUARD_REF }}
           path: codeguard
       - uses: astral-sh/setup-uv@v10.2.0
-      - if: matrix.judge == 'claude'
-        run: npm install --global @anthropic-ai/claude-code
-      - name: Configure Gemini Pro
-        if: matrix.judge == 'gemini'
-        run: |
-          cat > "$RUNNER_TEMP/judge.yaml" <<'YAML'
-          judge:
-            provider: gemini
-            model: gemini-3.1-pro-preview
-          YAML
-          echo "CODEGUARD_CONFIG=$RUNNER_TEMP/judge.yaml" >> "$GITHUB_ENV"
+      - run: npm install --global @anthropic-ai/claude-code
       - name: Judge every eval case 3 times
         working-directory: rules
         run: uv run --frozen --project ../codeguard codeguard eval --repeat 3
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-          GOOGLE_API_KEY: ${{ secrets.GOOGLE_API_KEY }}
   judged-review:
     needs: rules
     runs-on: ubuntu-latest
