@@ -1,5 +1,3 @@
 skill: python/skills/arrange-act-assert-in-test
 paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
 triggers: [fixture, test-with-parameters]
-provider: claude-cli
-model: claude-sonnet-5-5

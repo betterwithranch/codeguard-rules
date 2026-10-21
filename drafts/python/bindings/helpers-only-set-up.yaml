@@ -1,5 +1,3 @@
 skill: python/skills/helpers-only-set-up
 paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
 triggers: [acting-helper]
-provider: claude-cli
-model: claude-sonnet-5-5

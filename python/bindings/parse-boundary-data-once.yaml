@@ -2,5 +2,3 @@ skill: python/skills/parse-boundary-data-once
 paths: ["**/*.py"]
 exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
 triggers: [raw-data-access]
-provider: claude-cli
-model: claude-sonnet-5-5

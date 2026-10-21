@@ -2,5 +2,3 @@ skill: python/skills/strenum-vs-literal
 paths: ["**/*.py"]
 exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
 triggers: [tag-value]
-provider: claude-cli
-model: claude-sonnet-5-5

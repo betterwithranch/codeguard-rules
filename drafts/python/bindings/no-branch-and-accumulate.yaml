@@ -2,5 +2,3 @@ skill: python/skills/no-branch-and-accumulate
 paths: ["**/*.py"]
 exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
 triggers: [accumulating-loop]
-provider: claude-cli
-model: claude-sonnet-5-5

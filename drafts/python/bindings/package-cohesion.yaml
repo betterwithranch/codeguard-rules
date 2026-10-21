@@ -2,5 +2,3 @@ skill: python/skills/package-cohesion
 paths: ["**/*.py"]
 exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
 triggers: [import]
-provider: claude-cli
-model: claude-sonnet-5-5

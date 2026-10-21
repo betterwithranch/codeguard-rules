@@ -61,10 +61,11 @@ draft moves back into `python/` one rule at a time, highest value first, once it
 every eval case 3 of 3 runs on the model its binding names and a judged review of
 codeguard finds nothing wrong.
 
-Each judge rule's binding names its `provider` and `model`. Reviews and evals both
-judge with them, and a project can't override them, so a rule is only ever judged by
-the model its evals pass on. To move a rule to another model, change its binding and
-pass its evals again. [drafts/README.md](drafts/README.md) lists them.
+Reviews and evals both judge a rule with its binding's `provider` and `model`, and a
+project can't override them, so a rule is only ever judged by the model its evals pass
+on. The bindings here leave both out, so codeguard's default, `claude-sonnet-5-5`
+through the `claude` CLI, judges them. To move a rule to another model, set them in its
+binding and pass its evals again. [drafts/README.md](drafts/README.md) lists them.
 
 A judge rule runs on a changed file only when a changed line falls inside code it could
 flag. Its binding's `triggers` names that code: a change kind built into codeguard, such

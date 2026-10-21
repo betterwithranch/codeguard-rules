@@ -1,5 +1,3 @@
 skill: python/skills/fixture-shape
 paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
 triggers: [fixture, module-constant]
-provider: claude-cli
-model: claude-sonnet-5-5

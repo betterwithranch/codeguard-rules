@@ -1,5 +1,3 @@
 skill: python/skills/test-isolation
 paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
 triggers: [isolation-risk, class-attribute]
-provider: claude-cli
-model: claude-sonnet-5-5
