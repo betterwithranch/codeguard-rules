@@ -65,6 +65,18 @@ invalid:
     def hours_since_last_scan(payload: dict[str, Any], now: datetime) -> float:
         scanned_at = datetime.fromisoformat(payload["events"][-1]["timestamp"])
         return (now - scanned_at).total_seconds() / 3600
+- file: alerts/notify.py
+  after: |
+    import json
+
+
+    def summary(report: str) -> str:
+        alerts = json.loads(report)["alerts"]
+        return "\n".join(line(alert) for alert in alerts if alert["urgent"])
+
+
+    def line(alert: dict[str, object]) -> str:
+        return f"{alert['service']}: {alert['level']} {alert['text']}"
 valid:
 - file: carriers/tracking.py
   after: |
@@ -93,6 +105,85 @@ valid:
 
     def hours_since_last_scan(event: TrackingEvent, now: datetime) -> float:
         return (now - event.occurred_at).total_seconds() / 3600
+- file: releases/remote_versions.py
+  after: |
+    import re
+    import subprocess
+    from dataclasses import dataclass
+    from typing import Self
+
+    _RELEASE = re.compile(r"^refs/heads/release-(\d+)$")
+
+
+    @dataclass(frozen=True, order=True)
+    class ReleaseBranch:
+        number: int
+        name: str
+
+        @classmethod
+        def from_ref(cls, ref: str) -> Self | None:
+            match = _RELEASE.match(ref)
+            return cls(int(match[1]), ref) if match else None
+
+
+    class RemoteReleases:
+        def newest(self, url: str) -> ReleaseBranch | None:
+            branches = self._branches(url)
+            return max(branches) if branches else None
+
+        def _branches(self, url: str) -> list[ReleaseBranch]:
+            listing = subprocess.run(
+                ["git", "ls-remote", "--heads", url], capture_output=True, text=True, check=True
+            ).stdout
+            found = (ReleaseBranch.from_ref(line.split("\t")[-1]) for line in listing.splitlines())
+            return [branch for branch in found if branch is not None]
+- file: plans/plan_loader.py
+  after: |
+    from dataclasses import dataclass
+    from pathlib import Path
+
+    import yaml
+
+
+    @dataclass(frozen=True)
+    class TaskStep:
+        command: str
+
+
+    @dataclass(frozen=True)
+    class WaitStep:
+        seconds: int
+
+
+    class PlanLoader:
+        def load(self, path: Path) -> list[TaskStep | WaitStep]:
+            return [self._step(document) for document in yaml.safe_load_all(path.read_text())]
+
+        def _step(self, document: object) -> TaskStep | WaitStep:
+            if not isinstance(document, dict):
+                raise ValueError(f"a plan step is a mapping, got {document!r}")
+            if "wait" in document:
+                return WaitStep(seconds=int(document["wait"]))
+            return TaskStep(command=str(document["run"]))
+- file: layout/cells.py
+  after: |
+    from dataclasses import dataclass
+    from enum import StrEnum
+
+
+    class CellKind(StrEnum):
+        HEADER = "header"
+        BODY = "body"
+
+
+    @dataclass(frozen=True)
+    class Cell:
+        kind: CellKind | str
+        text: str
+
+        @property
+        def is_known(self) -> bool:
+            return isinstance(self.kind, CellKind)
 skipped:
 - file: carriers/tracking_report.py
   before: |
