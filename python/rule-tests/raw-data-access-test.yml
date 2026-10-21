@@ -4,6 +4,9 @@ valid:
   name = order.name
 - |
   value = lookup['key']
+- |
+  def render(alert: Alert) -> str:
+      return alert["service"]
 invalid:
 - |
   head = parts[0]
@@ -15,3 +18,9 @@ invalid:
 - |
   def parse(raw: dict[str, Any]):
       return raw
+- |
+  def render(alert: dict[str, object]) -> str:
+      return alert["service"]
+- |
+  def render(alert: Any = None) -> str:
+      return alert["service"]

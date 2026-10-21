@@ -127,3 +127,13 @@ CI runs `codeguard test`, then runs the branch's pattern rules over every file i
 codeguard (`codeguard review --all --dry-run`, which calls no model). A pattern rule
 that flags code there fails the build before a release ships it. CI uses the codeguard
 ref in `CODEGUARD_REF` in `.github/workflows/ci.yaml`.
+
+Once those pass, CI judges the judge rules:
+
+- `judge-evals` runs `codeguard eval --repeat 3` once with Claude and once with Gemini
+  Pro. A case that fails or isn't judged in any run fails the build.
+- `judged-review` runs `codeguard review --all` over codeguard with Claude and fails on
+  any diagnostic, warnings included.
+
+They need the repository secrets `CLAUDE_CODE_OAUTH_TOKEN` and `GOOGLE_API_KEY`, a
+Gemini API key bound to a service account with the Vertex AI User role.

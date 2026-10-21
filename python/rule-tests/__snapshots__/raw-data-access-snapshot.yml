@@ -9,6 +9,22 @@ snapshots:
       start: 15
       end: 29
   ? |
+    def render(alert: Any = None) -> str:
+        return alert["service"]
+  : labels:
+    - source: Any
+      style: primary
+      start: 18
+      end: 21
+  ? |
+    def render(alert: dict[str, object]) -> str:
+        return alert["service"]
+  : labels:
+    - source: dict[str, object]
+      style: primary
+      start: 18
+      end: 35
+  ? |
     head = parts[0]
   : labels:
     - source: parts[0]
