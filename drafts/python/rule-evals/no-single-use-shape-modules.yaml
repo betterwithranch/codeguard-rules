@@ -1,0 +1,88 @@
+# yaml-language-server: $schema=rule-eval-schema.json
+cases:
+  - name: imports params and result from own modules
+    inputs:
+      file: retry/retry_attempt_policy.py
+      after: |
+        from retry.retry_attempt import RetryAttempt
+        from retry.retry_attempt_params import RetryAttemptParams
+
+
+        class RetryAttemptPolicy:
+            def next_attempt(self, params: RetryAttemptParams) -> RetryAttempt:
+                delay = min(2**params.attempt, params.max_delay_seconds)
+                return RetryAttempt(number=params.attempt + 1, delay_seconds=delay)
+    expected_output:
+      outcome: invalid
+  - name: moves params and result into separate modules
+    inputs:
+      file: retry/retry_attempt_policy.py
+      before: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class RetryAttemptParams:
+            attempt: int
+            max_delay_seconds: int
+
+
+        @dataclass(frozen=True)
+        class RetryAttempt:
+            number: int
+            delay_seconds: int
+
+
+        class RetryAttemptPolicy:
+            def next_attempt(self, params: RetryAttemptParams) -> RetryAttempt:
+                delay = min(2**params.attempt, params.max_delay_seconds)
+                return RetryAttempt(number=params.attempt + 1, delay_seconds=delay)
+      after: |
+        from retry.retry_attempt import RetryAttempt
+        from retry.retry_attempt_params import RetryAttemptParams
+
+
+        class RetryAttemptPolicy:
+            def next_attempt(self, params: RetryAttemptParams) -> RetryAttempt:
+                delay = min(2**params.attempt, params.max_delay_seconds)
+                return RetryAttempt(number=params.attempt + 1, delay_seconds=delay)
+    expected_output:
+      outcome: invalid
+  - name: keeps params and result with the policy
+    inputs:
+      file: retry/retry_attempt_policy.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class RetryAttemptParams:
+            attempt: int
+            max_delay_seconds: int
+
+
+        @dataclass(frozen=True)
+        class RetryAttempt:
+            number: int
+            delay_seconds: int
+
+
+        class RetryAttemptPolicy:
+            def next_attempt(self, params: RetryAttemptParams) -> RetryAttempt:
+                delay = min(2**params.attempt, params.max_delay_seconds)
+                return RetryAttempt(number=params.attempt + 1, delay_seconds=delay)
+    expected_output:
+      outcome: valid
+  - name: reads max delay from params
+    inputs:
+      file: retry/retry_attempt_policy.py
+      before: |
+        class RetryAttemptPolicy:
+            def next_attempt(self, params):
+                return min(2**params.attempt, 60)
+      after: |
+        class RetryAttemptPolicy:
+            def next_attempt(self, params):
+                return min(2**params.attempt, params.max_delay_seconds)
+    expected_output:
+      outcome: skipped

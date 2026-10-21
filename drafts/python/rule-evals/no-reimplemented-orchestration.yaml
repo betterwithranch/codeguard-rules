@@ -1,0 +1,180 @@
+# yaml-language-server: $schema=rule-eval-schema.json
+cases:
+  - name: chains the pipeline's stages from outside
+    inputs:
+      file: shipments/fulfillment.py
+      after: |
+        from typing import Protocol
+
+
+        class PickPlan(Protocol):
+            order_id: str
+
+
+        class Shipment(Protocol):
+            tracking_number: str
+
+
+        class PickPlanner(Protocol):
+            def plan(self, order_id: str) -> PickPlan: ...
+
+
+        class Packer(Protocol):
+            def pack(self, plan: PickPlan) -> Shipment: ...
+
+
+        class FulfillmentPipeline:
+            def __init__(self, planner: PickPlanner, packer: Packer) -> None:
+                self.planner = planner
+                self.packer = packer
+
+            def run(self, order_id: str) -> Shipment:
+                plan = self.planner.plan(order_id)
+                return self.packer.pack(plan)
+
+
+        class ReturnsDesk:
+            def __init__(self, pipeline: FulfillmentPipeline) -> None:
+                self._pipeline = pipeline
+
+            def reship(self, order_id: str) -> Shipment:
+                plan = self._pipeline.planner.plan(order_id)
+                return self._pipeline.packer.pack(plan)
+    expected_output:
+      outcome: invalid
+  - name: replaces a pipeline call with its stages
+    inputs:
+      file: shipments/fulfillment.py
+      before: |
+        from typing import Protocol
+
+
+        class PickPlan(Protocol):
+            order_id: str
+
+
+        class Shipment(Protocol):
+            tracking_number: str
+
+
+        class PickPlanner(Protocol):
+            def plan(self, order_id: str) -> PickPlan: ...
+
+
+        class Packer(Protocol):
+            def pack(self, plan: PickPlan) -> Shipment: ...
+
+
+        class FulfillmentPipeline:
+            def __init__(self, planner: PickPlanner, packer: Packer) -> None:
+                self._planner = planner
+                self._packer = packer
+
+            def run(self, order_id: str) -> Shipment:
+                plan = self._planner.plan(order_id)
+                return self._packer.pack(plan)
+
+
+        class ReturnsDesk:
+            def __init__(self, pipeline: FulfillmentPipeline) -> None:
+                self._pipeline = pipeline
+
+            def reship(self, order_id: str) -> Shipment:
+                return self._pipeline.run(order_id)
+      after: |
+        from typing import Protocol
+
+
+        class PickPlan(Protocol):
+            order_id: str
+
+
+        class Shipment(Protocol):
+            tracking_number: str
+
+
+        class PickPlanner(Protocol):
+            def plan(self, order_id: str) -> PickPlan: ...
+
+
+        class Packer(Protocol):
+            def pack(self, plan: PickPlan) -> Shipment: ...
+
+
+        class FulfillmentPipeline:
+            def __init__(self, planner: PickPlanner, packer: Packer) -> None:
+                self._planner = planner
+                self._packer = packer
+
+            def run(self, order_id: str) -> Shipment:
+                plan = self._planner.plan(order_id)
+                return self._packer.pack(plan)
+
+
+        class ReturnsDesk:
+            def __init__(self, planner: PickPlanner, packer: Packer) -> None:
+                self._planner = planner
+                self._packer = packer
+
+            def reship(self, order_id: str) -> Shipment:
+                return self._packer.pack(self._planner.plan(order_id))
+    expected_output:
+      outcome: invalid
+  - name: calls the pipeline's run method
+    inputs:
+      file: shipments/fulfillment.py
+      after: |
+        from typing import Protocol
+
+
+        class PickPlan(Protocol):
+            order_id: str
+
+
+        class Shipment(Protocol):
+            tracking_number: str
+
+
+        class PickPlanner(Protocol):
+            def plan(self, order_id: str) -> PickPlan: ...
+
+
+        class Packer(Protocol):
+            def pack(self, plan: PickPlan) -> Shipment: ...
+
+
+        class FulfillmentPipeline:
+            def __init__(self, planner: PickPlanner, packer: Packer) -> None:
+                self._planner = planner
+                self._packer = packer
+
+            def run(self, order_id: str) -> Shipment:
+                plan = self._planner.plan(order_id)
+                return self._packer.pack(plan)
+
+
+        class ReturnsDesk:
+            def __init__(self, pipeline: FulfillmentPipeline) -> None:
+                self._pipeline = pipeline
+
+            def reship(self, order_id: str) -> Shipment:
+                return self._pipeline.run(order_id)
+    expected_output:
+      outcome: valid
+  - name: raises the maximum reship attempts
+    inputs:
+      file: shipments/fulfillment.py
+      before: |
+        class ReturnsDesk:
+            max_reship_attempts = 3
+
+            def can_reship(self, attempts: int) -> bool:
+                return attempts < self.max_reship_attempts
+      after: |
+        class ReturnsDesk:
+            max_reship_attempts = 5
+
+            def can_reship(self, attempts: int) -> bool:
+                return attempts < self.max_reship_attempts
+    expected_output:
+      outcome: skipped

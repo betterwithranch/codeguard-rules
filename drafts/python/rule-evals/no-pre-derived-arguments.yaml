@@ -1,0 +1,120 @@
+# yaml-language-server: $schema=rule-eval-schema.json
+cases:
+  - name: passes selected lines with their region
+    inputs:
+      file: orders/quote.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class CartLine:
+            sku: str
+            price: int
+            region: str
+
+
+        def select_lines(cart: list[CartLine], region: str) -> list[CartLine]:
+            return [line for line in cart if line.region == region]
+
+
+        def quote(lines: list[CartLine], region: str) -> str:
+            total = sum(line.price for line in lines)
+            return f"{region}: {total}"
+
+
+        def quote_cart(cart: list[CartLine], region: str) -> str:
+            return quote(lines=select_lines(cart, region), region=region)
+    expected_output:
+      outcome: invalid
+  - name: passes a tax rate with its customer
+    inputs:
+      file: invoices/issue.py
+      before: |
+        from dataclasses import dataclass
+
+        TAX_RATES = {"DE": 0.19, "FR": 0.2}
+
+
+        @dataclass(frozen=True)
+        class Customer:
+            country: str
+            loyalty_credit: int
+
+
+        def tax_rate(customer: Customer) -> float:
+            return TAX_RATES[customer.country]
+
+
+        def invoice_total(subtotal: int, customer: Customer) -> int:
+            total = round(subtotal * (1 + tax_rate(customer)))
+            return total - customer.loyalty_credit
+
+
+        def issue_invoice(subtotal: int, customer: Customer) -> int:
+            return invoice_total(subtotal, customer)
+      after: |
+        from dataclasses import dataclass
+
+        TAX_RATES = {"DE": 0.19, "FR": 0.2}
+
+
+        @dataclass(frozen=True)
+        class Customer:
+            country: str
+            loyalty_credit: int
+
+
+        def tax_rate(customer: Customer) -> float:
+            return TAX_RATES[customer.country]
+
+
+        def invoice_total(subtotal: int, rate: float, customer: Customer) -> int:
+            total = round(subtotal * (1 + rate))
+            return total - customer.loyalty_credit
+
+
+        def issue_invoice(subtotal: int, customer: Customer) -> int:
+            return invoice_total(subtotal, tax_rate(customer), customer)
+    expected_output:
+      outcome: invalid
+  - name: builds an invoice from a customer
+    inputs:
+      file: invoices/issue.py
+      after: |
+        from dataclasses import dataclass
+        from datetime import date
+
+
+        @dataclass(frozen=True)
+        class Customer:
+            email: str
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            customer: Customer
+            issued_on: date
+
+
+        def issue_invoice(customer: Customer) -> Invoice:
+            return Invoice(customer=customer, issued_on=date.today())
+    expected_output:
+      outcome: valid
+  - name: adds a tax rate entry
+    inputs:
+      file: invoices/issue.py
+      before: |
+        TAX_RATES = {"DE": 0.19, "FR": 0.2}
+
+
+        def tax_rate(country: str) -> float:
+            return TAX_RATES[country]
+      after: |
+        TAX_RATES = {"DE": 0.19, "FR": 0.2, "NL": 0.21}
+
+
+        def tax_rate(country: str) -> float:
+            return TAX_RATES[country]
+    expected_output:
+      outcome: skipped

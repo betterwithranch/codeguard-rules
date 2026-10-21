@@ -1,0 +1,114 @@
+# yaml-language-server: $schema=rule-eval-schema.json
+cases:
+  - name: names a submit method validate
+    inputs:
+      file: orders/workflow.py
+      after: |
+        from dataclasses import dataclass
+        from enum import StrEnum
+
+
+        class OrderStatus(StrEnum):
+            DRAFT = "draft"
+            SUBMITTED = "submitted"
+
+
+        @dataclass
+        class Order:
+            number: str
+            status: OrderStatus
+
+            def validate(self) -> None:
+                self.status = OrderStatus.SUBMITTED
+    expected_output:
+      outcome: invalid
+  - name: renames mark_delivered to process_data
+    inputs:
+      file: shipments/tracking.py
+      before: |
+        from dataclasses import dataclass
+        from enum import StrEnum
+
+
+        class ShipmentStatus(StrEnum):
+            IN_TRANSIT = "in_transit"
+            DELIVERED = "delivered"
+
+
+        @dataclass
+        class Shipment:
+            tracking_number: str
+            status: ShipmentStatus
+
+
+        class DeliveryTracker:
+            def mark_delivered(self, shipments: list[Shipment]) -> None:
+                for shipment in shipments:
+                    shipment.status = ShipmentStatus.DELIVERED
+      after: |
+        from dataclasses import dataclass
+        from enum import StrEnum
+
+
+        class ShipmentStatus(StrEnum):
+            IN_TRANSIT = "in_transit"
+            DELIVERED = "delivered"
+
+
+        @dataclass
+        class Shipment:
+            tracking_number: str
+            status: ShipmentStatus
+
+
+        class DeliveryTracker:
+            def process_data(self, shipments: list[Shipment]) -> None:
+                for shipment in shipments:
+                    shipment.status = ShipmentStatus.DELIVERED
+    expected_output:
+      outcome: invalid
+  - name: names the submit method submit
+    inputs:
+      file: orders/workflow.py
+      after: |
+        from dataclasses import dataclass
+        from enum import StrEnum
+
+
+        class OrderStatus(StrEnum):
+            DRAFT = "draft"
+            SUBMITTED = "submitted"
+
+
+        @dataclass
+        class Order:
+            number: str
+            status: OrderStatus
+
+            def submit(self) -> None:
+                self.status = OrderStatus.SUBMITTED
+    expected_output:
+      outcome: valid
+  - name: extends the submission grace period
+    inputs:
+      file: orders/workflow.py
+      before: |
+        from enum import StrEnum
+
+        SUBMISSION_GRACE_PERIOD_DAYS = 3
+
+
+        class OrderStatus(StrEnum):
+            DRAFT = "draft"
+            SUBMITTED = "submitted"
+      after: |
+        from enum import StrEnum
+
+        SUBMISSION_GRACE_PERIOD_DAYS = 5
+
+
+        class OrderStatus(StrEnum):
+            DRAFT = "draft"
+            SUBMITTED = "submitted"
+    expected_output:
+      outcome: skipped

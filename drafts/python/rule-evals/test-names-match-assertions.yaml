@@ -1,0 +1,88 @@
+# yaml-language-server: $schema=rule-eval-schema.json
+cases:
+  - name: claims a refund but asserts status
+    inputs:
+      file: tests/test_orders.py
+      after: |
+        from shop.orders import OrderService, OrderStatus
+
+
+        def test_cancel_order_refunds_the_payment(customer):
+            service = OrderService()
+            order = service.place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+            cancelled = service.cancel(order.id)
+
+            assert cancelled.status == OrderStatus.CANCELLED
+    expected_output:
+      outcome: invalid
+  - name: renames test to an unasserted email
+    inputs:
+      file: tests/test_orders.py
+      before: |
+        from shop.orders import OrderService, OrderStatus
+
+
+        def test_cancel_sets_status_to_cancelled(customer):
+            service = OrderService()
+            order = service.place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+            cancelled = service.cancel(order.id)
+
+            assert cancelled.status == OrderStatus.CANCELLED
+      after: |
+        from shop.orders import OrderService, OrderStatus
+
+
+        def test_cancel_sends_the_cancellation_email(customer):
+            service = OrderService()
+            order = service.place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+            cancelled = service.cancel(order.id)
+
+            assert cancelled.status == OrderStatus.CANCELLED
+    expected_output:
+      outcome: invalid
+  - name: names the asserted cancelled status
+    inputs:
+      file: tests/test_orders.py
+      after: |
+        from shop.orders import OrderService, OrderStatus
+
+
+        def test_cancel_sets_status_to_cancelled(customer):
+            service = OrderService()
+            order = service.place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+            cancelled = service.cancel(order.id)
+
+            assert cancelled.status == OrderStatus.CANCELLED
+    expected_output:
+      outcome: valid
+  - name: changes the imported module path
+    inputs:
+      file: tests/test_orders.py
+      before: |
+        from shop.orders import OrderService, OrderStatus
+
+
+        def test_cancel_sets_status_to_cancelled(customer):
+            service = OrderService()
+            order = service.place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+            cancelled = service.cancel(order.id)
+
+            assert cancelled.status == OrderStatus.CANCELLED
+      after: |
+        from shop.ordering import OrderService, OrderStatus
+
+
+        def test_cancel_sets_status_to_cancelled(customer):
+            service = OrderService()
+            order = service.place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+            cancelled = service.cancel(order.id)
+
+            assert cancelled.status == OrderStatus.CANCELLED
+    expected_output:
+      outcome: skipped

@@ -1,0 +1,127 @@
+# yaml-language-server: $schema=rule-eval-schema.json
+cases:
+  - name: restates the type argument per subclass
+    inputs:
+      file: storage/repository.py
+      after: |
+        from typing import Generic, TypeVar
+
+        from orders import Order
+        from shipping import Shipment
+
+        TRecord = TypeVar("TRecord")
+
+
+        class Repository(Generic[TRecord]):
+            record_type: type[TRecord]
+
+            def __init__(self) -> None:
+                self._rows: dict[str, TRecord] = {}
+
+            def table_name(self) -> str:
+                return self.record_type.__name__.lower()
+
+
+        class OrderRepository(Repository[Order]):
+            record_type = Order
+
+
+        class ShipmentRepository(Repository[Shipment]):
+            record_type = Shipment
+    expected_output:
+      outcome: invalid
+  - name: adds a restated record type attribute
+    inputs:
+      file: storage/repository.py
+      before: |
+        from typing import Generic, TypeVar
+
+        from orders import Order
+
+        TRecord = TypeVar("TRecord")
+
+
+        class Repository(Generic[TRecord]):
+            def __init__(self) -> None:
+                self._rows: dict[str, TRecord] = {}
+
+            def get(self, record_id: str) -> TRecord:
+                return self._rows[record_id]
+
+
+        class OrderRepository(Repository[Order]):
+            pass
+      after: |
+        from typing import Generic, TypeVar
+
+        from orders import Order
+
+        TRecord = TypeVar("TRecord")
+
+
+        class Repository(Generic[TRecord]):
+            record_type: type[TRecord]
+
+            def __init__(self) -> None:
+                self._rows: dict[str, TRecord] = {}
+
+            def get(self, record_id: str) -> TRecord:
+                return self._rows[record_id]
+
+            def table_name(self) -> str:
+                return self.record_type.__name__.lower()
+
+
+        class OrderRepository(Repository[Order]):
+            record_type = Order
+    expected_output:
+      outcome: invalid
+  - name: captures the type argument in init_subclass
+    inputs:
+      file: storage/repository.py
+      after: |
+        from typing import Any, Generic, TypeVar, get_args, get_origin
+
+        from orders import Order
+
+        TRecord = TypeVar("TRecord")
+
+
+        class Repository(Generic[TRecord]):
+            record_type: type[TRecord]
+
+            def __init_subclass__(cls, **kwargs: Any) -> None:
+                super().__init_subclass__(**kwargs)
+                for base in cls.__orig_bases__:
+                    if get_origin(base) is Repository and get_args(base):
+                        cls.record_type = get_args(base)[0]
+                        return
+
+            def __init__(self) -> None:
+                self._rows: dict[str, TRecord] = {}
+
+            def table_name(self) -> str:
+                return self.record_type.__name__.lower()
+
+
+        class OrderRepository(Repository[Order]):
+            pass
+    expected_output:
+      outcome: valid
+  - name: raises the maximum page size
+    inputs:
+      file: storage/paging.py
+      before: |
+        MAX_PAGE_SIZE = 100
+
+
+        def clamp_page_size(requested: int) -> int:
+            return min(requested, MAX_PAGE_SIZE)
+      after: |
+        MAX_PAGE_SIZE = 250
+
+
+        def clamp_page_size(requested: int) -> int:
+            return min(requested, MAX_PAGE_SIZE)
+    expected_output:
+      outcome: skipped

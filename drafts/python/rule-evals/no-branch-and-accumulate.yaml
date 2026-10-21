@@ -1,0 +1,142 @@
+# yaml-language-server: $schema=rule-eval-schema.json
+cases:
+  - name: branches and appends labels in a loop
+    inputs:
+      file: shipments/labels.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Shipment:
+            tracking_number: str
+            is_international: bool
+            is_express: bool
+
+
+        def shipping_labels(shipments: list[Shipment]) -> list[str]:
+            labels = []
+            for shipment in shipments:
+                if shipment.is_international:
+                    labels.append(f"INTL {shipment.tracking_number}")
+                elif shipment.is_express:
+                    labels.append(f"EXPRESS {shipment.tracking_number}")
+                else:
+                    labels.append(shipment.tracking_number)
+            return labels
+    expected_output:
+      outcome: invalid
+  - name: replaces a comprehension with a branching loop
+    inputs:
+      file: invoices/lines.py
+      before: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class InvoiceLine:
+            amount: int
+            is_refund: bool
+            is_voided: bool
+
+
+        def line_amounts(lines: list[InvoiceLine]) -> list[int]:
+            return [line.amount for line in lines]
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class InvoiceLine:
+            amount: int
+            is_refund: bool
+            is_voided: bool
+
+
+        def line_amounts(lines: list[InvoiceLine]) -> list[int]:
+            amounts = []
+            for line in lines:
+                if line.is_voided:
+                    continue
+                if line.is_refund:
+                    amounts.append(-line.amount)
+                else:
+                    amounts.append(line.amount)
+            return amounts
+    expected_output:
+      outcome: invalid
+  - name: maps lines through a helper function
+    inputs:
+      file: invoices/lines.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class InvoiceLine:
+            amount: int
+            is_refund: bool
+
+
+        def signed_amount(line: InvoiceLine) -> int:
+            if line.is_refund:
+                return -line.amount
+            return line.amount
+
+
+        def line_amounts(lines: list[InvoiceLine]) -> list[int]:
+            return [signed_amount(line) for line in lines]
+    expected_output:
+      outcome: valid
+  - name: accumulates a running balance
+    inputs:
+      file: invoices/balance.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Payment:
+            amount: int
+            is_refund: bool
+
+
+        def running_balances(payments: list[Payment]) -> list[int]:
+            balances = []
+            balance = 0
+            for payment in payments:
+                if payment.is_refund:
+                    balance -= payment.amount
+                else:
+                    balance += payment.amount
+                balances.append(balance)
+            return balances
+    expected_output:
+      outcome: valid
+  - name: rewords the tracking label
+    inputs:
+      file: shipments/labels.py
+      before: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Shipment:
+            tracking_number: str
+
+
+        def label(shipment: Shipment) -> str:
+            return f"Tracking {shipment.tracking_number}"
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Shipment:
+            tracking_number: str
+
+
+        def label(shipment: Shipment) -> str:
+            return f"Tracking number {shipment.tracking_number}"
+    expected_output:
+      outcome: skipped

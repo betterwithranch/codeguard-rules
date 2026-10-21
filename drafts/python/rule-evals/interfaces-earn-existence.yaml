@@ -1,0 +1,139 @@
+# yaml-language-server: $schema=rule-eval-schema.json
+cases:
+  - name: adds a protocol with one implementer
+    inputs:
+      file: invoices/service.py
+      after: |
+        from typing import Protocol
+
+        from invoices.invoice import Invoice
+        from invoices.storage import Database
+
+
+        class InvoiceRepository(Protocol):
+            def find(self, number: str) -> Invoice: ...
+
+
+        class PostgresInvoiceRepository:
+            def __init__(self, database: Database) -> None:
+                self._database = database
+
+            def find(self, number: str) -> Invoice:
+                return self._database.fetch_invoice(number)
+
+
+        class InvoiceService:
+            def __init__(self, repository: InvoiceRepository) -> None:
+                self._repository = repository
+
+            def total_cents(self, number: str) -> int:
+                return self._repository.find(number).total_cents
+    expected_output:
+      outcome: invalid
+  - name: adds an ABC over a single notifier
+    inputs:
+      file: shipments/dispatch.py
+      before: |
+        from shipments.email import EmailClient
+        from shipments.shipment import Shipment
+
+
+        class ShipmentNotifier:
+            def __init__(self, email_client: EmailClient) -> None:
+                self._email_client = email_client
+
+            def notify_dispatched(self, shipment: Shipment) -> None:
+                self._email_client.send(shipment.customer_email, "Your order has shipped")
+
+
+        class ShipmentDispatcher:
+            def __init__(self, notifier: ShipmentNotifier) -> None:
+                self._notifier = notifier
+
+            def dispatch(self, shipment: Shipment) -> None:
+                self._notifier.notify_dispatched(shipment)
+      after: |
+        from abc import ABC, abstractmethod
+
+        from shipments.email import EmailClient
+        from shipments.shipment import Shipment
+
+
+        class DispatchNotifier(ABC):
+            @abstractmethod
+            def notify_dispatched(self, shipment: Shipment) -> None: ...
+
+
+        class ShipmentNotifier(DispatchNotifier):
+            def __init__(self, email_client: EmailClient) -> None:
+                self._email_client = email_client
+
+            def notify_dispatched(self, shipment: Shipment) -> None:
+                self._email_client.send(shipment.customer_email, "Your order has shipped")
+
+
+        class ShipmentDispatcher:
+            def __init__(self, notifier: DispatchNotifier) -> None:
+                self._notifier = notifier
+
+            def dispatch(self, shipment: Shipment) -> None:
+                self._notifier.notify_dispatched(shipment)
+    expected_output:
+      outcome: invalid
+  - name: defines a protocol with two gateways
+    inputs:
+      file: payments/gateway.py
+      after: |
+        from typing import Protocol
+
+        from payments.adyen import AdyenClient
+        from payments.stripe import StripeClient
+
+
+        class PaymentGateway(Protocol):
+            def charge(self, token: str, amount_cents: int) -> str: ...
+
+
+        class StripeGateway:
+            def __init__(self, client: StripeClient) -> None:
+                self._client = client
+
+            def charge(self, token: str, amount_cents: int) -> str:
+                return self._client.create_charge(token, amount_cents)
+
+
+        class AdyenGateway:
+            def __init__(self, client: AdyenClient) -> None:
+                self._client = client
+
+            def charge(self, token: str, amount_cents: int) -> str:
+                return self._client.authorise(token, amount_cents)
+    expected_output:
+      outcome: valid
+  - name: rewords a notification message
+    inputs:
+      file: shipments/dispatch.py
+      before: |
+        from shipments.email import EmailClient
+        from shipments.shipment import Shipment
+
+
+        class ShipmentNotifier:
+            def __init__(self, email_client: EmailClient) -> None:
+                self._email_client = email_client
+
+            def notify_dispatched(self, shipment: Shipment) -> None:
+                self._email_client.send(shipment.customer_email, "Your order has shipped")
+      after: |
+        from shipments.email import EmailClient
+        from shipments.shipment import Shipment
+
+
+        class ShipmentNotifier:
+            def __init__(self, email_client: EmailClient) -> None:
+                self._email_client = email_client
+
+            def notify_dispatched(self, shipment: Shipment) -> None:
+                self._email_client.send(shipment.customer_email, "Your order is on its way")
+    expected_output:
+      outcome: skipped
