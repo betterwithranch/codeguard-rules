@@ -1,0 +1,73 @@
+id: one-form-per-input
+valid:
+  # Default from a constant
+  - |
+    def example_function(timeout=None):
+        if timeout is None:
+            timeout = DEFAULT_TIMEOUT
+
+  # Default from a new empty value
+  - |
+    def example_function(items=None):
+        if items is None:
+            items = []
+
+  # Default built from an attribute of self
+  - |
+    def example_method(self, client=None):
+        if client is None:
+            client = ExampleClient(self.url)
+
+  # Default from an attribute of another parameter
+  - |
+    def example_function(example_model, label=None):
+        if label is None:
+            label = example_model.name
+
+  # `or` default from a constant
+  - |
+    def example_function(timeout=None):
+        timeout = timeout or DEFAULT_TIMEOUT
+
+  # Local value derived from a parameter
+  - |
+    def example_function(catalog):
+        index = build_example_index(catalog)
+        return index
+
+  # Nested function reconciling its own parameter from a call with no parameter
+  - |
+    def example_function(catalog=None, index=None):
+        def inner(index=None):
+            if index is None:
+                index = load_example_index()
+        return inner
+
+invalid:
+  # `is None` guard with an `and`, deriving from another parameter by a call
+  - |
+    def example_function(catalog=None, index=None):
+        if index is None and catalog:
+            index = build_example_index(catalog)
+
+  # `is None` guard deriving from another parameter by a subscript
+  - |
+    def example_function(example_model=None, example_key=None):
+        if example_model is None:
+            example_model = EXAMPLE_MODELS[example_key]
+
+  # `not` guard on typed parameters
+  - |
+    def example_function(name: str | None = None, number: int | None = None):
+        if not name:
+            name = format_example(number)
+
+  # `or` fallback deriving from another parameter
+  - |
+    def example_function(catalog=None, index=None):
+        index = index or build_example_index(catalog)
+
+  # Conditional expression deriving from another parameter
+  - |
+    def example_function(catalog=None, index=None):
+        index = index if index is not None else build_example_index(catalog)

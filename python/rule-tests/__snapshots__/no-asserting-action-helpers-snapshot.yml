@@ -1,0 +1,100 @@
+id: no-asserting-action-helpers
+snapshots:
+  ? |
+    async def pay_and_settle(example_service, invoice):
+        assert invoice.issued
+        return await example_service.settle(invoice.id)
+  : labels:
+    - source: |-
+        async def pay_and_settle(example_service, invoice):
+            assert invoice.issued
+            return await example_service.settle(invoice.id)
+      style: primary
+      start: 0
+      end: 129
+    - source: invoice
+      style: secondary
+      start: 42
+      end: 49
+    - source: invoice
+      style: secondary
+      start: 42
+      end: 49
+    - source: |-
+        async def pay_and_settle(example_service, invoice):
+            assert invoice.issued
+            return await example_service.settle(invoice.id)
+      style: secondary
+      start: 0
+      end: 129
+    - source: invoice
+      style: secondary
+      start: 63
+      end: 70
+    - source: assert invoice.issued
+      style: secondary
+      start: 56
+      end: 77
+    - source: await example_service.settle(invoice.id)
+      style: secondary
+      start: 89
+      end: 129
+    - source: return await example_service.settle(invoice.id)
+      style: secondary
+      start: 82
+      end: 129
+    - source: |-
+        assert invoice.issued
+            return await example_service.settle(invoice.id)
+      style: secondary
+      start: 56
+      end: 129
+  ? |
+    def submit_and_resume(example_workflow, result):
+        assert result.status == ExampleStatus.WAITING
+        return example_workflow.resume(result.job_id)
+  : labels:
+    - source: |-
+        def submit_and_resume(example_workflow, result):
+            assert result.status == ExampleStatus.WAITING
+            return example_workflow.resume(result.job_id)
+      style: primary
+      start: 0
+      end: 148
+    - source: result
+      style: secondary
+      start: 40
+      end: 46
+    - source: result
+      style: secondary
+      start: 40
+      end: 46
+    - source: |-
+        def submit_and_resume(example_workflow, result):
+            assert result.status == ExampleStatus.WAITING
+            return example_workflow.resume(result.job_id)
+      style: secondary
+      start: 0
+      end: 148
+    - source: result
+      style: secondary
+      start: 60
+      end: 66
+    - source: assert result.status == ExampleStatus.WAITING
+      style: secondary
+      start: 53
+      end: 98
+    - source: example_workflow.resume(result.job_id)
+      style: secondary
+      start: 110
+      end: 148
+    - source: return example_workflow.resume(result.job_id)
+      style: secondary
+      start: 103
+      end: 148
+    - source: |-
+        assert result.status == ExampleStatus.WAITING
+            return example_workflow.resume(result.job_id)
+      style: secondary
+      start: 53
+      end: 148

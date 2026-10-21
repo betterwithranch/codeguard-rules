@@ -27,21 +27,12 @@ invalid:
             return round(context.subtotal_cents * self._rates_by_region[context.shipping_region])
 - file: checkout/tax.py
   before: |
-    from dataclasses import dataclass
-
-
-    @dataclass(frozen=True)
-    class TaxParams:
-        shipping_region: str
-        subtotal_cents: int
-
-
     class TaxCalculator:
         def __init__(self, rates_by_region: dict[str, float]) -> None:
             self._rates_by_region = rates_by_region
 
-        def tax_cents(self, params: TaxParams) -> int:
-            return round(params.subtotal_cents * self._rates_by_region[params.shipping_region])
+        def tax_cents(self, shipping_region: str, subtotal_cents: int) -> int:
+            return round(subtotal_cents * self._rates_by_region[shipping_region])
   after: |
     from checkout.context import CheckoutContext
 
@@ -55,21 +46,25 @@ invalid:
 valid:
 - file: checkout/tax.py
   after: |
-    from dataclasses import dataclass
-
-
-    @dataclass(frozen=True)
-    class TaxParams:
-        shipping_region: str
-        subtotal_cents: int
-
-
     class TaxCalculator:
         def __init__(self, rates_by_region: dict[str, float]) -> None:
             self._rates_by_region = rates_by_region
 
-        def tax_cents(self, params: TaxParams) -> int:
-            return round(params.subtotal_cents * self._rates_by_region[params.shipping_region])
+        def tax_cents(self, shipping_region: str, subtotal_cents: int) -> int:
+            return round(subtotal_cents * self._rates_by_region[shipping_region])
+- file: checkout/receipt.py
+  after: |
+    from checkout.context import CheckoutContext
+    from checkout.printer import ReceiptPrinter
+
+
+    class ReceiptWriter:
+        def __init__(self, printer: ReceiptPrinter) -> None:
+            self._printer = printer
+
+        def write(self, context: CheckoutContext) -> None:
+            self._printer.print_lines(context.receipt_lines())
+            self._printer.archive(context)
 skipped:
 - file: checkout/tax.py
   before: |

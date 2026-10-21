@@ -1,0 +1,2 @@
+rule: no-asserting-action-helpers
+paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]

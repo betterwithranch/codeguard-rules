@@ -1,0 +1,89 @@
+id: one-form-per-input
+language: python
+severity: error
+message: Don't derive one parameter from another when it's missing.
+note: |
+  The function accepts two forms of the same input, the value or what it is derived
+  from, so each caller can pass either and the function reconciles them.
+utils:
+  parameter-name:
+    kind: identifier
+    any:
+    - inside:
+        kind: parameters
+    - inside:
+        kind: typed_parameter
+    - inside:
+        kind: default_parameter
+        field: name
+    - inside:
+        kind: typed_default_parameter
+        field: name
+  derived-from-parameter:
+    has:
+      stopBy: end
+      kind: identifier
+      pattern: $Q
+      any:
+      - inside:
+          kind: argument_list
+      - inside:
+          kind: subscript
+          field: subscript
+  missing-check:
+    any:
+    - pattern: $P is None
+    - pattern: $P is not None
+    - pattern: not $P
+    - has:
+        stopBy: end
+        any:
+        - pattern: $P is None
+        - pattern: not $P
+  reassigns-parameter:
+    kind: assignment
+    has:
+      field: left
+      pattern: $P
+rule:
+  any:
+  - kind: if_statement
+    all:
+    - has:
+        field: condition
+        matches: missing-check
+    - has:
+        field: consequence
+        has:
+          kind: expression_statement
+          has:
+            matches: reassigns-parameter
+            has:
+              field: right
+              matches: derived-from-parameter
+  - matches: reassigns-parameter
+    has:
+      field: right
+      any:
+      - kind: boolean_operator
+        pattern: $P or $E
+      - kind: conditional_expression
+        has:
+          matches: missing-check
+      matches: derived-from-parameter
+  inside:
+    kind: function_definition
+    stopBy: end
+    all:
+    - has:
+        field: parameters
+        has:
+          stopBy: end
+          matches: parameter-name
+          pattern: $P
+    - has:
+        field: parameters
+        has:
+          stopBy: end
+          matches: parameter-name
+          pattern: $Q
