@@ -130,10 +130,9 @@ ref in `CODEGUARD_REF` in `.github/workflows/ci.yaml`.
 
 Once those pass, CI judges the judge rules:
 
-- `judge-evals` runs `codeguard eval --repeat 3` once with Claude and once with Gemini
-  Pro. A case that fails or isn't judged in any run fails the build.
+- `judge-evals` runs `codeguard eval --repeat 3` with Claude. A case that fails or
+  isn't judged in any run fails the build.
 - `judged-review` runs `codeguard review --all` over codeguard with Claude and fails on
   any diagnostic, warnings included.
 
-They need the repository secrets `CLAUDE_CODE_OAUTH_TOKEN` and `GOOGLE_API_KEY`, a
-Gemini API key bound to a service account with the Vertex AI User role.
+They need the repository secret `CLAUDE_CODE_OAUTH_TOKEN`.
