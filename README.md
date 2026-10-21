@@ -29,6 +29,8 @@ code skip test files:
 |---|---|
 | `all-only-in-init` | `__all__` only in `__init__.py` or a `.pyi` stub |
 | `no-assert-in-fixtures` | No `assert` inside a pytest fixture |
+| `no-asserting-action-helpers` | No test helper that asserts and then returns a call |
+| `no-clock-moves-in-fixtures` | No sleep or clock tick inside a pytest fixture |
 | `no-append-in-every-branch` | No loop `if`/`else` that appends to the same list in every branch |
 | `no-assert-on-lookup-field` | Don't assert the field used to find an item |
 | `no-bucket-module-names` | No `utils`, `helpers`, `common`, `shared`, or `contracts` modules |
@@ -44,6 +46,7 @@ code skip test files:
 | `no-pop-from-kwargs` | No `.pop()` from a `**kwargs` parameter in test code |
 | `no-sleep-in-async-tests` | No `sleep` in an `async def test_…`; wait on an event |
 | `no-tuple-fixtures` | A pytest fixture returns or yields one object, never a tuple |
+| `one-form-per-input` | No parameter reconciled from another parameter when missing (`if index is None: index = build(catalog)`) |
 | `typed-dispatch-registries` | A class takes a registry, not a `dict[str, Callable]` |
 
 Judge rules on every `.py` file except test files (Claude reads each changed file
@@ -70,7 +73,6 @@ against the rule's skill). `comments-and-docstrings` also runs on test files.
 | `no-shared-stateful-generics` | No shared instances of stateful classes |
 | `no-single-use-shape-modules` | No single-use shape modules |
 | `one-concept-per-module` | One concept per module |
-| `one-form-per-input` | One way to specify each input |
 | `one-home-for-defaults` | One home for defaults |
 | `one-responsibility-per-function` | One responsibility per function |
 | `one-responsibility-per-type` | One responsibility per type |

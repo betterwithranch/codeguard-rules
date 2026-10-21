@@ -87,6 +87,22 @@ valid:
         service.refund("inv-43")
 
         assert ledger.entries == [("inv-43", 80), ("inv-43", -80)]
+- file: tests/test_invoice_mapper.py
+  after: |
+    from billing.invoices import Invoice
+    from billing.mapper import InvoiceMapper, MappingRules
+
+
+    def make_mapper():
+        return InvoiceMapper(MappingRules(currency="EUR"))
+
+
+    def test_map_reads_number_and_total():
+        mapper = make_mapper()
+
+        invoice = mapper.map({"no": "42", "sum": "120.00"})
+
+        assert invoice == Invoice(number="42", total=120, currency="EUR")
 skipped:
 - file: tests/test_invoices.py
   before: |

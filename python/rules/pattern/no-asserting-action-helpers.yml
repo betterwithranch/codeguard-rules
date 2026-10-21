@@ -1,0 +1,47 @@
+id: no-asserting-action-helpers
+language: python
+severity: error
+message: Don't assert on a passed result and act in the same test helper.
+note: |
+  A helper that checks a result it was passed and then drives the next step hides
+  part of the test's act and assertions from the test body.
+rule:
+  kind: function_definition
+  not:
+    any:
+    - has:
+        field: name
+        regex: ^test
+    - inside:
+        kind: decorated_definition
+        has:
+          kind: decorator
+          regex: ^@(pytest\.|pytest_asyncio\.)?fixture\b
+  has:
+    field: body
+    all:
+    - has:
+        stopBy:
+          kind: function_definition
+        kind: assert_statement
+        has:
+          stopBy: end
+          kind: identifier
+          pattern: $RESULT
+          inside:
+            kind: function_definition
+            stopBy: end
+            has:
+              field: parameters
+              has:
+                stopBy: end
+                kind: identifier
+                pattern: $RESULT
+    - has:
+        stopBy:
+          kind: function_definition
+        kind: return_statement
+        has:
+          any:
+          - kind: call
+          - kind: await

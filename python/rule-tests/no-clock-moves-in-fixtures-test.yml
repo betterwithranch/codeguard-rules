@@ -1,0 +1,67 @@
+id: no-clock-moves-in-fixtures
+valid:
+  # Fixture that returns a fake clock
+  - |
+    @pytest.fixture
+    def example_clock():
+        return ExampleClock()
+
+  # Test that ticks the clock
+  - |
+    def test_example_expiry(freezer):
+        freezer.tick(3600)
+
+  # Sleep in a function nested inside a fixture
+  - |
+    @pytest.fixture
+    def make_example_waiter():
+        def wait():
+            time.sleep(1)
+        return wait
+
+  # Fixture that sets the clock to a fixed time
+  - |
+    @pytest.fixture
+    def example_clock(freezer):
+        freezer.move_to("2026-01-01")
+        return freezer
+
+invalid:
+  # time.sleep in a fixture
+  - |
+    @pytest.fixture
+    def example_session():
+        session = ExampleSession()
+        time.sleep(1)
+        return session
+
+  # asyncio.sleep in a pytest_asyncio fixture
+  - |
+    @pytest_asyncio.fixture
+    async def example_cache():
+        cache = ExampleCache()
+        await asyncio.sleep(0.1)
+        return cache
+
+  # Bare sleep in a fixture
+  - |
+    @fixture
+    def example_session():
+        sleep(1)
+        return ExampleSession()
+
+  # Clock tick in a fixture
+  - |
+    @pytest.fixture
+    def expired_example_session(freezer):
+        session = ExampleSession()
+        freezer.tick(3600)
+        return session
+
+  # Clock shift in a fixture
+  - |
+    @pytest.fixture
+    def expired_example_session(time_machine):
+        session = ExampleSession()
+        time_machine.shift(3600)
+        return session

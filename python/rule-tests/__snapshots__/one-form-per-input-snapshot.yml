@@ -1,0 +1,340 @@
+id: one-form-per-input
+snapshots:
+  ? |
+    def example_function(catalog=None, index=None):
+        if index is None and catalog:
+            index = build_example_index(catalog)
+  : labels:
+    - source: |-
+        if index is None and catalog:
+                index = build_example_index(catalog)
+      style: primary
+      start: 52
+      end: 126
+    - source: index is None
+      style: secondary
+      start: 55
+      end: 68
+    - source: index is None and catalog
+      style: secondary
+      start: 55
+      end: 80
+    - source: index
+      style: secondary
+      start: 90
+      end: 95
+    - source: (catalog)
+      style: secondary
+      start: 117
+      end: 126
+    - source: catalog
+      style: secondary
+      start: 118
+      end: 125
+    - source: catalog
+      style: secondary
+      start: 118
+      end: 125
+    - source: index = build_example_index(catalog)
+      style: secondary
+      start: 90
+      end: 126
+    - source: index = build_example_index(catalog)
+      style: secondary
+      start: 90
+      end: 126
+    - source: index = build_example_index(catalog)
+      style: secondary
+      start: 90
+      end: 126
+    - source: index=None
+      style: secondary
+      start: 35
+      end: 45
+    - source: index
+      style: secondary
+      start: 35
+      end: 40
+    - source: index
+      style: secondary
+      start: 35
+      end: 40
+    - source: catalog=None
+      style: secondary
+      start: 21
+      end: 33
+    - source: catalog
+      style: secondary
+      start: 21
+      end: 28
+    - source: catalog
+      style: secondary
+      start: 21
+      end: 28
+    - source: |-
+        def example_function(catalog=None, index=None):
+            if index is None and catalog:
+                index = build_example_index(catalog)
+      style: secondary
+      start: 0
+      end: 126
+  ? |
+    def example_function(catalog=None, index=None):
+        index = index if index is not None else build_example_index(catalog)
+  : labels:
+    - source: index = index if index is not None else build_example_index(catalog)
+      style: primary
+      start: 52
+      end: 120
+    - source: index
+      style: secondary
+      start: 52
+      end: 57
+    - source: index is not None
+      style: secondary
+      start: 69
+      end: 86
+    - source: (catalog)
+      style: secondary
+      start: 111
+      end: 120
+    - source: catalog
+      style: secondary
+      start: 112
+      end: 119
+    - source: index if index is not None else build_example_index(catalog)
+      style: secondary
+      start: 60
+      end: 120
+    - source: index=None
+      style: secondary
+      start: 35
+      end: 45
+    - source: index
+      style: secondary
+      start: 35
+      end: 40
+    - source: index
+      style: secondary
+      start: 35
+      end: 40
+    - source: catalog=None
+      style: secondary
+      start: 21
+      end: 33
+    - source: catalog
+      style: secondary
+      start: 21
+      end: 28
+    - source: catalog
+      style: secondary
+      start: 21
+      end: 28
+    - source: |-
+        def example_function(catalog=None, index=None):
+            index = index if index is not None else build_example_index(catalog)
+      style: secondary
+      start: 0
+      end: 120
+  ? |
+    def example_function(catalog=None, index=None):
+        index = index or build_example_index(catalog)
+  : labels:
+    - source: index = index or build_example_index(catalog)
+      style: primary
+      start: 52
+      end: 97
+    - source: index
+      style: secondary
+      start: 52
+      end: 57
+    - source: (catalog)
+      style: secondary
+      start: 88
+      end: 97
+    - source: catalog
+      style: secondary
+      start: 89
+      end: 96
+    - source: index or build_example_index(catalog)
+      style: secondary
+      start: 60
+      end: 97
+    - source: index=None
+      style: secondary
+      start: 35
+      end: 45
+    - source: index
+      style: secondary
+      start: 35
+      end: 40
+    - source: index
+      style: secondary
+      start: 35
+      end: 40
+    - source: catalog=None
+      style: secondary
+      start: 21
+      end: 33
+    - source: catalog
+      style: secondary
+      start: 21
+      end: 28
+    - source: catalog
+      style: secondary
+      start: 21
+      end: 28
+    - source: |-
+        def example_function(catalog=None, index=None):
+            index = index or build_example_index(catalog)
+      style: secondary
+      start: 0
+      end: 97
+  ? |
+    def example_function(example_model=None, example_key=None):
+        if example_model is None:
+            example_model = EXAMPLE_MODELS[example_key]
+  : labels:
+    - source: |-
+        if example_model is None:
+                example_model = EXAMPLE_MODELS[example_key]
+      style: primary
+      start: 64
+      end: 141
+    - source: example_model is None
+      style: secondary
+      start: 67
+      end: 88
+    - source: example_model
+      style: secondary
+      start: 98
+      end: 111
+    - source: EXAMPLE_MODELS[example_key]
+      style: secondary
+      start: 114
+      end: 141
+    - source: example_key
+      style: secondary
+      start: 129
+      end: 140
+    - source: example_key
+      style: secondary
+      start: 129
+      end: 140
+    - source: example_model = EXAMPLE_MODELS[example_key]
+      style: secondary
+      start: 98
+      end: 141
+    - source: example_model = EXAMPLE_MODELS[example_key]
+      style: secondary
+      start: 98
+      end: 141
+    - source: example_model = EXAMPLE_MODELS[example_key]
+      style: secondary
+      start: 98
+      end: 141
+    - source: example_model=None
+      style: secondary
+      start: 21
+      end: 39
+    - source: example_model
+      style: secondary
+      start: 21
+      end: 34
+    - source: example_model
+      style: secondary
+      start: 21
+      end: 34
+    - source: example_key=None
+      style: secondary
+      start: 41
+      end: 57
+    - source: example_key
+      style: secondary
+      start: 41
+      end: 52
+    - source: example_key
+      style: secondary
+      start: 41
+      end: 52
+    - source: |-
+        def example_function(example_model=None, example_key=None):
+            if example_model is None:
+                example_model = EXAMPLE_MODELS[example_key]
+      style: secondary
+      start: 0
+      end: 141
+  ? |
+    def example_function(name: str | None = None, number: int | None = None):
+        if not name:
+            name = format_example(number)
+  : labels:
+    - source: |-
+        if not name:
+                name = format_example(number)
+      style: primary
+      start: 78
+      end: 128
+    - source: not name
+      style: secondary
+      start: 81
+      end: 89
+    - source: name
+      style: secondary
+      start: 99
+      end: 103
+    - source: (number)
+      style: secondary
+      start: 120
+      end: 128
+    - source: number
+      style: secondary
+      start: 121
+      end: 127
+    - source: number
+      style: secondary
+      start: 121
+      end: 127
+    - source: name = format_example(number)
+      style: secondary
+      start: 99
+      end: 128
+    - source: name = format_example(number)
+      style: secondary
+      start: 99
+      end: 128
+    - source: name = format_example(number)
+      style: secondary
+      start: 99
+      end: 128
+    - source: 'name: str | None = None'
+      style: secondary
+      start: 21
+      end: 44
+    - source: name
+      style: secondary
+      start: 21
+      end: 25
+    - source: name
+      style: secondary
+      start: 21
+      end: 25
+    - source: 'number: int | None = None'
+      style: secondary
+      start: 46
+      end: 71
+    - source: number
+      style: secondary
+      start: 46
+      end: 52
+    - source: number
+      style: secondary
+      start: 46
+      end: 52
+    - source: |-
+        def example_function(name: str | None = None, number: int | None = None):
+            if not name:
+                name = format_example(number)
+      style: secondary
+      start: 0
+      end: 128

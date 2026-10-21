@@ -1,0 +1,57 @@
+id: no-asserting-action-helpers
+valid:
+  # Assertion helper that returns nothing
+  - |
+    def assert_active(example_model):
+        assert example_model.active
+
+  # Builder helper with no assertion
+  - |
+    def make_example_service():
+        return ExampleService(ExampleRules())
+
+  # Helper that asserts and returns its argument
+  - |
+    def checked(example_model):
+        assert example_model.active
+        return example_model
+
+  # Test function that asserts and returns a call
+  - |
+    def test_example(example_service):
+        assert example_service.ready
+        return example_service.run()
+
+  # Fixture, covered by no-assert-in-fixtures
+  - |
+    @pytest.fixture
+    def example_service():
+        assert ready()
+        return build_example_service()
+
+  # Assertion in a nested function
+  - |
+    def make_example_checker():
+        def check(example_model):
+            assert example_model.ok
+        return build_example_checker(check)
+
+  # Helper that runs a command, asserts its local result, and returns it parsed
+  - |
+    def run_example_command(command):
+        result = subprocess.run(command, capture_output=True)
+        assert result.returncode == 0
+        return json.loads(result.stdout)
+
+invalid:
+  # Helper that asserts on a passed result and returns a call
+  - |
+    def submit_and_resume(example_workflow, result):
+        assert result.status == ExampleStatus.WAITING
+        return example_workflow.resume(result.job_id)
+
+  # Async helper that asserts on a passed value and returns an awaited call
+  - |
+    async def pay_and_settle(example_service, invoice):
+        assert invoice.issued
+        return await example_service.settle(invoice.id)
