@@ -8,7 +8,7 @@ back is `git mv` of its skill, binding and eval into `python/`, in a commit whos
 passes:
 
 - every `invalid` and `valid` eval case passes 3 of 3 runs (`codeguard eval --repeat 3`)
-  on each supported judge model (Claude, Gemini Pro);
+  on its binding's model;
 - a judged review of codeguard with the rule loaded reports no false positive, and every
   real violation it finds is fixed in codeguard.
 

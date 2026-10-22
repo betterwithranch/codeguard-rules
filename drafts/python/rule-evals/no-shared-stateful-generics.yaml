@@ -1,0 +1,99 @@
+cases:
+  - name: shares a module-level validator instance
+    inputs:
+      file: orders/validation.py
+      after: |
+        class OrderValidator:
+            def __init__(self, region: str) -> None:
+                self.region = region
+                self.issues: list[str] = []
+
+            def check(self, order_total: int, country: str) -> None:
+                if order_total <= 0:
+                    self.issues.append("order total must be positive")
+                if country != self.region:
+                    self.issues.append(f"order ships outside {self.region}")
+
+
+        validator = OrderValidator(region="eu")
+    expected_output:
+      outcome: invalid
+  - name: replaces the auditor factory with a global
+    inputs:
+      file: invoices/audit.py
+      before: |
+        class InvoiceAuditor:
+            def __init__(self) -> None:
+                self.findings: list[str] = []
+
+            def audit(self, invoice_number: str, total: int) -> None:
+                if total < 0:
+                    self.findings.append(f"{invoice_number} has a negative total")
+
+
+        def create_invoice_auditor() -> InvoiceAuditor:
+            return InvoiceAuditor()
+      after: |
+        class InvoiceAuditor:
+            def __init__(self) -> None:
+                self.findings: list[str] = []
+
+            def audit(self, invoice_number: str, total: int) -> None:
+                if total < 0:
+                    self.findings.append(f"{invoice_number} has a negative total")
+
+
+        auditor = InvoiceAuditor()
+    expected_output:
+      outcome: invalid
+  - name: creates validators through a factory function
+    inputs:
+      file: orders/validation.py
+      after: |
+        class OrderValidator:
+            def __init__(self, region: str) -> None:
+                self.region = region
+                self.issues: list[str] = []
+
+            def check(self, order_total: int, country: str) -> None:
+                if order_total <= 0:
+                    self.issues.append("order total must be positive")
+                if country != self.region:
+                    self.issues.append(f"order ships outside {self.region}")
+
+
+        def create_order_validator() -> OrderValidator:
+            return OrderValidator(region="eu")
+    expected_output:
+      outcome: valid
+  - name: rewords a validation issue message
+    inputs:
+      file: orders/validation.py
+      before: |
+        class OrderValidator:
+            def __init__(self, region: str) -> None:
+                self.region = region
+                self.issues: list[str] = []
+
+            def check(self, order_total: int) -> None:
+                if order_total <= 0:
+                    self.issues.append("order total must be positive")
+
+
+        def create_order_validator() -> OrderValidator:
+            return OrderValidator(region="eu")
+      after: |
+        class OrderValidator:
+            def __init__(self, region: str) -> None:
+                self.region = region
+                self.issues: list[str] = []
+
+            def check(self, order_total: int) -> None:
+                if order_total <= 0:
+                    self.issues.append("order total must be greater than zero")
+
+
+        def create_order_validator() -> OrderValidator:
+            return OrderValidator(region="eu")
+    expected_output:
+      outcome: skipped

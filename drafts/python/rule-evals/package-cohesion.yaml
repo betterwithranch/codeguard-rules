@@ -1,0 +1,65 @@
+cases:
+  - name: re-exports another package's symbols
+    inputs:
+      file: invoicing/__init__.py
+      after: |
+        from billing import Invoice, InvoiceLine, InvoiceTotal
+
+        __all__ = ["Invoice", "InvoiceLine", "InvoiceTotal"]
+    expected_output:
+      outcome: invalid
+  - name: switches to re-exporting another package
+    inputs:
+      file: invoicing/__init__.py
+      before: |
+        from .invoice import Invoice
+        from .invoice_line import InvoiceLine
+        from .invoice_total import InvoiceTotal
+
+        __all__ = ["Invoice", "InvoiceLine", "InvoiceTotal"]
+      after: |
+        from billing import Invoice, InvoiceLine, InvoiceTotal
+        from billing import CreditNote, PaymentTerms
+
+        __all__ = ["CreditNote", "Invoice", "InvoiceLine", "InvoiceTotal", "PaymentTerms"]
+    expected_output:
+      outcome: invalid
+  - name: exports the package's own modules
+    inputs:
+      file: billing/__init__.py
+      after: |
+        from .invoice import Invoice
+        from .invoice_line import InvoiceLine
+        from .invoice_total import InvoiceTotal
+
+        __all__ = ["Invoice", "InvoiceLine", "InvoiceTotal"]
+    expected_output:
+      outcome: valid
+  - name: adds a discount field to a total
+    inputs:
+      file: billing/invoice_total.py
+      before: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class InvoiceTotal:
+            subtotal_cents: int
+            tax_cents: int
+
+            def grand_total_cents(self) -> int:
+                return self.subtotal_cents + self.tax_cents
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class InvoiceTotal:
+            subtotal_cents: int
+            tax_cents: int
+            discount_cents: int
+
+            def grand_total_cents(self) -> int:
+                return self.subtotal_cents + self.tax_cents - self.discount_cents
+    expected_output:
+      outcome: skipped

@@ -1,0 +1,99 @@
+cases:
+  - name: adds marketing campaigns to the order service
+    inputs:
+      file: orders/order_service.py
+      after: |
+        from marketing import Campaign, Mailer
+
+        from .order import Order
+        from .repository import OrderRepository
+
+
+        class OrderService:
+            def __init__(self, orders: OrderRepository, mailer: Mailer) -> None:
+                self._orders = orders
+                self._mailer = mailer
+
+            def place(self, order: Order) -> Order:
+                return self._orders.save(order)
+
+            def send_campaign(self, campaign: Campaign) -> None:
+                for subscriber in campaign.subscribers:
+                    self._mailer.send(subscriber.email, campaign.subject, campaign.body)
+    expected_output:
+      outcome: invalid
+  - name: adds warehouse restocking to the order service
+    inputs:
+      file: orders/order_service.py
+      before: |
+        from .order import Order, OrderStatus
+        from .repository import OrderRepository
+
+
+        class OrderService:
+            def __init__(self, orders: OrderRepository) -> None:
+                self._orders = orders
+
+            def place(self, order: Order) -> Order:
+                return self._orders.save(order)
+
+            def cancel(self, order: Order) -> Order:
+                return self._orders.save(order.with_status(OrderStatus.CANCELLED))
+      after: |
+        from warehouse import StockLevels, SupplierClient
+
+        from .order import Order, OrderStatus
+        from .repository import OrderRepository
+
+
+        class OrderService:
+            def __init__(
+                self, orders: OrderRepository, supplier: SupplierClient
+            ) -> None:
+                self._orders = orders
+                self._supplier = supplier
+
+            def place(self, order: Order) -> Order:
+                return self._orders.save(order)
+
+            def cancel(self, order: Order) -> Order:
+                return self._orders.save(order.with_status(OrderStatus.CANCELLED))
+
+            def restock_warehouse(self, stock: StockLevels) -> None:
+                for sku in stock.below_reorder_point():
+                    self._supplier.purchase(sku, stock.reorder_quantity(sku))
+    expected_output:
+      outcome: invalid
+  - name: groups arithmetic and formatting on money
+    inputs:
+      file: billing/money.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Money:
+            cents: int
+            currency: str
+
+            def add(self, other: "Money") -> "Money":
+                return Money(self.cents + other.cents, self.currency)
+
+            def is_zero(self) -> bool:
+                return self.cents == 0
+
+            def formatted(self) -> str:
+                return f"{self.cents / 100:.2f} {self.currency}"
+    expected_output:
+      outcome: valid
+  - name: widens the order number padding
+    inputs:
+      file: orders/order_number.py
+      before: |
+        def format_order_number(sequence: int) -> str:
+            return f"ORD-{sequence:06d}"
+      after: |
+        def format_order_number(sequence: int) -> str:
+            return f"ORD-{sequence:08d}"
+    expected_output:
+      outcome: skipped

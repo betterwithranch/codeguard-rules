@@ -1,0 +1,359 @@
+cases:
+  - name: reads a raw payload in several functions
+    inputs:
+      file: carriers/tracking.py
+      after: |
+        from typing import Any
+
+
+        def last_seen_location(payload: dict[str, Any]) -> str:
+            return payload["events"][-1]["location"]
+
+
+        def last_seen_at(payload: dict[str, Any]) -> str:
+            return payload["events"][-1]["timestamp"]
+
+
+        def scan_count(payload: dict[str, Any]) -> int:
+            return len(payload["events"][1:])
+    expected_output:
+      outcome: invalid
+  - name: reads the raw payload outside the parser
+    inputs:
+      file: carriers/tracking.py
+      before: |
+        from dataclasses import dataclass
+        from datetime import datetime
+        from typing import Any
+
+
+        @dataclass(frozen=True)
+        class TrackingEvent:
+            location: str
+            occurred_at: datetime
+
+
+        def parse_latest_event(payload: dict[str, Any]) -> TrackingEvent:
+            raw_event = payload["events"][-1]
+            return TrackingEvent(
+                location=raw_event["location"],
+                occurred_at=datetime.fromisoformat(raw_event["timestamp"]),
+            )
+
+
+        def last_seen_location(event: TrackingEvent) -> str:
+            return event.location
+      after: |
+        from dataclasses import dataclass
+        from datetime import datetime
+        from typing import Any
+
+
+        @dataclass(frozen=True)
+        class TrackingEvent:
+            location: str
+            occurred_at: datetime
+
+
+        def parse_latest_event(payload: dict[str, Any]) -> TrackingEvent:
+            raw_event = payload["events"][-1]
+            return TrackingEvent(
+                location=raw_event["location"],
+                occurred_at=datetime.fromisoformat(raw_event["timestamp"]),
+            )
+
+
+        def last_seen_location(event: TrackingEvent) -> str:
+            return event.location
+
+
+        def hours_since_last_scan(payload: dict[str, Any], now: datetime) -> float:
+            scanned_at = datetime.fromisoformat(payload["events"][-1]["timestamp"])
+            return (now - scanned_at).total_seconds() / 3600
+    expected_output:
+      outcome: invalid
+  - name: formats raw alert dicts from JSON
+    inputs:
+      file: alerts/notify.py
+      after: |
+        import json
+
+
+        def summary(report: str) -> str:
+            alerts = json.loads(report)["alerts"]
+            return "\n".join(line(alert) for alert in alerts if alert["urgent"])
+
+
+        def line(alert: dict[str, object]) -> str:
+            return f"{alert['service']}: {alert['level']} {alert['text']}"
+    expected_output:
+      outcome: invalid
+  - name: formats raw SDK error dicts
+    inputs:
+      file: shipping/quote_errors.py
+      after: |
+        from shipping_sdk import QuoteFailed, RateError
+
+
+        def explain(failure: QuoteFailed) -> str:
+            return "; ".join(describe(error) for error in failure.errors())
+
+
+        def describe(error: RateError) -> str:
+            return f"{error['carrier']}: {error['reason']}"
+    expected_output:
+      outcome: invalid
+  - name: computes hours from the parsed event
+    inputs:
+      file: carriers/tracking.py
+      after: |
+        from dataclasses import dataclass
+        from datetime import datetime
+        from typing import Any
+
+
+        @dataclass(frozen=True)
+        class TrackingEvent:
+            location: str
+            occurred_at: datetime
+
+
+        def parse_latest_event(payload: dict[str, Any]) -> TrackingEvent:
+            raw_event = payload["events"][-1]
+            return TrackingEvent(
+                location=raw_event["location"],
+                occurred_at=datetime.fromisoformat(raw_event["timestamp"]),
+            )
+
+
+        def last_seen_location(event: TrackingEvent) -> str:
+            return event.location
+
+
+        def hours_since_last_scan(event: TrackingEvent, now: datetime) -> float:
+            return (now - event.occurred_at).total_seconds() / 3600
+    expected_output:
+      outcome: valid
+  - name: formats a report from raw grep lines
+    inputs:
+      file: search/match_report.py
+      after: |
+        def match_report(output: str) -> str:
+            lines = output.splitlines()
+            files = {line.split(":")[0] for line in lines}
+            first_file, first_line = lines[0].split(":")[:2]
+            return f"{len(lines)} matches in {len(files)} files, first at {first_file}:{first_line}"
+    expected_output:
+      outcome: invalid
+  - name: lists the files a search's output shows
+    inputs:
+      file: search/search_files.py
+      after: |
+        from collections.abc import Iterator
+        from dataclasses import dataclass
+        from pathlib import Path
+
+        from pydantic import BaseModel
+
+
+        class SearchResult(BaseModel):
+            content: str | None = None
+
+
+        @dataclass(frozen=True)
+        class SearchCall:
+            root: Path
+
+            def files_shown(self, result: SearchResult) -> list[Path]:
+                return list(_files_in_lines(self.root, result.content))
+
+
+        def _files_in_lines(root: Path, content: str | None) -> Iterator[Path]:
+            if content is None:
+                return
+            for line in content.splitlines():
+                prefixes = (line[:end] for end, char in enumerate(line) if char == ":")
+                file = next((prefix for prefix in prefixes if (root / prefix).is_file()), None)
+                if file is not None:
+                    yield root / file
+    expected_output:
+      outcome: valid
+  - name: parses git refs into release branches
+    inputs:
+      file: releases/remote_versions.py
+      after: |
+        import re
+        import subprocess
+        from dataclasses import dataclass
+        from typing import Self
+
+        _RELEASE = re.compile(r"^refs/heads/release-(\d+)$")
+
+
+        @dataclass(frozen=True, order=True)
+        class ReleaseBranch:
+            number: int
+            name: str
+
+            @classmethod
+            def from_ref(cls, ref: str) -> Self | None:
+                match = _RELEASE.match(ref)
+                return cls(int(match[1]), ref) if match else None
+
+
+        class RemoteReleases:
+            def newest(self, url: str) -> ReleaseBranch | None:
+                branches = self._branches(url)
+                return max(branches) if branches else None
+
+            def _branches(self, url: str) -> list[ReleaseBranch]:
+                listing = subprocess.run(
+                    ["git", "ls-remote", "--heads", url], capture_output=True, text=True, check=True
+                ).stdout
+                found = (ReleaseBranch.from_ref(line.split("\t")[-1]) for line in listing.splitlines())
+                return [branch for branch in found if branch is not None]
+    expected_output:
+      outcome: valid
+  - name: classifies YAML documents into typed steps
+    inputs:
+      file: plans/plan_loader.py
+      after: |
+        from dataclasses import dataclass
+        from pathlib import Path
+
+        import yaml
+
+
+        @dataclass(frozen=True)
+        class TaskStep:
+            command: str
+
+
+        @dataclass(frozen=True)
+        class WaitStep:
+            seconds: int
+
+
+        class PlanLoader:
+            def load(self, path: Path) -> list[TaskStep | WaitStep]:
+                return [self._step(document) for document in yaml.safe_load_all(path.read_text())]
+
+            def _step(self, document: object) -> TaskStep | WaitStep:
+                if not isinstance(document, dict):
+                    raise ValueError(f"a plan step is a mapping, got {document!r}")
+                if "wait" in document:
+                    return WaitStep(seconds=int(document["wait"]))
+                return TaskStep(command=str(document["run"]))
+    expected_output:
+      outcome: valid
+  - name: checks its own enum-or-string union
+    inputs:
+      file: layout/cells.py
+      after: |
+        from dataclasses import dataclass
+        from enum import StrEnum
+
+
+        class CellKind(StrEnum):
+            HEADER = "header"
+            BODY = "body"
+
+
+        @dataclass(frozen=True)
+        class Cell:
+            kind: CellKind | str
+            text: str
+
+            @property
+            def is_known(self) -> bool:
+                return isinstance(self.kind, CellKind)
+    expected_output:
+      outcome: valid
+  - name: parses SDK errors into a value object
+    inputs:
+      file: shipping/quote_errors.py
+      after: |
+        from dataclasses import dataclass
+        from typing import Self
+
+        from shipping_sdk import QuoteFailed, RateError
+
+
+        def explain(failure: QuoteFailed) -> str:
+            return "; ".join(str(RateProblem.from_error(error)) for error in failure.errors())
+
+
+        @dataclass(frozen=True)
+        class RateProblem:
+            carrier: str
+            reason: str
+
+            @classmethod
+            def from_error(cls, error: RateError) -> Self:
+                return cls(carrier=error["carrier"], reason=error["reason"])
+
+            def __str__(self) -> str:
+                return f"{self.carrier}: {self.reason}"
+    expected_output:
+      outcome: valid
+  - name: sorts its own block and text tuples
+    inputs:
+      file: pages/page_text.py
+      after: |
+        from collections.abc import Iterable
+        from dataclasses import dataclass
+
+        from pages.blocks import Block
+
+
+        @dataclass(frozen=True)
+        class PageText:
+            content: str
+
+            def with_edits(self, edits: Iterable[tuple[Block, str]]) -> str:
+                content = self.content
+                for block, text in sorted(edits, key=lambda edit: edit[0].start, reverse=True):
+                    content = content[: block.start] + text + content[block.end :]
+                return content
+    expected_output:
+      outcome: valid
+  - name: binds tool arguments to a typed function
+    inputs:
+      file: chat/tool_calls.py
+      after: |
+        from collections.abc import Callable, Mapping
+
+        from chat_sdk import ToolCall
+
+
+        class Toolbox:
+            def __init__(self, tools: Mapping[str, Callable[..., str]]) -> None:
+                self.tools = tools
+
+            def answer(self, call: ToolCall) -> str:
+                tool = self.tools.get(call.name)
+                if tool is None:
+                    return f"Error: there is no tool {call.name}."
+                try:
+                    return tool(**(call.arguments or {}))
+                except TypeError as error:
+                    return f"Error: {error}"
+    expected_output:
+      outcome: skipped
+  - name: title-cases the reported location
+    inputs:
+      file: carriers/tracking_report.py
+      before: |
+        from .tracking import TrackingEvent
+
+
+        def last_seen_location(event: TrackingEvent) -> str:
+            return event.location
+      after: |
+        from .tracking import TrackingEvent
+
+
+        def last_seen_location(event: TrackingEvent) -> str:
+            return event.location.title()
+    expected_output:
+      outcome: skipped

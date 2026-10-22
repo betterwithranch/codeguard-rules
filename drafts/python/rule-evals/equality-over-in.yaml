@@ -1,0 +1,71 @@
+cases:
+  - name: checks a number appears in a title
+    inputs:
+      file: tests/test_invoice_titles.py
+      after: |
+        from billing.invoices import invoice_title
+
+
+        def test_invoice_title_includes_number():
+            assert "42" in invoice_title(number=42)
+    expected_output:
+      outcome: invalid
+  - name: checks an amount appears in a line
+    inputs:
+      file: tests/test_receipts.py
+      before: |
+        from orders.models import Order
+        from orders.receipts import receipt_heading
+
+
+        def test_receipt_heading_names_order():
+            assert receipt_heading(Order(id="ord-1", total=120)) == "Receipt for ord-1"
+      after: |
+        from orders.models import Order
+        from orders.receipts import receipt_heading, receipt_total_line
+
+
+        def test_receipt_heading_names_order():
+            assert receipt_heading(Order(id="ord-1", total=120)) == "Receipt for ord-1"
+
+
+        def test_receipt_total_line_shows_amount():
+            assert "120" in receipt_total_line(Order(id="ord-1", total=120))
+    expected_output:
+      outcome: invalid
+  - name: checks an inserted line in a template
+    inputs:
+      file: tests/test_confirmation_email.py
+      after: |
+        from notifications.confirmation import OrderConfirmationEmail
+        from notifications.templates import load_template
+        from orders.models import Order
+
+
+        def test_render_inserts_order_number_line():
+            email = OrderConfirmationEmail(template=load_template("order_confirmation.txt"))
+
+            body = email.render(Order(id="ord-42", total=120))
+
+            assert "Order number: ord-42\n" in body
+    expected_output:
+      outcome: valid
+  - name: changes the order id
+    inputs:
+      file: tests/test_receipts.py
+      before: |
+        from orders.models import Order
+        from orders.receipts import receipt_heading
+
+
+        def test_receipt_heading_names_order():
+            assert receipt_heading(Order(id="ord-1", total=120)) == "Receipt for ord-1"
+      after: |
+        from orders.models import Order
+        from orders.receipts import receipt_heading
+
+
+        def test_receipt_heading_names_order():
+            assert receipt_heading(Order(id="ord-7", total=120)) == "Receipt for ord-7"
+    expected_output:
+      outcome: skipped

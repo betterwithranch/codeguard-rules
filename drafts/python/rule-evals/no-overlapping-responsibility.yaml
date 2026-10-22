@@ -1,0 +1,127 @@
+cases:
+  - name: creates invoices in factory and service
+    inputs:
+      file: invoicing.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            order_id: str
+            total_cents: int
+
+
+        class InvoiceFactory:
+            def create_invoice(self, order_id: str, total_cents: int) -> Invoice:
+                return Invoice(order_id=order_id, total_cents=total_cents)
+
+
+        class InvoiceService:
+            def create_invoice(self, order_id: str, total_cents: int) -> Invoice:
+                return Invoice(order_id=order_id, total_cents=max(total_cents, 0))
+    expected_output:
+      outcome: invalid
+  - name: adds invoice creation to the service
+    inputs:
+      file: invoicing.py
+      before: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            order_id: str
+            total_cents: int
+
+
+        class InvoiceFactory:
+            def create_invoice(self, order_id: str, total_cents: int) -> Invoice:
+                return Invoice(order_id=order_id, total_cents=total_cents)
+
+
+        class InvoiceService:
+            def __init__(self, mailer) -> None:
+                self._mailer = mailer
+
+            def send(self, invoice: Invoice) -> None:
+                self._mailer.deliver(invoice)
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            order_id: str
+            total_cents: int
+
+
+        class InvoiceFactory:
+            def create_invoice(self, order_id: str, total_cents: int) -> Invoice:
+                return Invoice(order_id=order_id, total_cents=total_cents)
+
+
+        class InvoiceService:
+            def __init__(self, mailer) -> None:
+                self._mailer = mailer
+
+            def create_invoice(self, order_id: str, total_cents: int) -> Invoice:
+                return Invoice(order_id=order_id, total_cents=total_cents)
+
+            def send(self, invoice: Invoice) -> None:
+                self._mailer.deliver(invoice)
+    expected_output:
+      outcome: invalid
+  - name: maps a row to a payload
+    inputs:
+      file: invoice_sync.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class InvoiceRow:
+            invoice_id: str
+            total_cents: int
+
+
+        @dataclass(frozen=True)
+        class InvoicePayload:
+            invoice_id: str
+            total_cents: int
+
+
+        def to_payload(row: InvoiceRow) -> InvoicePayload:
+            return InvoicePayload(invoice_id=row.invoice_id, total_cents=row.total_cents)
+    expected_output:
+      outcome: valid
+  - name: adds retries to invoice delivery
+    inputs:
+      file: invoicing.py
+      before: |
+        class InvoiceService:
+            def __init__(self, mailer) -> None:
+                self._mailer = mailer
+
+            def send(self, invoice) -> None:
+                self._mailer.deliver(invoice)
+      after: |
+        class InvoiceService:
+            def __init__(self, mailer) -> None:
+                self._mailer = mailer
+
+            def send(self, invoice) -> None:
+                self._mailer.deliver(invoice, retries=3)
+    expected_output:
+      outcome: skipped
+  - name: bumps the service retry count
+    inputs:
+      file: invoicing.py
+      before: |
+        class InvoiceService:
+            retries = 1
+      after: |
+        class InvoiceService:
+            retries = 2
+    expected_output:
+      outcome: skipped

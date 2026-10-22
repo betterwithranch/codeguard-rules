@@ -1,0 +1,77 @@
+cases:
+  - name: calls value on a StrEnum member
+    inputs:
+      file: shipment_label.py
+      before: |
+        from dataclasses import dataclass
+        from enum import StrEnum
+
+
+        class ShipmentStatus(StrEnum):
+            PENDING = "pending"
+            SHIPPED = "shipped"
+
+
+        @dataclass(frozen=True)
+        class Shipment:
+            status: ShipmentStatus
+
+
+        def label(shipment: Shipment) -> str:
+            return f"Shipment is {shipment.status}"
+      after: |
+        from dataclasses import dataclass
+        from enum import StrEnum
+
+
+        class ShipmentStatus(StrEnum):
+            PENDING = "pending"
+            SHIPPED = "shipped"
+
+
+        @dataclass(frozen=True)
+        class Shipment:
+            status: ShipmentStatus
+
+
+        def label(shipment: Shipment) -> str:
+            return f"Shipment is {shipment.status.value}"
+    expected_output:
+      outcome: invalid
+  - name: defaults a Literal severity field
+    inputs:
+      file: literal_severity.py
+      after: |
+        from dataclasses import dataclass
+        from typing import Literal
+
+        type Severity = Literal["error", "warning"]
+
+
+        @dataclass(frozen=True)
+        class Override:
+            severity: Severity = "error"
+
+
+        def relaxed() -> Override:
+            return Override(severity="warning")
+    expected_output:
+      outcome: valid
+  - name: adds a member to a StrEnum
+    inputs:
+      file: shipment_label.py
+      before: |
+        from enum import StrEnum
+
+
+        class ShipmentStatus(StrEnum):
+            PENDING = "pending"
+      after: |
+        from enum import StrEnum
+
+
+        class ShipmentStatus(StrEnum):
+            PENDING = "pending"
+            SHIPPED = "shipped"
+    expected_output:
+      outcome: skipped

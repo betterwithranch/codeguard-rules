@@ -58,8 +58,14 @@ against the rule's skill):
 
 The other judge rules are drafts in `drafts/python/`, which codeguard doesn't load. A
 draft moves back into `python/` one rule at a time, highest value first, once it passes
-every eval case 3 of 3 runs on each supported judge model and a judged review of
-codeguard finds nothing wrong. [drafts/README.md](drafts/README.md) lists them.
+every eval case 3 of 3 runs on the model its binding names and a judged review of
+codeguard finds nothing wrong.
+
+Reviews and evals both judge a rule with its binding's `provider` and `model`, and a
+project can't override them, so a rule is only ever judged by the model its evals pass
+on. The bindings here leave both out, so codeguard's default, `claude-sonnet-5-5`
+through the `claude` CLI, judges them. To move a rule to another model, set them in its
+binding and pass its evals again. [drafts/README.md](drafts/README.md) lists them.
 
 A judge rule runs on a changed file only when a changed line falls inside code it could
 flag. Its binding's `triggers` names that code: a change kind built into codeguard, such
@@ -85,8 +91,8 @@ packages:
 ```
 
 - `exclude` turns rules off.
-- `rules.<id>` overrides `paths`, `exclude_paths` or `severity`, and `model` on a judge
-  rule. `exclude_paths: []` brings test files back into an app rule.
+- `rules.<id>` overrides `paths`, `exclude_paths` or `severity`. `exclude_paths: []`
+  brings test files back into an app rule.
 - `codeguard update` moves `ref` to the newest tag.
 
 Diagnostics name a rule by package, ruleset and id: `betterwithranch/python/no-del-param`.
@@ -104,7 +110,7 @@ python/
   rule-tests/<id>-test.yml   # tests for both, with __snapshots__/
   skills/<id>/SKILL.md       # judge rules
   bindings/<id>.yaml         # a skill or pattern rule and its default paths
-  rule-evals/<id>-eval.yml   # judge rule evals
+  rule-evals/<id>.yaml       # judge rule evals: cases codeguard judges with the binding
 ```
 
 codeguard rejects any other entry in a ruleset directory.
@@ -120,8 +126,15 @@ task eval                # codeguard eval: judge each eval case and review each 
 `CODEGUARD=<path>` runs another codeguard build, such as a checkout's `.venv/bin/codeguard`.
 
 [Which test to write](https://github.com/betterwithranch/codeguard#which-test-to-write)
-says which test covers which change. Every judge rule has an eval with `invalid`, `valid`
-and `skipped` edits.
+says which test covers which change. Every judge rule has a rule eval with `invalid`,
+`valid` and `skipped` cases, each named after what its edit does. Each case is a clear
+violation, a clear non-violation, or clearly outside the rule's gate. A case a reviewer
+could argue either way doesn't belong in a rule eval.
+
+A case or finding that flips between runs, or comes back as a low-confidence warning,
+means the rule's criterion or the case is unclear. Fix the criterion or the case. Don't
+re-run, loosen the gate, or change the reviewed code. [CLAUDE.md](CLAUDE.md) has the
+details.
 
 CI runs `codeguard test`, then runs the branch's pattern rules over every file in
 codeguard (`codeguard review --all --dry-run`, which calls no model). A pattern rule

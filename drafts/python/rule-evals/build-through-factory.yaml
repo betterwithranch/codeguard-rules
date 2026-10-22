@@ -1,0 +1,126 @@
+cases:
+  - name: assembles the service graph by hand
+    inputs:
+      file: tests/test_shipment_service.py
+      after: |
+        from shipping.service import LabelPrinter, RateTable, ShipmentService, build_shipment_service
+        from tests.fakes import FakeCarrier
+
+
+        def test_quote_uses_carrier_rate():
+            service = build_shipment_service(carrier=FakeCarrier(rate=12))
+
+            assert service.quote(weight_kg=2) == 24
+
+
+        def make_shipment_service(carrier):
+            return ShipmentService(RateTable.default(), LabelPrinter(carrier), carrier)
+
+
+        def test_ship_prints_label():
+            service = make_shipment_service(FakeCarrier(rate=12))
+
+            label = service.ship(order_id="ord-1", weight_kg=2)
+
+            assert label == "ord-1/2kg"
+    expected_output:
+      outcome: invalid
+  - name: re-derives invoice lines in a helper
+    inputs:
+      file: tests/test_invoice_mailer.py
+      before: |
+        from billing.invoices import invoice_from_order
+        from billing.mailer import InvoiceMailer
+        from orders.models import Order, OrderItem
+        from tests.fakes import FakeMailbox
+
+
+        def test_send_mails_invoice_total():
+            mailbox = FakeMailbox()
+            invoice = invoice_from_order(Order(id="ord-1", items=[OrderItem(sku="A1", price=10, quantity=3)]))
+
+            InvoiceMailer(mailbox).send(invoice)
+
+            assert mailbox.sent == [("ord-1", 30)]
+      after: |
+        from billing.invoices import Invoice, InvoiceLine, invoice_from_order
+        from billing.mailer import InvoiceMailer
+        from orders.models import Order, OrderItem
+        from tests.fakes import FakeMailbox
+
+
+        def test_send_mails_invoice_total():
+            mailbox = FakeMailbox()
+            invoice = invoice_from_order(Order(id="ord-1", items=[OrderItem(sku="A1", price=10, quantity=3)]))
+
+            InvoiceMailer(mailbox).send(invoice)
+
+            assert mailbox.sent == [("ord-1", 30)]
+
+
+        def make_invoice(order):
+            lines = [InvoiceLine(sku=item.sku, amount=item.price * item.quantity) for item in order.items]
+            return Invoice(order_id=order.id, lines=lines, total=sum(line.amount for line in lines))
+
+
+        def test_send_mails_one_message_per_invoice():
+            mailbox = FakeMailbox()
+            order = Order(id="ord-2", items=[OrderItem(sku="B2", price=5, quantity=2)])
+
+            InvoiceMailer(mailbox).send(make_invoice(order))
+
+            assert mailbox.sent == [("ord-2", 10)]
+    expected_output:
+      outcome: invalid
+  - name: builds services through the factory
+    inputs:
+      file: tests/test_shipment_service.py
+      after: |
+        import pytest
+
+        from shipping.service import build_shipment_service
+        from tests.fakes import FakeCarrier
+
+
+        @pytest.fixture
+        def carrier():
+            return FakeCarrier(rate=12)
+
+
+        def test_quote_uses_carrier_rate(carrier):
+            service = build_shipment_service(carrier=carrier)
+
+            assert service.quote(weight_kg=2) == 24
+
+
+        def test_ship_prints_label(carrier):
+            service = build_shipment_service(carrier=carrier)
+
+            label = service.ship(order_id="ord-1", weight_kg=2)
+
+            assert label == "ord-1/2kg"
+    expected_output:
+      outcome: valid
+  - name: changes a quoted weight
+    inputs:
+      file: tests/test_shipment_service.py
+      before: |
+        from shipping.service import build_shipment_service
+        from tests.fakes import FakeCarrier
+
+
+        def test_quote_uses_carrier_rate():
+            service = build_shipment_service(carrier=FakeCarrier(rate=12))
+
+            assert service.quote(weight_kg=2) == 24
+      after: |
+        from shipping.service import build_shipment_service
+        from tests.fakes import FakeCarrier
+
+
+        def test_quote_uses_carrier_rate():
+            service = build_shipment_service(carrier=FakeCarrier(rate=12))
+
+            assert service.quote(weight_kg=3) == 36
+    expected_output:
+      outcome: skipped

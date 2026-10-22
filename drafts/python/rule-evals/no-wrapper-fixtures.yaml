@@ -1,0 +1,108 @@
+cases:
+  - name: wraps a default constructor in a fixture
+    inputs:
+      file: tests/test_orders.py
+      after: |
+        import pytest
+
+        from shop.orders import OrderService
+
+
+        @pytest.fixture
+        def order_service():
+            return OrderService()
+
+
+        def test_place_order_sets_quantity(order_service, customer):
+            order = order_service.place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+            assert order.quantity == 2
+    expected_output:
+      outcome: invalid
+  - name: returns overdue invoices from a fixture
+    inputs:
+      file: tests/test_invoices.py
+      before: |
+        from datetime import date
+        from decimal import Decimal
+
+        import pytest
+
+        from billing.ledger import Ledger
+
+
+        @pytest.fixture
+        def ledger(account):
+            ledger = Ledger(account)
+            ledger.issue(amount=Decimal("100.00"), due=date(2026, 1, 15))
+            ledger.issue(amount=Decimal("40.00"), due=date(2026, 3, 15))
+            return ledger
+
+
+        def test_overdue_total(ledger):
+            assert ledger.overdue_total(today=date(2026, 2, 1)) == Decimal("100.00")
+      after: |
+        from datetime import date
+        from decimal import Decimal
+
+        import pytest
+
+        from billing.ledger import Ledger
+
+
+        @pytest.fixture
+        def overdue_invoices(account):
+            ledger = Ledger(account)
+            ledger.issue(amount=Decimal("100.00"), due=date(2026, 1, 15))
+            ledger.issue(amount=Decimal("40.00"), due=date(2026, 3, 15))
+            return ledger.overdue_invoices(today=date(2026, 2, 1))
+
+
+        def test_overdue_invoice_amounts(overdue_invoices):
+            assert [invoice.amount for invoice in overdue_invoices] == [Decimal("100.00")]
+    expected_output:
+      outcome: invalid
+  - name: configures a fixed clock in a fixture
+    inputs:
+      file: tests/test_orders.py
+      after: |
+        from datetime import UTC, datetime
+
+        import pytest
+
+        from shop.clock import FixedClock
+        from shop.orders import OrderService
+
+
+        @pytest.fixture
+        def order_service():
+            return OrderService(clock=FixedClock(datetime(2026, 3, 1, 9, 30, tzinfo=UTC)))
+
+
+        def test_place_order_sets_created_at(order_service, customer):
+            order = order_service.place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+            assert order.created_at == datetime(2026, 3, 1, 9, 30, tzinfo=UTC)
+    expected_output:
+      outcome: valid
+  - name: changes the ordered quantity
+    inputs:
+      file: tests/test_orders.py
+      before: |
+        from shop.orders import OrderService
+
+
+        def test_place_order_sets_quantity(customer):
+            order = OrderService().place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+            assert order.quantity == 2
+      after: |
+        from shop.orders import OrderService
+
+
+        def test_place_order_sets_quantity(customer):
+            order = OrderService().place_order(customer_id=customer.id, sku="BOOK-1", quantity=3)
+
+            assert order.quantity == 3
+    expected_output:
+      outcome: skipped

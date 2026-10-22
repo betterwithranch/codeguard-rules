@@ -1,0 +1,79 @@
+cases:
+  - name: imports another package's submodule directly
+    inputs:
+      file: shipping/packing_slip.py
+      after: |
+        from billing.invoice_total import InvoiceTotal
+
+        from .shipment import Shipment
+
+
+        def packing_slip_footer(shipment: Shipment, total: InvoiceTotal) -> str:
+            return f"Shipment {shipment.tracking_number}: {total.grand_total_cents()} cents"
+    expected_output:
+      outcome: invalid
+  - name: imports a sibling through its own package root
+    inputs:
+      file: billing/invoice.py
+      before: |
+        from dataclasses import dataclass
+
+        from .invoice_line import InvoiceLine
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            number: str
+            lines: tuple[InvoiceLine, ...]
+      after: |
+        from dataclasses import dataclass
+
+        from billing import InvoiceTotal
+
+        from .invoice_line import InvoiceLine
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            number: str
+            lines: tuple[InvoiceLine, ...]
+
+            def total(self) -> InvoiceTotal:
+                subtotal = sum(line.amount_cents for line in self.lines)
+                return InvoiceTotal(subtotal_cents=subtotal, tax_cents=0)
+    expected_output:
+      outcome: invalid
+  - name: imports from another package's root
+    inputs:
+      file: shipping/packing_slip.py
+      after: |
+        from billing import InvoiceTotal
+
+        from .shipment import Shipment
+
+
+        def packing_slip_footer(shipment: Shipment, total: InvoiceTotal) -> str:
+            return f"Shipment {shipment.tracking_number}: {total.grand_total_cents()} cents"
+    expected_output:
+      outcome: valid
+  - name: rewords the packing slip footer
+    inputs:
+      file: shipping/packing_slip.py
+      before: |
+        from billing import InvoiceTotal
+
+        from .shipment import Shipment
+
+
+        def packing_slip_footer(shipment: Shipment, total: InvoiceTotal) -> str:
+            return f"Shipment {shipment.tracking_number}: {total.grand_total_cents()} cents"
+      after: |
+        from billing import InvoiceTotal
+
+        from .shipment import Shipment
+
+
+        def packing_slip_footer(shipment: Shipment, total: InvoiceTotal) -> str:
+            return f"Shipment {shipment.tracking_number} total: {total.grand_total_cents()} cents"
+    expected_output:
+      outcome: skipped

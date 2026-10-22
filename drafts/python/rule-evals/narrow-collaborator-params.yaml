@@ -1,0 +1,106 @@
+cases:
+  - name: takes a whole checkout context for two fields
+    inputs:
+      file: checkout/tax.py
+      after: |
+        from dataclasses import dataclass
+
+        from checkout.cart import Cart
+        from customers.customer import Customer
+        from payments.method import PaymentMethod
+
+
+        @dataclass(frozen=True)
+        class CheckoutContext:
+            cart: Cart
+            customer: Customer
+            payment_method: PaymentMethod
+            coupon_code: str | None
+            shipping_region: str
+            subtotal_cents: int
+
+
+        class TaxCalculator:
+            def __init__(self, rates_by_region: dict[str, float]) -> None:
+                self._rates_by_region = rates_by_region
+
+            def tax_cents(self, context: CheckoutContext) -> int:
+                return round(context.subtotal_cents * self._rates_by_region[context.shipping_region])
+    expected_output:
+      outcome: invalid
+  - name: widens tax arguments to a checkout context
+    inputs:
+      file: checkout/tax.py
+      before: |
+        class TaxCalculator:
+            def __init__(self, rates_by_region: dict[str, float]) -> None:
+                self._rates_by_region = rates_by_region
+
+            def tax_cents(self, shipping_region: str, subtotal_cents: int) -> int:
+                return round(subtotal_cents * self._rates_by_region[shipping_region])
+      after: |
+        from checkout.context import CheckoutContext
+
+
+        class TaxCalculator:
+            def __init__(self, rates_by_region: dict[str, float]) -> None:
+                self._rates_by_region = rates_by_region
+
+            def tax_cents(self, context: CheckoutContext) -> int:
+                return round(context.subtotal_cents * self._rates_by_region[context.shipping_region])
+    expected_output:
+      outcome: invalid
+  - name: takes only the region and subtotal
+    inputs:
+      file: checkout/tax.py
+      after: |
+        class TaxCalculator:
+            def __init__(self, rates_by_region: dict[str, float]) -> None:
+                self._rates_by_region = rates_by_region
+
+            def tax_cents(self, shipping_region: str, subtotal_cents: int) -> int:
+                return round(subtotal_cents * self._rates_by_region[shipping_region])
+    expected_output:
+      outcome: valid
+  - name: passes the context on and calls its method
+    inputs:
+      file: checkout/receipt.py
+      after: |
+        from checkout.context import CheckoutContext
+        from checkout.printer import ReceiptPrinter
+
+
+        class ReceiptWriter:
+            def __init__(self, printer: ReceiptPrinter) -> None:
+                self._printer = printer
+
+            def write(self, context: CheckoutContext) -> None:
+                self._printer.print_lines(context.receipt_lines())
+                self._printer.archive(context)
+    expected_output:
+      outcome: valid
+  - name: changes the default tax region
+    inputs:
+      file: checkout/tax.py
+      before: |
+        from dataclasses import dataclass
+
+        DEFAULT_TAX_REGION = "US-CA"
+
+
+        @dataclass(frozen=True)
+        class TaxParams:
+            shipping_region: str
+            subtotal_cents: int
+      after: |
+        from dataclasses import dataclass
+
+        DEFAULT_TAX_REGION = "US-NY"
+
+
+        @dataclass(frozen=True)
+        class TaxParams:
+            shipping_region: str
+            subtotal_cents: int
+    expected_output:
+      outcome: skipped
