@@ -5,22 +5,57 @@ description: Parse boundary data once
 
 # Parse boundary data once
 
-Boundary data is data whose shape something outside the program defines: external JSON, a file format, a command's output, or a dict or tuple a third-party library returns, even when the library declares a `TypedDict` for it (pydantic's `ErrorDetails`).
+Outside data is read only through the part of the program that declares and checks its
+shape.
 
-Only the parse knows boundary data's raw layout: its keys, its positions, its nesting and what its raw values mean. The parse reads the raw data and returns what the data says as typed values: a value object, or typed values such as a path, a number, a datetime, an enum member, or a tuple or list of them. All other code works with those values.
+Outside data is data whose shape something outside the program decides: a request body,
+a file, a command's output, an external API's response. Its shape is undeclared until
+code in the program, or a typed library API, states it. The parse is the code that
+turns undeclared data into declared values, and every other read goes through what the
+parse returns.
 
-Judge what the code does with the raw data, not where the code sits or what it is called. Code either converts raw data into typed values, or it uses the data to answer a question, produce output or decide what to do. Code that does both in one step, using the data straight from its raw layout, is a violation.
+## The test
 
-A violation is any of:
+For each read of data by a key, an index, a position, or by splitting text, ask which
+code states the shape being read.
 
-- Raw data used to compute a result, format output or decide behavior: `f"{error['carrier']}: {error['reason']}"`, `if alert["urgent"]`, hours computed from `payload["events"][-1]["timestamp"]`.
-- The same raw layout read in more than one place, by code that doesn't make up one parse.
-- Raw data read where a parsed value for it already exists.
-- Raw data passed on to code that does any of the above.
+Declared, so reading it by attribute or by its declared keys is not a violation, whether
+it is an object or a dict:
 
-Not a violation:
+- a class, dataclass, pydantic model, `TypedDict` or enum, the program's own or a
+  library's (pydantic's `ErrorDetails`);
+- a DRF serializer's `validated_data`, a Django query's `.values()` or `.values_list()`
+  rows, or a column spec that maps a file's columns to names;
+- a mapping after a check of every key and value (`isinstance` over the whole mapping),
+  read by keys that are themselves data (`fallbacks.get(name)`).
 
-- The parse itself, however many functions, constructors, helpers or generators it spans, and whether it returns a value object or typed values. Indexing, string keys, splitting text into lines and fields, and `isinstance` checks are the parse when what comes out is the data's content as typed values: a `ReleaseBranch` from each line of `git ls-remote`, typed steps from YAML documents, or the file paths a tool's output lists.
-- Handing raw data straight to code that parses it: a validator (`Model.model_validate(raw)`) or a dispatcher that binds it to a typed function's parameters (`handler(**raw)`).
-- A third-party object with its own typed methods and attributes, such as an exception, a response or a client. Calling them is not reading a raw shape. The dicts and tuples they return are boundary data.
-- Data the program builds itself, whatever its shape: a `tuple[SyntaxNode, bytes]` passed between its own methods, a union of its own types (`NodeKind | str`), an enum.
+Undeclared:
+
+- `json.loads`, `yaml.safe_load` and `requests`' `.json()` results, `request.data` or
+  `request.body` before a serializer, `csv.reader` and `csv.DictReader` rows, and text a
+  command or file returns;
+- a value annotated `dict[str, Any]`, `Any`, or a bare `dict` that holds one of these.
+
+## Violation
+
+Undeclared data read outside the parse:
+
+- used to compute a result, format output or decide what to do
+  (`f"{error['carrier']}: {error['reason']}"`, `if alert["urgent"]`, hours computed from
+  `payload["events"][-1]["timestamp"]`);
+- passed on to code that reads it that way;
+- read where a parsed value for the same data already exists.
+
+## The parse
+
+Code whose job is to turn undeclared data into declared values. It reads the raw keys,
+positions and text and returns declared values: an object, typed values such as a path,
+a number, a datetime or an enum member, or a declared dict. It may span any number of
+functions, constructors and helpers. Handing undeclared data straight to a declaration
+that checks it is the parse: `Model.model_validate(raw)`, `Serializer(data=raw)`, a
+dispatcher that binds it to a typed function's parameters (`handler(**raw)`).
+
+Data the program builds itself is not outside data, whatever its shape: a
+`model_dump()` of its own model, a `tuple[SyntaxNode, bytes]` passed between its own
+methods, a union of its own types. A third-party object's typed methods and attributes
+are declared; calling them is not reading a raw shape.

@@ -16,20 +16,19 @@ rule:
   - kind: type
     regex: \bAny\b|^dict\[
   - kind: subscript
+    has:
+      field: subscript
+      kind: string
+  - kind: call
     all:
     - has:
-        field: value
-        kind: identifier
-        pattern: $RAW
-    - has:
-        field: subscript
-        kind: string
-    - inside:
-        kind: function_definition
-        stopBy: end
+        field: function
+        kind: attribute
         has:
-          field: parameters
-          has:
-            stopBy: end
-            kind: identifier
-            pattern: $RAW
+          field: attribute
+          regex: ^get$
+    - has:
+        field: arguments
+        has:
+          nthChild: 1
+          kind: string

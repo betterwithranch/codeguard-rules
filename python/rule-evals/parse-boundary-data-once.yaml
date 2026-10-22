@@ -92,14 +92,16 @@ cases:
     inputs:
       file: shipping/quote_errors.py
       after: |
-        from shipping_sdk import QuoteFailed, RateError
+        from typing import Any
+
+        from shipping_sdk import QuoteFailed
 
 
         def explain(failure: QuoteFailed) -> str:
             return "; ".join(describe(error) for error in failure.errors())
 
 
-        def describe(error: RateError) -> str:
+        def describe(error: dict[str, Any]) -> str:
             return f"{error['carrier']}: {error['reason']}"
     expected_output:
       outcome: invalid
@@ -357,3 +359,243 @@ cases:
             return event.location.title()
     expected_output:
       outcome: skipped
+  - name: reads a serializer's validated data in a view
+    inputs:
+      file: routes/route_view.py
+      after: |
+        from rest_framework import serializers
+        from rest_framework.response import Response
+        from rest_framework.views import APIView
+
+
+        class PointSerializer(serializers.Serializer):
+            latitude = serializers.FloatField()
+            longitude = serializers.FloatField()
+
+
+        class RouteRequestSerializer(serializers.Serializer):
+            start = PointSerializer()
+            stops = PointSerializer(many=True)
+
+
+        class RouteView(APIView):
+            def post(self, request):
+                serializer = RouteRequestSerializer(data=request.data)
+                serializer.is_valid(raise_exception=True)
+                data = serializer.validated_data
+                stops = [(stop["latitude"], stop["longitude"]) for stop in data["stops"]]
+                start = (data["start"]["latitude"], data["start"]["longitude"])
+                return Response({"start": start, "stop_count": len(stops)})
+    expected_output:
+      outcome: valid
+  - name: reads the request body in a view without a serializer
+    inputs:
+      file: routes/route_view.py
+      after: |
+        from rest_framework.response import Response
+        from rest_framework.views import APIView
+
+
+        class RouteView(APIView):
+            def post(self, request):
+                stops = [(stop["latitude"], stop["longitude"]) for stop in request.data["stops"]]
+                start = (request.data["start"]["latitude"], request.data["start"]["longitude"])
+                return Response({"start": start, "stop_count": len(stops)})
+    expected_output:
+      outcome: invalid
+  - name: totals a query's values rows
+    inputs:
+      file: reports/visits_by_account.py
+      after: |
+        from collections import Counter
+        from uuid import UUID
+
+        from reports.models import Visit
+
+
+        def visits_by_account() -> Counter[UUID]:
+            totals: Counter[UUID] = Counter()
+            for row in Visit.objects.values("account_id", "count"):
+                totals[row["account_id"]] += row["count"]
+            return totals
+    expected_output:
+      outcome: valid
+  - name: imports contacts through a column spec
+    inputs:
+      file: contacts/contact_import.py
+      after: |
+        import csv
+        from dataclasses import dataclass
+        from typing import IO
+
+
+        @dataclass(frozen=True)
+        class Column:
+            name: str
+            headers: tuple[str, ...]
+
+
+        CONTACT_COLUMNS = (
+            Column("first_name", ("first_name", "First Name")),
+            Column("email", ("email", "Email")),
+        )
+
+
+        def contact_fields(row: dict[str, str]) -> dict[str, str]:
+            return {
+                column.name: next((row[header] for header in column.headers if header in row), "")
+                for column in CONTACT_COLUMNS
+            }
+
+
+        def greeting(fields: dict[str, str]) -> str:
+            return f"Hello {fields['first_name']} <{fields['email']}>"
+
+
+        def greetings(file: IO[str]) -> list[str]:
+            return [greeting(contact_fields(row)) for row in csv.DictReader(file)]
+    expected_output:
+      outcome: valid
+  - name: reads CSV rows by their headers in several functions
+    inputs:
+      file: contacts/contact_import.py
+      after: |
+        import csv
+        from typing import IO
+
+
+        def greeting(row: dict[str, str]) -> str:
+            return f"Hello {row['First Name']} <{row['Email']}>"
+
+
+        def has_email(row: dict[str, str]) -> bool:
+            return bool(row["Email"].strip())
+
+
+        def greetings(file: IO[str]) -> list[str]:
+            return [greeting(row) for row in csv.DictReader(file) if has_email(row)]
+    expected_output:
+      outcome: invalid
+  - name: formats pydantic's validation errors
+    inputs:
+      file: intake/intake_errors.py
+      after: |
+        from pydantic import ValidationError
+
+
+        def error_messages(error: ValidationError) -> dict[str, list[str]]:
+            messages: dict[str, list[str]] = {}
+            for issue in error.errors():
+                path = ".".join(str(part) for part in issue["loc"])
+                messages.setdefault(path, []).append(issue["msg"])
+            return messages
+    expected_output:
+      outcome: valid
+  - name: looks up checked fallback texts by token name
+    inputs:
+      file: messages/fallbacks.py
+      after: |
+        def missing_fallbacks(fallbacks: object, tokens: set[str]) -> set[str]:
+            if not isinstance(fallbacks, dict) or not all(
+                isinstance(name, str) and isinstance(text, str) for name, text in fallbacks.items()
+            ):
+                raise ValueError("Fallbacks must map each token name to text.")
+            return {token for token in tokens if not fallbacks.get(token, "").strip()}
+    expected_output:
+      outcome: valid
+  - name: decides from an unchecked settings payload
+    inputs:
+      file: messages/sending.py
+      after: |
+        import json
+
+
+        def should_send(settings_json: str) -> bool:
+            settings = json.loads(settings_json)
+            return settings.get("enabled", False) and settings.get("channel") == "sms"
+    expected_output:
+      outcome: invalid
+  - name: parses a submitted duration into a timedelta
+    inputs:
+      file: calendar/event_duration.py
+      after: |
+        from datetime import timedelta
+
+
+        def event_duration(fields: dict[str, object]) -> timedelta:
+            minutes = fields.get("duration_minutes", 30)
+            if not isinstance(minutes, int) or not 5 <= minutes <= 480:
+                raise ValueError("Duration must be a whole number of minutes from 5 to 480.")
+            return timedelta(minutes=minutes)
+    expected_output:
+      outcome: valid
+  - name: hands a fetched payload to a helper that formats it
+    inputs:
+      file: weather/forecast.py
+      after: |
+        import requests
+
+
+        def forecast_line(city: str) -> str:
+            payload = requests.get(f"https://weather.example/{city}", timeout=10).json()
+            return describe(payload)
+
+
+        def describe(payload: dict) -> str:
+            today = payload["days"][0]
+            return f"{today['summary']}, high of {today['high']}"
+    expected_output:
+      outcome: invalid
+  - name: walks its own model's dump
+    inputs:
+      file: forms/form_values.py
+      after: |
+        from collections.abc import Iterator
+
+        from pydantic import BaseModel
+
+
+        class Address(BaseModel):
+            street: str
+            city: str
+
+
+        class Form(BaseModel):
+            name: str
+            address: Address
+
+
+        def leaf_values(values: dict, parent: tuple[str, ...] = ()) -> Iterator[tuple[str, str]]:
+            for name, value in values.items():
+                if isinstance(value, dict):
+                    yield from leaf_values(value, (*parent, name))
+                else:
+                    yield ".".join((*parent, name)), value
+
+
+        def form_values(form: Form) -> dict[str, str]:
+            return dict(leaf_values(form.model_dump(mode="json")))
+    expected_output:
+      outcome: valid
+  - name: validates a webhook body with a model
+    inputs:
+      file: billing/webhooks.py
+      after: |
+        import json
+
+        from pydantic import BaseModel
+
+
+        class PaymentEvent(BaseModel):
+            invoice_id: str
+            amount_cents: int
+
+
+        def payment_event(body: str) -> PaymentEvent:
+            return PaymentEvent.model_validate(json.loads(body))
+
+
+        def is_large(event: PaymentEvent) -> bool:
+            return event.amount_cents > 100_000
+    expected_output:
+      outcome: valid

@@ -54,7 +54,7 @@ against the rule's skill):
 
 | Rule | Checks |
 |---|---|
-| `parse-boundary-data-once` | Untyped data from outside is read only by the parse that builds its named type |
+| `parse-boundary-data-once` | Outside data is read only through the part of the program that declares and checks its shape |
 
 The other judge rules are drafts in `drafts/python/`, which codeguard doesn't load. A
 draft moves back into `python/` one rule at a time, highest value first, once it passes
