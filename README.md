@@ -127,7 +127,14 @@ task eval                # codeguard eval: judge each eval case and review each 
 
 [Which test to write](https://github.com/betterwithranch/codeguard#which-test-to-write)
 says which test covers which change. Every judge rule has a rule eval with `invalid`,
-`valid` and `skipped` cases, each named after what its edit does.
+`valid` and `skipped` cases, each named after what its edit does. Each case is a clear
+violation, a clear non-violation, or clearly outside the rule's gate. A case a reviewer
+could argue either way doesn't belong in a rule eval.
+
+A case or finding that flips between runs, or comes back as a low-confidence warning,
+means the rule's criterion or the case is unclear. Fix the criterion or the case. Don't
+re-run, loosen the gate, or change the reviewed code. [CLAUDE.md](CLAUDE.md) has the
+details.
 
 CI runs `codeguard test`, then runs the branch's pattern rules over every file in
 codeguard (`codeguard review --all --dry-run`, which calls no model). A pattern rule
