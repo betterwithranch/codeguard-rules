@@ -58,8 +58,8 @@ against the rule's skill):
 
 The other judge rules are drafts in `drafts/python/`, which codeguard doesn't load. A
 draft moves back into `python/` one rule at a time, highest value first, once it passes
-every eval case 3 of 3 runs on the model its binding names and a judged review of
-codeguard finds nothing wrong.
+every eval case 20 of 20 runs on the model its binding names and a judged review of
+codeguard finds nothing wrong. codeguard's `writing-rules` skill has the steps.
 
 Reviews and evals both judge a rule with its binding's `provider` and `model`, and a
 project can't override them, so a rule is only ever judged by the model its evals pass
