@@ -7,8 +7,8 @@ Each draft keeps its `python/` layout and its binding's `skill:` path, so adding
 back is `git mv` of its skill, binding and eval into `python/`, in a commit whose CI
 passes:
 
-- every `invalid` and `valid` eval case passes 3 of 3 runs (`codeguard eval --repeat 3`)
-  on its binding's model;
+- every `invalid` and `valid` eval case passes 20 of 20 runs (`codeguard eval --repeat 20`)
+  on its binding's model, checked before the commit; CI then repeats 3 runs;
 - a judged review of codeguard with the rule loaded reports no false positive, and every
   real violation it finds is fixed in codeguard.
 

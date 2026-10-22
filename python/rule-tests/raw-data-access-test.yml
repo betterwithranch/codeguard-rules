@@ -3,10 +3,9 @@ valid:
 - |
   name = order.name
 - |
-  value = lookup['key']
+  value = cache[key]
 - |
-  def render(alert: Alert) -> str:
-      return names["service"]
+  text = fallbacks.get(name)
 invalid:
 - |
   head = parts[0]
@@ -19,11 +18,20 @@ invalid:
   def parse(raw: dict[str, Any]):
       return raw
 - |
-  def render(alert: dict[str, object]) -> str:
-      return alert["service"]
+  value = lookup['key']
 - |
-  def render(alert: Any = None) -> str:
-      return alert["service"]
+  events = payload.get("events")
 - |
-  def render(alert: Alert) -> str:
-      return alert["service"]
+  events = request.data["events"]
+- |
+  def send_all(rows):
+      for row in rows:
+          send(row["email"])
+- |
+  events = requests.get(url).json()["events"]
+- |
+  steps = yaml.safe_load(text)["steps"]
+- |
+  def latest():
+      data = load()
+      return data["events"]

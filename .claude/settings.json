@@ -1,0 +1,14 @@
+{
+  "extraKnownMarketplaces": {
+    "codeguard": {
+      "source": {
+        "source": "github",
+        "repo": "betterwithranch/codeguard",
+        "ref": "v0"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "codeguard@codeguard": true
+  }
+}
