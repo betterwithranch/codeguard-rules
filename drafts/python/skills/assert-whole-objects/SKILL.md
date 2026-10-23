@@ -26,14 +26,16 @@ Leaves part of the produced value unchecked (violations):
   `dataclasses.replace(order, id=None)`, `order.model_copy(update={"id": None})`,
   `order.model_dump(exclude={"id"})`, `del` or `pop` of a key, a comprehension that
   leaves fields out. A field that changes each run (a generated id, a timestamp) is
-  still part of the value.
+  still part of the value. Report a copy's violation on the line that makes the copy.
 
 Checks the whole produced value (not violations):
 
 - The produced value compared once with an expected value, however the expected value
   is built: a constructor, a literal, `baseline.model_copy(update={"total": 2})`,
-  `replace(baseline, total=2)`, or `len(lines)` as the expected value of a produced
-  count.
+  `replace(baseline, total=2)`, `len(lines)` as the expected value of a produced count,
+  or a tuple of another object's fields (`(expected.share, expected.remainder)`) as the
+  expected value of a produced tuple.
 - A produced scalar compared directly.
-- Field-by-field checks of a type with no usable `__eq__`, when every field is
-  asserted.
+- Every field asserted, one per line, when the produced value's type has no `__eq__`:
+  a plain class compares by identity, so one `==` would check nothing. A dataclass, an
+  attrs class, a NamedTuple and a pydantic model have `__eq__`.
