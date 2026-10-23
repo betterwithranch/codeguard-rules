@@ -8,10 +8,6 @@ snapshots:
       style: primary
       start: 22
       end: 59
-    - source: assert (len(lines) == 2), "two lines"
-      style: secondary
-      start: 22
-      end: 59
     - source: len
       style: secondary
       start: 30
@@ -20,16 +16,52 @@ snapshots:
       style: secondary
       start: 30
       end: 40
+    - source: '2'
+      style: secondary
+      start: 44
+      end: 45
+    - source: assert (len(lines) == 2), "two lines"
+      style: secondary
+      start: 22
+      end: 59
+    - source: len(lines) == 2
+      style: secondary
+      start: 30
+      end: 45
+  ? |
+    def test_lines():
+        assert 0 < len(lines) < 3
+  : labels:
+    - source: assert 0 < len(lines) < 3
+      style: primary
+      start: 22
+      end: 47
+    - source: len
+      style: secondary
+      start: 33
+      end: 36
+    - source: len(lines)
+      style: secondary
+      start: 33
+      end: 43
+    - source: '0'
+      style: secondary
+      start: 29
+      end: 30
+    - source: assert 0 < len(lines) < 3
+      style: secondary
+      start: 22
+      end: 47
+    - source: 0 < len(lines) < 3
+      style: secondary
+      start: 29
+      end: 47
   ? |
     def test_lines():
         assert 2 == len(lines)
   : labels:
     - source: assert 2 == len(lines)
       style: primary
-      start: 22
-      end: 44
-    - source: assert 2 == len(lines)
-      style: secondary
       start: 22
       end: 44
     - source: len
@@ -40,6 +72,18 @@ snapshots:
       style: secondary
       start: 34
       end: 44
+    - source: '2'
+      style: secondary
+      start: 29
+      end: 30
+    - source: assert 2 == len(lines)
+      style: secondary
+      start: 22
+      end: 44
+    - source: 2 == len(lines)
+      style: secondary
+      start: 29
+      end: 44
   ? |
     def test_lines():
         assert len(lines)
@@ -48,14 +92,14 @@ snapshots:
       style: primary
       start: 22
       end: 39
-    - source: assert len(lines)
-      style: secondary
-      start: 22
-      end: 39
     - source: len
       style: secondary
       start: 29
       end: 32
+    - source: assert len(lines)
+      style: secondary
+      start: 22
+      end: 39
     - source: len(lines)
       style: secondary
       start: 29
@@ -68,10 +112,6 @@ snapshots:
       style: primary
       start: 22
       end: 44
-    - source: assert len(lines) == 2
-      style: secondary
-      start: 22
-      end: 44
     - source: len
       style: secondary
       start: 29
@@ -80,16 +120,52 @@ snapshots:
       style: secondary
       start: 29
       end: 39
+    - source: '2'
+      style: secondary
+      start: 43
+      end: 44
+    - source: assert len(lines) == 2
+      style: secondary
+      start: 22
+      end: 44
+    - source: len(lines) == 2
+      style: secondary
+      start: 29
+      end: 44
+  ? |
+    def test_lines():
+        assert len(lines) == EXPECTED_LINE_COUNT
+  : labels:
+    - source: assert len(lines) == EXPECTED_LINE_COUNT
+      style: primary
+      start: 22
+      end: 62
+    - source: len
+      style: secondary
+      start: 29
+      end: 32
+    - source: len(lines)
+      style: secondary
+      start: 29
+      end: 39
+    - source: EXPECTED_LINE_COUNT
+      style: secondary
+      start: 43
+      end: 62
+    - source: assert len(lines) == EXPECTED_LINE_COUNT
+      style: secondary
+      start: 22
+      end: 62
+    - source: len(lines) == EXPECTED_LINE_COUNT
+      style: secondary
+      start: 29
+      end: 62
   ? |
     def test_lines():
         assert lines and len(lines) > 1
   : labels:
     - source: assert lines and len(lines) > 1
       style: primary
-      start: 22
-      end: 53
-    - source: assert lines and len(lines) > 1
-      style: secondary
       start: 22
       end: 53
     - source: len
@@ -100,6 +176,18 @@ snapshots:
       style: secondary
       start: 39
       end: 49
+    - source: '1'
+      style: secondary
+      start: 52
+      end: 53
+    - source: assert lines and len(lines) > 1
+      style: secondary
+      start: 22
+      end: 53
+    - source: len(lines) > 1
+      style: secondary
+      start: 39
+      end: 53
   ? |
     def test_lines():
         assert not len(lines)
@@ -108,14 +196,14 @@ snapshots:
       style: primary
       start: 22
       end: 43
-    - source: assert not len(lines)
-      style: secondary
-      start: 22
-      end: 43
     - source: len
       style: secondary
       start: 33
       end: 36
+    - source: assert not len(lines)
+      style: secondary
+      start: 22
+      end: 43
     - source: len(lines)
       style: secondary
       start: 33
@@ -128,10 +216,6 @@ snapshots:
       style: primary
       start: 24
       end: 71
-    - source: assert len(many_queries) == len(single_queries)
-      style: secondary
-      start: 24
-      end: 71
     - source: len
       style: secondary
       start: 31
@@ -140,3 +224,19 @@ snapshots:
       style: secondary
       start: 31
       end: 48
+    - source: len
+      style: secondary
+      start: 52
+      end: 55
+    - source: len(single_queries)
+      style: secondary
+      start: 52
+      end: 71
+    - source: assert len(many_queries) == len(single_queries)
+      style: secondary
+      start: 24
+      end: 71
+    - source: len(many_queries) == len(single_queries)
+      style: secondary
+      start: 31
+      end: 71

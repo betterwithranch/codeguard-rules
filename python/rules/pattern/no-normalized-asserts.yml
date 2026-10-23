@@ -4,9 +4,9 @@ severity: error
 message: Don't strip fields from the result inside an assert.
 note: |
   Each field the copy drops or replaces goes unchecked. Assert the noisy field's
-  meaningful part directly and compare the rest of the object normally. The rule reads
-  the left side of the comparison as the result; a copy that builds the expected value
-  on the right (`assert result == baseline.model_copy(update={"total": 2})`) is allowed.
+  meaningful part directly and compare the rest of the object normally. A field that
+  changes each run (a generated id, a timestamp) is fixed by controlling its source in
+  the test, not by masking it.
 utils:
   field-dropping-copy:
     any:
@@ -18,22 +18,41 @@ utils:
           - has:
               field: arguments
               has: {kind: keyword_argument, has: {field: name, regex: "^exclude$"}}
+  copied:
+    any:
+      - matches: field-dropping-copy
+      - has: {stopBy: end, matches: field-dropping-copy}
+  stated-value:
+    not:
+      any:
+        - kind: identifier
+          regex: ^[a-z_]
+        - has:
+            stopBy: end
+            kind: identifier
+            regex: ^[a-z_]
+            not:
+              inside: {kind: keyword_argument, field: name}
   condition-part:
     any:
       - kind: not_operator
       - kind: boolean_operator
       - kind: parenthesized_expression
-rule:
-  kind: assert_statement
-  has:
-    stopBy: end
+  assert-comparison:
     kind: comparison_operator
     inside:
       stopBy:
         not: {matches: condition-part}
       kind: assert_statement
-    has:
-      nthChild: 1
-      any:
-        - matches: field-dropping-copy
-        - has: {stopBy: end, matches: field-dropping-copy}
+rule:
+  kind: assert_statement
+  has:
+    stopBy: end
+    matches: assert-comparison
+    any:
+      - all:
+          - has: {nthChild: 1, matches: copied}
+          - has: {nthChild: 2, any: [{matches: copied}, {matches: stated-value}]}
+      - all:
+          - has: {nthChild: 2, matches: copied}
+          - has: {nthChild: 1, matches: stated-value}

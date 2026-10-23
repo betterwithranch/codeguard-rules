@@ -30,6 +30,16 @@ valid:
     def test_long_names():
         assert [name for name in names if len(name) > 3] == ["alpha"]
 
+  # len builds the expected value for a count
+  - |
+    def test_count():
+        assert count == len(lines)
+
+  # len builds the expected value, on the left
+  - |
+    def test_count():
+        assert len(lines) == count
+
 invalid:
   # Length compared to a number
   - |
@@ -41,7 +51,7 @@ invalid:
     def test_lines():
         assert len(lines)
 
-  # Length on the right of the comparison
+  # Number on the left of the comparison
   - |
     def test_lines():
         assert 2 == len(lines)
@@ -50,6 +60,16 @@ invalid:
   - |
     def test_queries():
         assert len(many_queries) == len(single_queries)
+
+  # Length compared to a constant
+  - |
+    def test_lines():
+        assert len(lines) == EXPECTED_LINE_COUNT
+
+  # Length in a chained comparison
+  - |
+    def test_lines():
+        assert 0 < len(lines) < 3
 
   # Negated length check
   - |

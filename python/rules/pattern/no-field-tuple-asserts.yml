@@ -3,14 +3,54 @@ language: python
 severity: error
 message: Don't assert a tuple of one value's fields.
 note: |
-  A tuple of fields drops the field names, so a failure shows positions instead of
-  fields. Compare the whole object (`assert result == ExampleModel(name="a", total=1)`).
-  If the type has no usable `__eq__`, assert each field on its own line.
+  A tuple of fields leaves the value's other fields unchecked, including fields added
+  later, and a failure shows positions instead of field names. Compare the whole object
+  (`assert result == ExampleModel(name="a", total=1)`). If the type has no usable
+  `__eq__`, assert each field on its own line.
+utils:
+  field-tuple:
+    kind: tuple
+    any:
+      - pattern: ($A.$F, $A.$G)
+      - pattern: ($A.$F, $A.$G, $$$REST)
+    has: {nthChild: 1, kind: attribute, has: {field: object, regex: "^[a-z_]"}}
+  other-field-tuple:
+    kind: tuple
+    any:
+      - pattern: ($B.$H, $B.$I)
+      - pattern: ($B.$H, $B.$I, $$$OTHER)
+    has: {nthChild: 1, kind: attribute, has: {field: object, regex: "^[a-z_]"}}
+  stated-value:
+    not:
+      any:
+        - kind: identifier
+          regex: ^[a-z_]
+        - has:
+            stopBy: end
+            kind: identifier
+            regex: ^[a-z_]
+            not:
+              inside: {kind: keyword_argument, field: name}
+  condition-part:
+    any:
+      - kind: not_operator
+      - kind: boolean_operator
+      - kind: parenthesized_expression
+  assert-comparison:
+    kind: comparison_operator
+    inside:
+      stopBy:
+        not: {matches: condition-part}
+      kind: assert_statement
 rule:
-  any:
-    - pattern: assert ($A.$F, $A.$G) == $_
-    - pattern: assert ($A.$F, $A.$G, $$$) == $_
-    - pattern: assert $_ == ($A.$F, $A.$G)
-    - pattern: assert $_ == ($A.$F, $A.$G, $$$)
-constraints:
-  A: {regex: "^[a-z_]"}
+  kind: assert_statement
+  has:
+    stopBy: end
+    matches: assert-comparison
+    any:
+      - all:
+          - has: {nthChild: 1, matches: field-tuple}
+          - has: {nthChild: 2, any: [{matches: other-field-tuple}, {matches: stated-value}]}
+      - all:
+          - has: {nthChild: 2, matches: field-tuple}
+          - has: {nthChild: 1, matches: stated-value}

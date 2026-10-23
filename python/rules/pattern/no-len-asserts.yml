@@ -4,22 +4,48 @@ severity: error
 message: Don't assert only a collection's length.
 note: |
   A length check passes when the items are wrong. Assert the whole collection
-  (`assert [line.sku for line in lines] == ["A1", "B2"]`). A `len()` used inside a
-  value, such as a slice (`items[: len(prefix)]`), is not a length check.
+  (`assert [line.sku for line in lines] == ["A1", "B2"]`).
 utils:
+  length:
+    kind: call
+    has: {field: function, regex: "^len$"}
+  stated-value:
+    not:
+      any:
+        - kind: identifier
+          regex: ^[a-z_]
+        - has:
+            stopBy: end
+            kind: identifier
+            regex: ^[a-z_]
+            not:
+              inside: {kind: keyword_argument, field: name}
   condition-part:
     any:
-      - kind: comparison_operator
       - kind: not_operator
       - kind: boolean_operator
       - kind: parenthesized_expression
-rule:
-  kind: assert_statement
-  has:
-    stopBy: end
-    kind: call
-    has: {field: function, regex: "^len$"}
+  assert-comparison:
+    kind: comparison_operator
     inside:
       stopBy:
         not: {matches: condition-part}
       kind: assert_statement
+rule:
+  kind: assert_statement
+  has:
+    stopBy: end
+    any:
+      - matches: length
+        inside:
+          stopBy:
+            not: {matches: condition-part}
+          kind: assert_statement
+      - matches: assert-comparison
+        any:
+          - all:
+              - has: {nthChild: 1, matches: length}
+              - has: {nthChild: 2, any: [{matches: length}, {matches: stated-value}]}
+          - all:
+              - has: {nthChild: 2, matches: length}
+              - has: {nthChild: 1, matches: stated-value}

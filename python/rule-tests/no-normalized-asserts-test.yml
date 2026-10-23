@@ -41,53 +41,68 @@ valid:
     def test_orders():
         assert results == [replace(baseline, id=order_id) for order_id in order_ids]
 
+  # Copy compared with a value built elsewhere, on the left
+  - |
+    def test_order():
+        assert baseline.model_copy(update={"total": 2}) == result
+
   # Copy in a comparison nested inside the expected value
   - |
     def test_orders():
         assert results == [order for order in orders if replace(order, id=None) == baseline]
 
 invalid:
+  # Copy compared with a literal, on the right
+  - |
+    def test_order():
+        assert {"total": 1} == result.model_dump(exclude={"id"})
+
+  # Copy compared with a constructor, on the right
+  - |
+    def test_order():
+        assert ExampleOrder(id=None, total=1) == replace(result, id=None)
+
   # dataclasses.replace on the result
   - |
     def test_order():
         assert replace(result, id=None) == ExampleOrder(id=None, total=1)
-
-  # Qualified dataclasses.replace on the result
-  - |
-    def test_order():
-        assert dataclasses.replace(result, id=None) == expected
-
-  # Pydantic copy with an update
-  - |
-    def test_order():
-        assert result.model_copy(update={"id": None}) == expected
 
   # Dump that excludes a field
   - |
     def test_order():
         assert result.model_dump(exclude={"id"}) == {"total": 1}
 
-  # Copy of each item of the result
-  - |
-    def test_orders():
-        assert [replace(order, id=None) for order in results] == expected_orders
-
-  # Copy chained into another call
-  - |
-    def test_order():
-        assert result.model_copy(update={"id": None}).model_dump() == payload
-
   # Copies on both sides
   - |
     def test_order():
         assert replace(result, id=None) == replace(expected, id=None)
 
+  # Qualified dataclasses.replace compared with a constructor
+  - |
+    def test_order():
+        assert dataclasses.replace(result, id=None) == ExampleOrder(id=None, total=1)
+
+  # Pydantic copy compared with a literal
+  - |
+    def test_order():
+        assert result.model_copy(update={"id": None}) == {"total": 1}
+
+  # Copy of each item compared with copies
+  - |
+    def test_orders():
+        assert [replace(order, id=None) for order in results] == [replace(order, id=None) for order in expected]
+
+  # Copy chained into another call
+  - |
+    def test_order():
+        assert result.model_copy(update={"id": None}).model_dump() == {"total": 1}
+
   # Membership check on a copy
   - |
     def test_order():
-        assert replace(result, id=None) in expected_orders
+        assert replace(result, id=None) in {ExampleOrder(id=None, total=1)}
 
   # Negated comparison on a copy
   - |
     def test_order():
-        assert not result.model_dump(exclude={"id"}) != payload
+        assert not result.model_dump(exclude={"id"}) != {"total": 1}
