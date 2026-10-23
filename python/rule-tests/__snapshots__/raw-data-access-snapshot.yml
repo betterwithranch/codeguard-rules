@@ -1,33 +1,42 @@
 id: raw-data-access
 snapshots:
-  "def latest():\n    data = load()\n    return data[\"events\"]\n":
-    labels:
+  ? |
+    def latest():
+        data = load()
+        return data["events"]
+  : labels:
     - source: data["events"]
       style: primary
       start: 43
       end: 57
-    - source: "\"events\""
+    - source: '"events"'
       style: secondary
       start: 48
       end: 56
-  "def parse(raw: dict[str, Any]):\n    return raw\n":
-    labels:
+  ? |
+    def parse(raw: dict[str, Any]):
+        return raw
+  : labels:
     - source: dict[str, Any]
       style: primary
       start: 15
       end: 29
-  "def send_all(rows):\n    for row in rows:\n        send(row[\"email\"])\n":
-    labels:
+  ? |
+    def send_all(rows):
+        for row in rows:
+            send(row["email"])
+  : labels:
     - source: row["email"]
       style: primary
       start: 54
       end: 66
-    - source: "\"email\""
+    - source: '"email"'
       style: secondary
       start: 58
       end: 65
-  "events = payload.get(\"events\")\n":
-    labels:
+  ? |
+    events = payload.get("events")
+  : labels:
     - source: payload.get("events")
       style: primary
       start: 9
@@ -40,46 +49,51 @@ snapshots:
       style: secondary
       start: 9
       end: 20
-    - source: "\"events\""
+    - source: '"events"'
       style: secondary
       start: 21
       end: 29
-    - source: "\"events\""
+    - source: '"events"'
       style: secondary
       start: 21
       end: 29
-  "events = request.data[\"events\"]\n":
-    labels:
+  ? |
+    events = request.data["events"]
+  : labels:
     - source: request.data["events"]
       style: primary
       start: 9
       end: 31
-    - source: "\"events\""
+    - source: '"events"'
       style: secondary
       start: 22
       end: 30
-  "events = requests.get(url).json()[\"events\"]\n":
-    labels:
+  ? |
+    events = requests.get(url).json()["events"]
+  : labels:
     - source: requests.get(url).json()["events"]
       style: primary
       start: 9
       end: 43
-    - source: "\"events\""
+    - source: '"events"'
       style: secondary
       start: 34
       end: 42
-  "head = parts[0]\n":
-    labels:
+  ? |
+    head = parts[0]
+  : labels:
     - source: parts[0]
       style: primary
       start: 7
       end: 15
-    - source: "0"
+    - source: '0'
       style: secondary
       start: 13
       end: 14
-  "if isinstance(x, int):\n    pass\n":
-    labels:
+  ? |
+    if isinstance(x, int):
+        pass
+  : labels:
     - source: isinstance(x, int)
       style: primary
       start: 3
@@ -88,33 +102,69 @@ snapshots:
       style: secondary
       start: 3
       end: 13
-  "rest = loc[2:]\n":
-    labels:
+  ? |
+    last = events[-1]
+  : labels:
+    - source: events[-1]
+      style: primary
+      start: 7
+      end: 17
+    - source: '-1'
+      style: secondary
+      start: 14
+      end: 16
+  ? |
+    payload = json.load(handle)
+  : labels:
+    - source: json.load(handle)
+      style: primary
+      start: 10
+      end: 27
+    - source: json.load
+      style: secondary
+      start: 10
+      end: 19
+  ? |
+    payload = json.loads(text)
+  : labels:
+    - source: json.loads(text)
+      style: primary
+      start: 10
+      end: 26
+    - source: json.loads
+      style: secondary
+      start: 10
+      end: 20
+  ? |
+    rest = loc[2:]
+  : labels:
     - source: loc[2:]
       style: primary
       start: 7
       end: 14
-    - source: "2:"
+    - source: '2:'
       style: secondary
       start: 11
       end: 13
-  "steps = yaml.safe_load(text)[\"steps\"]\n":
-    labels:
+  ? |
+    steps = yaml.safe_load(text)["steps"]
+  : labels:
     - source: yaml.safe_load(text)["steps"]
       style: primary
       start: 8
       end: 37
-    - source: "\"steps\""
+    - source: '"steps"'
       style: secondary
       start: 29
       end: 36
-  "value = lookup['key']\n":
-    labels:
+  ? |
+    value = lookup['key']
+  : labels:
     - source: lookup['key']
       style: primary
       start: 8
       end: 21
-    - source: "'key'"
+    - source: '''key'''
       style: secondary
       start: 15
       end: 20
