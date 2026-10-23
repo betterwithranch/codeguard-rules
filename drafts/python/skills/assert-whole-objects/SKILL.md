@@ -10,8 +10,9 @@ once, rather than checking its parts separately.
 
 The test for each produced value: do the test's assertions check several of its fields,
 all of it with some fields left out, or only how many items it has, instead of comparing
-it whole? If yes, it is a violation. The produced value is what the call under test returned or changed, read
-from the test's code. Which side of a comparison it is on doesn't matter.
+it whole? If yes, it is a violation. The produced value is what the call under test
+returned or changed, read from the test's code. Which side of a comparison it is on
+doesn't matter.
 
 Checks parts instead of the whole value (violations):
 
