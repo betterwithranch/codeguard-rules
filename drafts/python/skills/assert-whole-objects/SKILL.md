@@ -9,8 +9,8 @@ A test that checks more than one part of a value it produced compares the whole 
 once, rather than checking its parts separately.
 
 The test for each produced value: do the test's assertions check several of its fields,
-or all of it with some fields left out, instead of comparing it whole? If yes, it is a
-violation. The produced value is what the call under test returned or changed, read
+all of it with some fields left out, or only how many items it has, instead of comparing
+it whole? If yes, it is a violation. The produced value is what the call under test returned or changed, read
 from the test's code. Which side of a comparison it is on doesn't matter.
 
 Checks parts instead of the whole value (violations):
@@ -24,8 +24,9 @@ Checks parts instead of the whole value (violations):
   `order.model_dump(exclude={"id"})`, `del` or `pop` of a key, a dict comprehension that
   filters keys out, `order.id = None`, or `Order(id=ANY, ...)` as the expected value. A
   field that changes each run (a generated id, a timestamp) is still part of the value.
-- A collection's size instead of its contents: `assert len(parcels) ==
-  expected_count`, `assert expected_count == len(parcels)`, `assert parcels`.
+- How many items it, or each of its items, has instead of what they are: `assert
+  len(parcels) == expected_count`, `assert expected_count == len(parcels)`, `assert
+  parcels`.
 
 Not violations:
 
