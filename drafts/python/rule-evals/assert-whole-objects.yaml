@@ -46,7 +46,7 @@ cases:
             assert invoice.total == 120
     expected_output:
       outcome: valid
-  - name: checks only the first parcel's sku
+  - name: checks the first parcel's sku
     inputs:
       file: tests/test_shipments.py
       before: |
@@ -72,7 +72,7 @@ cases:
 
             assert parcels[0].sku == "A1"
     expected_output:
-      outcome: invalid
+      outcome: valid
   - name: checks only how many parcels were packed
     inputs:
       file: tests/test_shipments.py
@@ -279,7 +279,7 @@ cases:
             )
     expected_output:
       outcome: valid
-  - name: checks one invoice field with the expected value first
+  - name: checks the invoice number with the expected value first
     inputs:
       file: tests/test_invoices.py
       after: |
@@ -291,7 +291,7 @@ cases:
 
             assert "42" == invoice.number
     expected_output:
-      outcome: invalid
+      outcome: valid
   - name: checks how many parcels with the expected count first
     inputs:
       file: tests/test_shipments.py
@@ -470,6 +470,46 @@ cases:
                 self.assertEqual(count_items(skus), len(skus))
     expected_output:
       outcome: valid
+  - name: checks two invoice fields with the expected values first
+    inputs:
+      file: tests/test_invoices.py
+      after: |
+        from billing.invoices import issue_invoice
+
+
+        def test_issue_invoice_copies_the_order():
+            invoice = issue_invoice(order_id="ord-42", total=120)
+
+            assert "42" == invoice.number
+            assert 120 == invoice.total
+    expected_output:
+      outcome: invalid
+  - name: checks every parcel's sku
+    inputs:
+      file: tests/test_shipments.py
+      after: |
+        from shipping.shipments import pack_items
+
+
+        def test_pack_items_orders_parcels_by_sku():
+            parcels = pack_items(["B2", "A1"])
+
+            assert [parcel.sku for parcel in parcels] == ["A1", "B2"]
+    expected_output:
+      outcome: skipped
+  - name: checks every parcel's sku and quantity
+    inputs:
+      file: tests/test_shipments.py
+      after: |
+        from shipping.shipments import pack_items
+
+
+        def test_pack_items_counts_each_sku():
+            parcels = pack_items(["B2", "A1", "B2"])
+
+            assert [(parcel.sku, parcel.quantity) for parcel in parcels] == [("A1", 1), ("B2", 2)]
+    expected_output:
+      outcome: invalid
   - name: compares the full parcel list
     inputs:
       file: tests/test_shipments.py
