@@ -2,10 +2,28 @@ id: partial-assert
 valid:
 - |
   assert result == Invoice(number='42')
+- |
+  assert result == Status.ACTIVE
+- |
+  count = len(items)
+- |
+  pair = (result.number, result.total)
 invalid:
 - |
   assert result.number == '42'
 - |
-  assert len(items) == 1
+  assert '42' == result.number
 - |
   assert items[0] == line
+- |
+  assert line == items[0]
+- |
+  assert len(items) == 1
+- |
+  assert count == len(items)
+- |
+  assert all(len(group) == 2 for group in groups)
+- |
+  assert (result.number, result.total) == expected_pair
+- |
+  assert expected_pair == (result.number, result.total)

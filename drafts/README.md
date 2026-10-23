@@ -68,7 +68,6 @@ Judge rules on test files (`test_*.py`, `*_test.py`, `tests/**`, `conftest.py`):
 | `helpers-only-set-up` | Helpers set up; they never perform the act |
 | `integration-tests-catch-wiring` | Integration tests catch a wiring bug (files under `integration/` or `e2e/`, or named for them) |
 | `mock-only-at-boundary` | Mock only at the process boundary |
-| `no-normalized-results` | Do not normalize the result before asserting |
 | `no-wrapper-fixtures` | No wrapper or projection fixtures |
 | `real-test-data` | Use real data, real parents, and real ids |
 | `reuse-test-helpers` | Reuse shared fakes and helpers |

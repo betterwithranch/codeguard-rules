@@ -1,13 +1,19 @@
 id: partial-assert
 language: python
 rule:
-  kind: assert_statement
-  has:
-    kind: comparison_operator
-    has:
-      nthChild: 1
+  inside: {stopBy: end, kind: assert_statement}
+  any:
+    - kind: comparison_operator
+      has:
+        any: [{kind: attribute}, {kind: subscript}]
+        has:
+          stopBy: end
+          kind: identifier
+          regex: ^[a-z_]
+    - kind: call
+      has: {field: function, regex: "^len$"}
+    - kind: tuple
       any:
-      - kind: attribute
-      - kind: subscript
-      - kind: call
-        regex: ^len\(
+        - pattern: ($A.$F, $A.$G)
+        - pattern: ($A.$F, $A.$G, $$$REST)
+      has: {nthChild: 1, kind: attribute, has: {field: object, regex: "^[a-z_]"}}

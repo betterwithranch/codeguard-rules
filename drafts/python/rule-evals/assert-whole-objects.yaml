@@ -25,6 +25,27 @@ cases:
             assert invoice.total == 120
     expected_output:
       outcome: invalid
+  - name: asserts every field of a class without equality
+    inputs:
+      file: tests/test_invoices.py
+      after: |
+        class Invoice:
+            def __init__(self, number: str, total: int) -> None:
+                self.number = number
+                self.total = total
+
+
+        def issue_invoice(order_id: str, total: int) -> Invoice:
+            return Invoice(number=order_id.removeprefix("ord-"), total=total)
+
+
+        def test_issue_invoice_copies_order_total():
+            invoice = issue_invoice("ord-42", 120)
+
+            assert invoice.number == "42"
+            assert invoice.total == 120
+    expected_output:
+      outcome: valid
   - name: checks only the first parcel's sku
     inputs:
       file: tests/test_shipments.py
@@ -70,6 +91,237 @@ cases:
 
             assert parcels == [Parcel(sku="A1"), Parcel(sku="B2")]
     expected_output:
+      outcome: skipped
+  - name: checks only how many parcels were packed
+    inputs:
+      file: tests/test_shipments.py
+      after: |
+        from shipping.shipments import pack_items
+
+
+        def test_pack_items_makes_one_parcel_per_sku():
+            expected_count = 2
+
+            parcels = pack_items(["B2", "A1"])
+
+            assert len(parcels) == expected_count
+    expected_output:
+      outcome: invalid
+  - name: compares a produced count with the length of the input
+    inputs:
+      file: tests/test_shipments.py
+      after: |
+        from shipping.shipments import count_items
+
+
+        def test_count_items_counts_every_sku():
+            skus = ["B2", "A1", "C3"]
+
+            assert count_items(skus) == len(skus)
+    expected_output:
+      outcome: valid
+  - name: checks every group's size only
+    inputs:
+      file: tests/test_tables.py
+      after: |
+        from seating.tables import pair_guests
+
+
+        def test_pair_guests_seats_two_per_table():
+            tables = pair_guests(["ana", "bo", "cy", "di"])
+
+            assert all(len(table) == 2 for table in tables)
+    expected_output:
+      outcome: invalid
+  - name: compares a tuple of invoice fields
+    inputs:
+      file: tests/test_invoices.py
+      after: |
+        from billing.invoices import issue_invoice
+
+
+        def test_issue_invoice_numbers_and_totals():
+            expected_pair = ("42", 120)
+
+            invoice = issue_invoice(order_id="ord-42", total=120)
+
+            assert (invoice.number, invoice.total) == expected_pair
+    expected_output:
+      outcome: invalid
+  - name: compares a returned tuple with the expected split's fields
+    inputs:
+      file: tests/test_splits.py
+      after: |
+        from decimal import Decimal
+
+        from billing.splits import Split, split_total
+
+
+        def test_split_total_keeps_the_remainder():
+            expected = Split(share=Decimal("33.33"), remainder=Decimal("0.01"))
+
+            assert split_total(Decimal("100.00"), 3) == (expected.share, expected.remainder)
+    expected_output:
+      outcome: valid
+  - name: blanks fields with dataclasses.replace before comparing
+    inputs:
+      file: tests/test_orders.py
+      after: |
+        import dataclasses
+        from decimal import Decimal
+
+        from shop.orders import Order, OrderStatus, place_order
+
+
+        def test_place_order_creates_a_pending_order(customer):
+            order = place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+            actual = dataclasses.replace(order, id=None, created_at=None)
+            assert actual == Order(
+                id=None,
+                customer_id=customer.id,
+                sku="BOOK-1",
+                quantity=2,
+                total=Decimal("25.00"),
+                status=OrderStatus.PENDING,
+                created_at=None,
+            )
+    expected_output:
+      outcome: invalid
+  - name: compares a dump that excludes fields
+    inputs:
+      file: tests/test_invoices.py
+      before: |
+        from decimal import Decimal
+
+        from billing.invoices import issue_invoice
+
+
+        def test_issue_invoice_sets_amount_and_currency(account):
+            invoice = issue_invoice(account_id=account.id, amount=Decimal("120.00"))
+
+            assert invoice.amount == Decimal("120.00")
+            assert invoice.currency == "USD"
+      after: |
+        from decimal import Decimal
+
+        from billing.invoices import issue_invoice
+
+
+        def test_issue_invoice_sets_amount_and_currency(account):
+            invoice = issue_invoice(account_id=account.id, amount=Decimal("120.00"))
+
+            actual = invoice.model_dump(exclude={"id", "issued_at"})
+            assert actual == {
+                "account_id": account.id,
+                "amount": Decimal("120.00"),
+                "currency": "USD",
+            }
+    expected_output:
+      outcome: invalid
+  - name: compares the expected order with a masked copy of the placed order
+    inputs:
+      file: tests/test_orders.py
+      after: |
+        from decimal import Decimal
+
+        from shop.orders import Order, OrderStatus, place_order
+
+
+        def test_place_order_creates_a_pending_order(customer):
+            expected = Order(
+                id=None,
+                customer_id=customer.id,
+                sku="BOOK-1",
+                quantity=2,
+                total=Decimal("25.00"),
+                status=OrderStatus.PENDING,
+                created_at=None,
+            )
+
+            order = place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+            assert expected == order.model_copy(update={"id": None, "created_at": None})
+    expected_output:
+      outcome: invalid
+  - name: clears the placed order's id on a copy
+    inputs:
+      file: tests/test_orders.py
+      after: |
+        import copy
+        from decimal import Decimal
+
+        from shop.orders import Order, OrderStatus, place_order
+
+
+        def test_place_order_creates_a_pending_order(customer):
+            order = place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+            actual = copy.copy(order)
+            actual.id = None
+            assert actual == Order(
+                id=None,
+                customer_id=customer.id,
+                sku="BOOK-1",
+                quantity=2,
+                total=Decimal("25.00"),
+                status=OrderStatus.PENDING,
+            )
+    expected_output:
+      outcome: invalid
+  - name: compares the whole order with its clock and ids fixed
+    inputs:
+      file: tests/test_orders.py
+      after: |
+        from datetime import datetime
+        from decimal import Decimal
+
+        from shop.orders import FixedClock, FixedIds, Order, OrderStatus, place_order
+
+
+        def test_place_order_creates_a_pending_order(customer):
+            order = place_order(
+                customer_id=customer.id,
+                sku="BOOK-1",
+                quantity=2,
+                ids=FixedIds("ord-1"),
+                clock=FixedClock(datetime(2026, 3, 1, 9, 30)),
+            )
+
+            assert order == Order(
+                id="ord-1",
+                customer_id=customer.id,
+                sku="BOOK-1",
+                quantity=2,
+                total=Decimal("25.00"),
+                status=OrderStatus.PENDING,
+                created_at=datetime(2026, 3, 1, 9, 30),
+            )
+    expected_output:
+      outcome: skipped
+  - name: builds the expected order from a baseline copy
+    inputs:
+      file: tests/test_orders.py
+      after: |
+        from datetime import datetime
+        from decimal import Decimal
+
+        from shop.orders import FixedClock, FixedIds, Order, OrderStatus, place_order
+
+
+        def test_place_order_prices_each_unit(customer, pending_book_order):
+            order = place_order(
+                customer_id=customer.id,
+                sku="BOOK-1",
+                quantity=3,
+                ids=FixedIds("ord-1"),
+                clock=FixedClock(datetime(2026, 3, 1, 9, 30)),
+            )
+
+            assert order == pending_book_order.model_copy(
+                update={"quantity": 3, "total": Decimal("37.50")}
+            )
+    expected_output:
       outcome: valid
   - name: changes the shipment weight
     inputs:
@@ -90,5 +342,26 @@ cases:
             shipment = plan_shipment(order_id="ord-1", weight_kg=3)
 
             assert shipment == Shipment(order_id="ord-1", carrier="ground", weight_kg=3)
+    expected_output:
+      outcome: skipped
+  - name: changes the packed skus
+    inputs:
+      file: tests/test_shipments.py
+      before: |
+        from shipping.shipments import Parcel, pack_items
+
+
+        def test_pack_items_orders_parcels_by_sku():
+            parcels = pack_items(["B2", "A1"])
+
+            assert parcels == [Parcel(sku="A1"), Parcel(sku="B2")]
+      after: |
+        from shipping.shipments import Parcel, pack_items
+
+
+        def test_pack_items_orders_parcels_by_sku():
+            parcels = pack_items(["C3", "B2", "A1"])
+
+            assert parcels == [Parcel(sku="A1"), Parcel(sku="B2"), Parcel(sku="C3")]
     expected_output:
       outcome: skipped

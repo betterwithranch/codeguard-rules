@@ -6,6 +6,8 @@ invalid:
 - |
   assert replace(result, id=None) == expected
 - |
+  assert expected == result.model_copy(update={'id': None})
+- |
   del actual['id']
 - |
   actual = result.model_dump(exclude={'id'})

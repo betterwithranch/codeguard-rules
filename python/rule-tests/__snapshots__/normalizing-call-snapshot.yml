@@ -12,6 +12,17 @@ snapshots:
       start: 27
       end: 34
   ? |
+    assert expected == result.model_copy(update={'id': None})
+  : labels:
+    - source: 'result.model_copy(update={''id'': None})'
+      style: primary
+      start: 19
+      end: 57
+    - source: result.model_copy
+      style: secondary
+      start: 19
+      end: 36
+  ? |
     assert replace(result, id=None) == expected
   : labels:
     - source: replace(result, id=None)
