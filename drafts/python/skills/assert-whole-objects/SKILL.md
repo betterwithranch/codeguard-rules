@@ -26,7 +26,7 @@ Leaves part of the produced value unchecked (violations):
   `dataclasses.replace(order, id=None)`, `order.model_copy(update={"id": None})`,
   `order.model_dump(exclude={"id"})`, `del` or `pop` of a key, a comprehension that
   leaves fields out. A field that changes each run (a generated id, a timestamp) is
-  still part of the value. Report a copy's violation on the line that makes the copy.
+  still part of the value.
 
 Checks the whole produced value (not violations):
 

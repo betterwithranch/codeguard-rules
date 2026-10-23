@@ -1,6 +1,18 @@
 id: normalizing-call
 snapshots:
   ? |
+    actual = copy.copy(order)
+    actual.id = None
+  : labels:
+    - source: copy.copy(order)
+      style: primary
+      start: 9
+      end: 25
+    - source: copy.copy
+      style: secondary
+      start: 9
+      end: 18
+  ? |
     actual = result.model_dump(exclude={'id'})
   : labels:
     - source: exclude={'id'}

@@ -2,6 +2,8 @@ id: normalizing-call
 valid:
 - |
   assert result == expected
+- |
+  fake.status = 'down'
 invalid:
 - |
   assert replace(result, id=None) == expected
@@ -11,3 +13,6 @@ invalid:
   del actual['id']
 - |
   actual = result.model_dump(exclude={'id'})
+- |
+  actual = copy.copy(order)
+  actual.id = None

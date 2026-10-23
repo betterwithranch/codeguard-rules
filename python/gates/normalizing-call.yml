@@ -11,3 +11,23 @@ rule:
       field: name
       regex: ^exclude$
   - kind: delete_statement
+  - kind: assignment
+    has:
+      field: left
+      pattern: $COPY.$FIELD
+    inside:
+      kind: expression_statement
+      follows:
+        stopBy: end
+        has:
+          kind: assignment
+          all:
+          - has:
+              field: left
+              pattern: $COPY
+          - has:
+              field: right
+              kind: call
+              has:
+                field: function
+                regex: (^|\.)(replace|model_copy|copy|deepcopy)$
