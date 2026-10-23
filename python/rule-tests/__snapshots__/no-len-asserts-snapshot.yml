@@ -2,10 +2,54 @@ id: no-len-asserts
 snapshots:
   ? |
     def test_lines():
+        assert (len(lines) == 2), "two lines"
+  : labels:
+    - source: assert (len(lines) == 2), "two lines"
+      style: primary
+      start: 22
+      end: 59
+    - source: assert (len(lines) == 2), "two lines"
+      style: secondary
+      start: 22
+      end: 59
+    - source: len
+      style: secondary
+      start: 30
+      end: 33
+    - source: len(lines)
+      style: secondary
+      start: 30
+      end: 40
+  ? |
+    def test_lines():
+        assert 2 == len(lines)
+  : labels:
+    - source: assert 2 == len(lines)
+      style: primary
+      start: 22
+      end: 44
+    - source: assert 2 == len(lines)
+      style: secondary
+      start: 22
+      end: 44
+    - source: len
+      style: secondary
+      start: 34
+      end: 37
+    - source: len(lines)
+      style: secondary
+      start: 34
+      end: 44
+  ? |
+    def test_lines():
         assert len(lines)
   : labels:
     - source: assert len(lines)
       style: primary
+      start: 22
+      end: 39
+    - source: assert len(lines)
+      style: secondary
       start: 22
       end: 39
     - source: len
@@ -24,6 +68,10 @@ snapshots:
       style: primary
       start: 22
       end: 44
+    - source: assert len(lines) == 2
+      style: secondary
+      start: 22
+      end: 44
     - source: len
       style: secondary
       start: 29
@@ -32,3 +80,63 @@ snapshots:
       style: secondary
       start: 29
       end: 39
+  ? |
+    def test_lines():
+        assert lines and len(lines) > 1
+  : labels:
+    - source: assert lines and len(lines) > 1
+      style: primary
+      start: 22
+      end: 53
+    - source: assert lines and len(lines) > 1
+      style: secondary
+      start: 22
+      end: 53
+    - source: len
+      style: secondary
+      start: 39
+      end: 42
+    - source: len(lines)
+      style: secondary
+      start: 39
+      end: 49
+  ? |
+    def test_lines():
+        assert not len(lines)
+  : labels:
+    - source: assert not len(lines)
+      style: primary
+      start: 22
+      end: 43
+    - source: assert not len(lines)
+      style: secondary
+      start: 22
+      end: 43
+    - source: len
+      style: secondary
+      start: 33
+      end: 36
+    - source: len(lines)
+      style: secondary
+      start: 33
+      end: 43
+  ? |
+    def test_queries():
+        assert len(many_queries) == len(single_queries)
+  : labels:
+    - source: assert len(many_queries) == len(single_queries)
+      style: primary
+      start: 24
+      end: 71
+    - source: assert len(many_queries) == len(single_queries)
+      style: secondary
+      start: 24
+      end: 71
+    - source: len
+      style: secondary
+      start: 31
+      end: 34
+    - source: len(many_queries)
+      style: secondary
+      start: 31
+      end: 48

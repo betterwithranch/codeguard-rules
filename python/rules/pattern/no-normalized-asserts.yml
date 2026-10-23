@@ -4,11 +4,11 @@ severity: error
 message: Don't strip fields from the result inside an assert.
 note: |
   Each field the copy drops or replaces goes unchecked. Assert the noisy field's
-  meaningful part directly and compare the rest of the object normally.
-rule:
-  kind: assert_statement
-  has:
-    stopBy: end
+  meaningful part directly and compare the rest of the object normally. The rule reads
+  the left side of the comparison as the result; a copy that builds the expected value
+  on the right (`assert result == baseline.model_copy(update={"total": 2})`) is allowed.
+utils:
+  field-dropping-copy:
     any:
       - kind: call
         has: {field: function, regex: "^(dataclasses\\.)?replace$|\\.model_copy$"}
@@ -18,3 +18,22 @@ rule:
           - has:
               field: arguments
               has: {kind: keyword_argument, has: {field: name, regex: "^exclude$"}}
+  condition-part:
+    any:
+      - kind: not_operator
+      - kind: boolean_operator
+      - kind: parenthesized_expression
+rule:
+  kind: assert_statement
+  has:
+    stopBy: end
+    kind: comparison_operator
+    inside:
+      stopBy:
+        not: {matches: condition-part}
+      kind: assert_statement
+    has:
+      nthChild: 1
+      any:
+        - matches: field-dropping-copy
+        - has: {stopBy: end, matches: field-dropping-copy}

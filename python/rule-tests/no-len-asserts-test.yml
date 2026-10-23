@@ -10,6 +10,26 @@ valid:
     def test_lines():
         count = len(lines)
 
+  # len inside a slice of the compared value
+  - |
+    def test_prefix():
+        assert items[: len(prefix)] == prefix
+
+  # len inside an index of the compared value
+  - |
+    def test_last():
+        assert items[len(items) - 1] == ExampleItem(sku="B2")
+
+  # len inside the expected value
+  - |
+    def test_summary():
+        assert summary == ExampleSummary(count=len(lines), total=3)
+
+  # len inside a comprehension filter of the compared value
+  - |
+    def test_long_names():
+        assert [name for name in names if len(name) > 3] == ["alpha"]
+
 invalid:
   # Length compared to a number
   - |
@@ -20,3 +40,28 @@ invalid:
   - |
     def test_lines():
         assert len(lines)
+
+  # Length on the right of the comparison
+  - |
+    def test_lines():
+        assert 2 == len(lines)
+
+  # Length compared to another length
+  - |
+    def test_queries():
+        assert len(many_queries) == len(single_queries)
+
+  # Negated length check
+  - |
+    def test_lines():
+        assert not len(lines)
+
+  # Length check joined with another check
+  - |
+    def test_lines():
+        assert lines and len(lines) > 1
+
+  # Parenthesized length comparison
+  - |
+    def test_lines():
+        assert (len(lines) == 2), "two lines"

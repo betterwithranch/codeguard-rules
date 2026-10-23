@@ -2,10 +2,74 @@ id: no-normalized-asserts
 snapshots:
   ? |
     def test_order():
+        assert dataclasses.replace(result, id=None) == expected
+  : labels:
+    - source: assert dataclasses.replace(result, id=None) == expected
+      style: primary
+      start: 22
+      end: 77
+    - source: assert dataclasses.replace(result, id=None) == expected
+      style: secondary
+      start: 22
+      end: 77
+    - source: dataclasses.replace
+      style: secondary
+      start: 29
+      end: 48
+    - source: dataclasses.replace(result, id=None)
+      style: secondary
+      start: 29
+      end: 65
+    - source: dataclasses.replace(result, id=None) == expected
+      style: secondary
+      start: 29
+      end: 77
+  ? |
+    def test_order():
+        assert not result.model_dump(exclude={"id"}) != payload
+  : labels:
+    - source: assert not result.model_dump(exclude={"id"}) != payload
+      style: primary
+      start: 22
+      end: 77
+    - source: assert not result.model_dump(exclude={"id"}) != payload
+      style: secondary
+      start: 22
+      end: 77
+    - source: result.model_dump
+      style: secondary
+      start: 33
+      end: 50
+    - source: exclude
+      style: secondary
+      start: 51
+      end: 58
+    - source: exclude={"id"}
+      style: secondary
+      start: 51
+      end: 65
+    - source: exclude={"id"}
+      style: secondary
+      start: 51
+      end: 65
+    - source: result.model_dump(exclude={"id"})
+      style: secondary
+      start: 33
+      end: 66
+    - source: result.model_dump(exclude={"id"}) != payload
+      style: secondary
+      start: 33
+      end: 77
+  ? |
+    def test_order():
         assert replace(result, id=None) == ExampleOrder(id=None, total=1)
   : labels:
     - source: assert replace(result, id=None) == ExampleOrder(id=None, total=1)
       style: primary
+      start: 22
+      end: 87
+    - source: assert replace(result, id=None) == ExampleOrder(id=None, total=1)
+      style: secondary
       start: 22
       end: 87
     - source: replace
@@ -16,12 +80,68 @@ snapshots:
       style: secondary
       start: 29
       end: 53
+    - source: replace(result, id=None) == ExampleOrder(id=None, total=1)
+      style: secondary
+      start: 29
+      end: 87
+  ? |
+    def test_order():
+        assert replace(result, id=None) == replace(expected, id=None)
+  : labels:
+    - source: assert replace(result, id=None) == replace(expected, id=None)
+      style: primary
+      start: 22
+      end: 83
+    - source: assert replace(result, id=None) == replace(expected, id=None)
+      style: secondary
+      start: 22
+      end: 83
+    - source: replace
+      style: secondary
+      start: 29
+      end: 36
+    - source: replace(result, id=None)
+      style: secondary
+      start: 29
+      end: 53
+    - source: replace(result, id=None) == replace(expected, id=None)
+      style: secondary
+      start: 29
+      end: 83
+  ? |
+    def test_order():
+        assert replace(result, id=None) in expected_orders
+  : labels:
+    - source: assert replace(result, id=None) in expected_orders
+      style: primary
+      start: 22
+      end: 72
+    - source: assert replace(result, id=None) in expected_orders
+      style: secondary
+      start: 22
+      end: 72
+    - source: replace
+      style: secondary
+      start: 29
+      end: 36
+    - source: replace(result, id=None)
+      style: secondary
+      start: 29
+      end: 53
+    - source: replace(result, id=None) in expected_orders
+      style: secondary
+      start: 29
+      end: 72
   ? |
     def test_order():
         assert result.model_copy(update={"id": None}) == expected
   : labels:
     - source: 'assert result.model_copy(update={"id": None}) == expected'
       style: primary
+      start: 22
+      end: 79
+    - source: 'assert result.model_copy(update={"id": None}) == expected'
+      style: secondary
       start: 22
       end: 79
     - source: result.model_copy
@@ -32,12 +152,48 @@ snapshots:
       style: secondary
       start: 29
       end: 67
+    - source: 'result.model_copy(update={"id": None}) == expected'
+      style: secondary
+      start: 29
+      end: 79
+  ? |
+    def test_order():
+        assert result.model_copy(update={"id": None}).model_dump() == payload
+  : labels:
+    - source: 'assert result.model_copy(update={"id": None}).model_dump() == payload'
+      style: primary
+      start: 22
+      end: 91
+    - source: 'assert result.model_copy(update={"id": None}).model_dump() == payload'
+      style: secondary
+      start: 22
+      end: 91
+    - source: result.model_copy
+      style: secondary
+      start: 29
+      end: 46
+    - source: 'result.model_copy(update={"id": None})'
+      style: secondary
+      start: 29
+      end: 67
+    - source: 'result.model_copy(update={"id": None}).model_dump()'
+      style: secondary
+      start: 29
+      end: 80
+    - source: 'result.model_copy(update={"id": None}).model_dump() == payload'
+      style: secondary
+      start: 29
+      end: 91
   ? |
     def test_order():
         assert result.model_dump(exclude={"id"}) == {"total": 1}
   : labels:
     - source: 'assert result.model_dump(exclude={"id"}) == {"total": 1}'
       style: primary
+      start: 22
+      end: 78
+    - source: 'assert result.model_dump(exclude={"id"}) == {"total": 1}'
+      style: secondary
       start: 22
       end: 78
     - source: result.model_dump
@@ -60,3 +216,35 @@ snapshots:
       style: secondary
       start: 29
       end: 62
+    - source: 'result.model_dump(exclude={"id"}) == {"total": 1}'
+      style: secondary
+      start: 29
+      end: 78
+  ? |
+    def test_orders():
+        assert [replace(order, id=None) for order in results] == expected_orders
+  : labels:
+    - source: assert [replace(order, id=None) for order in results] == expected_orders
+      style: primary
+      start: 23
+      end: 95
+    - source: assert [replace(order, id=None) for order in results] == expected_orders
+      style: secondary
+      start: 23
+      end: 95
+    - source: replace
+      style: secondary
+      start: 31
+      end: 38
+    - source: replace(order, id=None)
+      style: secondary
+      start: 31
+      end: 54
+    - source: '[replace(order, id=None) for order in results]'
+      style: secondary
+      start: 30
+      end: 76
+    - source: '[replace(order, id=None) for order in results] == expected_orders'
+      style: secondary
+      start: 30
+      end: 95

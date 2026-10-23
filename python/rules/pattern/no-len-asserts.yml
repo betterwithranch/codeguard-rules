@@ -4,10 +4,22 @@ severity: error
 message: Don't assert only a collection's length.
 note: |
   A length check passes when the items are wrong. Assert the whole collection
-  (`assert [line.sku for line in lines] == ["A1", "B2"]`).
+  (`assert [line.sku for line in lines] == ["A1", "B2"]`). A `len()` used inside a
+  value, such as a slice (`items[: len(prefix)]`), is not a length check.
+utils:
+  condition-part:
+    any:
+      - kind: comparison_operator
+      - kind: not_operator
+      - kind: boolean_operator
+      - kind: parenthesized_expression
 rule:
   kind: assert_statement
   has:
     stopBy: end
     kind: call
     has: {field: function, regex: "^len$"}
+    inside:
+      stopBy:
+        not: {matches: condition-part}
+      kind: assert_statement
