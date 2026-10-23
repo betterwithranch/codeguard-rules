@@ -34,7 +34,7 @@ against the rule's skill). `no-foreign-reexports` runs on `__init__.py` files on
 | `enum-usage` | No `.value` on a `StrEnum`, `IntEnum` or `TextChoices` member |
 | `explicit-discriminated-unions` | A parsed union tags each variant and names its discriminator |
 | `factory-methods-by-product` | Factory methods named for the product or input, not the caller |
-| `factory-on-built-type` | A function that builds a new instance of a program class is defined on that class |
+| `factory-on-built-type` | Code that decides a type's field values is on the type, in its module, or in a mapper for one source |
 | `import-own-package-by-module` | Code inside a package imports from the defining module, never through a root that contains it |
 | `import-packages-from-root` | Code outside a package imports from the package root, unless the root import would form a cycle |
 | `interface-in-consumer-package` | An interface lives in the package of a consumer |
