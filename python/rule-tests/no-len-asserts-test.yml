@@ -40,6 +40,24 @@ valid:
     def test_count():
         assert len(lines) == count
 
+  # Uniqueness check
+  - |
+    def test_ids():
+        assert len(set(ids)) == len(ids)
+
+  # len in the assert message
+  - |
+    def test_lines():
+        assert lines == expected, len(lines)
+
+  # Comment beside a len compared with a name
+  - |
+    def test_count():
+        assert (
+            len(lines)  # every line
+            == count
+        )
+
 invalid:
   # Length compared to a number
   - |
@@ -85,3 +103,16 @@ invalid:
   - |
     def test_lines():
         assert (len(lines) == 2), "two lines"
+
+  # Length in the middle of a chained comparison
+  - |
+    def test_lines():
+        assert count < len(lines) < 3
+
+  # Length compared to a number, beside a comment
+  - |
+    def test_lines():
+        assert (
+            len(lines)  # two
+            == 2
+        )

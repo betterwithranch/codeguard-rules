@@ -4,12 +4,29 @@ severity: error
 message: Don't assert only a collection's length.
 note: |
   A length check passes when the items are wrong. Assert the whole collection
-  (`assert [line.sku for line in lines] == ["A1", "B2"]`).
+  (`assert lines == [ExampleLine(sku="A1"), ExampleLine(sku="B2")]`).
 utils:
   length:
     kind: call
     has: {field: function, regex: "^len$"}
   stated-value:
+    any:
+      - kind: integer
+      - kind: float
+      - kind: string
+      - kind: concatenated_string
+      - kind: "true"
+      - kind: "false"
+      - kind: none
+      - kind: unary_operator
+      - kind: identifier
+      - kind: attribute
+      - kind: call
+      - kind: list
+      - kind: tuple
+      - kind: set
+      - kind: dictionary
+      - kind: parenthesized_expression
     not:
       any:
         - kind: identifier
@@ -25,27 +42,34 @@ utils:
       - kind: not_operator
       - kind: boolean_operator
       - kind: parenthesized_expression
+  in-condition:
+    any:
+      - nthChild: 1
+        inside: {kind: assert_statement}
+      - inside:
+          stopBy:
+            not: {matches: condition-part}
+          matches: condition-part
+          nthChild: 1
+          inside: {kind: assert_statement}
   assert-comparison:
     kind: comparison_operator
-    inside:
-      stopBy:
-        not: {matches: condition-part}
-      kind: assert_statement
+    matches: in-condition
 rule:
   kind: assert_statement
   has:
     stopBy: end
     any:
       - matches: length
-        inside:
-          stopBy:
-            not: {matches: condition-part}
-          kind: assert_statement
+        all:
+          - matches: in-condition
       - matches: assert-comparison
-        any:
-          - all:
-              - has: {nthChild: 1, matches: length}
-              - has: {nthChild: 2, any: [{matches: length}, {matches: stated-value}]}
-          - all:
-              - has: {nthChild: 2, matches: length}
-              - has: {nthChild: 1, matches: stated-value}
+        not:
+          any:
+            - pattern: len(set($ITEMS)) == len($ITEMS)
+            - pattern: len($ITEMS) == len(set($ITEMS))
+        has:
+          matches: length
+          any:
+            - precedes: {stopBy: end, any: [{matches: length}, {matches: stated-value}]}
+            - follows: {stopBy: end, matches: stated-value}

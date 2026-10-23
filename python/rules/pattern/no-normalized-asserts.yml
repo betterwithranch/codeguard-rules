@@ -3,26 +3,64 @@ language: python
 severity: error
 message: Don't strip fields from the result inside an assert.
 note: |
-  Each field the copy drops or replaces goes unchecked. Assert the noisy field's
-  meaningful part directly and compare the rest of the object normally. A field that
-  changes each run (a generated id, a timestamp) is fixed by controlling its source in
-  the test, not by masking it.
+  Each field the copy drops or replaces goes unchecked. When a field changes each run
+  (a generated id, a timestamp), control its source in the test (inject the clock or
+  the id generator) and compare the whole object.
 utils:
   field-dropping-copy:
     any:
       - kind: call
-        has: {field: function, regex: "^(dataclasses\\.)?replace$|\\.model_copy$"}
+        has: {field: function, regex: "^((dataclasses|copy)\\.)?replace$|\\.model_copy$"}
       - kind: call
         all:
           - has: {field: function, regex: "\\.(model_dump|model_dump_json|dict|json)$"}
           - has:
               field: arguments
-              has: {kind: keyword_argument, has: {field: name, regex: "^exclude$"}}
+              has:
+                kind: keyword_argument
+                has:
+                  field: name
+                  regex: "^(exclude|include|exclude_none|exclude_unset|exclude_defaults)$"
+  value-part:
+    any:
+      - kind: call
+      - kind: attribute
+        inside: {kind: call, field: function}
+      - kind: list
+      - kind: tuple
+      - kind: set
+      - kind: pair
+      - kind: dictionary
+      - kind: list_comprehension
+      - kind: set_comprehension
+      - kind: dictionary_comprehension
+      - kind: generator_expression
   copied:
     any:
       - matches: field-dropping-copy
-      - has: {stopBy: end, matches: field-dropping-copy}
+      - matches: value-part
+        has:
+          stopBy:
+            not: {matches: value-part}
+          matches: field-dropping-copy
   stated-value:
+    any:
+      - kind: integer
+      - kind: float
+      - kind: string
+      - kind: concatenated_string
+      - kind: "true"
+      - kind: "false"
+      - kind: none
+      - kind: unary_operator
+      - kind: identifier
+      - kind: attribute
+      - kind: call
+      - kind: list
+      - kind: tuple
+      - kind: set
+      - kind: dictionary
+      - kind: parenthesized_expression
     not:
       any:
         - kind: identifier
@@ -38,21 +76,26 @@ utils:
       - kind: not_operator
       - kind: boolean_operator
       - kind: parenthesized_expression
+  in-condition:
+    any:
+      - nthChild: 1
+        inside: {kind: assert_statement}
+      - inside:
+          stopBy:
+            not: {matches: condition-part}
+          matches: condition-part
+          nthChild: 1
+          inside: {kind: assert_statement}
   assert-comparison:
     kind: comparison_operator
-    inside:
-      stopBy:
-        not: {matches: condition-part}
-      kind: assert_statement
+    matches: in-condition
 rule:
   kind: assert_statement
   has:
     stopBy: end
     matches: assert-comparison
-    any:
-      - all:
-          - has: {nthChild: 1, matches: copied}
-          - has: {nthChild: 2, any: [{matches: copied}, {matches: stated-value}]}
-      - all:
-          - has: {nthChild: 2, matches: copied}
-          - has: {nthChild: 1, matches: stated-value}
+    has:
+      matches: copied
+      any:
+        - precedes: {stopBy: end, any: [{matches: copied}, {matches: stated-value}]}
+        - follows: {stopBy: end, matches: stated-value}

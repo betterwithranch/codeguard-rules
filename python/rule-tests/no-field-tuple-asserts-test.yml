@@ -45,6 +45,11 @@ valid:
     def test_orders():
         assert found == [order for order in orders if (order.id, order.total) == (1, 5)]
 
+  # Field tuple compared with a name
+  - |
+    def test_total():
+        assert (result.name, result.total) == expected_pair
+
 invalid:
   # Two fields on the left
   - |
@@ -90,3 +95,13 @@ invalid:
   - |
     def test_total():
         assert not (result.name, result.total) != ("a", 1)
+
+  # Field tuple checked alongside another condition
+  - |
+    def test_total():
+        assert ready and (result.name, result.total) == ("a", 1)
+
+  # Parenthesized field tuple comparison
+  - |
+    def test_total():
+        assert ((result.name, result.total) == ("a", 1)), "total"

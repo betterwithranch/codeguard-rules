@@ -51,6 +51,26 @@ valid:
     def test_orders():
         assert results == [order for order in orders if replace(order, id=None) == baseline]
 
+  # Copy builds an input to the call under test
+  - |
+    def test_lookup():
+        assert repo.get(replace(key, version=2)) == ExampleOrder(id=1, total=1)
+
+  # Copy builds an input, compared with a literal on the left
+  - |
+    def test_handler():
+        assert {"ok": True} == handler(dataclasses.replace(event, ts=0))
+
+  # One field of a dump
+  - |
+    def test_total():
+        assert result.model_dump(exclude={"id"})["total"] == 1
+
+  # One field of a copy
+  - |
+    def test_lines():
+        assert replace(result, id=None).lines == [ExampleLine(sku="A1")]
+
 invalid:
   # Copy compared with a literal, on the right
   - |
@@ -106,3 +126,33 @@ invalid:
   - |
     def test_order():
         assert not result.model_dump(exclude={"id"}) != {"total": 1}
+
+  # Copy checked alongside another condition
+  - |
+    def test_order():
+        assert ready and replace(result, id=None) == ExampleOrder(id=None, total=1)
+
+  # Parenthesized comparison on a copy
+  - |
+    def test_order():
+        assert (replace(result, id=None) == ExampleOrder(id=None, total=1)), "order"
+
+  # Dump that includes only some fields
+  - |
+    def test_order():
+        assert result.model_dump(include={"total"}) == {"total": 1}
+
+  # Dump that drops unset fields
+  - |
+    def test_order():
+        assert result.model_dump(exclude_unset=True) == {"total": 1}
+
+  # copy.replace on the result
+  - |
+    def test_order():
+        assert copy.replace(result, id=None) == ExampleOrder(id=None, total=1)
+
+  # Copy of each item in a dict comprehension
+  - |
+    def test_orders():
+        assert {order.sku: replace(order, id=None) for order in results} == {"A1": ExampleOrder(id=None, total=1)}
