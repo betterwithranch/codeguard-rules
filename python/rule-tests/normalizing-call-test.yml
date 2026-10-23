@@ -1,10 +1,17 @@
 id: normalizing-call
 valid:
 - |
+  totals = {sku: total for sku, total in rows}
+- |
   assert result == expected
 - |
   fake.status = 'down'
+- |
+  fake.status = 'down'
+  assert result == expected
 invalid:
+- |
+  actual = {key: value for key, value in vars(order).items() if key != 'id'}
 - |
   assert replace(result, id=None) == expected
 - |
@@ -14,5 +21,12 @@ invalid:
 - |
   actual = result.model_dump(exclude={'id'})
 - |
+  actual = result.model_dump(include={'total'})
+- |
+  actual = result.model_dump(exclude_none=True)
+- |
   actual = copy.copy(order)
   actual.id = None
+- |
+  order.id = None
+  assert order == Order(id=None, total=1)

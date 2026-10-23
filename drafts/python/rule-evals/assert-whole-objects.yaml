@@ -73,25 +73,6 @@ cases:
             assert parcels[0].sku == "A1"
     expected_output:
       outcome: invalid
-  - name: compares the full parcel list
-    inputs:
-      file: tests/test_shipments.py
-      after: |
-        from shipping.shipments import Parcel, Shipment, pack_items, plan_shipment
-
-
-        def test_plan_shipment_uses_ground_by_default():
-            shipment = plan_shipment(order_id="ord-1", weight_kg=2)
-
-            assert shipment == Shipment(order_id="ord-1", carrier="ground", weight_kg=2)
-
-
-        def test_pack_items_orders_parcels_by_sku():
-            parcels = pack_items(["B2", "A1"])
-
-            assert parcels == [Parcel(sku="A1"), Parcel(sku="B2")]
-    expected_output:
-      outcome: skipped
   - name: checks only how many parcels were packed
     inputs:
       file: tests/test_shipments.py
@@ -154,7 +135,12 @@ cases:
       after: |
         from decimal import Decimal
 
-        from billing.splits import Split, split_total
+        from billing.splits import Split
+
+
+        def split_total(total: Decimal, ways: int) -> tuple[Decimal, Decimal]:
+            share = (total / ways).quantize(Decimal("0.01"))
+            return share, total - share * ways
 
 
         def test_split_total_keeps_the_remainder():
@@ -269,6 +255,240 @@ cases:
             )
     expected_output:
       outcome: invalid
+  - name: builds the expected order from a baseline copy
+    inputs:
+      file: tests/test_orders.py
+      after: |
+        from datetime import datetime
+        from decimal import Decimal
+
+        from shop.orders import FixedClock, FixedIds, Order, OrderStatus, place_order
+
+
+        def test_place_order_prices_each_unit(customer, pending_book_order):
+            order = place_order(
+                customer_id=customer.id,
+                sku="BOOK-1",
+                quantity=3,
+                ids=FixedIds("ord-1"),
+                clock=FixedClock(datetime(2026, 3, 1, 9, 30)),
+            )
+
+            assert order == pending_book_order.model_copy(
+                update={"quantity": 3, "total": Decimal("37.50")}
+            )
+    expected_output:
+      outcome: valid
+  - name: checks one invoice field with the expected value first
+    inputs:
+      file: tests/test_invoices.py
+      after: |
+        from billing.invoices import Invoice, issue_invoice
+
+
+        def test_issue_invoice_strips_the_order_prefix():
+            invoice = issue_invoice(order_id="ord-42", total=120)
+
+            assert "42" == invoice.number
+    expected_output:
+      outcome: invalid
+  - name: checks how many parcels with the expected count first
+    inputs:
+      file: tests/test_shipments.py
+      after: |
+        from shipping.shipments import pack_items
+
+
+        def test_pack_items_makes_one_parcel_per_sku():
+            expected_count = 2
+
+            parcels = pack_items(["B2", "A1"])
+
+            assert expected_count == len(parcels)
+    expected_output:
+      outcome: invalid
+  - name: checks only that parcels were packed
+    inputs:
+      file: tests/test_shipments.py
+      after: |
+        from shipping.shipments import pack_items
+
+
+        def test_pack_items_packs_the_skus():
+            parcels = pack_items(["B2", "A1"])
+
+            assert parcels
+    expected_output:
+      outcome: invalid
+  - name: asserts a produced bool
+    inputs:
+      file: tests/test_shipments.py
+      after: |
+        from shipping.shipments import Shipment, can_ship
+
+
+        def test_can_ship_a_paid_shipment():
+            ready = can_ship(Shipment(order_id="ord-1", carrier="ground", weight_kg=2, paid=True))
+
+            assert ready
+    expected_output:
+      outcome: valid
+  - name: pops the generated id from a dump
+    inputs:
+      file: tests/test_invoices.py
+      after: |
+        from billing.invoices import issue_invoice
+
+
+        def test_issue_invoice_copies_order_total():
+            invoice = issue_invoice(order_id="ord-42", total=120)
+
+            payload = invoice.model_dump()
+            payload.pop("id")
+            assert payload == {"number": "42", "total": 120}
+    expected_output:
+      outcome: invalid
+  - name: clears the placed order's id in place
+    inputs:
+      file: tests/test_orders.py
+      after: |
+        from decimal import Decimal
+
+        from shop.orders import Order, OrderStatus, place_order
+
+
+        def test_place_order_creates_a_pending_order(customer):
+            order = place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+            order.id = None
+            assert order == Order(
+                id=None,
+                customer_id=customer.id,
+                sku="BOOK-1",
+                quantity=2,
+                total=Decimal("25.00"),
+                status=OrderStatus.PENDING,
+            )
+    expected_output:
+      outcome: invalid
+  - name: accepts any id in the expected order
+    inputs:
+      file: tests/test_orders.py
+      after: |
+        from decimal import Decimal
+        from unittest.mock import ANY
+
+        from shop.orders import Order, OrderStatus, place_order
+
+
+        def test_place_order_creates_a_pending_order(customer):
+            order = place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+            assert order == Order(
+                id=ANY,
+                customer_id=customer.id,
+                sku="BOOK-1",
+                quantity=2,
+                total=Decimal("25.00"),
+                status=OrderStatus.PENDING,
+            )
+    expected_output:
+      outcome: invalid
+  - name: adds a line that clears the copy's id
+    inputs:
+      file: tests/test_orders.py
+      before: |
+        import copy
+        from decimal import Decimal
+
+        from shop.orders import Order, OrderStatus, place_order
+
+
+        def test_place_order_creates_a_pending_order(customer):
+            order = place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+            actual = copy.copy(order)
+            assert actual == Order(
+                id=None,
+                customer_id=customer.id,
+                sku="BOOK-1",
+                quantity=2,
+                total=Decimal("25.00"),
+                status=OrderStatus.PENDING,
+            )
+      after: |
+        import copy
+        from decimal import Decimal
+
+        from shop.orders import Order, OrderStatus, place_order
+
+
+        def test_place_order_creates_a_pending_order(customer):
+            order = place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+            actual = copy.copy(order)
+            actual.id = None
+            assert actual == Order(
+                id=None,
+                customer_id=customer.id,
+                sku="BOOK-1",
+                quantity=2,
+                total=Decimal("25.00"),
+                status=OrderStatus.PENDING,
+            )
+    expected_output:
+      outcome: invalid
+  - name: checks only the parcel count with unittest
+    inputs:
+      file: tests/test_shipments.py
+      after: |
+        import unittest
+
+        from shipping.shipments import pack_items
+
+
+        class PackItemsTest(unittest.TestCase):
+            def test_makes_one_parcel_per_sku(self):
+                parcels = pack_items(["B2", "A1"])
+
+                self.assertEqual(len(parcels), 2)
+    expected_output:
+      outcome: invalid
+  - name: compares a produced count with the input's length with unittest
+    inputs:
+      file: tests/test_shipments.py
+      after: |
+        import unittest
+
+        from shipping.shipments import count_items
+
+
+        class CountItemsTest(unittest.TestCase):
+            def test_counts_every_sku(self):
+                skus = ["B2", "A1", "C3"]
+
+                self.assertEqual(count_items(skus), len(skus))
+    expected_output:
+      outcome: valid
+  - name: compares the full parcel list
+    inputs:
+      file: tests/test_shipments.py
+      after: |
+        from shipping.shipments import Parcel, Shipment, pack_items, plan_shipment
+
+
+        def test_plan_shipment_uses_ground_by_default():
+            shipment = plan_shipment(order_id="ord-1", weight_kg=2)
+
+            assert shipment == Shipment(order_id="ord-1", carrier="ground", weight_kg=2)
+
+
+        def test_pack_items_orders_parcels_by_sku():
+            parcels = pack_items(["B2", "A1"])
+
+            assert parcels == [Parcel(sku="A1"), Parcel(sku="B2")]
+    expected_output:
+      outcome: skipped
   - name: compares the whole order with its clock and ids fixed
     inputs:
       file: tests/test_orders.py
@@ -299,30 +519,6 @@ cases:
             )
     expected_output:
       outcome: skipped
-  - name: builds the expected order from a baseline copy
-    inputs:
-      file: tests/test_orders.py
-      after: |
-        from datetime import datetime
-        from decimal import Decimal
-
-        from shop.orders import FixedClock, FixedIds, Order, OrderStatus, place_order
-
-
-        def test_place_order_prices_each_unit(customer, pending_book_order):
-            order = place_order(
-                customer_id=customer.id,
-                sku="BOOK-1",
-                quantity=3,
-                ids=FixedIds("ord-1"),
-                clock=FixedClock(datetime(2026, 3, 1, 9, 30)),
-            )
-
-            assert order == pending_book_order.model_copy(
-                update={"quantity": 3, "total": Decimal("37.50")}
-            )
-    expected_output:
-      outcome: valid
   - name: changes the shipment weight
     inputs:
       file: tests/test_shipments.py

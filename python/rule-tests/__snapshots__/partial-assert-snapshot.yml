@@ -26,18 +26,32 @@ snapshots:
       style: primary
       start: 7
       end: 36
-    - source: result
-      style: secondary
-      start: 8
-      end: 14
-    - source: result.number
-      style: secondary
-      start: 8
-      end: 21
     - source: assert (result.number, result.total) == expected_pair
       style: secondary
       start: 0
       end: 53
+  ? |
+    assert (row['number'], row['total']) == expected_pair
+  : labels:
+    - source: (row['number'], row['total'])
+      style: primary
+      start: 7
+      end: 36
+    - source: assert (row['number'], row['total']) == expected_pair
+      style: secondary
+      start: 0
+      end: 53
+  ? |
+    assert [result.number, result.total] == expected
+  : labels:
+    - source: '[result.number, result.total]'
+      style: primary
+      start: 7
+      end: 36
+    - source: assert [result.number, result.total] == expected
+      style: secondary
+      start: 0
+      end: 48
   ? |
     assert all(len(group) == 2 for group in groups)
   : labels:
@@ -75,18 +89,21 @@ snapshots:
       style: primary
       start: 24
       end: 53
-    - source: result
-      style: secondary
-      start: 25
-      end: 31
-    - source: result.number
-      style: secondary
-      start: 25
-      end: 38
     - source: assert expected_pair == (result.number, result.total)
       style: secondary
       start: 0
       end: 53
+  ? |
+    assert invoice.paid
+  : labels:
+    - source: assert invoice.paid
+      style: primary
+      start: 0
+      end: 19
+    - source: invoice.paid
+      style: secondary
+      start: 7
+      end: 19
   ? |
     assert items[0] == line
   : labels:
@@ -141,6 +158,54 @@ snapshots:
       start: 0
       end: 23
   ? |
+    assert not result.errors
+  : labels:
+    - source: assert not result.errors
+      style: primary
+      start: 0
+      end: 24
+    - source: result.errors
+      style: secondary
+      start: 11
+      end: 24
+    - source: not result.errors
+      style: secondary
+      start: 7
+      end: 24
+  ? |
+    assert parcels
+  : labels:
+    - source: assert parcels
+      style: primary
+      start: 0
+      end: 14
+    - source: parcels
+      style: secondary
+      start: 7
+      end: 14
+  ? |
+    assert result == Invoice(id=ANY, number='42')
+  : labels:
+    - source: ANY
+      style: primary
+      start: 28
+      end: 31
+    - source: assert result == Invoice(id=ANY, number='42')
+      style: secondary
+      start: 0
+      end: 45
+  ? |
+    assert result == Invoice(id=mock.ANY, number='42')
+  : labels:
+    - source: mock.ANY
+      style: primary
+      start: 28
+      end: 36
+    - source: assert result == Invoice(id=mock.ANY, number='42')
+      style: secondary
+      start: 0
+      end: 50
+  ? |
     assert result.number == '42'
   : labels:
     - source: result.number == '42'
@@ -159,3 +224,45 @@ snapshots:
       style: secondary
       start: 0
       end: 28
+  ? |
+    self.assertEqual(invoice.number, '42')
+  : labels:
+    - source: self.assertEqual(invoice.number, '42')
+      style: primary
+      start: 0
+      end: 38
+    - source: self.assertEqual
+      style: secondary
+      start: 0
+      end: 16
+    - source: invoice.number
+      style: secondary
+      start: 17
+      end: 31
+    - source: invoice.number
+      style: secondary
+      start: 17
+      end: 31
+  ? |
+    self.assertEqual(len(parcels), 2)
+  : labels:
+    - source: self.assertEqual(len(parcels), 2)
+      style: primary
+      start: 0
+      end: 33
+    - source: self.assertEqual
+      style: secondary
+      start: 0
+      end: 16
+    - source: len
+      style: secondary
+      start: 17
+      end: 20
+    - source: len(parcels)
+      style: secondary
+      start: 17
+      end: 29
+    - source: len(parcels)
+      style: secondary
+      start: 17
+      end: 29

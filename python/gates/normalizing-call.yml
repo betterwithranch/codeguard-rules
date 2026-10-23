@@ -9,25 +9,42 @@ rule:
   - kind: keyword_argument
     has:
       field: name
-      regex: ^exclude$
+      regex: ^(exclude|include|exclude_none|exclude_unset|exclude_defaults)$
   - kind: delete_statement
+  - kind: dictionary_comprehension
+    all:
+    - has:
+        kind: for_in_clause
+        has: {stopBy: end, kind: attribute, regex: \.items$}
+    - has:
+        kind: if_clause
   - kind: assignment
     has:
       field: left
-      pattern: $COPY.$FIELD
+      pattern: $VALUE.$FIELD
     inside:
       kind: expression_statement
-      follows:
-        stopBy: end
-        has:
-          kind: assignment
-          all:
-          - has:
-              field: left
-              pattern: $COPY
-          - has:
-              field: right
-              kind: call
-              has:
-                field: function
-                regex: (^|\.)(replace|model_copy|copy|deepcopy)$
+      any:
+      - follows:
+          stopBy: end
+          has:
+            kind: assignment
+            all:
+            - has:
+                field: left
+                pattern: $VALUE
+            - has:
+                field: right
+                kind: call
+                has:
+                  field: function
+                  regex: (^|\.)(replace|model_copy|copy|deepcopy)$
+      - precedes:
+          stopBy: end
+          kind: assert_statement
+          has:
+            stopBy: end
+            kind: comparison_operator
+            has:
+              kind: identifier
+              pattern: $VALUE

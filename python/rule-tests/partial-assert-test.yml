@@ -8,6 +8,8 @@ valid:
   count = len(items)
 - |
   pair = (result.number, result.total)
+- |
+  self.assertEqual(result, Invoice(number='42'))
 invalid:
 - |
   assert result.number == '42'
@@ -27,3 +29,21 @@ invalid:
   assert (result.number, result.total) == expected_pair
 - |
   assert expected_pair == (result.number, result.total)
+- |
+  assert (row['number'], row['total']) == expected_pair
+- |
+  assert [result.number, result.total] == expected
+- |
+  assert result == Invoice(id=ANY, number='42')
+- |
+  assert result == Invoice(id=mock.ANY, number='42')
+- |
+  assert parcels
+- |
+  assert invoice.paid
+- |
+  assert not result.errors
+- |
+  self.assertEqual(invoice.number, '42')
+- |
+  self.assertEqual(len(parcels), 2)
