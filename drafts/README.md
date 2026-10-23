@@ -58,6 +58,7 @@ against the rule's skill). `no-foreign-reexports` runs on `__init__.py` files on
 | `no-silent-key-overwrites` | A dict built from items doesn't silently drop items with a shared key |
 | `no-single-use-map-wrappers` | No function that only maps a named function over a collection and has one call site |
 | `no-single-use-shape-modules` | A shape only one type uses lives in that type's module |
+| `no-unpacked-argument-groups` | No object built only to have its fields read back out as one call's arguments |
 | `one-concept-per-module` | One concept per module |
 | `one-home-for-defaults` | Code outside a type doesn't supply defaults for that type's fields |
 | `one-responsibility-per-function` | A function does one job's logic or coordinates calls, never a job's logic alongside other jobs |
