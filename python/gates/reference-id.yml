@@ -1,0 +1,24 @@
+id: reference-id
+language: python
+rule:
+  any:
+  - kind: keyword_argument
+    has:
+      field: name
+      regex: (_id|_ids|_pk|_uuid)$|^parent$
+  - kind: pair
+    has:
+      field: key
+      kind: string
+      regex: (_id|_ids|_pk|_uuid)["']$
+  - kind: assignment
+    has:
+      field: left
+      kind: attribute
+      has:
+        field: attribute
+        regex: (_id|_ids|_pk|_uuid)$
+  - kind: call
+    has:
+      field: function
+      regex: (^|\.)(uuid1|uuid4|uuid7|UUID|ULID|ulid|token_hex|token_urlsafe|randint|getrandbits|choice)$

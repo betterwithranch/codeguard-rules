@@ -1,0 +1,173 @@
+cases:
+  - name: indexes orders by customer with overwrites
+    inputs:
+      file: orders/order_lookup.py
+      before: |
+        def orders_for_customer(orders, customer_id):
+            return [order for order in orders if order.customer_id == customer_id]
+      after: |
+        def orders_for_customer(orders, customer_id):
+            return [order for order in orders if order.customer_id == customer_id]
+
+
+        def order_by_customer(orders):
+            by_customer = {}
+            for order in orders:
+                by_customer[order.customer_id] = order
+            return by_customer
+    expected_output:
+      outcome: invalid
+  - name: groups orders by customer into lists
+    inputs:
+      file: orders/order_lookup.py
+      after: |
+        def orders_by_customer(orders):
+            by_customer = {}
+            for order in orders:
+                by_customer.setdefault(order.customer_id, []).append(order)
+            return by_customer
+    expected_output:
+      outcome: valid
+  - name: indexes orders by their own id in a comprehension
+    inputs:
+      file: orders/order_lookup.py
+      after: |
+        from .models import Order
+
+
+        def orders_by_id(orders: list[Order]) -> dict[int, Order]:
+            return {order.id: order for order in orders}
+    expected_output:
+      outcome: valid
+  - name: indexes products by category in a comprehension
+    inputs:
+      file: catalog/featured.py
+      after: |
+        from .models import Product
+
+
+        def product_per_category(products: list[Product]) -> dict[str, Product]:
+            return {product.category: product for product in products}
+    expected_output:
+      outcome: invalid
+  - name: keeps the latest event per shipment after sorting by time
+    inputs:
+      file: shipping/tracking.py
+      after: |
+        from .events import TrackingEvent
+
+
+        def latest_events(events: list[TrackingEvent]) -> dict[str, TrackingEvent]:
+            latest: dict[str, TrackingEvent] = {}
+            for event in sorted(events, key=lambda event: event.occurred_at):
+                latest[event.shipment_id] = event
+            return latest
+    expected_output:
+      outcome: valid
+  - name: keeps an arbitrary event per shipment
+    inputs:
+      file: shipping/tracking.py
+      after: |
+        from .events import TrackingEvent
+
+
+        def events_by_shipment(events: list[TrackingEvent]) -> dict[str, TrackingEvent]:
+            return dict((event.shipment_id, event) for event in events)
+    expected_output:
+      outcome: invalid
+  - name: raises on a duplicate sku in the catalog index
+    inputs:
+      file: catalog/index.py
+      after: |
+        from .models import CatalogRow
+
+
+        class DuplicateSku(Exception):
+            pass
+
+
+        def index_rows(rows: list[CatalogRow]) -> dict[str, CatalogRow]:
+            index: dict[str, CatalogRow] = {}
+            for row in rows:
+                if row.sku in index:
+                    raise DuplicateSku(row.sku)
+                index[row.sku] = row
+            return index
+    expected_output:
+      outcome: valid
+  - name: keeps the first payment per invoice with setdefault
+    inputs:
+      file: billing/payments.py
+      after: |
+        from .models import Payment
+
+
+        def payment_per_invoice(payments: list[Payment]) -> dict[int, Payment]:
+            by_invoice: dict[int, Payment] = {}
+            for payment in payments:
+                by_invoice.setdefault(payment.invoice_id, payment)
+            return by_invoice
+    expected_output:
+      outcome: invalid
+  - name: sums payment amounts per invoice
+    inputs:
+      file: billing/payments.py
+      after: |
+        from .models import Payment
+
+
+        def paid_per_invoice(payments: list[Payment]) -> dict[int, int]:
+            totals: dict[int, int] = {}
+            for payment in payments:
+                totals[payment.invoice_id] = totals.get(payment.invoice_id, 0) + payment.cents
+            return totals
+    expected_output:
+      outcome: valid
+  - name: zips customer names with emails into a dict
+    inputs:
+      file: customers/directory.py
+      after: |
+        from .models import Customer
+
+
+        def email_by_name(customers: list[Customer]) -> dict[str, str]:
+            names = [customer.full_name for customer in customers]
+            emails = [customer.email for customer in customers]
+            return dict(zip(names, emails))
+    expected_output:
+      outcome: invalid
+  - name: updates a rate table per region in a while loop
+    inputs:
+      file: shipping/rates.py
+      after: |
+        from .models import RateQuote
+
+
+        def rate_per_region(quotes: list[RateQuote]) -> dict[str, int]:
+            rates: dict[str, int] = {}
+            pending = list(quotes)
+            while pending:
+                quote = pending.pop()
+                rates.update({quote.region: quote.cents})
+            return rates
+    expected_output:
+      outcome: invalid
+  - name: renames settings keys from another mapping
+    inputs:
+      file: config/env.py
+      after: |
+        def prefixed(settings: dict[str, str]) -> dict[str, str]:
+            return {f"APP_{key}": value for key, value in settings.items()}
+    expected_output:
+      outcome: valid
+  - name: changes a filter in a list comprehension
+    inputs:
+      file: orders/order_lookup.py
+      before: |
+        def open_orders(orders):
+            return [order for order in orders if order.status == "open"]
+      after: |
+        def open_orders(orders):
+            return [order for order in orders if order.status in ("open", "held")]
+    expected_output:
+      outcome: skipped

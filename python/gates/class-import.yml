@@ -1,0 +1,5 @@
+id: class-import
+language: python
+rule:
+  kind: import_from_statement
+  regex: (?s)^from\s+\S+\s+import\s.*\b[A-Z]

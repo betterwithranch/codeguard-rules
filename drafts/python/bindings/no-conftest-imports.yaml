@@ -1,0 +1,2 @@
+rule: no-conftest-imports
+paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]

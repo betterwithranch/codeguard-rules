@@ -1,0 +1,33 @@
+id: asserted-constant
+language: python
+rule:
+  any:
+  - kind: assert_statement
+    has:
+      stopBy: end
+      any:
+      - kind: identifier
+        regex: ^[A-Z][A-Z0-9_]+$
+      - kind: attribute
+        has:
+          field: attribute
+          regex: ^[A-Z][A-Z0-9_]+$
+  - kind: call
+    all:
+    - has:
+        field: function
+        kind: attribute
+        has:
+          field: attribute
+          regex: ^assert
+    - has:
+        field: arguments
+        has:
+          stopBy: end
+          any:
+          - kind: identifier
+            regex: ^[A-Z][A-Z0-9_]+$
+          - kind: attribute
+            has:
+              field: attribute
+              regex: ^[A-Z][A-Z0-9_]+$

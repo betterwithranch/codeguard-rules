@@ -2,15 +2,60 @@ id: chained-calls
 language: python
 rule:
   any:
-  - kind: assignment
+  - kind: function_definition
     has:
-      field: right
-      kind: call
-    inside:
-      kind: function_definition
+      any:
+      - kind: assignment
+        has:
+          any:
+          - kind: call
+          - kind: await
+            has:
+              kind: call
+          field: right
+      - kind: for_statement
+        has:
+          any:
+          - kind: call
+          - kind: await
+            has:
+              kind: call
+          field: right
+      - kind: call
+        has:
+          field: arguments
+          has:
+            any:
+            - any:
+              - kind: call
+              - kind: await
+                has:
+                  kind: call
+            - kind: keyword_argument
+              has:
+                any:
+                - kind: call
+                - kind: await
+                  has:
+                    kind: call
+                field: value
+      field: body
       stopBy: end
   - kind: call
     has:
       field: arguments
       has:
-        kind: call
+        any:
+        - any:
+          - kind: call
+          - kind: await
+            has:
+              kind: call
+        - kind: keyword_argument
+          has:
+            any:
+            - kind: call
+            - kind: await
+              has:
+                kind: call
+            field: value

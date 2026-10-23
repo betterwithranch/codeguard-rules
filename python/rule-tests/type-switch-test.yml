@@ -1,0 +1,35 @@
+id: type-switch
+valid:
+# Match on literal values, not classes
+- |
+  match status:
+      case "paid":
+          pass
+# A call to type() that is not compared or used as a key
+- |
+  name = type(payment).__name__
+# A plain comparison
+- |
+  if payment.kind == "card":
+      pass
+invalid:
+# isinstance branch
+- |
+  if isinstance(payment, ExampleCard):
+      pass
+# issubclass branch
+- |
+  if issubclass(kind, ExampleCard):
+      pass
+# match with a class pattern
+- |
+  match payment:
+      case ExampleCard():
+          pass
+# type() compared with is
+- |
+  if type(payment) is ExampleCard:
+      pass
+# lookup keyed by type()
+- |
+  handler = handlers[type(payment)]

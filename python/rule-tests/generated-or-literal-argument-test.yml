@@ -1,9 +1,0 @@
-id: generated-or-literal-argument
-valid:
-- |
-  ship(order, status)
-invalid:
-- |
-  ship(order, status='shipped')
-- |
-  create(order_id=uuid4())

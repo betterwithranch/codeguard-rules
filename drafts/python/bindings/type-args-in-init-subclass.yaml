@@ -1,4 +1,0 @@
-skill: python/skills/type-args-in-init-subclass
-paths: ["**/*.py"]
-exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
-triggers: [generic-subclass-or-type-attribute]

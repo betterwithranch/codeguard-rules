@@ -1,5 +1,5 @@
 cases:
-  - name: unions untagged payment variants
+  - name: parses an untagged union of payment models
     inputs:
       file: payments/methods.py
       after: |
@@ -17,9 +17,14 @@ cases:
 
 
         type PaymentMethod = CardPayment | BankTransfer
+
+
+        class CheckoutRequest(BaseModel):
+            order_id: str
+            payment: PaymentMethod
     expected_output:
       outcome: invalid
-  - name: drops the union's discriminator
+  - name: drops the payment union's discriminator
     inputs:
       file: payments/methods.py
       before: |
@@ -41,6 +46,11 @@ cases:
 
 
         PaymentMethod = Annotated[CardPayment | BankTransfer, Field(discriminator="kind")]
+
+
+        class CheckoutRequest(BaseModel):
+            order_id: str
+            payment: PaymentMethod
       after: |
         from typing import Literal
 
@@ -60,9 +70,14 @@ cases:
 
 
         PaymentMethod = CardPayment | BankTransfer
+
+
+        class CheckoutRequest(BaseModel):
+            order_id: str
+            payment: PaymentMethod
     expected_output:
       outcome: invalid
-  - name: declares a union discriminated on kind
+  - name: parses a payment union discriminated on kind
     inputs:
       file: payments/methods.py
       after: |
@@ -84,9 +99,236 @@ cases:
 
 
         PaymentMethod = Annotated[CardPayment | BankTransfer, Field(discriminator="kind")]
+
+
+        class CheckoutRequest(BaseModel):
+            order_id: str
+            payment: PaymentMethod
     expected_output:
       outcome: valid
-  - name: adds a currency field to variants
+  - name: tags payment models with plain str fields
+    inputs:
+      file: payments/methods.py
+      after: |
+        from pydantic import BaseModel
+
+
+        class CardPayment(BaseModel):
+            kind: str = "card"
+            card_token: str
+
+
+        class BankTransfer(BaseModel):
+            kind: str = "bank_transfer"
+            iban: str
+
+
+        class CheckoutRequest(BaseModel):
+            order_id: str
+            payment: CardPayment | BankTransfer
+    expected_output:
+      outcome: invalid
+  - name: parses webhook TypedDicts through an untagged TypeAdapter
+    inputs:
+      file: webhooks/events.py
+      after: |
+        from typing import TypedDict
+
+        from pydantic import TypeAdapter
+
+
+        class ItemCreated(TypedDict):
+            item_id: str
+            name: str
+
+
+        class ItemDeleted(TypedDict):
+            item_id: str
+
+
+        EVENTS = TypeAdapter(list[ItemCreated | ItemDeleted])
+
+
+        def parse_events(body: bytes) -> list[ItemCreated | ItemDeleted]:
+            return EVENTS.validate_json(body)
+    expected_output:
+      outcome: invalid
+  - name: parses webhook TypedDicts through a discriminated TypeAdapter
+    inputs:
+      file: webhooks/events.py
+      after: |
+        from typing import Annotated, Literal, TypedDict
+
+        from pydantic import Field, TypeAdapter
+
+
+        class ItemCreated(TypedDict):
+            type: Literal["item.created"]
+            item_id: str
+            name: str
+
+
+        class ItemDeleted(TypedDict):
+            type: Literal["item.deleted"]
+            item_id: str
+
+
+        type ItemEvent = Annotated[ItemCreated | ItemDeleted, Field(discriminator="type")]
+
+        EVENTS = TypeAdapter(list[ItemEvent])
+
+
+        def parse_events(body: bytes) -> list[ItemEvent]:
+            return EVENTS.validate_json(body)
+    expected_output:
+      outcome: valid
+  - name: lists imported shipment legs in an untagged model field
+    inputs:
+      file: shipping/itinerary.py
+      before: |
+        from pydantic import BaseModel
+
+
+        class Itinerary(BaseModel):
+            reference: str
+      after: |
+        from pydantic import BaseModel
+
+        from shipping.legs import AirLeg, TruckLeg
+
+
+        class Itinerary(BaseModel):
+            reference: str
+            legs: list[AirLeg | TruckLeg]
+      unchanged:
+        shipping/legs.py: |
+          from pydantic import BaseModel
+
+
+          class AirLeg(BaseModel):
+              flight_number: str
+              hours: float
+
+
+          class TruckLeg(BaseModel):
+              plate: str
+              hours: float
+    expected_output:
+      outcome: invalid
+  - name: lists imported tagged shipment legs in a discriminated model field
+    inputs:
+      file: shipping/itinerary.py
+      before: |
+        from pydantic import BaseModel
+
+
+        class Itinerary(BaseModel):
+            reference: str
+      after: |
+        from typing import Annotated
+
+        from pydantic import BaseModel, Field
+
+        from shipping.legs import AirLeg, TruckLeg
+
+
+        class Itinerary(BaseModel):
+            reference: str
+            legs: list[Annotated[AirLeg | TruckLeg, Field(discriminator="mode")]]
+      unchanged:
+        shipping/legs.py: |
+          from typing import Literal
+
+          from pydantic import BaseModel
+
+
+          class AirLeg(BaseModel):
+              mode: Literal["air"] = "air"
+              flight_number: str
+              hours: float
+
+
+          class TruckLeg(BaseModel):
+              mode: Literal["truck"] = "truck"
+              plate: str
+              hours: float
+    expected_output:
+      outcome: valid
+  - name: decodes untagged msgspec structs
+    inputs:
+      file: telemetry/decode.py
+      after: |
+        import msgspec
+
+
+        class CpuSample(msgspec.Struct):
+            host: str
+            percent: float
+
+
+        class MemorySample(msgspec.Struct):
+            host: str
+            used_bytes: int
+
+
+        def decode(raw: bytes) -> CpuSample | MemorySample:
+            return msgspec.json.decode(raw, type=CpuSample | MemorySample)
+    expected_output:
+      outcome: invalid
+  - name: decodes tagged msgspec structs
+    inputs:
+      file: telemetry/decode.py
+      after: |
+        import msgspec
+
+
+        class CpuSample(msgspec.Struct, tag_field="metric", tag="cpu"):
+            host: str
+            percent: float
+
+
+        class MemorySample(msgspec.Struct, tag_field="metric", tag="memory"):
+            host: str
+            used_bytes: int
+
+
+        def decode(raw: bytes) -> CpuSample | MemorySample:
+            return msgspec.json.decode(raw, type=CpuSample | MemorySample)
+    expected_output:
+      outcome: valid
+  - name: matches a union of dataclasses the code builds
+    inputs:
+      file: pricing/adjustments.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class PercentOff:
+            percent: int
+
+
+        @dataclass(frozen=True)
+        class FixedOff:
+            cents: int
+
+
+        type Adjustment = PercentOff | FixedOff
+
+
+        def loyalty_adjustment(years: int) -> Adjustment:
+            return PercentOff(percent=5) if years > 3 else FixedOff(cents=200)
+
+
+        def apply(adjustment: Adjustment, total_cents: int) -> int:
+            match adjustment:
+                case PercentOff(percent=percent):
+                    return total_cents * (100 - percent) // 100
+                case FixedOff(cents=cents):
+                    return max(total_cents - cents, 0)
+    expected_output:
+      outcome: valid
+  - name: adds an amount field to tagged variants
     inputs:
       file: payments/methods.py
       before: |
@@ -98,13 +340,11 @@ cases:
         class CardPayment(BaseModel):
             kind: Literal["card"] = "card"
             card_token: str
-            amount_cents: int
 
 
         class BankTransfer(BaseModel):
             kind: Literal["bank_transfer"] = "bank_transfer"
             iban: str
-            amount_cents: int
 
 
         PaymentMethod = Annotated[CardPayment | BankTransfer, Field(discriminator="kind")]
@@ -117,17 +357,37 @@ cases:
         class CardPayment(BaseModel):
             kind: Literal["card"] = "card"
             card_token: str
-            amount_cents: int
-            currency: str = "USD"
+            amount_cents: int = 0
 
 
         class BankTransfer(BaseModel):
             kind: Literal["bank_transfer"] = "bank_transfer"
             iban: str
-            amount_cents: int
-            currency: str = "USD"
+            amount_cents: int = 0
 
 
         PaymentMethod = Annotated[CardPayment | BankTransfer, Field(discriminator="kind")]
+    expected_output:
+      outcome: skipped
+  - name: adds an optional shipment to an order model
+    inputs:
+      file: orders/order.py
+      before: |
+        from pydantic import BaseModel
+
+        from orders.shipment import Shipment
+
+
+        class Order(BaseModel):
+            number: str
+      after: |
+        from pydantic import BaseModel
+
+        from orders.shipment import Shipment
+
+
+        class Order(BaseModel):
+            number: str
+            shipment: Shipment | None = None
     expected_output:
       outcome: skipped

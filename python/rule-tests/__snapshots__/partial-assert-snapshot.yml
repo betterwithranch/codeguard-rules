@@ -1,6 +1,21 @@
 id: partial-assert
 snapshots:
   ? |
+    assert '42' == result.number
+  : labels:
+    - source: assert '42' == result.number
+      style: primary
+      start: 0
+      end: 28
+    - source: result.number
+      style: secondary
+      start: 15
+      end: 28
+    - source: '''42'' == result.number'
+      style: secondary
+      start: 7
+      end: 28
+  ? |
     assert items[0] == line
   : labels:
     - source: assert items[0] == line
@@ -16,20 +31,76 @@ snapshots:
       start: 7
       end: 23
   ? |
-    assert len(items) == 1
+    assert items[:2] == [first, second]
   : labels:
-    - source: assert len(items) == 1
+    - source: assert items[:2] == [first, second]
       style: primary
       start: 0
-      end: 22
-    - source: len(items)
+      end: 35
+    - source: items[:2]
+      style: secondary
+      start: 7
+      end: 16
+    - source: items[:2] == [first, second]
+      style: secondary
+      start: 7
+      end: 35
+  ? |
+    assert not order.paid
+  : labels:
+    - source: assert not order.paid
+      style: primary
+      start: 0
+      end: 21
+    - source: order.paid
+      style: secondary
+      start: 11
+      end: 21
+    - source: not order.paid
+      style: secondary
+      start: 7
+      end: 21
+  ? |
+    assert order.paid
+  : labels:
+    - source: assert order.paid
+      style: primary
+      start: 0
+      end: 17
+    - source: order.paid
       style: secondary
       start: 7
       end: 17
-    - source: len(items) == 1
+  ? |
+    assert order.total > 0
+  : labels:
+    - source: assert order.total > 0
+      style: primary
+      start: 0
+      end: 22
+    - source: order.total
+      style: secondary
+      start: 7
+      end: 18
+    - source: order.total > 0
       style: secondary
       start: 7
       end: 22
+  ? |
+    assert payload['total'] == 120
+  : labels:
+    - source: assert payload['total'] == 120
+      style: primary
+      start: 0
+      end: 30
+    - source: payload['total']
+      style: secondary
+      start: 7
+      end: 23
+    - source: payload['total'] == 120
+      style: secondary
+      start: 7
+      end: 30
   ? |
     assert result.number == '42'
   : labels:
@@ -45,3 +116,49 @@ snapshots:
       style: secondary
       start: 7
       end: 28
+  ? |
+    self.assertEqual(result.number, '42')
+  : labels:
+    - source: self.assertEqual(result.number, '42')
+      style: primary
+      start: 0
+      end: 37
+    - source: assertEqual
+      style: secondary
+      start: 5
+      end: 16
+    - source: self.assertEqual
+      style: secondary
+      start: 0
+      end: 16
+    - source: result.number
+      style: secondary
+      start: 17
+      end: 30
+    - source: result.number
+      style: secondary
+      start: 17
+      end: 30
+  ? |
+    self.assertTrue(order.paid)
+  : labels:
+    - source: self.assertTrue(order.paid)
+      style: primary
+      start: 0
+      end: 27
+    - source: assertTrue
+      style: secondary
+      start: 5
+      end: 15
+    - source: self.assertTrue
+      style: secondary
+      start: 0
+      end: 15
+    - source: order.paid
+      style: secondary
+      start: 16
+      end: 26
+    - source: order.paid
+      style: secondary
+      start: 16
+      end: 26

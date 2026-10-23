@@ -1,7 +1,0 @@
-id: staticmethod
-language: python
-rule:
-  kind: decorated_definition
-  has:
-    kind: decorator
-    regex: staticmethod

@@ -1,19 +1,80 @@
 id: tag-value
 snapshots:
   ? |
-    class Status(StrEnum):
-        SHIPPED = 'shipped'
+    HANDLERS = {'created': on_created, 'deleted': on_deleted}
   : labels:
-    - source: |-
-        class Status(StrEnum):
-            SHIPPED = 'shipped'
+    - source: '{''created'': on_created, ''deleted'': on_deleted}'
       style: primary
-      start: 0
-      end: 46
-    - source: (StrEnum)
+      start: 11
+      end: 57
+    - source: '''created'''
       style: secondary
       start: 12
       end: 21
+    - source: '''created'': on_created'
+      style: secondary
+      start: 12
+      end: 33
+  ? |
+    if 'shipped' != status:
+        pass
+  : labels:
+    - source: '''shipped'' != status'
+      style: primary
+      start: 3
+      end: 22
+    - source: '''shipped'''
+      style: secondary
+      start: 3
+      end: 12
+  ? |
+    if mode in ('fast', 'safe'):
+        pass
+  : labels:
+    - source: mode in ('fast', 'safe')
+      style: primary
+      start: 3
+      end: 27
+    - source: '''fast'''
+      style: secondary
+      start: 12
+      end: 18
+    - source: ('fast', 'safe')
+      style: secondary
+      start: 11
+      end: 27
+  ? |
+    if mode in {'fast', 'safe'}:
+        pass
+  : labels:
+    - source: mode in {'fast', 'safe'}
+      style: primary
+      start: 3
+      end: 27
+    - source: '''fast'''
+      style: secondary
+      start: 12
+      end: 18
+    - source: '{''fast'', ''safe''}'
+      style: secondary
+      start: 11
+      end: 27
+  ? |
+    if mode not in ['fast', 'safe']:
+        pass
+  : labels:
+    - source: mode not in ['fast', 'safe']
+      style: primary
+      start: 3
+      end: 31
+    - source: '''fast'''
+      style: secondary
+      start: 16
+      end: 22
+    - source: '[''fast'', ''safe'']'
+      style: secondary
+      start: 15
+      end: 31
   ? |
     if status == 'shipped':
         pass
@@ -27,9 +88,42 @@ snapshots:
       start: 13
       end: 22
   ? |
-    kind: Literal['card']
+    match status:
+        case 'pending' | 'shipped':
+            pass
   : labels:
-    - source: Literal['card']
+    - source: |-
+        match status:
+            case 'pending' | 'shipped':
+                pass
       style: primary
-      start: 6
-      end: 21
+      start: 0
+      end: 58
+    - source: '''pending'''
+      style: secondary
+      start: 23
+      end: 32
+    - source: '''pending'' | ''shipped'''
+      style: secondary
+      start: 23
+      end: 44
+  ? |
+    match status:
+        case 'shipped':
+            pass
+  : labels:
+    - source: |-
+        match status:
+            case 'shipped':
+                pass
+      style: primary
+      start: 0
+      end: 46
+    - source: '''shipped'''
+      style: secondary
+      start: 23
+      end: 32
+    - source: '''shipped'''
+      style: secondary
+      start: 23
+      end: 32

@@ -1,7 +1,0 @@
-id: generic-or-abstract-class
-language: python
-rule:
-  kind: class_definition
-  has:
-    field: superclasses
-    regex: Generic\[|\bABC\b|\bProtocol\b

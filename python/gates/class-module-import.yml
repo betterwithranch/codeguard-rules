@@ -1,0 +1,15 @@
+id: class-module-import
+language: python
+rule:
+  any:
+  - kind: import_from_statement
+  - kind: import_statement
+  inside:
+    kind: module
+    has:
+      any:
+      - kind: class_definition
+      - kind: decorated_definition
+        has:
+          field: definition
+          kind: class_definition

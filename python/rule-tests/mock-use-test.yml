@@ -1,13 +1,66 @@
 id: mock-use
 valid:
+# A hand-written fake
 - |
   queue = FakeQueue()
+# A decorator whose name only contains "patch"
+- |
+  @dispatch(int)
+  def handle(value):
+      return value
+# An attribute assigned a plain value
+- |
+  order.status = "paid"
+# A lambda assigned to a local name
+- |
+  key = lambda order: order.id
 invalid:
+# Mock constructor
 - |
   client = MagicMock()
+# AsyncMock constructor
 - |
-  monkeypatch.setattr(module, 'load', fake)
+  client = AsyncMock()
+# create_autospec
+- |
+  repository = create_autospec(OrderRepository)
+# Mock reached through the mock module
+- |
+  repository = mock.Mock()
+# patch as a context manager
+- |
+  with patch("billing.invoices.calculate_tax", return_value=1):
+      pass
+# patch.object as a context manager
+- |
+  with patch.object(OrderService, "_validate"):
+      pass
+# patch.dict
+- |
+  with patch.dict(os.environ, {"MODE": "live"}):
+      pass
+# patch as a decorator
 - |
   @patch('a.b')
   def test_x(b):
       pass
+# patch.object as a decorator through the mock module
+- |
+  @mock.patch.object(OrderService, "_validate")
+  def test_x(validate):
+      pass
+# monkeypatch.setattr
+- |
+  monkeypatch.setattr(module, 'load', fake)
+# monkeypatch.setitem
+- |
+  monkeypatch.setitem(registry, "orders", fake)
+# pytest-mock
+- |
+  mocker.patch("billing.invoices.calculate_tax")
+# Bare setattr
+- |
+  setattr(billing.invoices, "calculate_tax", fake)
+# Lambda assigned over a module attribute
+- |
+  billing.invoices.calculate_tax = lambda amount: 0

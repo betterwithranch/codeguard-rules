@@ -1,0 +1,12 @@
+id: package-root-import
+language: python
+rule:
+  any:
+  - kind: import_statement
+  - kind: import_from_statement
+    has: {field: module_name, kind: dotted_name}
+  - kind: import_from_statement
+    has:
+      field: module_name
+      kind: relative_import
+      not: {has: {kind: dotted_name}}

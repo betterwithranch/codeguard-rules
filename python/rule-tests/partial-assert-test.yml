@@ -1,11 +1,45 @@
 id: partial-assert
 valid:
+# Whole result compared
 - |
   assert result == Invoice(number='42')
+# Field read inside the expected value
+- |
+  assert result == Invoice(number=order.number)
+# Call result compared
+- |
+  assert response.json() == {'total': 1}
+# unittest assertion on a whole value
+- |
+  self.assertEqual(result, Invoice(number='42'))
 invalid:
+# Field compared on the left
 - |
   assert result.number == '42'
+# Field compared on the right
 - |
-  assert len(items) == 1
+  assert '42' == result.number
+# Item by index compared
 - |
   assert items[0] == line
+# Item by key compared
+- |
+  assert payload['total'] == 120
+# Slice compared
+- |
+  assert items[:2] == [first, second]
+# Bare boolean field
+- |
+  assert order.paid
+# Negated boolean field
+- |
+  assert not order.paid
+# Field ordered against a bound
+- |
+  assert order.total > 0
+# unittest assertEqual on a field
+- |
+  self.assertEqual(result.number, '42')
+# unittest assertTrue on a field
+- |
+  self.assertTrue(order.paid)

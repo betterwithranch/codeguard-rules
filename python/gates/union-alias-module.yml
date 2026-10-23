@@ -1,0 +1,39 @@
+id: union-alias-module
+language: python
+rule:
+  any:
+  - inside:
+      kind: module
+    any: &union-alias
+    - kind: type_alias_statement
+      has:
+        stopBy: end
+        any:
+        - kind: binary_operator
+          regex: ^[A-Z][\w.\[\], ]* *\| *[A-Z]
+          not:
+            regex: ^[\w.]+ *\| *None$
+        - kind: subscript
+          regex: ^(typing\.)?Union\[
+    - kind: expression_statement
+      has:
+        kind: assignment
+        has:
+          field: right
+          any:
+          - kind: binary_operator
+            regex: ^[A-Z][\w.\[\], ]* *\| *[A-Z]
+            not:
+              regex: ^[\w.]+ *\| *None$
+          - kind: subscript
+            regex: ^(typing\.)?(Union|Annotated)\[.*(\||Union\[|,)
+  - any:
+    - kind: class_definition
+    - kind: decorated_definition
+    - kind: function_definition
+    - kind: import_from_statement
+    - kind: expression_statement
+    inside:
+      kind: module
+      has:
+        any: *union-alias

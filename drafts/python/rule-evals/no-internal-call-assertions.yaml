@@ -1,0 +1,242 @@
+cases:
+  - name: asserts the arguments passed to the internal tax function
+    inputs:
+      file: tests/test_invoices.py
+      after: |
+        from decimal import Decimal
+        from unittest.mock import patch
+
+        from billing.invoices import InvoiceService
+
+
+        def test_create_computes_tax_for_the_region(invoice_repository):
+            service = InvoiceService(invoice_repository)
+            with patch("billing.invoices.calculate_tax", return_value=Decimal("8.00")) as calculate_tax:
+                service.create(amount=Decimal("100.00"), region="CA")
+
+            calculate_tax.assert_called_once_with(Decimal("100.00"), "CA")
+    expected_output:
+      outcome: invalid
+  - name: compares the call args of the repository's save
+    inputs:
+      file: tests/test_invoices.py
+      after: |
+        from decimal import Decimal
+        from unittest.mock import Mock, call
+
+        from billing.invoices import Invoice, InvoiceService
+        from billing.repositories import InvoiceRepository
+
+
+        def test_mark_paid_saves_the_invoice():
+            invoice = Invoice(number="42", amount=Decimal("100.00"))
+            repository = Mock(spec=InvoiceRepository)
+            repository.get.return_value = invoice
+
+            InvoiceService(repository).mark_paid("42")
+
+            assert repository.save.call_args == call(invoice)
+    expected_output:
+      outcome: invalid
+  - name: counts calls to a private method through a spy
+    inputs:
+      file: tests/test_orders.py
+      after: |
+        from shop.orders import OrderService
+
+
+        def test_place_reserves_stock_once(mocker, cart):
+            service = OrderService()
+            reserve = mocker.spy(service, "_reserve_stock")
+
+            service.place(cart)
+
+            assert reserve.call_count == 1
+    expected_output:
+      outcome: invalid
+  - name: asserts the internal notifier was not called
+    inputs:
+      file: tests/test_shipments.py
+      after: |
+        from unittest.mock import Mock
+
+        from shipping.notifications import Notifier
+        from shipping.shipments import ShipmentService
+
+
+        def test_held_shipment_sends_no_notice(held_shipment):
+            notifier = Mock(spec=Notifier)
+
+            ShipmentService(notifier).release(held_shipment)
+
+            notifier.shipped.assert_not_called()
+    expected_output:
+      outcome: invalid
+  - name: asserts the calls made to the internal audit log
+    inputs:
+      file: tests/test_refunds.py
+      after: |
+        from unittest.mock import Mock, call
+
+        from billing.audit import AuditLog
+        from billing.refunds import refund
+
+
+        def test_refund_records_both_steps(paid_invoice):
+            audit = Mock(spec=AuditLog)
+
+            refund(paid_invoice, audit=audit)
+
+            audit.record.assert_has_calls([call("refund.started", "42"), call("refund.finished", "42")])
+    expected_output:
+      outcome: invalid
+  - name: asserts the internal async pricing service was awaited
+    inputs:
+      file: tests/test_quotes.py
+      after: |
+        from unittest.mock import AsyncMock
+
+        from shop.pricing import PricingService
+        from shop.quotes import QuoteBuilder
+
+
+        async def test_build_prices_the_cart(cart):
+            pricing = AsyncMock(spec=PricingService)
+
+            await QuoteBuilder(pricing).build(cart)
+
+            pricing.price.assert_awaited_once_with(cart)
+    expected_output:
+      outcome: invalid
+  - name: lists the internal mailer's calls through mock_calls
+    inputs:
+      file: tests/test_reminders.py
+      after: |
+        from unittest.mock import Mock, call
+
+        from billing.mailer import InvoiceMailer
+        from billing.reminders import send_reminders
+
+
+        def test_send_reminders_mails_each_overdue_invoice(overdue_invoices):
+            mailer = Mock(spec=InvoiceMailer)
+
+            send_reminders(overdue_invoices, mailer)
+
+            assert mailer.mock_calls == [call.remind("41"), call.remind("42")]
+    expected_output:
+      outcome: invalid
+  - name: asserts the HTTP session posted the charge
+    inputs:
+      file: tests/test_charges.py
+      after: |
+        from decimal import Decimal
+        from unittest.mock import Mock
+
+        import requests
+
+        from billing.charges import ChargeClient
+
+
+        def test_charge_posts_the_amount_in_cents():
+            session = Mock(spec=requests.Session)
+
+            ChargeClient(session).charge("cus_1", Decimal("12.50"))
+
+            session.post.assert_called_once_with(
+                "https://api.example.com/charges", json={"customer": "cus_1", "amount": 1250}
+            )
+    expected_output:
+      outcome: valid
+  - name: asserts the S3 client stored the export
+    inputs:
+      file: tests/test_exports.py
+      after: |
+        from unittest.mock import Mock
+
+        from reports.exports import upload_export
+
+
+        def test_upload_export_puts_the_file_in_the_reports_bucket():
+            s3_client = Mock()
+
+            upload_export("2026-03.csv", b"id,total\n", client=s3_client)
+
+            s3_client.put_object.assert_called_once_with(Bucket="reports", Key="2026-03.csv", Body=b"id,total\n")
+    expected_output:
+      outcome: valid
+  - name: asserts the Stripe API was asked for the amount
+    inputs:
+      file: tests/test_payments.py
+      after: |
+        from decimal import Decimal
+        from unittest.mock import patch
+
+        from billing.payments import charge_invoice
+
+
+        def test_charge_invoice_sends_the_amount_in_cents(open_invoice):
+            with patch("billing.payments.stripe.PaymentIntent.create") as create_intent:
+                charge_invoice(open_invoice, amount=Decimal("100.00"))
+
+            assert create_intent.call_args.kwargs["amount"] == 10000
+    expected_output:
+      outcome: valid
+  - name: asserts the SMTP connection sent nothing
+    inputs:
+      file: tests/test_digest.py
+      after: |
+        import smtplib
+        from unittest.mock import Mock
+
+        from reports.digest import send_digest
+
+
+        def test_send_digest_sends_nothing_without_reports():
+            smtp = Mock(spec=smtplib.SMTP)
+
+            send_digest(reports=[], smtp=smtp)
+
+            assert not smtp.send_message.called
+    expected_output:
+      outcome: valid
+  - name: asserts the returned invoice total
+    inputs:
+      file: tests/test_invoices.py
+      before: |
+        from decimal import Decimal
+
+        from billing.invoices import InvoiceService
+      after: |
+        from decimal import Decimal
+
+        from billing.invoices import InvoiceService
+
+
+        def test_create_adds_tax(invoice_repository):
+            invoice = InvoiceService(invoice_repository).create(amount=Decimal("100.00"), region="CA")
+
+            assert invoice.total == Decimal("108.00")
+    expected_output:
+      outcome: skipped
+  - name: changes the refunded invoice number
+    inputs:
+      file: tests/test_refunds.py
+      before: |
+        from billing.refunds import refund
+
+
+        def test_refund_marks_the_invoice_refunded(paid_invoice_factory):
+            invoice = paid_invoice_factory(number="41")
+
+            assert refund(invoice).status == "refunded"
+      after: |
+        from billing.refunds import refund
+
+
+        def test_refund_marks_the_invoice_refunded(paid_invoice_factory):
+            invoice = paid_invoice_factory(number="42")
+
+            assert refund(invoice).status == "refunded"
+    expected_output:
+      outcome: skipped

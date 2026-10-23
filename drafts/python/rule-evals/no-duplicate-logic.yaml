@@ -58,6 +58,215 @@ cases:
             return domestic_fee(order_total, weight_grams) + INTERNATIONAL_SURCHARGE
     expected_output:
       outcome: valid
+  - name: copies the fee from an imported module
+    inputs:
+      file: returns/fees.py
+      unchanged:
+        shipments/fees.py: |
+          FREE_SHIPPING_THRESHOLD = 5000
+
+
+          def domestic_fee(order_total: int, weight_grams: int) -> int:
+              if order_total >= FREE_SHIPPING_THRESHOLD:
+                  return 0
+              return 500 + weight_grams // 100
+      after: |
+        from shipments.fees import FREE_SHIPPING_THRESHOLD
+
+
+        def return_label_fee(order_total: int, weight_grams: int) -> int:
+            if order_total >= FREE_SHIPPING_THRESHOLD:
+                return 0
+            return 500 + weight_grams // 100
+    expected_output:
+      outcome: invalid
+  - name: calls the fee from an imported module
+    inputs:
+      file: returns/fees.py
+      unchanged:
+        shipments/fees.py: |
+          FREE_SHIPPING_THRESHOLD = 5000
+
+
+          def domestic_fee(order_total: int, weight_grams: int) -> int:
+              if order_total >= FREE_SHIPPING_THRESHOLD:
+                  return 0
+              return 500 + weight_grams // 100
+      after: |
+        from shipments.fees import domestic_fee
+
+        RETURN_HANDLING_FEE = 200
+
+
+        def return_label_fee(order_total: int, weight_grams: int) -> int:
+            return domestic_fee(order_total, weight_grams) + RETURN_HANDLING_FEE
+    expected_output:
+      outcome: valid
+  - name: adds a fee with a different threshold test
+    inputs:
+      file: returns/fees.py
+      unchanged:
+        shipments/fees.py: |
+          FREE_SHIPPING_THRESHOLD = 5000
+
+
+          def domestic_fee(order_total: int, weight_grams: int) -> int:
+              if order_total >= FREE_SHIPPING_THRESHOLD:
+                  return 0
+              return 500 + weight_grams // 100
+      after: |
+        from shipments.fees import domestic_fee
+
+        FREE_RETURN_WEIGHT_GRAMS = 1000
+
+
+        def return_label_fee(order_total: int, weight_grams: int) -> int:
+            if weight_grams <= FREE_RETURN_WEIGHT_GRAMS:
+                return 0
+            return domestic_fee(order_total, weight_grams)
+    expected_output:
+      outcome: valid
+  - name: repeats a line total property on a second document class
+    inputs:
+      file: billing/documents.py
+      before: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Line:
+            quantity: int
+            unit_price_cents: int
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            lines: list[Line]
+
+            @property
+            def total_cents(self) -> int:
+                subtotal = sum(line.quantity * line.unit_price_cents for line in self.lines)
+                return max(subtotal, 0)
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Line:
+            quantity: int
+            unit_price_cents: int
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            lines: list[Line]
+
+            @property
+            def total_cents(self) -> int:
+                subtotal = sum(line.quantity * line.unit_price_cents for line in self.lines)
+                return max(subtotal, 0)
+
+
+        @dataclass(frozen=True)
+        class Quote:
+            items: list[Line]
+
+            @property
+            def total_cents(self) -> int:
+                subtotal = sum(item.quantity * item.unit_price_cents for item in self.items)
+                return max(subtotal, 0)
+    expected_output:
+      outcome: invalid
+  - name: embeds an imported total's steps in a longer function
+    inputs:
+      file: billing/statements.py
+      unchanged:
+        invoices/totals.py: |
+          def invoice_total(subtotal: int, tax_rate: float, discount: int) -> int:
+              taxed = round((subtotal - discount) * (1 + tax_rate))
+              return max(taxed, 0)
+      after: |
+        from invoices.totals import invoice_total
+
+
+        def statement_line(number: str, subtotal: int, tax_rate: float, discount: int) -> str:
+            taxed = round((subtotal - discount) * (1 + tax_rate))
+            total = max(taxed, 0)
+            return f"{number}: {total / 100:.2f}"
+
+
+        def statement_total(subtotals: list[int], tax_rate: float) -> int:
+            return sum(invoice_total(subtotal, tax_rate, 0) for subtotal in subtotals)
+    expected_output:
+      outcome: invalid
+  - name: calls an imported total in a longer function
+    inputs:
+      file: billing/statements.py
+      unchanged:
+        invoices/totals.py: |
+          def invoice_total(subtotal: int, tax_rate: float, discount: int) -> int:
+              taxed = round((subtotal - discount) * (1 + tax_rate))
+              return max(taxed, 0)
+      after: |
+        from invoices.totals import invoice_total
+
+
+        def statement_line(number: str, subtotal: int, tax_rate: float, discount: int) -> str:
+            total = invoice_total(subtotal, tax_rate, discount)
+            return f"{number}: {total / 100:.2f}"
+
+
+        def statement_total(subtotals: list[int], tax_rate: float) -> int:
+            return sum(invoice_total(subtotal, tax_rate, 0) for subtotal in subtotals)
+    expected_output:
+      outcome: valid
+  - name: adds a pydantic validator that strips its own field
+    inputs:
+      file: accounts/schemas.py
+      before: |
+        from pydantic import BaseModel, field_validator
+
+
+        class Signup(BaseModel):
+            name: str
+            email: str
+
+            @field_validator("name")
+            @classmethod
+            def strip_name(cls, value: str) -> str:
+                return value.strip()
+      after: |
+        from pydantic import BaseModel, field_validator
+
+
+        class Signup(BaseModel):
+            name: str
+            email: str
+
+            @field_validator("name")
+            @classmethod
+            def strip_name(cls, value: str) -> str:
+                return value.strip()
+
+            @field_validator("email")
+            @classmethod
+            def lowercase_email(cls, value: str) -> str:
+                return value.strip().lower()
+    expected_output:
+      outcome: valid
+  - name: adds a total with truncating instead of rounding
+    inputs:
+      file: invoices/totals.py
+      after: |
+        def invoice_total(subtotal: int, tax_rate: float, discount: int) -> int:
+            taxed = round((subtotal - discount) * (1 + tax_rate))
+            return max(taxed, 0)
+
+
+        def estimate_total(subtotal: int, tax_rate: float) -> int:
+            return int(subtotal * (1 + tax_rate))
+    expected_output:
+      outcome: valid
   - name: raises the free shipping threshold
     inputs:
       file: shipments/fees.py
@@ -77,5 +286,24 @@ cases:
             if order_total >= FREE_SHIPPING_THRESHOLD:
                 return 0
             return 500 + weight_grams // 100
+    expected_output:
+      outcome: skipped
+  - name: adds a protocol method stub
+    inputs:
+      file: shipments/ports.py
+      before: |
+        from typing import Protocol
+
+
+        class FeeTable(Protocol):
+            def domestic_fee(self, order_total: int, weight_grams: int) -> int: ...
+      after: |
+        from typing import Protocol
+
+
+        class FeeTable(Protocol):
+            def domestic_fee(self, order_total: int, weight_grams: int) -> int: ...
+
+            def return_fee(self, order_total: int, weight_grams: int) -> int: ...
     expected_output:
       outcome: skipped

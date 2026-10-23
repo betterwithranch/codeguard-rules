@@ -1,0 +1,205 @@
+id: no-attribute-set-after-build
+snapshots:
+  ? |
+    @pytest.fixture
+    def example_model():
+        model = ExampleModel(name="a")
+        model.status = "paid"
+        return model
+  : labels:
+    - source: model.status = "paid"
+      style: primary
+      start: 76
+      end: 97
+    - source: |-
+        def example_model():
+            model = ExampleModel(name="a")
+            model.status = "paid"
+            return model
+      style: secondary
+      start: 16
+      end: 114
+    - source: model
+      style: secondary
+      start: 76
+      end: 81
+    - source: model.status
+      style: secondary
+      start: 76
+      end: 88
+    - source: model.status = "paid"
+      style: secondary
+      start: 76
+      end: 97
+    - source: model
+      style: secondary
+      start: 41
+      end: 46
+    - source: ExampleModel
+      style: secondary
+      start: 49
+      end: 61
+    - source: ExampleModel(name="a")
+      style: secondary
+      start: 49
+      end: 71
+    - source: model = ExampleModel(name="a")
+      style: secondary
+      start: 41
+      end: 71
+    - source: model = ExampleModel(name="a")
+      style: secondary
+      start: 41
+      end: 71
+  ? |
+    def make_example_gateway():
+        gateway = Mock()
+        gateway.return_value = 3
+        return gateway
+  : labels:
+    - source: gateway.return_value = 3
+      style: primary
+      start: 53
+      end: 77
+    - source: |-
+        def make_example_gateway():
+            gateway = Mock()
+            gateway.return_value = 3
+            return gateway
+      style: secondary
+      start: 0
+      end: 96
+    - source: gateway
+      style: secondary
+      start: 53
+      end: 60
+    - source: gateway.return_value
+      style: secondary
+      start: 53
+      end: 73
+    - source: gateway.return_value = 3
+      style: secondary
+      start: 53
+      end: 77
+    - source: gateway
+      style: secondary
+      start: 32
+      end: 39
+    - source: Mock
+      style: secondary
+      start: 42
+      end: 46
+    - source: Mock()
+      style: secondary
+      start: 42
+      end: 48
+    - source: gateway = Mock()
+      style: secondary
+      start: 32
+      end: 48
+    - source: gateway = Mock()
+      style: secondary
+      start: 32
+      end: 48
+  ? |
+    def make_example_model():
+        model = ExampleModel(name="a")
+        model.status = "paid"
+        return model
+  : labels:
+    - source: model.status = "paid"
+      style: primary
+      start: 65
+      end: 86
+    - source: |-
+        def make_example_model():
+            model = ExampleModel(name="a")
+            model.status = "paid"
+            return model
+      style: secondary
+      start: 0
+      end: 103
+    - source: model
+      style: secondary
+      start: 65
+      end: 70
+    - source: model.status
+      style: secondary
+      start: 65
+      end: 77
+    - source: model.status = "paid"
+      style: secondary
+      start: 65
+      end: 86
+    - source: model
+      style: secondary
+      start: 30
+      end: 35
+    - source: ExampleModel
+      style: secondary
+      start: 38
+      end: 50
+    - source: ExampleModel(name="a")
+      style: secondary
+      start: 38
+      end: 60
+    - source: model = ExampleModel(name="a")
+      style: secondary
+      start: 30
+      end: 60
+    - source: model = ExampleModel(name="a")
+      style: secondary
+      start: 30
+      end: 60
+  ? |
+    def make_example_model(session):
+        model = examples.ExampleModel(name="a")
+        session.add(model)
+        model.status = "paid"
+        return model
+  : labels:
+    - source: model.status = "paid"
+      style: primary
+      start: 104
+      end: 125
+    - source: |-
+        def make_example_model(session):
+            model = examples.ExampleModel(name="a")
+            session.add(model)
+            model.status = "paid"
+            return model
+      style: secondary
+      start: 0
+      end: 142
+    - source: model
+      style: secondary
+      start: 104
+      end: 109
+    - source: model.status
+      style: secondary
+      start: 104
+      end: 116
+    - source: model.status = "paid"
+      style: secondary
+      start: 104
+      end: 125
+    - source: model
+      style: secondary
+      start: 37
+      end: 42
+    - source: examples.ExampleModel
+      style: secondary
+      start: 45
+      end: 66
+    - source: examples.ExampleModel(name="a")
+      style: secondary
+      start: 45
+      end: 76
+    - source: model = examples.ExampleModel(name="a")
+      style: secondary
+      start: 37
+      end: 76
+    - source: model = examples.ExampleModel(name="a")
+      style: secondary
+      start: 37
+      end: 76

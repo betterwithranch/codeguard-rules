@@ -1,119 +1,336 @@
 cases:
-  - name: checks a warehouse registry in a validator
+  - name: defines an invoice in the package that only reads it
     inputs:
-      file: shipping/shipment.py
+      file: shipping/invoice.py
       after: |
-        from pydantic import BaseModel, model_validator
-
-        from shipping.warehouse_registry import warehouse_registry
+        from dataclasses import dataclass
 
 
-        class Shipment(BaseModel):
-            sku: str
-            warehouse_code: str
+        @dataclass(frozen=True)
+        class Invoice:
+            number: str
+            total_cents: int
+      unchanged:
+        billing/invoicing.py: |
+          from shipping.invoice import Invoice
 
-            @model_validator(mode="after")
-            def check_warehouse_stocks_sku(self) -> "Shipment":
-                warehouse = warehouse_registry.get(self.warehouse_code)
-                if not warehouse.stocks(self.sku):
-                    raise ValueError(f"{self.warehouse_code} does not stock {self.sku}")
-                return self
+
+          def issue_invoice(number: str, line_cents: list[int]) -> Invoice:
+              return Invoice(number=number, total_cents=sum(line_cents))
+        shipping/packing_slip.py: |
+          from shipping.invoice import Invoice
+
+
+          def slip_footer(invoice: Invoice) -> str:
+              return f"Invoice {invoice.number}"
     expected_output:
       outcome: invalid
-  - name: checks the product catalog in a validator
+  - name: defines an invoice in the package that builds it
     inputs:
-      file: shipping/shipment.py
+      file: billing/invoice.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            number: str
+            total_cents: int
+      unchanged:
+        billing/invoicing.py: |
+          from billing.invoice import Invoice
+
+
+          def issue_invoice(number: str, line_cents: list[int]) -> Invoice:
+              return Invoice(number=number, total_cents=sum(line_cents))
+        shipping/packing_slip.py: |
+          from billing.invoice import Invoice
+
+
+          def slip_footer(invoice: Invoice) -> str:
+              return f"Invoice {invoice.number}"
+        reports/revenue.py: |
+          from billing.invoice import Invoice
+
+
+          def revenue(invoices: list[Invoice]) -> int:
+              return sum(invoice.total_cents for invoice in invoices)
+    expected_output:
+      outcome: valid
+  - name: defines a payment error in the api package that only catches it
+    inputs:
+      file: api/errors.py
+      after: |
+        class CardDeclinedError(Exception):
+            def __init__(self, reason: str) -> None:
+                super().__init__(reason)
+                self.reason = reason
+      unchanged:
+        payments/charges.py: |
+          from api.errors import CardDeclinedError
+
+
+          def charge(gateway, cents: int) -> str:
+              result = gateway.charge(cents)
+              if not result.approved:
+                  raise CardDeclinedError(result.reason)
+              return result.charge_id
+        api/checkout_view.py: |
+          from api.errors import CardDeclinedError
+          from payments.charges import charge
+
+
+          def checkout(gateway, cents: int) -> dict[str, str]:
+              try:
+                  return {"charge_id": charge(gateway, cents)}
+              except CardDeclinedError as error:
+                  return {"error": error.reason}
+    expected_output:
+      outcome: invalid
+  - name: defines a payment error in the package that raises it
+    inputs:
+      file: payments/errors.py
+      after: |
+        class CardDeclinedError(Exception):
+            def __init__(self, reason: str) -> None:
+                super().__init__(reason)
+                self.reason = reason
+      unchanged:
+        payments/charges.py: |
+          from payments.errors import CardDeclinedError
+
+
+          def charge(gateway, cents: int) -> str:
+              result = gateway.charge(cents)
+              if not result.approved:
+                  raise CardDeclinedError(result.reason)
+              return result.charge_id
+        api/checkout_view.py: |
+          from payments.charges import charge
+          from payments.errors import CardDeclinedError
+
+
+          def checkout(gateway, cents: int) -> dict[str, str]:
+              try:
+                  return {"charge_id": charge(gateway, cents)}
+              except CardDeclinedError as error:
+                  return {"error": error.reason}
+    expected_output:
+      outcome: valid
+  - name: defines a pydantic summary in the reports package that orders builds
+    inputs:
+      file: reports/order_summary.py
+      after: |
+        from pydantic import BaseModel
+
+
+        class OrderSummary(BaseModel):
+            order_id: str
+            item_count: int
+            total_cents: int
+      unchanged:
+        orders/summaries.py: |
+          from reports.order_summary import OrderSummary
+
+
+          def summarize(order) -> OrderSummary:
+              return OrderSummary(
+                  order_id=order.id,
+                  item_count=len(order.lines),
+                  total_cents=sum(line.cents for line in order.lines),
+              )
+        reports/daily.py: |
+          from reports.order_summary import OrderSummary
+
+
+          def daily_total(summaries: list[OrderSummary]) -> int:
+              return sum(summary.total_cents for summary in summaries)
+    expected_output:
+      outcome: invalid
+  - name: defines shared money that imports a sibling package
+    inputs:
+      file: billing/money.py
+      after: |
+        from dataclasses import dataclass
+
+        from shipping.currency_table import RATES
+
+
+        @dataclass(frozen=True)
+        class Money:
+            cents: int
+            currency: str
+
+            def in_usd(self) -> "Money":
+                return Money(cents=round(self.cents * RATES[self.currency]), currency="USD")
+      unchanged:
+        shipping/currency_table.py: |
+          RATES = {"USD": 1.0, "EUR": 1.08}
+        shipping/quotes.py: |
+          from billing.money import Money
+
+
+          def quote(weight_grams: int) -> Money:
+              return Money(cents=weight_grams // 10, currency="USD")
+        billing/invoicing.py: |
+          from billing.money import Money
+
+
+          def invoice_total(line_cents: list[int]) -> Money:
+              return Money(cents=sum(line_cents), currency="USD")
+    expected_output:
+      outcome: invalid
+  - name: defines shared money in a package that imports no sibling
+    inputs:
+      file: core/money.py
+      after: |
+        from dataclasses import dataclass
+        from decimal import Decimal
+
+
+        @dataclass(frozen=True)
+        class Money:
+            cents: int
+            currency: str
+
+            def converted(self, rate: Decimal, currency: str) -> "Money":
+                return Money(cents=round(self.cents * rate), currency=currency)
+      unchanged:
+        shipping/quotes.py: |
+          from core.money import Money
+
+
+          def quote(weight_grams: int) -> Money:
+              return Money(cents=weight_grams // 10, currency="USD")
+        billing/invoicing.py: |
+          from core.money import Money
+
+
+          def invoice_total(line_cents: list[int]) -> Money:
+              return Money(cents=sum(line_cents), currency="USD")
+    expected_output:
+      outcome: valid
+  - name: imports a sibling package into the shared money module
+    inputs:
+      file: core/money.py
       before: |
-        from pydantic import BaseModel, field_validator
+        from dataclasses import dataclass
 
 
-        class Shipment(BaseModel):
-            sku: str
-
-            @field_validator("sku")
-            @classmethod
-            def normalize_sku(cls, value: str) -> str:
-                return value.strip().upper()
+        @dataclass(frozen=True)
+        class Money:
+            cents: int
+            currency: str
       after: |
-        from pydantic import BaseModel, field_validator
+        from dataclasses import dataclass
 
-        from shipping.catalog import product_catalog
+        from billing.rounding import round_half_even
 
 
-        class Shipment(BaseModel):
-            sku: str
+        @dataclass(frozen=True)
+        class Money:
+            cents: int
+            currency: str
 
-            @field_validator("sku")
-            @classmethod
-            def normalize_sku(cls, value: str) -> str:
-                sku = value.strip().upper()
-                if not product_catalog.contains(sku):
-                    raise ValueError(f"unknown sku {sku}")
-                return sku
+            def rounded(self) -> "Money":
+                return Money(cents=round_half_even(self.cents), currency=self.currency)
+      unchanged:
+        billing/rounding.py: |
+          def round_half_even(cents: int) -> int:
+              return cents
+        shipping/quotes.py: |
+          from core.money import Money
+
+
+          def quote(weight_grams: int) -> Money:
+              return Money(cents=weight_grams // 10, currency="USD")
+        billing/invoicing.py: |
+          from core.money import Money
+
+
+          def invoice_total(line_cents: list[int]) -> Money:
+              return Money(cents=sum(line_cents), currency="USD")
     expected_output:
       outcome: invalid
-  - name: groups unrelated enums by construct kind
+  - name: defines an invoice status enum in the package that sets it
     inputs:
-      file: shipping/enums.py
+      file: billing/invoice_status.py
       after: |
         from enum import StrEnum
-
-
-        class CarrierCode(StrEnum):
-            UPS = "ups"
-            FEDEX = "fedex"
-
-
-        class RefundReason(StrEnum):
-            DAMAGED = "damaged"
-            LATE = "late"
 
 
         class InvoiceStatus(StrEnum):
             DRAFT = "draft"
             PAID = "paid"
-    expected_output:
-      outcome: invalid
-  - name: validates intrinsic field invariants
-    inputs:
-      file: shipping/shipment.py
-      after: |
-        from pydantic import BaseModel, field_validator
+      unchanged:
+        billing/payments.py: |
+          from billing.invoice_status import InvoiceStatus
 
 
-        class Shipment(BaseModel):
-            sku: str
-            quantity: int
+          def mark_paid(invoice) -> None:
+              invoice.status = InvoiceStatus.PAID
+        reports/unpaid.py: |
+          from billing.invoice_status import InvoiceStatus
 
-            @field_validator("sku")
-            @classmethod
-            def normalize_sku(cls, value: str) -> str:
-                return value.strip().upper()
 
-            @field_validator("quantity")
-            @classmethod
-            def check_quantity_positive(cls, value: int) -> int:
-                if value < 1:
-                    raise ValueError("quantity must be at least 1")
-                return value
+          def unpaid(invoices) -> list:
+              return [invoice for invoice in invoices if invoice.status is not InvoiceStatus.PAID]
     expected_output:
       outcome: valid
-  - name: uppercases the shipment label
+  - name: defines an attrs carrier quote in the package that builds it
     inputs:
-      file: shipping/shipment.py
-      before: |
-        class Shipment:
-            def __init__(self, sku: str) -> None:
-                self.sku = sku
-
-            def label(self) -> str:
-                return self.sku
+      file: carriers/carrier_quote.py
       after: |
-        class Shipment:
-            def __init__(self, sku: str) -> None:
-                self.sku = sku
+        import attrs
 
-            def label(self) -> str:
-                return self.sku.upper()
+
+        @attrs.frozen
+        class CarrierQuote:
+            carrier: str
+            cents: int
+      unchanged:
+        carriers/ups.py: |
+          from carriers.carrier_quote import CarrierQuote
+
+
+          def quote(weight_grams: int) -> CarrierQuote:
+              return CarrierQuote(carrier="ups", cents=weight_grams // 8)
+        checkout/shipping_choice.py: |
+          from carriers.carrier_quote import CarrierQuote
+
+
+          def cheapest(quotes: list[CarrierQuote]) -> CarrierQuote:
+              return min(quotes, key=lambda quote: quote.cents)
+    expected_output:
+      outcome: valid
+  - name: skips negative invoice lines in the total
+    inputs:
+      file: billing/invoice.py
+      before: |
+        def invoice_total(line_cents: list[int]) -> int:
+            return sum(line_cents)
+      after: |
+        def invoice_total(line_cents: list[int]) -> int:
+            return sum(cents for cents in line_cents if cents > 0)
+    expected_output:
+      outcome: skipped
+  - name: adds a field to an invoice
+    inputs:
+      file: billing/invoice.py
+      before: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            number: str
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            number: str
+            total_cents: int = 0
     expected_output:
       outcome: skipped

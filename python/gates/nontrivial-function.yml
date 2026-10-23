@@ -1,0 +1,38 @@
+id: nontrivial-function
+language: python
+rule:
+  kind: function_definition
+  not:
+    has:
+      field: body
+      kind: block
+      all:
+      - not:
+          has:
+            nthChild: 2
+      - has:
+          nthChild: 1
+          any:
+          - kind: pass_statement
+          - kind: expression_statement
+            has:
+              any:
+              - kind: ellipsis
+              - kind: string
+          - kind: return_statement
+            not:
+              has:
+                any:
+                - kind: call
+                - kind: binary_operator
+                - kind: boolean_operator
+                - kind: comparison_operator
+                - kind: conditional_expression
+                - kind: list_comprehension
+                - kind: set_comprehension
+                - kind: dictionary_comprehension
+                - kind: generator_expression
+                - kind: subscript
+                - kind: unary_operator
+                - kind: not_operator
+          - kind: raise_statement

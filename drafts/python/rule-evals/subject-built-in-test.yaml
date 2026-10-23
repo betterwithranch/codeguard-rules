@@ -1,0 +1,345 @@
+cases:
+  - name: acts on a service a fixture builds
+    inputs:
+      file: tests/test_invoices.py
+      after: |
+        import pytest
+
+        from billing.invoices import InvoiceService
+        from tests.fakes import FakeLedger
+
+
+        @pytest.fixture
+        def ledger():
+            return FakeLedger(currency="EUR")
+
+
+        @pytest.fixture
+        def invoice_service(ledger):
+            return InvoiceService(ledger)
+
+
+        def test_pay_records_ledger_entry(invoice_service, ledger):
+            invoice_service.issue("inv-42", amount=120)
+
+            invoice_service.pay("inv-42")
+
+            assert ledger.entries == [("inv-42", 120)]
+    expected_output:
+      outcome: invalid
+  - name: builds the service in the test from a ledger fixture
+    inputs:
+      file: tests/test_invoices.py
+      after: |
+        import pytest
+
+        from billing.invoices import InvoiceService
+        from tests.fakes import FakeLedger
+
+
+        @pytest.fixture
+        def ledger():
+            return FakeLedger(currency="EUR")
+
+
+        def test_pay_records_ledger_entry(ledger):
+            service = InvoiceService(ledger)
+            service.issue("inv-42", amount=120)
+
+            service.pay("inv-42")
+
+            assert ledger.entries == [("inv-42", 120)]
+    expected_output:
+      outcome: valid
+  - name: acts on a service that setUp builds
+    inputs:
+      file: tests/test_invoices.py
+      after: |
+        import unittest
+
+        from billing.invoices import InvoiceService
+        from tests.fakes import FakeLedger
+
+
+        class InvoicePaymentTest(unittest.TestCase):
+            def setUp(self):
+                self.ledger = FakeLedger(currency="EUR")
+                self.service = InvoiceService(self.ledger)
+
+            def test_pay_records_ledger_entry(self):
+                self.service.issue("inv-42", amount=120)
+
+                self.service.pay("inv-42")
+
+                self.assertEqual(self.ledger.entries_for("inv-42"), [120])
+    expected_output:
+      outcome: invalid
+  - name: builds the service in a unittest method from a setUp ledger
+    inputs:
+      file: tests/test_invoices.py
+      after: |
+        import unittest
+
+        from billing.invoices import InvoiceService
+        from tests.fakes import FakeLedger
+
+
+        class InvoicePaymentTest(unittest.TestCase):
+            def setUp(self):
+                self.ledger = FakeLedger(currency="EUR")
+
+            def test_pay_records_ledger_entry(self):
+                service = InvoiceService(self.ledger)
+                service.issue("inv-42", amount=120)
+
+                service.pay("inv-42")
+
+                self.assertEqual(self.ledger.entries_for("inv-42"), [120])
+    expected_output:
+      outcome: valid
+  - name: saves through a repository a fixture builds
+    inputs:
+      file: tests/test_order_repository.py
+      after: |
+        import pytest
+        from sqlalchemy.orm import Session
+
+        from shop.orders import Order, OrderRepository
+
+
+        @pytest.fixture
+        def order_repository(db_session: Session) -> OrderRepository:
+            return OrderRepository(db_session)
+
+
+        def test_get_returns_saved_order(order_repository):
+            order_repository.save(Order(id="ord-1", total=120))
+
+            found = order_repository.get("ord-1")
+
+            assert found == Order(id="ord-1", total=120)
+    expected_output:
+      outcome: invalid
+  - name: builds the repository in the test from the session fixture
+    inputs:
+      file: tests/test_order_repository.py
+      after: |
+        from shop.orders import Order, OrderRepository
+
+
+        def test_get_returns_saved_order(db_session):
+            repository = OrderRepository(db_session)
+            repository.save(Order(id="ord-1", total=120))
+
+            found = repository.get("ord-1")
+
+            assert found == Order(id="ord-1", total=120)
+    expected_output:
+      outcome: valid
+  - name: maps with a mapper fixture in a test class
+    inputs:
+      file: tests/test_invoice_mapper.py
+      after: |
+        import pytest
+
+        from billing.invoices import Invoice
+        from billing.mapper import InvoiceMapper, MappingRules
+
+
+        @pytest.fixture
+        def mapper():
+            return InvoiceMapper(MappingRules(currency="EUR"))
+
+
+        class TestInvoiceMapper:
+            def test_map_reads_number_and_total(self, mapper):
+                invoice = mapper.map({"no": "42", "sum": "120.00"})
+
+                assert invoice == Invoice(number="42", total=120, currency="EUR")
+    expected_output:
+      outcome: invalid
+  - name: builds the mapper through a helper in a test class
+    inputs:
+      file: tests/test_invoice_mapper.py
+      after: |
+        import pytest
+
+        from billing.invoices import Invoice
+        from billing.mapper import InvoiceMapper, MappingRules
+
+
+        @pytest.fixture
+        def rules():
+            return MappingRules(currency="EUR")
+
+
+        def make_mapper(rules):
+            return InvoiceMapper(rules)
+
+
+        class TestInvoiceMapper:
+            def test_map_reads_number_and_total(self, rules):
+                mapper = make_mapper(rules)
+
+                invoice = mapper.map({"no": "42", "sum": "120.00"})
+
+                assert invoice == Invoice(number="42", total=120, currency="EUR")
+    expected_output:
+      outcome: valid
+  - name: submits through a workflow fixture in an async test
+    inputs:
+      file: tests/test_checkout.py
+      after: |
+        import pytest
+
+        from orders.checkout import CheckoutWorkflow, Status
+        from tests.fakes import FakePaymentGateway
+
+
+        @pytest.fixture
+        def workflow():
+            return CheckoutWorkflow(FakePaymentGateway())
+
+
+        async def test_submit_waits_for_payment(workflow):
+            result = await workflow.submit(order_id="ord-1")
+
+            assert result.status == Status.WAITING
+    expected_output:
+      outcome: invalid
+  - name: builds the workflow in an async test from a gateway fixture
+    inputs:
+      file: tests/test_checkout.py
+      after: |
+        import pytest
+
+        from orders.checkout import CheckoutWorkflow, Status
+        from tests.fakes import FakePaymentGateway
+
+
+        @pytest.fixture
+        def gateway():
+            return FakePaymentGateway()
+
+
+        async def test_submit_waits_for_payment(gateway):
+            workflow = CheckoutWorkflow(gateway)
+
+            result = await workflow.submit(order_id="ord-1")
+
+            assert result.status == Status.WAITING
+    expected_output:
+      outcome: valid
+  - name: cancels a Django order a fixture creates
+    inputs:
+      file: shop/tests/test_order_cancel.py
+      after: |
+        import pytest
+
+        from shop.models import Order
+
+
+        @pytest.fixture
+        def order(db):
+            return Order.objects.create(number="A-1", status=Order.Status.PLACED)
+
+
+        def test_cancel_marks_order_cancelled(order):
+            order.cancel(reason="customer request")
+
+            order.refresh_from_db()
+            assert order.status == Order.Status.CANCELLED
+    expected_output:
+      outcome: invalid
+  - name: posts a cancel request through the Django test client
+    inputs:
+      file: shop/tests/test_order_cancel.py
+      after: |
+        import pytest
+
+        from shop.models import Order
+
+
+        @pytest.mark.django_db
+        def test_cancel_view_marks_order_cancelled(client):
+            order = Order.objects.create(number="A-1", status=Order.Status.PLACED)
+
+            client.post(f"/orders/{order.pk}/cancel/", {"reason": "customer request"})
+
+            order.refresh_from_db()
+            assert order.status == Order.Status.CANCELLED
+    expected_output:
+      outcome: valid
+  - name: parses with each parser from the parametrize list
+    inputs:
+      file: tests/test_parsers.py
+      after: |
+        import pytest
+
+        from imports.parsers import CsvParser, JsonParser
+
+
+        @pytest.mark.parametrize(
+            ("parser", "text"),
+            [(CsvParser(), "sku,qty\nA1,2\n"), (JsonParser(), '[{"sku": "A1", "qty": 2}]')],
+        )
+        def test_parse_reads_quantity(parser, text):
+            rows = parser.parse(text)
+
+            assert rows[0].quantity == 2
+    expected_output:
+      outcome: valid
+  - name: changes the issued amount in a test without parameters
+    inputs:
+      file: tests/test_invoices.py
+      before: |
+        from billing.invoices import InvoiceService
+        from tests.fakes import FakeLedger
+
+
+        def test_pay_records_ledger_entry():
+            ledger = FakeLedger()
+            service = InvoiceService(ledger)
+            service.issue("inv-42", amount=120)
+
+            service.pay("inv-42")
+
+            assert ledger.entries == [("inv-42", 120)]
+      after: |
+        from billing.invoices import InvoiceService
+        from tests.fakes import FakeLedger
+
+
+        def test_pay_records_ledger_entry():
+            ledger = FakeLedger()
+            service = InvoiceService(ledger)
+            service.issue("inv-42", amount=150)
+
+            service.pay("inv-42")
+
+            assert ledger.entries == [("inv-42", 150)]
+    expected_output:
+      outcome: skipped
+  - name: changes the currency inside a fixture
+    inputs:
+      file: tests/test_invoices.py
+      before: |
+        import pytest
+
+        from tests.fakes import FakeLedger
+
+
+        @pytest.fixture
+        def ledger():
+            return FakeLedger(currency="EUR")
+      after: |
+        import pytest
+
+        from tests.fakes import FakeLedger
+
+
+        @pytest.fixture
+        def ledger():
+            return FakeLedger(currency="USD")
+    expected_output:
+      outcome: skipped

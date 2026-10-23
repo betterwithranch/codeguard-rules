@@ -1,0 +1,339 @@
+cases:
+  - name: imports from a package that imports back
+    inputs:
+      file: billing/invoice.py
+      before: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            number: str
+            subtotal_cents: int
+      after: |
+        from dataclasses import dataclass
+
+        from shipping import shipping_rate_cents
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            number: str
+            subtotal_cents: int
+            weight_kg: int
+
+            def total_cents(self) -> int:
+                return self.subtotal_cents + shipping_rate_cents(self.weight_kg)
+      unchanged:
+        billing/__init__.py: |
+          from .invoice import Invoice
+          from .invoice_total import InvoiceTotal
+
+          __all__ = ["Invoice", "InvoiceTotal"]
+        shipping/__init__.py: |
+          from .rates import shipping_rate_cents
+
+          __all__ = ["shipping_rate_cents"]
+        shipping/rates.py: |
+          def shipping_rate_cents(weight_kg: int) -> int:
+              return 500 + 100 * weight_kg
+        shipping/packing_slip.py: |
+          from billing import InvoiceTotal
+
+
+          def packing_slip_footer(total: InvoiceTotal) -> str:
+              return f"Total: {total.grand_total_cents()} cents"
+    expected_output:
+      outcome: invalid
+  - name: imports from a package that doesn't import back
+    inputs:
+      file: billing/invoice.py
+      before: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            number: str
+            subtotal_cents: int
+      after: |
+        from dataclasses import dataclass
+
+        from shipping import shipping_rate_cents
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            number: str
+            subtotal_cents: int
+            weight_kg: int
+
+            def total_cents(self) -> int:
+                return self.subtotal_cents + shipping_rate_cents(self.weight_kg)
+      unchanged:
+        billing/__init__.py: |
+          from .invoice import Invoice
+
+          __all__ = ["Invoice"]
+        shipping/__init__.py: |
+          from .rates import shipping_rate_cents
+
+          __all__ = ["shipping_rate_cents"]
+        shipping/rates.py: |
+          from catalog import Product
+
+
+          def shipping_rate_cents(weight_kg: int) -> int:
+              return 500 + 100 * weight_kg
+
+
+          def product_rate_cents(product: Product) -> int:
+              return shipping_rate_cents(product.weight_kg)
+        catalog/__init__.py: |
+          from .product import Product
+
+          __all__ = ["Product"]
+    expected_output:
+      outcome: valid
+  - name: imports a nested sibling module that imports back
+    inputs:
+      file: shop/billing/invoices/line.py
+      after: |
+        from dataclasses import dataclass
+
+        from shop.shipping.labels.slip import SlipReference
+
+
+        @dataclass(frozen=True)
+        class InvoiceLine:
+            sku: str
+            amount_cents: int
+            slip: SlipReference
+      unchanged:
+        shop/__init__.py: ""
+        shop/billing/__init__.py: ""
+        shop/billing/customer.py: |
+          from dataclasses import dataclass
+
+
+          @dataclass(frozen=True)
+          class Customer:
+              email: str
+        shop/billing/invoices/__init__.py: ""
+        shop/shipping/__init__.py: ""
+        shop/shipping/labels/__init__.py: ""
+        shop/shipping/labels/slip.py: |
+          from dataclasses import dataclass
+
+          from shop.billing.customer import Customer
+
+
+          @dataclass(frozen=True)
+          class SlipReference:
+              code: str
+              recipient: Customer
+    expected_output:
+      outcome: invalid
+  - name: imports a sibling with a relative import that imports back
+    inputs:
+      file: shop/billing/invoice.py
+      after: |
+        from dataclasses import dataclass
+
+        from ..shipping import rates
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            number: str
+            weight_kg: int
+
+            def shipping_cents(self) -> int:
+                return rates.shipping_rate_cents(self.weight_kg)
+      unchanged:
+        shop/__init__.py: ""
+        shop/billing/__init__.py: |
+          from .invoice import Invoice
+
+          __all__ = ["Invoice"]
+        shop/shipping/__init__.py: ""
+        shop/shipping/rates.py: |
+          def shipping_rate_cents(weight_kg: int) -> int:
+              return 500 + 100 * weight_kg
+        shop/shipping/manifest.py: |
+          from shop.billing import Invoice
+
+
+          def manifest_line(invoice: Invoice) -> str:
+              return f"INV-{invoice.number}"
+    expected_output:
+      outcome: invalid
+  - name: imports a sibling module with a plain import that imports back
+    inputs:
+      file: billing/statements.py
+      after: |
+        import shipping.rates
+
+
+        def statement_shipping_line(weight_kg: int) -> str:
+            return f"Shipping: {shipping.rates.shipping_rate_cents(weight_kg)} cents"
+      unchanged:
+        billing/__init__.py: ""
+        billing/invoice.py: |
+          from dataclasses import dataclass
+
+
+          @dataclass(frozen=True)
+          class Invoice:
+              number: str
+        shipping/__init__.py: ""
+        shipping/rates.py: |
+          import billing.invoice
+
+
+          def shipping_rate_cents(weight_kg: int) -> int:
+              return 500 + 100 * weight_kg
+
+
+          def invoice_reference(invoice: billing.invoice.Invoice) -> str:
+              return invoice.number
+    expected_output:
+      outcome: invalid
+  - name: both packages import a third package
+    inputs:
+      file: billing/invoice.py
+      after: |
+        from dataclasses import dataclass
+
+        from catalog import Product
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            number: str
+            products: tuple[Product, ...]
+      unchanged:
+        billing/__init__.py: ""
+        catalog/__init__.py: |
+          from .product import Product
+
+          __all__ = ["Product"]
+        catalog/product.py: |
+          from dataclasses import dataclass
+
+
+          @dataclass(frozen=True)
+          class Product:
+              sku: str
+              weight_kg: int
+        shipping/__init__.py: ""
+        shipping/rates.py: |
+          from catalog import Product
+
+
+          def product_rate_cents(product: Product) -> int:
+              return 500 + 100 * product.weight_kg
+    expected_output:
+      outcome: valid
+  - name: imports its own subpackage that imports the parent package
+    inputs:
+      file: billing/statements.py
+      after: |
+        from billing.invoices.line import InvoiceLine
+
+
+        def statement_line(line: InvoiceLine) -> str:
+            return f"{line.sku}: {line.amount_cents}"
+      unchanged:
+        billing/__init__.py: ""
+        billing/customer.py: |
+          from dataclasses import dataclass
+
+
+          @dataclass(frozen=True)
+          class Customer:
+              email: str
+        billing/invoices/__init__.py: ""
+        billing/invoices/line.py: |
+          from dataclasses import dataclass
+
+          from billing.customer import Customer
+
+
+          @dataclass(frozen=True)
+          class InvoiceLine:
+              customer: Customer
+              sku: str
+              amount_cents: int
+    expected_output:
+      outcome: valid
+  - name: imports library modules
+    inputs:
+      file: billing/exports.py
+      after: |
+        import csv
+        from pathlib import Path
+
+
+        def write_invoice_numbers(path: Path, numbers: list[str]) -> None:
+            with path.open("w", newline="") as handle:
+                csv.writer(handle).writerows([number] for number in numbers)
+      unchanged:
+        billing/__init__.py: ""
+    expected_output:
+      outcome: valid
+  - name: adds a relative import of a sibling module
+    inputs:
+      file: billing/invoice.py
+      before: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            number: str
+      after: |
+        from dataclasses import dataclass
+
+        from .invoice_total import InvoiceTotal
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            number: str
+            total: InvoiceTotal
+      unchanged:
+        billing/__init__.py: ""
+    expected_output:
+      outcome: skipped
+  - name: changes a method body
+    inputs:
+      file: billing/invoice.py
+      before: |
+        from dataclasses import dataclass
+
+        from shipping import shipping_rate_cents
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            subtotal_cents: int
+            weight_kg: int
+
+            def total_cents(self) -> int:
+                return self.subtotal_cents + shipping_rate_cents(self.weight_kg)
+      after: |
+        from dataclasses import dataclass
+
+        from shipping import shipping_rate_cents
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            subtotal_cents: int
+            weight_kg: int
+
+            def total_cents(self) -> int:
+                return self.subtotal_cents + 2 * shipping_rate_cents(self.weight_kg)
+    expected_output:
+      outcome: skipped

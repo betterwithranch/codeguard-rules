@@ -2,6 +2,18 @@ cases:
   - name: asserts a copy of the model config
     inputs:
       file: tests/test_orders.py
+      unchanged:
+        shop/orders.py: |
+          from decimal import Decimal
+
+          from pydantic import BaseModel, ConfigDict
+
+
+          class Order(BaseModel):
+              model_config = ConfigDict(frozen=True, extra="forbid")
+
+              id: str
+              total: Decimal
       after: |
         from shop.orders import Order
 
@@ -10,29 +22,29 @@ cases:
             assert Order.model_config == {"frozen": True, "extra": "forbid"}
     expected_output:
       outcome: invalid
-  - name: asserts the result is an order instance
+  - name: asserts the result is an order beside a whole-order comparison
     inputs:
       file: tests/test_orders.py
       before: |
         from decimal import Decimal
 
-        from shop.orders import OrderService
+        from shop.orders import Order, OrderService
 
 
-        def test_place_order_totals_the_lines(customer):
+        def test_place_order_builds_the_order(customer):
             order = OrderService().place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
 
-            assert order.total == Decimal("25.00")
+            assert order == Order(customer_id=customer.id, sku="BOOK-1", quantity=2, total=Decimal("25.00"))
       after: |
         from decimal import Decimal
 
         from shop.orders import Order, OrderService
 
 
-        def test_place_order_totals_the_lines(customer):
+        def test_place_order_builds_the_order(customer):
             order = OrderService().place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
 
-            assert order.total == Decimal("25.00")
+            assert order == Order(customer_id=customer.id, sku="BOOK-1", quantity=2, total=Decimal("25.00"))
 
 
         def test_place_order_returns_an_order(customer):
@@ -41,9 +53,243 @@ cases:
             assert isinstance(order, Order)
     expected_output:
       outcome: invalid
+  - name: checks the exporter factory picks the csv class
+    inputs:
+      file: tests/test_exporters.py
+      unchanged:
+        reports/exporters.py: |
+          class CsvExporter:
+              pass
+
+
+          class JsonExporter:
+              pass
+
+
+          def exporter_for(fmt: str) -> CsvExporter | JsonExporter:
+              if fmt == "csv":
+                  return CsvExporter()
+              return JsonExporter()
+      after: |
+        from reports.exporters import CsvExporter, JsonExporter, exporter_for
+
+
+        def test_exporter_for_csv_is_a_csv_exporter():
+            assert isinstance(exporter_for("csv"), CsvExporter)
+
+
+        def test_exporter_for_json_is_a_json_exporter():
+            assert isinstance(exporter_for("json"), JsonExporter)
+    expected_output:
+      outcome: valid
+  - name: asserts an enum member's declared value
+    inputs:
+      file: tests/test_order_status.py
+      unchanged:
+        shop/status.py: |
+          from enum import StrEnum
+
+
+          class OrderStatus(StrEnum):
+              PENDING = "pending"
+              SHIPPED = "shipped"
+      after: |
+        from shop.status import OrderStatus
+
+
+        def test_shipped_status_value():
+            assert OrderStatus.SHIPPED.value == "shipped"
+    expected_output:
+      outcome: invalid
+  - name: checks an enum method the project wrote
+    inputs:
+      file: tests/test_order_status.py
+      unchanged:
+        shop/status.py: |
+          from enum import StrEnum
+
+
+          class OrderStatus(StrEnum):
+              PENDING = "pending"
+              SHIPPED = "shipped"
+              CANCELLED = "cancelled"
+
+              def is_final(self) -> bool:
+                  return self in {OrderStatus.SHIPPED, OrderStatus.CANCELLED}
+      after: |
+        from shop.status import OrderStatus
+
+
+        def test_shipped_is_final():
+            assert OrderStatus.SHIPPED.is_final()
+
+
+        def test_pending_is_not_final():
+            assert not OrderStatus.PENDING.is_final()
+    expected_output:
+      outcome: valid
+  - name: asserts a pydantic field's declared default
+    inputs:
+      file: tests/test_customers.py
+      unchanged:
+        shop/customers.py: |
+          from pydantic import BaseModel
+
+
+          class Customer(BaseModel):
+              name: str
+              newsletter: bool = False
+      after: |
+        from shop.customers import Customer
+
+
+        def test_customer_newsletter_defaults_to_false():
+            assert Customer(name="Ada").newsletter is False
+    expected_output:
+      outcome: invalid
+  - name: checks a pydantic validator that strips the name
+    inputs:
+      file: tests/test_customers.py
+      unchanged:
+        shop/customers.py: |
+          from pydantic import BaseModel, field_validator
+
+
+          class Customer(BaseModel):
+              name: str
+
+              @field_validator("name")
+              @classmethod
+              def strip_name(cls, value: str) -> str:
+                  return value.strip()
+      after: |
+        from shop.customers import Customer
+
+
+        def test_customer_name_is_stripped():
+            assert Customer(name="  Ada ").name == "Ada"
+    expected_output:
+      outcome: valid
+  - name: round-trips a model with no custom serializers
+    inputs:
+      file: tests/test_invoices.py
+      unchanged:
+        billing/invoices.py: |
+          from decimal import Decimal
+
+          from pydantic import BaseModel
+
+
+          class Invoice(BaseModel):
+              number: str
+              total: Decimal
+      after: |
+        from decimal import Decimal
+
+        from billing.invoices import Invoice
+
+
+        def test_invoice_round_trips_through_json():
+            invoice = Invoice(number="42", total=Decimal("10.00"))
+
+            assert Invoice.model_validate_json(invoice.model_dump_json()) == invoice
+    expected_output:
+      outcome: invalid
+  - name: checks a custom serializer formats the total
+    inputs:
+      file: tests/test_invoices.py
+      unchanged:
+        billing/invoices.py: |
+          from decimal import Decimal
+
+          from pydantic import BaseModel, field_serializer
+
+
+          class Invoice(BaseModel):
+              number: str
+              total: Decimal
+
+              @field_serializer("total")
+              def format_total(self, total: Decimal) -> str:
+                  return f"{total:.2f} EUR"
+      after: |
+        from decimal import Decimal
+
+        from billing.invoices import Invoice
+
+
+        def test_invoice_dump_formats_the_total():
+            invoice = Invoice(number="42", total=Decimal("10"))
+
+            assert invoice.model_dump() == {"number": "42", "total": "10.00 EUR"}
+    expected_output:
+      outcome: valid
+  - name: asserts the quote is not none beside an exact comparison
+    inputs:
+      file: tests/test_quotes.py
+      after: |
+        from decimal import Decimal
+
+        from shipping.quotes import Quote, quote
+
+
+        def test_quote_for_two_kilos():
+            assert quote(weight=2) == Quote(weight=2, total=Decimal("5.50"))
+
+
+        def test_quote_for_two_kilos_exists():
+            assert quote(weight=2) is not None
+    expected_output:
+      outcome: invalid
+  - name: asserts a form field's declared label text
+    inputs:
+      file: tests/test_forms.py
+      unchanged:
+        shop/forms.py: |
+          from django import forms
+
+
+          class SubscriptionForm(forms.Form):
+              frequency = forms.ChoiceField(label="Frequency", choices=[("weekly", "Weekly"), ("monthly", "Monthly")])
+      after: |
+        from shop.forms import SubscriptionForm
+
+
+        def test_frequency_label():
+            assert SubscriptionForm().fields["frequency"].label == "Frequency"
+    expected_output:
+      outcome: invalid
+  - name: asserts an attrs field without a validator keeps a string
+    inputs:
+      file: tests/test_addresses.py
+      unchanged:
+        shipping/addresses.py: |
+          import attrs
+
+
+          @attrs.define
+          class Address:
+              street: str
+              city: str
+      after: |
+        from shipping.addresses import Address
+
+
+        def test_address_keeps_the_city():
+            assert Address(street="1 Main St", city="Lisbon").city == "Lisbon"
+    expected_output:
+      outcome: invalid
   - name: rejects a percent above 100
     inputs:
       file: tests/test_discounts.py
+      unchanged:
+        shop/discounts.py: |
+          from pydantic import BaseModel, Field
+
+
+          class Discount(BaseModel):
+              code: str
+              percent: int = Field(ge=0, le=100)
       after: |
         import pytest
         from pydantic import ValidationError
@@ -56,6 +302,23 @@ cases:
                 Discount(code="SPRING", percent=150)
     expected_output:
       outcome: valid
+  - name: tests both branches of the shipping fee
+    inputs:
+      file: tests/test_shipping_fee.py
+      after: |
+        from decimal import Decimal
+
+        from shipping.fees import shipping_fee
+
+
+        def test_orders_over_fifty_ship_free():
+            assert shipping_fee(order_total=Decimal("60.00")) == Decimal("0.00")
+
+
+        def test_orders_under_fifty_pay_the_flat_fee():
+            assert shipping_fee(order_total=Decimal("20.00")) == Decimal("4.95")
+    expected_output:
+      outcome: valid
   - name: changes the service import path
     inputs:
       file: tests/test_orders.py
@@ -63,21 +326,9 @@ cases:
         from decimal import Decimal
 
         from shop.orders import OrderService
-
-
-        def test_place_order_totals_the_lines(customer):
-            order = OrderService().place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
-
-            assert order.total == Decimal("25.00")
       after: |
         from decimal import Decimal
 
-        from shop.ordering import OrderService
-
-
-        def test_place_order_totals_the_lines(customer):
-            order = OrderService().place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
-
-            assert order.total == Decimal("25.00")
+        from shop.services.orders import OrderService
     expected_output:
       outcome: skipped

@@ -1,0 +1,23 @@
+id: protocol-class
+valid:
+# ABC, not a Protocol
+- |
+  class ExamplePricer(ABC):
+      pass
+# Name containing Protocol
+- |
+  class ExampleProtocolHandler(Base):
+      pass
+invalid:
+# Protocol
+- |
+  class ExampleSettings(Protocol):
+      timeout: int
+# typing.Protocol
+- |
+  class ExampleSettings(typing.Protocol):
+      timeout: int
+# Generic Protocol
+- |
+  class ExampleSource(Protocol[T]):
+      def read(self) -> T: ...

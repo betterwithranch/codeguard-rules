@@ -1,0 +1,3 @@
+skill: python/skills/no-acting-fixtures
+paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
+triggers: [fixture]

@@ -1,0 +1,469 @@
+cases:
+  - name: adds a JSON reader that interprets beside a CSV reader that parses
+    inputs:
+      file: orders/readers.py
+      before: |
+        import csv
+        import io
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Order:
+            number: str
+            total_cents: int
+
+
+        class CsvOrderReader:
+            def parse(self, text: str) -> list[Order]:
+                rows = csv.reader(io.StringIO(text))
+                return [Order(number=number, total_cents=int(total)) for number, total in rows]
+      after: |
+        import csv
+        import io
+        import json
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Order:
+            number: str
+            total_cents: int
+
+
+        class CsvOrderReader:
+            def parse(self, text: str) -> list[Order]:
+                rows = csv.reader(io.StringIO(text))
+                return [Order(number=number, total_cents=int(total)) for number, total in rows]
+
+
+        class JsonOrderReader:
+            def interpret(self, text: str) -> list[Order]:
+                return [
+                    Order(number=item["number"], total_cents=item["total_cents"])
+                    for item in json.loads(text)
+                ]
+    expected_output:
+      outcome: invalid
+  - name: adds a JSON reader that parses beside a CSV reader that parses
+    inputs:
+      file: orders/readers.py
+      before: |
+        import csv
+        import io
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Order:
+            number: str
+            total_cents: int
+
+
+        class CsvOrderReader:
+            def parse(self, text: str) -> list[Order]:
+                rows = csv.reader(io.StringIO(text))
+                return [Order(number=number, total_cents=int(total)) for number, total in rows]
+      after: |
+        import csv
+        import io
+        import json
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Order:
+            number: str
+            total_cents: int
+
+
+        class CsvOrderReader:
+            def parse(self, text: str) -> list[Order]:
+                rows = csv.reader(io.StringIO(text))
+                return [Order(number=number, total_cents=int(total)) for number, total in rows]
+
+
+        class JsonOrderReader:
+            def parse(self, text: str) -> list[Order]:
+                return [
+                    Order(number=item["number"], total_cents=item["total_cents"])
+                    for item in json.loads(text)
+                ]
+    expected_output:
+      outcome: valid
+  - name: assembles receipts next to an imported invoice builder
+    inputs:
+      file: documents/service.py
+      unchanged:
+        documents/invoices.py: |
+          from dataclasses import dataclass
+
+          from orders.models import Order
+
+
+          @dataclass(frozen=True)
+          class Invoice:
+              order_number: str
+              total_cents: int
+
+
+          class InvoiceBuilder:
+              def build(self, order: Order) -> Invoice:
+                  return Invoice(order_number=order.number, total_cents=order.total_cents)
+        orders/models.py: |
+          from dataclasses import dataclass
+
+
+          @dataclass(frozen=True)
+          class Order:
+              number: str
+              total_cents: int
+              paid: bool
+      after: |
+        from dataclasses import dataclass
+
+        from documents.invoices import Invoice, InvoiceBuilder
+        from orders.models import Order
+
+
+        @dataclass(frozen=True)
+        class Receipt:
+            order_number: str
+            paid_cents: int
+
+
+        class ReceiptComposer:
+            def assemble(self, order: Order) -> Receipt:
+                return Receipt(order_number=order.number, paid_cents=order.total_cents)
+
+
+        class OrderDocuments:
+            def __init__(self, invoices: InvoiceBuilder, receipts: ReceiptComposer) -> None:
+                self.invoices = invoices
+                self.receipts = receipts
+
+            def for_order(self, order: Order) -> tuple[Invoice, Receipt | None]:
+                receipt = self.receipts.assemble(order) if order.paid else None
+                return self.invoices.build(order), receipt
+    expected_output:
+      outcome: invalid
+  - name: builds receipts next to an imported invoice builder
+    inputs:
+      file: documents/service.py
+      unchanged:
+        documents/invoices.py: |
+          from dataclasses import dataclass
+
+          from orders.models import Order
+
+
+          @dataclass(frozen=True)
+          class Invoice:
+              order_number: str
+              total_cents: int
+
+
+          class InvoiceBuilder:
+              def build(self, order: Order) -> Invoice:
+                  return Invoice(order_number=order.number, total_cents=order.total_cents)
+        orders/models.py: |
+          from dataclasses import dataclass
+
+
+          @dataclass(frozen=True)
+          class Order:
+              number: str
+              total_cents: int
+              paid: bool
+      after: |
+        from dataclasses import dataclass
+
+        from documents.invoices import Invoice, InvoiceBuilder
+        from orders.models import Order
+
+
+        @dataclass(frozen=True)
+        class Receipt:
+            order_number: str
+            paid_cents: int
+
+
+        class ReceiptBuilder:
+            def build(self, order: Order) -> Receipt:
+                return Receipt(order_number=order.number, paid_cents=order.total_cents)
+
+
+        class OrderDocuments:
+            def __init__(self, invoices: InvoiceBuilder, receipts: ReceiptBuilder) -> None:
+                self.invoices = invoices
+                self.receipts = receipts
+
+            def for_order(self, order: Order) -> tuple[Invoice, Receipt | None]:
+                receipt = self.receipts.build(order) if order.paid else None
+                return self.invoices.build(order), receipt
+    expected_output:
+      outcome: valid
+  - name: adds a warehouse lookup named interpret beside a carrier lookup named resolve
+    inputs:
+      file: logistics/codes.py
+      before: |
+        from enum import StrEnum
+
+
+        class Carrier(StrEnum):
+            DHL = "dhl"
+            UPS = "ups"
+
+
+        CARRIERS_BY_CODE = {"D": Carrier.DHL, "U": Carrier.UPS}
+
+
+        def resolve_carrier(code: str) -> Carrier:
+            return CARRIERS_BY_CODE[code]
+      after: |
+        from enum import StrEnum
+
+
+        class Carrier(StrEnum):
+            DHL = "dhl"
+            UPS = "ups"
+
+
+        class Warehouse(StrEnum):
+            BERLIN = "berlin"
+            LYON = "lyon"
+
+
+        CARRIERS_BY_CODE = {"D": Carrier.DHL, "U": Carrier.UPS}
+        WAREHOUSES_BY_CODE = {"B": Warehouse.BERLIN, "L": Warehouse.LYON}
+
+
+        def resolve_carrier(code: str) -> Carrier:
+            return CARRIERS_BY_CODE[code]
+
+
+        def interpret_warehouse(code: str) -> Warehouse:
+            return WAREHOUSES_BY_CODE[code]
+    expected_output:
+      outcome: invalid
+  - name: adds a warehouse lookup named resolve beside a carrier lookup named resolve
+    inputs:
+      file: logistics/codes.py
+      before: |
+        from enum import StrEnum
+
+
+        class Carrier(StrEnum):
+            DHL = "dhl"
+            UPS = "ups"
+
+
+        CARRIERS_BY_CODE = {"D": Carrier.DHL, "U": Carrier.UPS}
+
+
+        def resolve_carrier(code: str) -> Carrier:
+            return CARRIERS_BY_CODE[code]
+      after: |
+        from enum import StrEnum
+
+
+        class Carrier(StrEnum):
+            DHL = "dhl"
+            UPS = "ups"
+
+
+        class Warehouse(StrEnum):
+            BERLIN = "berlin"
+            LYON = "lyon"
+
+
+        CARRIERS_BY_CODE = {"D": Carrier.DHL, "U": Carrier.UPS}
+        WAREHOUSES_BY_CODE = {"B": Warehouse.BERLIN, "L": Warehouse.LYON}
+
+
+        def resolve_carrier(code: str) -> Carrier:
+            return CARRIERS_BY_CODE[code]
+
+
+        def resolve_warehouse(code: str) -> Warehouse:
+            return WAREHOUSES_BY_CODE[code]
+    expected_output:
+      outcome: valid
+  - name: renames a DHL quote method to retrieve beside a UPS one that fetches
+    inputs:
+      file: rates/quotes.py
+      unchanged:
+        rates/ups.py: |
+          from typing import Protocol
+
+
+          class UpsClient(Protocol):
+              def rate(self, weight_grams: int) -> int: ...
+
+
+          class UpsRates:
+              def __init__(self, client: UpsClient) -> None:
+                  self.client = client
+
+              def fetch_quote(self, weight_grams: int) -> int:
+                  return self.client.rate(weight_grams)
+      before: |
+        from typing import Protocol
+
+        from rates.ups import UpsRates
+
+
+        class DhlClient(Protocol):
+            def price(self, weight_grams: int) -> int: ...
+
+
+        class DhlRates:
+            def __init__(self, client: DhlClient) -> None:
+                self.client = client
+
+            def fetch_quote(self, weight_grams: int) -> int:
+                return self.client.price(weight_grams)
+
+
+        def cheapest_quote(ups: UpsRates, dhl: DhlRates, weight_grams: int) -> int:
+            return min(ups.fetch_quote(weight_grams), dhl.fetch_quote(weight_grams))
+      after: |
+        from typing import Protocol
+
+        from rates.ups import UpsRates
+
+
+        class DhlClient(Protocol):
+            def price(self, weight_grams: int) -> int: ...
+
+
+        class DhlRates:
+            def __init__(self, client: DhlClient) -> None:
+                self.client = client
+
+            def retrieve_quote(self, weight_grams: int) -> int:
+                return self.client.price(weight_grams)
+
+
+        def cheapest_quote(ups: UpsRates, dhl: DhlRates, weight_grams: int) -> int:
+            return min(ups.fetch_quote(weight_grams), dhl.retrieve_quote(weight_grams))
+    expected_output:
+      outcome: invalid
+  - name: adds a renderer beside a parser
+    inputs:
+      file: orders/formats.py
+      before: |
+        import json
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Order:
+            number: str
+            total_cents: int
+
+
+        def parse_orders(text: str) -> list[Order]:
+            return [Order(number=item["number"], total_cents=item["total_cents"]) for item in json.loads(text)]
+      after: |
+        import json
+        from dataclasses import asdict, dataclass
+
+
+        @dataclass(frozen=True)
+        class Order:
+            number: str
+            total_cents: int
+
+
+        def parse_orders(text: str) -> list[Order]:
+            return [Order(number=item["number"], total_cents=item["total_cents"]) for item in json.loads(text)]
+
+
+        def render_orders(orders: list[Order]) -> str:
+            return json.dumps([asdict(order) for order in orders])
+    expected_output:
+      outcome: valid
+  - name: implements an imported notifier protocol under its declared name
+    inputs:
+      file: notifications/sms.py
+      unchanged:
+        notifications/ports.py: |
+          from typing import Protocol
+
+
+          class Notifier(Protocol):
+              def notify(self, customer_id: str, text: str) -> None: ...
+      after: |
+        from typing import Protocol
+
+        from notifications.ports import Notifier
+
+
+        class SmsGateway(Protocol):
+            def send_sms(self, phone_number: str, text: str) -> None: ...
+
+
+        class SmsNotifier(Notifier):
+            def __init__(self, gateway: SmsGateway, phone_numbers: dict[str, str]) -> None:
+                self.gateway = gateway
+                self.phone_numbers = phone_numbers
+
+            def notify(self, customer_id: str, text: str) -> None:
+                self.gateway.send_sms(self.phone_numbers[customer_id], text)
+    expected_output:
+      outcome: valid
+  - name: changes how the CSV reader converts totals
+    inputs:
+      file: orders/readers.py
+      before: |
+        import csv
+        import io
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Order:
+            number: str
+            total_cents: int
+
+
+        class CsvOrderReader:
+            def parse(self, text: str) -> list[Order]:
+                rows = csv.reader(io.StringIO(text))
+                return [Order(number=number, total_cents=int(total)) for number, total in rows]
+      after: |
+        import csv
+        import io
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Order:
+            number: str
+            total_cents: int
+
+
+        class CsvOrderReader:
+            def parse(self, text: str) -> list[Order]:
+                rows = csv.reader(io.StringIO(text))
+                return [Order(number=number, total_cents=round(float(total) * 100)) for number, total in rows]
+    expected_output:
+      outcome: skipped
+  - name: adds a warehouse to the code table
+    inputs:
+      file: logistics/codes.py
+      before: |
+        WAREHOUSES_BY_CODE = {"B": "berlin"}
+
+
+        def resolve_warehouse(code: str) -> str:
+            return WAREHOUSES_BY_CODE[code]
+      after: |
+        WAREHOUSES_BY_CODE = {"B": "berlin", "L": "lyon"}
+
+
+        def resolve_warehouse(code: str) -> str:
+            return WAREHOUSES_BY_CODE[code]
+    expected_output:
+      outcome: skipped

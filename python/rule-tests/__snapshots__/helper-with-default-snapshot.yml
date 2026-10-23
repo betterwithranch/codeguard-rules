@@ -1,0 +1,57 @@
+id: helper-with-default
+snapshots:
+  ? |
+    class ExampleFactory:
+        def build(self, name: str = "a"):
+            return ExampleModel(name=name)
+  : labels:
+    - source: |-
+        def build(self, name: str = "a"):
+                return ExampleModel(name=name)
+      style: primary
+      start: 26
+      end: 98
+    - source: 'name: str = "a"'
+      style: secondary
+      start: 42
+      end: 57
+    - source: 'name: str = "a"'
+      style: secondary
+      start: 42
+      end: 57
+  ? |
+    def make_example_model(session, example: Example | None = None):
+        return ExampleModel(example=example)
+  : labels:
+    - source: |-
+        def make_example_model(session, example: Example | None = None):
+            return ExampleModel(example=example)
+      style: primary
+      start: 0
+      end: 105
+    - source: 'example: Example | None = None'
+      style: secondary
+      start: 32
+      end: 62
+    - source: 'example: Example | None = None'
+      style: secondary
+      start: 32
+      end: 62
+  ? |
+    def make_example_model(session, example_id=None):
+        return ExampleModel(id=example_id)
+  : labels:
+    - source: |-
+        def make_example_model(session, example_id=None):
+            return ExampleModel(id=example_id)
+      style: primary
+      start: 0
+      end: 88
+    - source: example_id=None
+      style: secondary
+      start: 32
+      end: 47
+    - source: example_id=None
+      style: secondary
+      start: 32
+      end: 47

@@ -1,0 +1,89 @@
+id: class-module-import
+snapshots:
+  ? |
+    from billing.totals import total
+
+
+    class Invoice:
+        pass
+  : labels:
+    - source: from billing.totals import total
+      style: primary
+      start: 0
+      end: 32
+    - source: |-
+        class Invoice:
+            pass
+      style: secondary
+      start: 35
+      end: 58
+    - source: |
+        from billing.totals import total
+
+
+        class Invoice:
+            pass
+      style: secondary
+      start: 0
+      end: 59
+  ? |
+    from dataclasses import dataclass
+
+
+    @dataclass
+    class Invoice:
+        number: str
+  : labels:
+    - source: from dataclasses import dataclass
+      style: primary
+      start: 0
+      end: 33
+    - source: |-
+        class Invoice:
+            number: str
+      style: secondary
+      start: 47
+      end: 77
+    - source: |-
+        @dataclass
+        class Invoice:
+            number: str
+      style: secondary
+      start: 36
+      end: 77
+    - source: |
+        from dataclasses import dataclass
+
+
+        @dataclass
+        class Invoice:
+            number: str
+      style: secondary
+      start: 0
+      end: 78
+  ? |
+    import shipping.carriers
+
+
+    class Invoice:
+        pass
+  : labels:
+    - source: import shipping.carriers
+      style: primary
+      start: 0
+      end: 24
+    - source: |-
+        class Invoice:
+            pass
+      style: secondary
+      start: 27
+      end: 50
+    - source: |
+        import shipping.carriers
+
+
+        class Invoice:
+            pass
+      style: secondary
+      start: 0
+      end: 51

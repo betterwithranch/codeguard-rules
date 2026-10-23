@@ -1,0 +1,26 @@
+id: test-using-self-state
+valid:
+  # Test method that calls a method on a local
+  - |
+    class TestExample:
+        def test_total(self):
+            example_service = ExampleService()
+            assert example_service.total() == 1
+
+  # Helper method that calls a method on an attribute of self
+  - |
+    class ExampleDriver:
+        def run(self):
+            return self.example_service.run()
+invalid:
+  # Test method that calls a method on an attribute of self
+  - |
+    class TestExample(unittest.TestCase):
+        def test_total(self):
+            self.assertEqual(self.example_service.total(), 1)
+
+  # Async test method that awaits a method on an attribute of self
+  - |
+    class TestExample:
+        async def test_total(self):
+            assert await self.example_service.total() == 1

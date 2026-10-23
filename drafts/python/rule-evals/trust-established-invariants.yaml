@@ -25,6 +25,57 @@ cases:
             return shipment.carrier.next_pickup_window()
     expected_output:
       outcome: invalid
+  - name: falls back to a placeholder for a carrier already checked for None
+    inputs:
+      file: shipping/pickup.py
+      after: |
+        from dataclasses import dataclass
+
+        from .carrier import Carrier
+
+
+        class MissingCarrierError(Exception):
+            pass
+
+
+        @dataclass(frozen=True)
+        class Shipment:
+            id: str
+            carrier: Carrier | None
+
+
+        def pickup_note(shipment: Shipment) -> str:
+            if shipment.carrier is None:
+                raise MissingCarrierError(shipment.id)
+            name = shipment.carrier.name if shipment.carrier is not None else "unknown"
+            return f"Pickup for {shipment.id} by {name}"
+    expected_output:
+      outcome: invalid
+  - name: raises when a shipment has no carrier
+    inputs:
+      file: shipping/pickup.py
+      after: |
+        from dataclasses import dataclass
+
+        from .carrier import Carrier, PickupWindow
+
+
+        class MissingCarrierError(Exception):
+            pass
+
+
+        @dataclass(frozen=True)
+        class Shipment:
+            id: str
+            carrier: Carrier | None
+
+
+        def schedule_pickup(shipment: Shipment) -> PickupWindow:
+            if shipment.carrier is None:
+                raise MissingCarrierError(shipment.id)
+            return shipment.carrier.next_pickup_window()
+    expected_output:
+      outcome: valid
   - name: rechecks the payload type after dispatch
     inputs:
       file: payments/refunds.py
@@ -33,7 +84,7 @@ cases:
 
 
         class RefundHandler:
-            def handle(self, request: PaymentRequest[RefundPayload]) -> PaymentResult:
+            def handle(self, request: PaymentRequest) -> PaymentResult:
                 return PaymentResult(refunded_cents=request.payload.amount_cents)
 
 
@@ -41,13 +92,15 @@ cases:
 
 
         def dispatch(request: PaymentRequest) -> PaymentResult:
+            if request.kind is PaymentKind.REFUND and not isinstance(request.payload, RefundPayload):
+                raise TypeError("a refund request must carry a refund payload")
             return HANDLERS[request.kind].handle(request)
       after: |
         from .payment import PaymentKind, PaymentRequest, PaymentResult, RefundPayload
 
 
         class RefundHandler:
-            def handle(self, request: PaymentRequest[RefundPayload]) -> PaymentResult:
+            def handle(self, request: PaymentRequest) -> PaymentResult:
                 if not isinstance(request.payload, RefundPayload):
                     raise TypeError("RefundHandler requires a refund payload")
                 return PaymentResult(refunded_cents=request.payload.amount_cents)
@@ -57,9 +110,25 @@ cases:
 
 
         def dispatch(request: PaymentRequest) -> PaymentResult:
+            if request.kind is PaymentKind.REFUND and not isinstance(request.payload, RefundPayload):
+                raise TypeError("a refund request must carry a refund payload")
             return HANDLERS[request.kind].handle(request)
     expected_output:
       outcome: invalid
+  - name: checks the payload type in a handler with no visible dispatch
+    inputs:
+      file: payments/refunds.py
+      after: |
+        from .payment import PaymentRequest, PaymentResult, RefundPayload
+
+
+        class RefundHandler:
+            def handle(self, request: PaymentRequest) -> PaymentResult:
+                if not isinstance(request.payload, RefundPayload):
+                    raise TypeError("RefundHandler requires a refund payload")
+                return PaymentResult(refunded_cents=request.payload.amount_cents)
+    expected_output:
+      outcome: valid
   - name: rejects an unknown payment kind
     inputs:
       file: payments/refunds.py
@@ -84,6 +153,227 @@ cases:
             if handler is None:
                 raise UnknownPaymentKindError(request.kind)
             return handler.handle(request)
+    expected_output:
+      outcome: valid
+  - name: rechecks an amount its pydantic field already constrains
+    inputs:
+      file: payments/refund_service.py
+      after: |
+        from pydantic import BaseModel, Field
+
+
+        class RefundRequest(BaseModel):
+            order_number: str
+            amount_cents: int = Field(gt=0)
+
+
+        class InvalidRefundError(Exception):
+            pass
+
+
+        def refund_line(request: RefundRequest) -> str:
+            if request.amount_cents <= 0:
+                raise InvalidRefundError(request.order_number)
+            return f"refund {request.amount_cents} on {request.order_number}"
+    expected_output:
+      outcome: invalid
+  - name: checks an amount its pydantic field leaves open
+    inputs:
+      file: payments/refund_service.py
+      after: |
+        from pydantic import BaseModel
+
+
+        class RefundRequest(BaseModel):
+            order_number: str
+            amount_cents: int
+
+
+        class InvalidRefundError(Exception):
+            pass
+
+
+        def refund_line(request: RefundRequest) -> str:
+            if request.amount_cents <= 0:
+                raise InvalidRefundError(request.order_number)
+            return f"refund {request.amount_cents} on {request.order_number}"
+    expected_output:
+      outcome: valid
+  - name: returns early for empty lines an imported order never has
+    inputs:
+      file: orders/totals.py
+      unchanged:
+        orders/model.py: |
+          from dataclasses import dataclass
+
+
+          class EmptyOrderError(Exception):
+              pass
+
+
+          @dataclass(frozen=True)
+          class OrderLine:
+              sku: str
+              amount_cents: int
+
+
+          @dataclass(frozen=True)
+          class Order:
+              number: str
+              lines: tuple[OrderLine, ...]
+
+              def __post_init__(self) -> None:
+                  if not self.lines:
+                      raise EmptyOrderError(self.number)
+      after: |
+        from orders.model import Order
+
+
+        def largest_line_cents(order: Order) -> int:
+            if not order.lines:
+                return 0
+            return max(line.amount_cents for line in order.lines)
+    expected_output:
+      outcome: invalid
+  - name: returns early for empty lines an imported order allows
+    inputs:
+      file: orders/totals.py
+      unchanged:
+        orders/model.py: |
+          from dataclasses import dataclass
+
+
+          @dataclass(frozen=True)
+          class OrderLine:
+              sku: str
+              amount_cents: int
+
+
+          @dataclass(frozen=True)
+          class Order:
+              number: str
+              lines: tuple[OrderLine, ...]
+      after: |
+        from orders.model import Order
+
+
+        def largest_line_cents(order: Order) -> int:
+            if not order.lines:
+                return 0
+            return max(line.amount_cents for line in order.lines)
+    expected_output:
+      outcome: valid
+  - name: checks the item type in a helper only the parcel branch calls
+    inputs:
+      file: warehouse/loading.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Parcel:
+            weight_kg: float
+
+
+        @dataclass(frozen=True)
+        class Pallet:
+            parcels: tuple[Parcel, ...]
+
+
+        def load_weight_kg(items: list[Parcel | Pallet]) -> float:
+            total = 0.0
+            for item in items:
+                match item:
+                    case Parcel():
+                        total += _parcel_weight_kg(item)
+                    case Pallet():
+                        total += sum(parcel.weight_kg for parcel in item.parcels) + 25
+            return total
+
+
+        def _parcel_weight_kg(item: Parcel | Pallet) -> float:
+            if not isinstance(item, Parcel):
+                raise TypeError("expected a parcel")
+            return item.weight_kg
+    expected_output:
+      outcome: invalid
+  - name: branches on the item type in a helper both branches call
+    inputs:
+      file: warehouse/loading.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Parcel:
+            weight_kg: float
+
+
+        @dataclass(frozen=True)
+        class Pallet:
+            parcels: tuple[Parcel, ...]
+
+
+        def load_weight_kg(items: list[Parcel | Pallet]) -> float:
+            return sum(_weight_kg(item) for item in items)
+
+
+        def _weight_kg(item: Parcel | Pallet) -> float:
+            if isinstance(item, Parcel):
+                return item.weight_kg
+            return sum(parcel.weight_kg for parcel in item.parcels) + 25
+    expected_output:
+      outcome: valid
+  - name: rechecks for empty lines after rejecting empty lines
+    inputs:
+      file: invoices/issue.py
+      after: |
+        class EmptyInvoiceError(Exception):
+            pass
+
+
+        def invoice_total_cents(line_cents: list[int]) -> int:
+            if len(line_cents) == 0:
+                raise EmptyInvoiceError()
+            subtotal = sum(line_cents)
+            if not line_cents:
+                return 0
+            return subtotal + round(subtotal * 0.2)
+    expected_output:
+      outcome: invalid
+  - name: checks for empty lines after rejecting a missing list
+    inputs:
+      file: invoices/issue.py
+      after: |
+        class MissingLinesError(Exception):
+            pass
+
+
+        def invoice_total_cents(line_cents: list[int] | None) -> int:
+            if line_cents is None:
+                raise MissingLinesError()
+            if not line_cents:
+                return 0
+            subtotal = sum(line_cents)
+            return subtotal + round(subtotal * 0.2)
+    expected_output:
+      outcome: valid
+  - name: checks the shape of a parsed JSON body
+    inputs:
+      file: webhooks/carrier.py
+      after: |
+        import json
+
+
+        class MalformedWebhookError(Exception):
+            pass
+
+
+        def tracking_numbers(body: str) -> list[str]:
+            payload = json.loads(body)
+            if not isinstance(payload, list):
+                raise MalformedWebhookError("expected a list of tracking numbers")
+            return [str(number) for number in payload]
     expected_output:
       outcome: valid
   - name: extracts the payload into a local

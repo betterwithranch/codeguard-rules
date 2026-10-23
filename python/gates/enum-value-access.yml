@@ -1,7 +1,18 @@
 id: enum-value-access
 language: python
 rule:
-  kind: attribute
-  has:
-    field: attribute
-    regex: ^value$
+  any:
+  - kind: attribute
+    has:
+      field: attribute
+      regex: ^value$
+  - kind: call
+    all:
+    - has:
+        field: function
+        regex: (^|\.)attrgetter$
+    - has:
+        field: arguments
+        has:
+          kind: string
+          regex: ^["']value["']$

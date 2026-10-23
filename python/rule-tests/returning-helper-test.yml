@@ -1,0 +1,54 @@
+id: returning-helper
+valid:
+  # Helper that returns nothing
+  - |
+    def seed_example_models(session):
+        session.add(ExampleModel())
+
+  # Helper with a bare return
+  - |
+    def seed_example_models(session):
+        if not session:
+            return
+        session.add(ExampleModel())
+
+  # Test function that returns a call
+  - |
+    def test_example():
+        return run()
+invalid:
+  # Helper that returns a call
+  - |
+    def make_example_service():
+        return ExampleService(ExampleRules())
+
+  # Helper that returns a local
+  - |
+    def make_example_key(example_model):
+        key = example_key(example_model)
+        return key
+
+  # Fixture that returns a method result
+  - |
+    @pytest.fixture
+    def example_result(example_service):
+        return example_service.run()
+
+  # Fixture that yields
+  - |
+    @pytest.fixture
+    def example_service():
+        service = ExampleService()
+        yield service
+        service.close()
+
+  # Method of a test support class that returns an attribute
+  - |
+    class ExampleDriver:
+        def context(self):
+            return self.runtime.context
+
+  # Helper that returns a comprehension
+  - |
+    def overdue_example_models(ledger):
+        return [model for model in ledger.models if model.overdue]

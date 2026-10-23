@@ -1,27 +1,52 @@
 ---
 name: no-anonymous-tuples
-description: No anonymous tuples or dicts for concepts
+description: A function does not return a tuple or a fixed-key dict whose elements answer different questions
 ---
 
-# No anonymous tuples or dicts for concepts
+# No anonymous tuples for separate answers
 
-- A method returning a `tuple` of answers to different questions does too much. Return a named type, or return the fetched data and let callers ask each question separately.
-- A helper whose whole body is `return {...}` or `return (...)` packing its own arguments under the same names is not an abstraction. Inline the literal, or define a named type if the shape recurs and means something.
-- A single-call-site function whose whole body is `[f(x) for x in xs]` over an already-named `f` should be inlined. Keep it if it filters, sorts, deduplicates, handles errors, or is used at many sites.
+A function that returns several answers about its input returns them under names, not
+by position or by string key.
 
-Bad:
+## Definitions
 
-```python
-def _evaluate_order(self, order_id: str) -> tuple[str | None, bool]:
-    order = self._fetch(order_id)
-    return self._rejection_reason(order), bool(order.holds)
-```
+- An **answer** is one fact the function works out: a rejection reason, whether the
+  order is on hold, a shipping fee, the next run time.
+- An **anonymous result** is a tuple (`return reason, held`, `-> tuple[str | None,
+  bool]`) or a dict with a fixed set of string keys written in the function
+  (`return {"reason": reason, "held": held}`, `-> dict[str, object]`), read by callers by
+  position or by key.
+- A **named result** is a class whose fields name the parts: a dataclass, `NamedTuple`,
+  `TypedDict`, attrs class, pydantic model or enum.
 
-Good:
+## The test
 
-```python
-@dataclass(frozen=True)
-class OrderReview:
-    rejection_reason: str | None
-    is_on_hold: bool
-```
+For each return of an anonymous result in the file under review, ask: do its elements
+answer different questions about the input, so each needs its own name to be read?
+
+Yes: violation. No: not a violation.
+
+The test reads these forms the same way:
+
+- elements that answer different questions: a reason and a flag, a fee and a delivery
+  date, a parsed value and a list of warnings, a record and whether it was created
+  (`return user, created`). Violation.
+- elements that are one kind of thing in a collection: `tuple[Order, ...]`, a dict keyed
+  by data (`{order.id: order for ...}`, `dict[str, Carrier]`). Not a violation: they
+  answer one question each, the same one.
+- a pair whose positions are fixed by the language or a library protocol it implements:
+  `divmod`-style `(quotient, remainder)` from `__divmod__`, `(key, value)` items yielded
+  for `dict(...)`, a `__reduce__` tuple, `(status, headers, body)` for a WSGI or ASGI
+  callable. Not a violation.
+- a dict built as data for something outside the program, in the shape that thing
+  defines: an HTTP request body or headers, a JSON payload a third-party API documents,
+  a Django template context, `**kwargs` for a library call. Not a violation.
+- a `NamedTuple`, `TypedDict`, dataclass or model returned instead: named. Not a
+  violation.
+
+## Violation
+
+A function in the file under review that returns a tuple or fixed-key dict whose
+elements answer different questions: `evaluate_order` returning
+`(rejection_reason, is_on_hold)`; `quote` returning `{"fee_cents": fee,
+"delivers_on": date}`.

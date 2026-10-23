@@ -1,0 +1,4 @@
+skill: python/skills/no-single-use-map-wrappers
+paths: ["**/*.py"]
+exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
+triggers: [comprehension-wrapper]

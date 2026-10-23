@@ -1,0 +1,24 @@
+id: self-free-construction
+language: python
+rule:
+  kind: function_definition
+  has:
+    field: body
+    stopBy: end
+    kind: call
+    has:
+      field: function
+      any:
+      - kind: identifier
+        regex: ^_?[A-Z]
+      - kind: attribute
+        has:
+          field: object
+          kind: identifier
+          regex: ^_?[A-Z]
+  not:
+    has:
+      field: body
+      stopBy: end
+      kind: identifier
+      regex: ^self$

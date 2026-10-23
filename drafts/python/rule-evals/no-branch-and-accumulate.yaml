@@ -1,31 +1,5 @@
 cases:
-  - name: branches and appends labels in a loop
-    inputs:
-      file: shipments/labels.py
-      after: |
-        from dataclasses import dataclass
-
-
-        @dataclass(frozen=True)
-        class Shipment:
-            tracking_number: str
-            is_international: bool
-            is_express: bool
-
-
-        def shipping_labels(shipments: list[Shipment]) -> list[str]:
-            labels = []
-            for shipment in shipments:
-                if shipment.is_international:
-                    labels.append(f"INTL {shipment.tracking_number}")
-                elif shipment.is_express:
-                    labels.append(f"EXPRESS {shipment.tracking_number}")
-                else:
-                    labels.append(shipment.tracking_number)
-            return labels
-    expected_output:
-      outcome: invalid
-  - name: replaces a comprehension with a branching loop
+  - name: skips voided lines and branches on refunds before appending
     inputs:
       file: invoices/lines.py
       before: |
@@ -64,7 +38,7 @@ cases:
             return amounts
     expected_output:
       outcome: invalid
-  - name: maps lines through a helper function
+  - name: skips voided lines before appending each amount
     inputs:
       file: invoices/lines.py
       after: |
@@ -74,20 +48,46 @@ cases:
         @dataclass(frozen=True)
         class InvoiceLine:
             amount: int
-            is_refund: bool
-
-
-        def signed_amount(line: InvoiceLine) -> int:
-            if line.is_refund:
-                return -line.amount
-            return line.amount
+            is_voided: bool
 
 
         def line_amounts(lines: list[InvoiceLine]) -> list[int]:
-            return [signed_amount(line) for line in lines]
+            amounts = []
+            for line in lines:
+                if line.is_voided:
+                    continue
+                amounts.append(line.amount)
+            return amounts
     expected_output:
       outcome: valid
-  - name: accumulates a running balance
+  - name: picks a label in branches and appends it after the if
+    inputs:
+      file: shipments/labels.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Shipment:
+            tracking_number: str
+            is_international: bool
+            is_express: bool
+
+
+        def shipping_labels(shipments: list[Shipment]) -> list[str]:
+            labels = []
+            for shipment in shipments:
+                if shipment.is_international:
+                    prefix = "INTL"
+                elif shipment.is_express:
+                    prefix = "EXPRESS"
+                else:
+                    prefix = "STANDARD"
+                labels.append(f"{prefix} {shipment.tracking_number}")
+            return labels
+    expected_output:
+      outcome: invalid
+  - name: appends a running balance after each payment
     inputs:
       file: invoices/balance.py
       after: |
@@ -112,6 +112,228 @@ cases:
             return balances
     expected_output:
       outcome: valid
+  - name: appends a signed amount chosen by a conditional expression
+    inputs:
+      file: invoices/lines.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class InvoiceLine:
+            amount: int
+            is_refund: bool
+
+
+        def signed_amounts(lines: list[InvoiceLine]) -> list[int]:
+            amounts = []
+            for line in lines:
+                amounts.append(-line.amount if line.is_refund else line.amount)
+            return amounts
+    expected_output:
+      outcome: invalid
+  - name: keeps the first order per customer with a seen set
+    inputs:
+      file: orders/firsts.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Order:
+            number: str
+            customer_id: str
+            is_test: bool
+
+
+        def first_orders(orders: list[Order]) -> list[Order]:
+            seen: set[str] = set()
+            firsts = []
+            for order in orders:
+                if order.is_test or order.customer_id in seen:
+                    continue
+                seen.add(order.customer_id)
+                firsts.append(order)
+            return firsts
+    expected_output:
+      outcome: valid
+  - name: matches each event kind to a code and appends it
+    inputs:
+      file: tracking/codes.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class TrackingEvent:
+            kind: str
+            location: str
+
+
+        def event_codes(events: list[TrackingEvent]) -> list[str]:
+            codes = []
+            for event in events:
+                match event.kind:
+                    case "picked_up":
+                        code = f"PU-{event.location}"
+                    case "delivered":
+                        code = f"DL-{event.location}"
+                    case _:
+                        code = f"EV-{event.location}"
+                codes.append(code)
+            return codes
+    expected_output:
+      outcome: invalid
+  - name: splits orders into paid and unpaid lists
+    inputs:
+      file: orders/partition.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Order:
+            number: str
+            paid: bool
+
+
+        def split_by_payment(orders: list[Order]) -> tuple[list[Order], list[Order]]:
+            paid = []
+            unpaid = []
+            for order in orders:
+                if order.paid:
+                    paid.append(order)
+                else:
+                    unpaid.append(order)
+            return paid, unpaid
+    expected_output:
+      outcome: valid
+  - name: chooses a priority per message in an async loop
+    inputs:
+      file: inbox/priorities.py
+      after: |
+        from collections.abc import AsyncIterator
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Message:
+            sender: str
+            subject: str
+
+
+        async def priorities(messages: AsyncIterator[Message], vip_senders: frozenset[str]) -> list[int]:
+            result = []
+            async for message in messages:
+                if message.sender in vip_senders:
+                    priority = 1
+                elif "urgent" in message.subject.lower():
+                    priority = 2
+                else:
+                    priority = 3
+                result.append(priority)
+            return result
+    expected_output:
+      outcome: invalid
+  - name: emails overdue invoices and records which were reminded
+    inputs:
+      file: billing/reminders.py
+      after: |
+        from dataclasses import dataclass
+        from typing import Protocol
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            number: str
+            customer_email: str
+            overdue: bool
+
+
+        class Mailer(Protocol):
+            def send(self, to: str, text: str) -> None: ...
+
+
+        def send_reminders(mailer: Mailer, invoices: list[Invoice]) -> list[str]:
+            reminded = []
+            for invoice in invoices:
+                if invoice.overdue:
+                    mailer.send(invoice.customer_email, f"Invoice {invoice.number} is overdue.")
+                    reminded.append(invoice.number)
+            return reminded
+    expected_output:
+      outcome: valid
+  - name: takes orders until the weight limit is reached
+    inputs:
+      file: shipments/loading.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Parcel:
+            number: str
+            weight_grams: int
+
+
+        def load_truck(parcels: list[Parcel], limit_grams: int) -> list[Parcel]:
+            loaded = []
+            weight = 0
+            for parcel in parcels:
+                if weight + parcel.weight_grams > limit_grams:
+                    break
+                weight += parcel.weight_grams
+                loaded.append(parcel)
+            return loaded
+    expected_output:
+      outcome: valid
+  - name: adds a list per branch with augmented assignment
+    inputs:
+      file: catalog/tags.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Product:
+            sku: str
+            price_cents: int
+
+
+        def price_tags(products: list[Product]) -> list[str]:
+            tags: list[str] = []
+            for product in products:
+                if product.price_cents >= 10000:
+                    tag = "premium"
+                else:
+                    tag = "standard"
+                tags += [f"{product.sku}:{tag}"]
+            return tags
+    expected_output:
+      outcome: invalid
+  - name: appends to the same list in every branch
+    inputs:
+      file: shipments/labels.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Shipment:
+            tracking_number: str
+            is_international: bool
+
+
+        def shipping_labels(shipments: list[Shipment]) -> list[str]:
+            labels = []
+            for shipment in shipments:
+                if shipment.is_international:
+                    labels.append(f"INTL {shipment.tracking_number}")
+                else:
+                    labels.append(shipment.tracking_number)
+            return labels
+    expected_output:
+      outcome: skipped
   - name: rewords the tracking label
     inputs:
       file: shipments/labels.py

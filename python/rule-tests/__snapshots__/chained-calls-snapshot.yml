@@ -1,22 +1,150 @@
 id: chained-calls
 snapshots:
   ? |
-    def run(self):
-        plan = self.planner.plan()
-        return self.applier.apply(plan)
+    async def example_flow(example_id):
+        plan = await example_planner.plan(example_id)
+        return plan
   : labels:
-    - source: plan = self.planner.plan()
-      style: primary
-      start: 19
-      end: 45
     - source: |-
-        def run(self):
-            plan = self.planner.plan()
-            return self.applier.apply(plan)
-      style: secondary
+        async def example_flow(example_id):
+            plan = await example_planner.plan(example_id)
+            return plan
+      style: primary
       start: 0
-      end: 81
-    - source: self.planner.plan()
+      end: 101
+    - source: example_planner.plan(example_id)
       style: secondary
-      start: 26
-      end: 45
+      start: 53
+      end: 85
+    - source: await example_planner.plan(example_id)
+      style: secondary
+      start: 47
+      end: 85
+    - source: plan = await example_planner.plan(example_id)
+      style: secondary
+      start: 40
+      end: 85
+  ? |
+    async def example_flow(example_id):
+        return await example_packer.pack(await example_planner.plan(example_id))
+  : labels:
+    - source: |-
+        async def example_flow(example_id):
+            return await example_packer.pack(await example_planner.plan(example_id))
+      style: primary
+      start: 0
+      end: 112
+    - source: example_planner.plan(example_id)
+      style: secondary
+      start: 79
+      end: 111
+    - source: await example_planner.plan(example_id)
+      style: secondary
+      start: 73
+      end: 111
+    - source: await example_planner.plan(example_id)
+      style: secondary
+      start: 73
+      end: 111
+    - source: example_packer.pack(await example_planner.plan(example_id))
+      style: secondary
+      start: 53
+      end: 112
+  ? |
+    def example_flow(example_id):
+        for plan in example_planner.plans(example_id):
+            example_packer.pack(plan)
+  : labels:
+    - source: |-
+        def example_flow(example_id):
+            for plan in example_planner.plans(example_id):
+                example_packer.pack(plan)
+      style: primary
+      start: 0
+      end: 114
+    - source: example_planner.plans(example_id)
+      style: secondary
+      start: 46
+      end: 79
+    - source: |-
+        for plan in example_planner.plans(example_id):
+                example_packer.pack(plan)
+      style: secondary
+      start: 34
+      end: 114
+  ? |
+    def example_flow(example_id):
+        plan = example_planner.plan(example_id)
+        return example_packer.pack(plan)
+  : labels:
+    - source: |-
+        def example_flow(example_id):
+            plan = example_planner.plan(example_id)
+            return example_packer.pack(plan)
+      style: primary
+      start: 0
+      end: 110
+    - source: example_planner.plan(example_id)
+      style: secondary
+      start: 41
+      end: 73
+    - source: plan = example_planner.plan(example_id)
+      style: secondary
+      start: 34
+      end: 73
+  ? |
+    def example_flow(example_id):
+        return example_packer.pack(example_planner.plan(example_id))
+  : labels:
+    - source: |-
+        def example_flow(example_id):
+            return example_packer.pack(example_planner.plan(example_id))
+      style: primary
+      start: 0
+      end: 94
+    - source: example_planner.plan(example_id)
+      style: secondary
+      start: 61
+      end: 93
+    - source: example_planner.plan(example_id)
+      style: secondary
+      start: 61
+      end: 93
+    - source: example_packer.pack(example_planner.plan(example_id))
+      style: secondary
+      start: 41
+      end: 94
+  ? |
+    example_packer.pack(example_planner.plan(example_id))
+  : labels:
+    - source: example_packer.pack(example_planner.plan(example_id))
+      style: primary
+      start: 0
+      end: 53
+    - source: example_planner.plan(example_id)
+      style: secondary
+      start: 20
+      end: 52
+    - source: example_planner.plan(example_id)
+      style: secondary
+      start: 20
+      end: 52
+  ? |
+    example_packer.pack(plan=example_planner.plan(example_id))
+  : labels:
+    - source: example_packer.pack(plan=example_planner.plan(example_id))
+      style: primary
+      start: 0
+      end: 58
+    - source: example_planner.plan(example_id)
+      style: secondary
+      start: 25
+      end: 57
+    - source: plan=example_planner.plan(example_id)
+      style: secondary
+      start: 20
+      end: 57
+    - source: plan=example_planner.plan(example_id)
+      style: secondary
+      start: 20
+      end: 57

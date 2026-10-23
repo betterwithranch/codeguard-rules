@@ -1,7 +1,20 @@
 id: validator
 language: python
 rule:
-  kind: decorated_definition
-  has:
-    kind: decorator
-    regex: (field_|model_)?validator\b
+  any:
+  - kind: decorated_definition
+    has:
+      kind: decorator
+      regex: (field_|model_|root_)?validator\b
+  - kind: function_definition
+    inside:
+      kind: block
+      inside:
+        kind: class_definition
+    has:
+      field: name
+      regex: ^(__post_init__|__attrs_post_init__|model_post_init|clean|clean_\w+)$
+  - kind: keyword_argument
+    has:
+      field: name
+      regex: ^validators?$

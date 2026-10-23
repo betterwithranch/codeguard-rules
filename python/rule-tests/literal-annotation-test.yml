@@ -1,7 +1,30 @@
 id: literal-annotation
 valid:
+# Module-level str constant
 - |
   kind: str = 'card'
-invalid:
+# Class field with an int default
 - |
-  kind: Literal['card'] = 'card'
+  class Card(BaseModel):
+      retries: int = 3
+# Class field with no default
+- |
+  class Card(BaseModel):
+      token: str
+invalid:
+# Literal tag field with a default
+- |
+  class Card(BaseModel):
+      kind: Literal['card'] = 'card'
+# Literal tag field without a default
+- |
+  class Card(TypedDict):
+      kind: Literal['card']
+# typing.Literal tag field
+- |
+  class Card(BaseModel):
+      kind: typing.Literal['card'] = 'card'
+# Tag declared as a str field with a string default
+- |
+  class Card(BaseModel):
+      kind: str = 'card'

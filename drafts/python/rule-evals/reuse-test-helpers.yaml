@@ -1,24 +1,18 @@
 cases:
-  - name: imports a type from conftest
-    inputs:
-      file: tests/test_invoice_reminders.py
-      after: |
-        from billing.reminders import ReminderScheduler
-        from tests.conftest import Invoice
-        from tests.fakes import FakeMailer
-
-
-        def test_schedule_mails_overdue_invoice():
-            mailer = FakeMailer()
-
-            ReminderScheduler(mailer).run([Invoice(number="42", overdue=True)])
-
-            assert mailer.outbox == [("42", "Payment reminder")]
-    expected_output:
-      outcome: invalid
-  - name: adds an inline stub duplicating a fake
+  - name: adds an inline stub clock duplicating the shared fake
     inputs:
       file: tests/test_shipment_dispatch.py
+      unchanged:
+        tests/fakes.py: |
+          from datetime import datetime
+
+
+          class FakeClock:
+              def __init__(self, current: datetime) -> None:
+                  self.current = current
+
+              def now(self) -> datetime:
+                  return self.current
       before: |
         from datetime import date, datetime
 
@@ -63,9 +57,329 @@ cases:
             assert shipment == Shipment(id="shp-2", ships_on=date(2026, 3, 2))
     expected_output:
       outcome: invalid
-  - name: uses the shared fake clock
+  - name: adds a helper that sets the shared fake clock to an hour
     inputs:
       file: tests/test_shipment_dispatch.py
+      unchanged:
+        tests/fakes.py: |
+          from datetime import datetime
+
+
+          class FakeClock:
+              def __init__(self, current: datetime) -> None:
+                  self.current = current
+
+              def now(self) -> datetime:
+                  return self.current
+      after: |
+        from datetime import date, datetime
+
+        from shipping.dispatch import Dispatcher, Shipment
+        from tests.fakes import FakeClock
+
+
+        def dispatch_at(hour, shipment_id):
+            return Dispatcher(FakeClock(datetime(2026, 3, 1, hour, 0))).dispatch(shipment_id)
+
+
+        def test_dispatch_before_cutoff_ships_same_day():
+            assert dispatch_at(9, "shp-1") == Shipment(id="shp-1", ships_on=date(2026, 3, 1))
+
+
+        def test_dispatch_after_cutoff_moves_to_next_day():
+            assert dispatch_at(18, "shp-2") == Shipment(id="shp-2", ships_on=date(2026, 3, 2))
+    expected_output:
+      outcome: valid
+  - name: adds a clock that advances on each call beside the fixed shared one
+    inputs:
+      file: tests/test_session_expiry.py
+      unchanged:
+        tests/fakes.py: |
+          from datetime import datetime
+
+
+          class FakeClock:
+              def __init__(self, current: datetime) -> None:
+                  self.current = current
+
+              def now(self) -> datetime:
+                  return self.current
+      after: |
+        from datetime import datetime, timedelta
+
+        from accounts.sessions import SessionKeeper
+
+
+        class TickingClock:
+            def __init__(self, start, step):
+                self.current = start
+                self.step = step
+
+            def now(self):
+                self.current += self.step
+                return self.current
+
+
+        def test_keeper_expires_a_session_after_two_checks():
+            clock = TickingClock(datetime(2026, 3, 1, 9, 0), step=timedelta(minutes=20))
+            keeper = SessionKeeper(clock, ttl=timedelta(minutes=30))
+            keeper.open("tok-1")
+
+            keeper.check()
+            keeper.check()
+
+            assert keeper.open_tokens() == []
+    expected_output:
+      outcome: valid
+  - name: redefines the shared database session fixture
+    inputs:
+      file: tests/billing/test_invoice_repository.py
+      unchanged:
+        tests/conftest.py: |
+          import pytest
+          from sqlalchemy import create_engine
+          from sqlalchemy.orm import Session
+
+          from billing.db import Base
+
+
+          @pytest.fixture
+          def db_session():
+              engine = create_engine("sqlite://")
+              Base.metadata.create_all(engine)
+              with Session(engine) as session:
+                  yield session
+      after: |
+        from decimal import Decimal
+
+        import pytest
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import Session
+
+        from billing.db import Base
+        from billing.repositories import InvoiceRepository
+
+
+        @pytest.fixture
+        def db_session():
+            engine = create_engine("sqlite://")
+            Base.metadata.create_all(engine)
+            with Session(engine) as session:
+                yield session
+
+
+        def test_create_then_get_returns_the_invoice(db_session):
+            repository = InvoiceRepository(db_session)
+            invoice = repository.create(amount=Decimal("100.00"), region="CA")
+
+            assert repository.get(invoice.id).amount == Decimal("100.00")
+    expected_output:
+      outcome: invalid
+  - name: overrides the shared order fixture with a paid order
+    inputs:
+      file: tests/refunds/test_refunds.py
+      unchanged:
+        tests/conftest.py: |
+          import pytest
+
+          from shop.orders import Order
+
+
+          @pytest.fixture
+          def order():
+              return Order(id="ord-1", status="pending")
+      after: |
+        import pytest
+
+        from shop.orders import Order
+        from shop.refunds import refund
+
+
+        @pytest.fixture
+        def order():
+            return Order(id="ord-1", status="paid")
+
+
+        def test_refund_marks_a_paid_order_refunded(order):
+            assert refund(order).status == "refunded"
+    expected_output:
+      outcome: valid
+  - name: builds on the shared database session in a new fixture
+    inputs:
+      file: tests/billing/test_invoice_reports.py
+      unchanged:
+        tests/conftest.py: |
+          import pytest
+          from sqlalchemy import create_engine
+          from sqlalchemy.orm import Session
+
+          from billing.db import Base
+
+
+          @pytest.fixture
+          def db_session():
+              engine = create_engine("sqlite://")
+              Base.metadata.create_all(engine)
+              with Session(engine) as session:
+                  yield session
+      after: |
+        from decimal import Decimal
+
+        import pytest
+
+        from billing.reports import unpaid_total
+        from billing.repositories import InvoiceRepository
+
+
+        @pytest.fixture
+        def two_unpaid_invoices(db_session):
+            repository = InvoiceRepository(db_session)
+            repository.create(amount=Decimal("100.00"), region="CA")
+            repository.create(amount=Decimal("50.00"), region="CA")
+            return repository
+
+
+        def test_unpaid_total_sums_unpaid_invoices(two_unpaid_invoices):
+            assert unpaid_total(two_unpaid_invoices) == Decimal("150.00")
+    expected_output:
+      outcome: valid
+  - name: adds a customer builder duplicating the shared factory
+    inputs:
+      file: tests/test_loyalty.py
+      unchanged:
+        tests/factories.py: |
+          from shop.customers import Customer
+
+
+          def build_customer(name: str = "Ada", email: str = "ada@example.com", points: int = 0) -> Customer:
+              return Customer(name=name, email=email, points=points)
+      after: |
+        from shop.customers import Customer
+        from shop.loyalty import tier_for
+
+
+        def make_customer(name="Ada", email="ada@example.com", points=0):
+            return Customer(name=name, email=email, points=points)
+
+
+        def test_tier_for_five_hundred_points_is_gold():
+            assert tier_for(make_customer(points=500)) == "gold"
+    expected_output:
+      outcome: invalid
+  - name: adds a builder for a type no shared module builds
+    inputs:
+      file: tests/test_loyalty.py
+      unchanged:
+        tests/factories.py: |
+          from shop.customers import Customer
+
+
+          def build_customer(name: str = "Ada", email: str = "ada@example.com", points: int = 0) -> Customer:
+              return Customer(name=name, email=email, points=points)
+      after: |
+        from shop.loyalty import Campaign, bonus_points
+        from tests.factories import build_customer
+
+
+        def make_campaign(multiplier=2):
+            return Campaign(name="Spring", multiplier=multiplier)
+
+
+        def test_bonus_points_double_during_the_campaign():
+            assert bonus_points(build_customer(points=100), make_campaign()) == 200
+    expected_output:
+      outcome: valid
+  - name: adds a fake mailer duplicating the shared one
+    inputs:
+      file: tests/test_invoice_notifier.py
+      unchanged:
+        tests/fakes.py: |
+          class FakeMailer:
+              def __init__(self) -> None:
+                  self.outbox: list[tuple[str, str]] = []
+
+              def send(self, to: str, subject: str) -> None:
+                  self.outbox.append((to, subject))
+      after: |
+        from billing.notifier import InvoiceNotifier
+
+
+        class InMemoryMailer:
+            def __init__(self):
+                self.sent = []
+
+            def send(self, to, subject):
+                self.sent.append((to, subject))
+
+
+        def test_notify_mails_the_customer():
+            mailer = InMemoryMailer()
+
+            InvoiceNotifier(mailer).notify(invoice_id="inv-42", email="ada@example.com")
+
+            assert mailer.sent == [("ada@example.com", "Invoice inv-42")]
+    expected_output:
+      outcome: invalid
+  - name: adds a builder method on a test class duplicating the shared factory
+    inputs:
+      file: tests/test_points.py
+      unchanged:
+        tests/factories.py: |
+          from shop.customers import Customer
+
+
+          def build_customer(name: str = "Ada", email: str = "ada@example.com", points: int = 0) -> Customer:
+              return Customer(name=name, email=email, points=points)
+      after: |
+        from shop.customers import Customer
+        from shop.loyalty import add_points
+
+
+        class TestAddPoints:
+            def customer(self, points=0):
+                return Customer(name="Ada", email="ada@example.com", points=points)
+
+            def test_add_points_increases_the_balance(self):
+                assert add_points(self.customer(points=10), 5).points == 15
+    expected_output:
+      outcome: invalid
+  - name: changes a test's input values
+    inputs:
+      file: tests/test_orders.py
+      before: |
+        class TestOrders:
+            def test_total(self):
+                assert total([1]) == 1
+      after: |
+        class TestOrders:
+            def test_total(self):
+                assert total([1, 2]) == 3
+    expected_output:
+      outcome: skipped
+  - name: imports a shared factory
+    inputs:
+      file: tests/test_loyalty.py
+      before: |
+        from shop.loyalty import tier_for
+      after: |
+        from shop.loyalty import tier_for
+        from tests.factories import build_customer
+    expected_output:
+      outcome: skipped
+  - name: adds tests that use the shared fake clock
+    inputs:
+      file: tests/test_shipment_dispatch.py
+      unchanged:
+        tests/fakes.py: |
+          from datetime import datetime
+
+
+          class FakeClock:
+              def __init__(self, current: datetime) -> None:
+                  self.current = current
+
+              def now(self) -> datetime:
+                  return self.current
       after: |
         from datetime import date, datetime
 
@@ -87,18 +401,5 @@ cases:
             shipment = Dispatcher(clock).dispatch("shp-2")
 
             assert shipment == Shipment(id="shp-2", ships_on=date(2026, 3, 2))
-    expected_output:
-      outcome: valid
-  - name: changes a test's input values
-    inputs:
-      file: tests/test_orders.py
-      before: |
-        class TestOrders:
-            def test_total(self):
-                assert total([1]) == 1
-      after: |
-        class TestOrders:
-            def test_total(self):
-                assert total([1, 2]) == 3
     expected_output:
       outcome: skipped

@@ -1,4 +1,4 @@
 skill: python/skills/names-match-behavior
 paths: ["**/*.py"]
 exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
-triggers: [function, class]
+triggers: [function-name, class-name]

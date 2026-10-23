@@ -1,0 +1,285 @@
+cases:
+  - name: returns the mapped invoice from a helper
+    inputs:
+      file: tests/test_invoice_mapper.py
+      after: |
+        from billing.invoices import Invoice
+        from billing.mapper import InvoiceMapper, MappingRules
+
+
+        def map_invoice(raw):
+            return InvoiceMapper(MappingRules(currency="EUR")).map(raw)
+
+
+        def test_map_reads_number_and_total():
+            invoice = map_invoice({"no": "42", "sum": "120.00"})
+
+            assert invoice == Invoice(number="42", total=120, currency="EUR")
+    expected_output:
+      outcome: invalid
+  - name: returns the mapper from a helper
+    inputs:
+      file: tests/test_invoice_mapper.py
+      after: |
+        from billing.invoices import Invoice
+        from billing.mapper import InvoiceMapper, MappingRules
+
+
+        def make_mapper():
+            return InvoiceMapper(MappingRules(currency="EUR"))
+
+
+        def test_map_reads_number_and_total():
+            mapper = make_mapper()
+
+            invoice = mapper.map({"no": "42", "sum": "120.00"})
+
+            assert invoice == Invoice(number="42", total=120, currency="EUR")
+    expected_output:
+      outcome: valid
+  - name: maps through a local mapper in a helper
+    inputs:
+      file: tests/test_invoice_mapper.py
+      after: |
+        from billing.invoices import Invoice
+        from billing.mapper import InvoiceMapper, MappingRules
+
+
+        def map_invoice(raw):
+            mapper = InvoiceMapper(MappingRules(currency="EUR"))
+            return mapper.map(raw)
+
+
+        def test_map_reads_number_and_total():
+            invoice = map_invoice({"no": "42", "sum": "120.00"})
+
+            assert invoice == Invoice(number="42", total=120, currency="EUR")
+    expected_output:
+      outcome: invalid
+  - name: returns overdue invoices from a ledger fixture
+    inputs:
+      file: tests/test_reminders.py
+      after: |
+        from datetime import date
+        from decimal import Decimal
+
+        import pytest
+
+        from billing.ledger import Ledger
+        from billing.reminders import reminder_lines
+
+
+        @pytest.fixture
+        def overdue_invoices(account):
+            ledger = Ledger(account)
+            ledger.issue(amount=Decimal("100.00"), due=date(2026, 1, 15))
+            ledger.issue(amount=Decimal("40.00"), due=date(2026, 3, 15))
+            return ledger.overdue_invoices(today=date(2026, 2, 1))
+
+
+        def test_reminder_lists_each_overdue_amount(overdue_invoices):
+            assert reminder_lines(overdue_invoices) == ["100.00 due 2026-01-15"]
+    expected_output:
+      outcome: invalid
+  - name: returns the ledger from a fixture
+    inputs:
+      file: tests/test_reminders.py
+      after: |
+        from datetime import date
+        from decimal import Decimal
+
+        import pytest
+
+        from billing.ledger import Ledger
+        from billing.reminders import reminder_lines
+
+
+        @pytest.fixture
+        def ledger(account):
+            ledger = Ledger(account)
+            ledger.issue(amount=Decimal("100.00"), due=date(2026, 1, 15))
+            ledger.issue(amount=Decimal("40.00"), due=date(2026, 3, 15))
+            return ledger
+
+
+        def test_reminder_lists_each_overdue_amount(ledger):
+            overdue = ledger.overdue_invoices(today=date(2026, 2, 1))
+
+            assert reminder_lines(overdue) == ["100.00 due 2026-01-15"]
+    expected_output:
+      outcome: valid
+  - name: filters the ledger's invoices in a comprehension in a fixture
+    inputs:
+      file: tests/test_reminders.py
+      after: |
+        from datetime import date
+        from decimal import Decimal
+
+        import pytest
+
+        from billing.ledger import Ledger
+        from billing.reminders import reminder_lines
+
+
+        @pytest.fixture
+        def overdue_invoices(account):
+            ledger = Ledger(account)
+            ledger.issue(amount=Decimal("100.00"), due=date(2026, 1, 15))
+            ledger.issue(amount=Decimal("40.00"), due=date(2026, 3, 15))
+            return [invoice for invoice in ledger.invoices if invoice.due < date(2026, 2, 1)]
+
+
+        def test_reminder_lists_each_overdue_amount(overdue_invoices):
+            assert reminder_lines(overdue_invoices) == ["100.00 due 2026-01-15"]
+    expected_output:
+      outcome: invalid
+  - name: returns a runtime's context from a helper
+    inputs:
+      file: tests/test_plugins.py
+      after: |
+        from plugins.runtime import RuntimeConfig, build_runtime
+
+
+        def plugin_context(name):
+            return build_runtime(RuntimeConfig(plugins=[name])).context
+
+
+        def test_loaded_plugin_is_registered():
+            context = plugin_context("audit")
+
+            assert context.plugin_names() == ["audit"]
+    expected_output:
+      outcome: invalid
+  - name: returns a runtime built by its factory from a helper
+    inputs:
+      file: tests/test_plugins.py
+      after: |
+        from plugins.runtime import RuntimeConfig, build_runtime
+
+
+        def make_runtime(name):
+            return build_runtime(RuntimeConfig(plugins=[name]))
+
+
+        def test_loaded_plugin_is_registered():
+            runtime = make_runtime("audit")
+
+            assert runtime.context.plugin_names() == ["audit"]
+    expected_output:
+      outcome: valid
+  - name: returns an order built with a builder chain
+    inputs:
+      file: tests/test_orders.py
+      after: |
+        from shop.orders import OrderBuilder, ship
+
+
+        def make_paid_order(total):
+            return OrderBuilder().with_total(total).paid().build()
+
+
+        def test_ship_paid_order_sets_shipped():
+            order = make_paid_order(120)
+
+            assert ship(order).status == "shipped"
+    expected_output:
+      outcome: valid
+  - name: returns an invoice its service creates in a fixture
+    inputs:
+      file: tests/conftest.py
+      after: |
+        from decimal import Decimal
+
+        import pytest
+
+        from billing.invoices import InvoiceService
+
+
+        @pytest.fixture
+        def invoice(db_session, account):
+            return InvoiceService(db_session).create(account_id=account.id, amount=Decimal("120.00"))
+    expected_output:
+      outcome: valid
+  - name: returns the orders API's parsed response from a helper
+    inputs:
+      file: tests/test_orders_api.py
+      after: |
+        def list_orders(client, customer_id):
+            return client.get(f"/customers/{customer_id}/orders/").json()
+
+
+        def test_lists_customer_orders(client, customer):
+            orders = list_orders(client, customer.id)
+
+            assert [order["number"] for order in orders] == ["A-1"]
+    expected_output:
+      outcome: invalid
+  - name: yields the result of running a job from a fixture
+    inputs:
+      file: tests/test_exports.py
+      after: |
+        import pytest
+
+        from reports.exports import ExportJob
+
+
+        @pytest.fixture
+        def export_result(tmp_path):
+            job = ExportJob(target=tmp_path / "out.csv")
+            yield job.run()
+            job.cleanup()
+
+
+        def test_export_writes_every_row(export_result):
+            assert export_result.rows_written == 3
+    expected_output:
+      outcome: invalid
+  - name: returns several built lines from a helper
+    inputs:
+      file: tests/test_orders.py
+      after: |
+        from shop.orders import Order, OrderLine
+
+
+        def make_lines(*skus):
+            return [OrderLine(sku=sku, price=10, quantity=1) for sku in skus]
+
+
+        def test_total_sums_lines():
+            assert Order(lines=make_lines("A1", "B2")).total == 20
+    expected_output:
+      outcome: valid
+  - name: changes the expected total in a test
+    inputs:
+      file: tests/test_orders.py
+      before: |
+        from shop.orders import Order, OrderLine
+
+
+        def test_total_sums_lines():
+            assert Order(lines=[OrderLine(sku="A1", price=10, quantity=1)]).total == 10
+      after: |
+        from shop.orders import Order, OrderLine
+
+
+        def test_total_sums_lines():
+            assert Order(lines=[OrderLine(sku="A1", price=10, quantity=2)]).total == 20
+    expected_output:
+      outcome: skipped
+  - name: changes a seeding helper that returns nothing
+    inputs:
+      file: tests/test_orders.py
+      before: |
+        from shop.orders import Order
+
+
+        def seed_orders(session):
+            session.add(Order(number="A-1"))
+      after: |
+        from shop.orders import Order
+
+
+        def seed_orders(session):
+            session.add(Order(number="A-2"))
+    expected_output:
+      outcome: skipped

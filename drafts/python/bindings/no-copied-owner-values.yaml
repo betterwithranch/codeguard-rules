@@ -1,0 +1,4 @@
+skill: python/skills/no-copied-owner-values
+paths: ["**/*.py"]
+exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
+triggers: [self-attribute-assignment, class-attribute]

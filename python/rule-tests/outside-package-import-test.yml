@@ -1,0 +1,27 @@
+id: outside-package-import
+valid:
+# Relative import from the current package root
+- |
+  from . import InvoiceTotal
+# Relative import of a sibling module
+- |
+  from .invoice_total import InvoiceTotal
+# Future import
+- |
+  from __future__ import annotations
+invalid:
+# Absolute import from a package root
+- |
+  from shipping import Shipment
+# Absolute import from a submodule
+- |
+  from shipping.shipment import Shipment
+# Plain import of a module
+- |
+  import shipping.shipment
+# Relative import from the parent package root
+- |
+  from .. import Customer
+# Relative import of a module beside the current package
+- |
+  from ..shipping.shipment import Shipment

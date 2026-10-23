@@ -1,0 +1,289 @@
+id: no-kwargs-for-named-params
+snapshots:
+  ? |
+    class ExampleClient:
+        def send(self, order, **options):
+            return self.post(order, options["timeout"])
+  : labels:
+    - source: options["timeout"]
+      style: primary
+      start: 91
+      end: 109
+    - source: options
+      style: secondary
+      start: 91
+      end: 98
+    - source: '"timeout"'
+      style: secondary
+      start: 99
+      end: 108
+    - source: options
+      style: secondary
+      start: 49
+      end: 56
+    - source: '**options'
+      style: secondary
+      start: 47
+      end: 56
+    - source: '**options'
+      style: secondary
+      start: 47
+      end: 56
+    - source: |-
+        def send(self, order, **options):
+                return self.post(order, options["timeout"])
+      style: secondary
+      start: 25
+      end: 110
+  ? |
+    def send_example(order, **options):
+        if "retries" in options:
+            return retry_example(order)
+        return post_example(order)
+  : labels:
+    - source: '"retries" in options'
+      style: primary
+      start: 43
+      end: 63
+    - source: '"retries"'
+      style: secondary
+      start: 43
+      end: 52
+    - source: options
+      style: secondary
+      start: 56
+      end: 63
+    - source: options
+      style: secondary
+      start: 26
+      end: 33
+    - source: '**options'
+      style: secondary
+      start: 24
+      end: 33
+    - source: '**options'
+      style: secondary
+      start: 24
+      end: 33
+    - source: |-
+        def send_example(order, **options):
+            if "retries" in options:
+                return retry_example(order)
+            return post_example(order)
+      style: secondary
+      start: 0
+      end: 131
+  ? |
+    def send_example(order, **options):
+        options.setdefault("timeout", 30)
+        return post_example(order, **options)
+  : labels:
+    - source: options.setdefault("timeout", 30)
+      style: primary
+      start: 40
+      end: 73
+    - source: options
+      style: secondary
+      start: 40
+      end: 47
+    - source: setdefault
+      style: secondary
+      start: 48
+      end: 58
+    - source: options.setdefault
+      style: secondary
+      start: 40
+      end: 58
+    - source: '"timeout"'
+      style: secondary
+      start: 59
+      end: 68
+    - source: '"timeout"'
+      style: secondary
+      start: 59
+      end: 68
+    - source: options
+      style: secondary
+      start: 26
+      end: 33
+    - source: '**options'
+      style: secondary
+      start: 24
+      end: 33
+    - source: '**options'
+      style: secondary
+      start: 24
+      end: 33
+    - source: |-
+        def send_example(order, **options):
+            options.setdefault("timeout", 30)
+            return post_example(order, **options)
+      style: secondary
+      start: 0
+      end: 115
+  ? |
+    def send_example(order, **options):
+        retries = options.get("retries", 3)
+        return post_example(order, retries)
+  : labels:
+    - source: options.get("retries", 3)
+      style: primary
+      start: 50
+      end: 75
+    - source: options
+      style: secondary
+      start: 50
+      end: 57
+    - source: get
+      style: secondary
+      start: 58
+      end: 61
+    - source: options.get
+      style: secondary
+      start: 50
+      end: 61
+    - source: '"retries"'
+      style: secondary
+      start: 62
+      end: 71
+    - source: '"retries"'
+      style: secondary
+      start: 62
+      end: 71
+    - source: options
+      style: secondary
+      start: 26
+      end: 33
+    - source: '**options'
+      style: secondary
+      start: 24
+      end: 33
+    - source: '**options'
+      style: secondary
+      start: 24
+      end: 33
+    - source: |-
+        def send_example(order, **options):
+            retries = options.get("retries", 3)
+            return post_example(order, retries)
+      style: secondary
+      start: 0
+      end: 115
+  ? |
+    def send_example(order, **options):
+        return post_example(order, options["timeout"])
+  : labels:
+    - source: options["timeout"]
+      style: primary
+      start: 67
+      end: 85
+    - source: options
+      style: secondary
+      start: 67
+      end: 74
+    - source: '"timeout"'
+      style: secondary
+      start: 75
+      end: 84
+    - source: options
+      style: secondary
+      start: 26
+      end: 33
+    - source: '**options'
+      style: secondary
+      start: 24
+      end: 33
+    - source: '**options'
+      style: secondary
+      start: 24
+      end: 33
+    - source: |-
+        def send_example(order, **options):
+            return post_example(order, options["timeout"])
+      style: secondary
+      start: 0
+      end: 86
+  ? |
+    def send_example(order, **options):
+        verbose = options.pop("verbose", False)
+        return post_example(order, verbose, **options)
+  : labels:
+    - source: options.pop("verbose", False)
+      style: primary
+      start: 50
+      end: 79
+    - source: options
+      style: secondary
+      start: 50
+      end: 57
+    - source: pop
+      style: secondary
+      start: 58
+      end: 61
+    - source: options.pop
+      style: secondary
+      start: 50
+      end: 61
+    - source: '"verbose"'
+      style: secondary
+      start: 62
+      end: 71
+    - source: '"verbose"'
+      style: secondary
+      start: 62
+      end: 71
+    - source: options
+      style: secondary
+      start: 26
+      end: 33
+    - source: '**options'
+      style: secondary
+      start: 24
+      end: 33
+    - source: '**options'
+      style: secondary
+      start: 24
+      end: 33
+    - source: |-
+        def send_example(order, **options):
+            verbose = options.pop("verbose", False)
+            return post_example(order, verbose, **options)
+      style: secondary
+      start: 0
+      end: 130
+  ? |
+    def send_example(orders, **options):
+        for order in orders:
+            post_example(order, options["timeout"])
+  : labels:
+    - source: options["timeout"]
+      style: primary
+      start: 90
+      end: 108
+    - source: options
+      style: secondary
+      start: 90
+      end: 97
+    - source: '"timeout"'
+      style: secondary
+      start: 98
+      end: 107
+    - source: options
+      style: secondary
+      start: 27
+      end: 34
+    - source: '**options'
+      style: secondary
+      start: 25
+      end: 34
+    - source: '**options'
+      style: secondary
+      start: 25
+      end: 34
+    - source: |-
+        def send_example(orders, **options):
+            for order in orders:
+                post_example(order, options["timeout"])
+      style: secondary
+      start: 0
+      end: 109

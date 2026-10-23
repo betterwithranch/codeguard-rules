@@ -1,4 +1,4 @@
 skill: python/skills/parameterized-helper
 paths: ["**/*.py"]
 exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
-triggers: [generic-or-abstract-class]
+triggers: [sibling-private-function]

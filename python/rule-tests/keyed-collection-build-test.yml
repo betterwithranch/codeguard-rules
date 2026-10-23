@@ -1,10 +1,40 @@
 id: keyed-collection-build
 valid:
+# Dict literal
 - |
-  index = {line.sku: line for line in lines}
+  index = {"eu": 1, "us": 2}
+# Subscript assignment outside a loop
+- |
+  index[order.id] = order
+# dict() with keyword arguments only
+- |
+  options = dict(strict=True)
+# update outside a loop
+- |
+  index.update(extra)
 invalid:
+# Subscript assignment in a for loop
 - |
-  for line in lines:
-      index[line.sku] = line
+  for order in orders:
+      index[order.customer_id] = order
+# Subscript assignment in a while loop
 - |
-  groups.setdefault(key, [])
+  while pending:
+      order = pending.pop()
+      index[order.customer_id] = order
+# Dict comprehension
+- |
+  index = {order.customer_id: order for order in orders}
+# dict() over a generator
+- |
+  index = dict((order.customer_id, order) for order in orders)
+# dict() over zip
+- |
+  index = dict(zip(keys, orders))
+# setdefault
+- |
+  index.setdefault(order.customer_id, order)
+# update in a loop
+- |
+  for order in orders:
+      index.update({order.customer_id: order})

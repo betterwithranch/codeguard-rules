@@ -1,0 +1,318 @@
+cases:
+  - name: defines agent deps beside the review output schemas
+    inputs:
+      file: review/schemas.py
+      after: |
+        from dataclasses import dataclass
+
+        import httpx
+        from pydantic import BaseModel
+
+
+        class Finding(BaseModel):
+            line: int
+            message: str
+
+
+        class ReviewResult(BaseModel):
+            findings: list[Finding]
+
+
+        @dataclass
+        class ReviewDeps:
+            http: httpx.AsyncClient
+            repository_url: str
+      unchanged:
+        review/agent.py: |
+          from pydantic_ai import Agent, RunContext
+
+          from review.schemas import ReviewDeps, ReviewResult
+
+          agent = Agent("anthropic:claude-sonnet-4-5", deps_type=ReviewDeps, output_type=ReviewResult)
+
+
+          @agent.tool
+          async def fetch_file(ctx: RunContext[ReviewDeps], path: str) -> str:
+              response = await ctx.deps.http.get(f"{ctx.deps.repository_url}/{path}")
+              return response.text
+    expected_output:
+      outcome: invalid
+  - name: defines agent deps beside the agent that reads them
+    inputs:
+      file: review/agent.py
+      after: |
+        from dataclasses import dataclass
+
+        import httpx
+        from pydantic_ai import Agent, RunContext
+
+        from review.schemas import ReviewResult
+
+
+        @dataclass
+        class ReviewDeps:
+            http: httpx.AsyncClient
+            repository_url: str
+
+
+        agent = Agent("anthropic:claude-sonnet-4-5", deps_type=ReviewDeps, output_type=ReviewResult)
+
+
+        @agent.tool
+        async def fetch_file(ctx: RunContext[ReviewDeps], path: str) -> str:
+            response = await ctx.deps.http.get(f"{ctx.deps.repository_url}/{path}")
+            return response.text
+      unchanged:
+        review/schemas.py: |
+          from pydantic import BaseModel
+
+
+          class Finding(BaseModel):
+              line: int
+              message: str
+
+
+          class ReviewResult(BaseModel):
+              findings: list[Finding]
+    expected_output:
+      outcome: valid
+  - name: defines the review output schemas on their own
+    inputs:
+      file: review/schemas.py
+      after: |
+        from pydantic import BaseModel
+
+
+        class Finding(BaseModel):
+            line: int
+            message: str
+
+
+        class ReviewResult(BaseModel):
+            findings: list[Finding]
+    expected_output:
+      outcome: valid
+  - name: defines an import context in a shared package only the import stages read
+    inputs:
+      file: shared/context.py
+      after: |
+        from dataclasses import dataclass
+        from datetime import datetime
+
+
+        @dataclass(frozen=True)
+        class ImportContext:
+            tenant_id: str
+            started_at: datetime
+            dry_run: bool
+      unchanged:
+        imports/stages.py: |
+          from shared.context import ImportContext
+
+
+          class ValidateStage:
+              def run(self, rows: list[dict[str, str]], context: ImportContext) -> list[dict[str, str]]:
+                  return [row for row in rows if row.get("tenant") == context.tenant_id]
+
+
+          class WriteStage:
+              def __init__(self, repository) -> None:
+                  self._repository = repository
+
+              def run(self, rows: list[dict[str, str]], context: ImportContext) -> None:
+                  if not context.dry_run:
+                      self._repository.save_all(rows)
+    expected_output:
+      outcome: invalid
+  - name: defines an import context in its own module of the imports package
+    inputs:
+      file: imports/context.py
+      after: |
+        from dataclasses import dataclass
+        from datetime import datetime
+
+
+        @dataclass(frozen=True)
+        class ImportContext:
+            tenant_id: str
+            started_at: datetime
+            dry_run: bool
+      unchanged:
+        imports/stages.py: |
+          from imports.context import ImportContext
+
+
+          class WriteStage:
+              def __init__(self, repository) -> None:
+                  self._repository = repository
+
+              def run(self, rows: list[dict[str, str]], context: ImportContext) -> None:
+                  if not context.dry_run:
+                      self._repository.save_all(rows)
+    expected_output:
+      outcome: valid
+  - name: adds a handler context to the response models module
+    inputs:
+      file: notifications/responses.py
+      before: |
+        from pydantic import BaseModel
+
+
+        class SendResponse(BaseModel):
+            message_id: str
+            queued: bool
+      after: |
+        from pydantic import BaseModel
+
+
+        class SendResponse(BaseModel):
+            message_id: str
+            queued: bool
+
+
+        class SendContext(BaseModel):
+            model_config = {"arbitrary_types_allowed": True}
+
+            user_id: str
+            request_id: str
+            mailer: object
+      unchanged:
+        notifications/handlers.py: |
+          from notifications.responses import SendContext, SendResponse
+
+
+          def send_welcome(context: SendContext) -> SendResponse:
+              message_id = context.mailer.send(to=context.user_id, template="welcome")
+              return SendResponse(message_id=message_id, queued=True)
+    expected_output:
+      outcome: invalid
+  - name: adds a handler context beside the handler that reads it
+    inputs:
+      file: notifications/handlers.py
+      before: |
+        from notifications.responses import SendResponse
+
+
+        def send_welcome(mailer, user_id: str) -> SendResponse:
+            message_id = mailer.send(to=user_id, template="welcome")
+            return SendResponse(message_id=message_id, queued=True)
+      after: |
+        from typing import NamedTuple
+
+        from notifications.responses import SendResponse
+
+
+        class SendContext(NamedTuple):
+            user_id: str
+            request_id: str
+            mailer: object
+
+
+        def send_welcome(context: SendContext) -> SendResponse:
+            message_id = context.mailer.send(to=context.user_id, template="welcome")
+            return SendResponse(message_id=message_id, queued=True)
+      unchanged:
+        notifications/responses.py: |
+          from pydantic import BaseModel
+
+
+          class SendResponse(BaseModel):
+              message_id: str
+              queued: bool
+    expected_output:
+      outcome: valid
+  - name: defines an attrs sync context in the results module
+    inputs:
+      file: inventory/results.py
+      after: |
+        import attrs
+
+
+        @attrs.frozen
+        class SyncResult:
+            checked: int
+            changed: int
+
+
+        @attrs.frozen
+        class SyncContext:
+            warehouse_client: object
+            batch_size: int
+      unchanged:
+        inventory/syncer.py: |
+          from inventory.results import SyncContext, SyncResult
+
+
+          def sync(skus: list[str], context: SyncContext) -> SyncResult:
+              changed = 0
+              for start in range(0, len(skus), context.batch_size):
+                  changed += context.warehouse_client.refresh(skus[start : start + context.batch_size])
+              return SyncResult(checked=len(skus), changed=changed)
+    expected_output:
+      outcome: invalid
+  - name: defines program settings read by several packages
+    inputs:
+      file: config/settings.py
+      after: |
+        from pydantic_settings import BaseSettings
+
+
+        class Settings(BaseSettings):
+            database_url: str
+            mail_from: str
+            batch_size: int = 100
+      unchanged:
+        inventory/syncer.py: |
+          from config.settings import Settings
+
+
+          def batch_size(settings: Settings) -> int:
+              return settings.batch_size
+        notifications/mailer.py: |
+          from config.settings import Settings
+
+
+          def sender(settings: Settings) -> str:
+              return settings.mail_from
+    expected_output:
+      outcome: valid
+  - name: adds a deadline field to the import context
+    inputs:
+      file: imports/context.py
+      before: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class ImportContext:
+            tenant_id: str
+      after: |
+        from dataclasses import dataclass
+        from datetime import datetime
+
+
+        @dataclass(frozen=True)
+        class ImportContext:
+            tenant_id: str
+            deadline: datetime | None = None
+    expected_output:
+      outcome: skipped
+  - name: changes how the write stage saves rows
+    inputs:
+      file: imports/stages.py
+      before: |
+        class WriteStage:
+            def __init__(self, repository) -> None:
+                self._repository = repository
+
+            def run(self, rows, context) -> None:
+                self._repository.save_all(rows)
+      after: |
+        class WriteStage:
+            def __init__(self, repository) -> None:
+                self._repository = repository
+
+            def run(self, rows, context) -> None:
+                self._repository.save_all(rows, batch=True)
+    expected_output:
+      outcome: skipped

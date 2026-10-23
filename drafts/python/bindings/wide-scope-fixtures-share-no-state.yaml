@@ -1,0 +1,3 @@
+skill: python/skills/wide-scope-fixtures-share-no-state
+paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
+triggers: [wide-scope-fixture]

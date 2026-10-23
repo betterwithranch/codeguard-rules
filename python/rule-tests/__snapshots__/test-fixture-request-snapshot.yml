@@ -1,0 +1,76 @@
+id: test-fixture-request
+snapshots:
+  ? |
+    @pytest.mark.usefixtures("example_flags")
+    class TestExample:
+        def test_example(self):
+            assert run()
+  : labels:
+    - source: '@pytest.mark.usefixtures("example_flags")'
+      style: primary
+      start: 0
+      end: 41
+  ? |
+    @pytest.mark.usefixtures("example_flags")
+    def test_example():
+        assert run()
+  : labels:
+    - source: '@pytest.mark.usefixtures("example_flags")'
+      style: primary
+      start: 0
+      end: 41
+  ? |
+    class TestExample:
+        def test_example(self, example_model):
+            assert example_model.active
+  : labels:
+    - source: (self, example_model)
+      style: primary
+      start: 39
+      end: 60
+    - source: test_example
+      style: secondary
+      start: 27
+      end: 39
+    - source: |-
+        def test_example(self, example_model):
+                assert example_model.active
+      style: secondary
+      start: 23
+      end: 97
+  ? |
+    def test_example():
+        assert run()
+  : labels:
+    - source: ()
+      style: primary
+      start: 16
+      end: 18
+    - source: test_example
+      style: secondary
+      start: 4
+      end: 16
+    - source: |-
+        def test_example():
+            assert run()
+      style: secondary
+      start: 0
+      end: 36
+  ? |
+    def test_example(example_model):
+        assert example_model.active
+  : labels:
+    - source: (example_model)
+      style: primary
+      start: 16
+      end: 31
+    - source: test_example
+      style: secondary
+      start: 4
+      end: 16
+    - source: |-
+        def test_example(example_model):
+            assert example_model.active
+      style: secondary
+      start: 0
+      end: 64

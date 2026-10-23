@@ -1,0 +1,190 @@
+id: no-empty-fixtures
+snapshots:
+  ? |
+    @fixture
+    def example_cart():
+        return
+  : labels:
+    - source: |-
+        def example_cart():
+            return
+      style: primary
+      start: 9
+      end: 39
+    - source: '@fixture'
+      style: secondary
+      start: 0
+      end: 8
+    - source: |-
+        @fixture
+        def example_cart():
+            return
+      style: secondary
+      start: 0
+      end: 39
+    - source: return
+      style: secondary
+      start: 33
+      end: 39
+  ? |
+    @pytest.fixture
+    def example_cart():
+        ...
+  : labels:
+    - source: |-
+        def example_cart():
+            ...
+      style: primary
+      start: 16
+      end: 43
+    - source: '@pytest.fixture'
+      style: secondary
+      start: 0
+      end: 15
+    - source: |-
+        @pytest.fixture
+        def example_cart():
+            ...
+      style: secondary
+      start: 0
+      end: 43
+    - source: '...'
+      style: secondary
+      start: 40
+      end: 43
+  ? |
+    @pytest.fixture
+    def example_cart():
+        pass
+  : labels:
+    - source: |-
+        def example_cart():
+            pass
+      style: primary
+      start: 16
+      end: 44
+    - source: '@pytest.fixture'
+      style: secondary
+      start: 0
+      end: 15
+    - source: |-
+        @pytest.fixture
+        def example_cart():
+            pass
+      style: secondary
+      start: 0
+      end: 44
+    - source: pass
+      style: secondary
+      start: 40
+      end: 44
+  ? |
+    @pytest.fixture
+    def example_cart():
+        return None
+  : labels:
+    - source: |-
+        def example_cart():
+            return None
+      style: primary
+      start: 16
+      end: 51
+    - source: '@pytest.fixture'
+      style: secondary
+      start: 0
+      end: 15
+    - source: |-
+        @pytest.fixture
+        def example_cart():
+            return None
+      style: secondary
+      start: 0
+      end: 51
+    - source: return None
+      style: secondary
+      start: 40
+      end: 51
+  ? |
+    @pytest.fixture
+    def example_cart():
+        yield
+  : labels:
+    - source: |-
+        def example_cart():
+            yield
+      style: primary
+      start: 16
+      end: 45
+    - source: '@pytest.fixture'
+      style: secondary
+      start: 0
+      end: 15
+    - source: |-
+        @pytest.fixture
+        def example_cart():
+            yield
+      style: secondary
+      start: 0
+      end: 45
+    - source: yield
+      style: secondary
+      start: 40
+      end: 45
+  ? |
+    @pytest.fixture(autouse=True)
+    def example_setup():
+        """Placeholder for later setup."""
+  : labels:
+    - source: |-
+        def example_setup():
+            """Placeholder for later setup."""
+      style: primary
+      start: 30
+      end: 89
+    - source: '@pytest.fixture(autouse=True)'
+      style: secondary
+      start: 0
+      end: 29
+    - source: |-
+        @pytest.fixture(autouse=True)
+        def example_setup():
+            """Placeholder for later setup."""
+      style: secondary
+      start: 0
+      end: 89
+    - source: '"""Placeholder for later setup."""'
+      style: secondary
+      start: 55
+      end: 89
+  ? |
+    class TestExampleCart:
+        @pytest_asyncio.fixture
+        async def example_cart(self):
+            """Not used yet."""
+            pass
+  : labels:
+    - source: |-
+        async def example_cart(self):
+                """Not used yet."""
+                pass
+      style: primary
+      start: 55
+      end: 125
+    - source: '@pytest_asyncio.fixture'
+      style: secondary
+      start: 27
+      end: 50
+    - source: |-
+        @pytest_asyncio.fixture
+            async def example_cart(self):
+                """Not used yet."""
+                pass
+      style: secondary
+      start: 27
+      end: 125
+    - source: |-
+        """Not used yet."""
+                pass
+      style: secondary
+      start: 93
+      end: 125

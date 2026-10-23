@@ -1,9 +1,27 @@
 id: enum-value-access
 valid:
+# Another attribute of a member
 - |
   label = status.name
+# An attribute whose name only contains value
+- |
+  total = reading.value_cents
+# attrgetter of another attribute
+- |
+  get_name = attrgetter("name")
 invalid:
+# value read from a name
 - |
   code = status.value
+# value read from a class member
 - |
   code = OrderStatus.SHIPPED.value
+# value read from a field in an f-string
+- |
+  text = f"{order.status.value}"
+# value read in a comprehension
+- |
+  codes = [kind.value for kind in DocumentKind]
+# attrgetter of value
+- |
+  get_code = operator.attrgetter("value")

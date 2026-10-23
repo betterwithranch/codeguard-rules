@@ -1,0 +1,7 @@
+id: protocol-class
+language: python
+rule:
+  kind: class_definition
+  has:
+    field: superclasses
+    regex: \bProtocol\b

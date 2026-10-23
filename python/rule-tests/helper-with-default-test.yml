@@ -1,0 +1,27 @@
+id: helper-with-default
+valid:
+  # Helper with required parameters only
+  - |
+    def make_example_model(session, name: str):
+        return ExampleModel(name=name)
+
+  # Test function with a default parameter
+  - |
+    def test_example(example_model, name="a"):
+        assert example_model.name == name
+invalid:
+  # Helper with an untyped default
+  - |
+    def make_example_model(session, example_id=None):
+        return ExampleModel(id=example_id)
+
+  # Helper with a typed default
+  - |
+    def make_example_model(session, example: Example | None = None):
+        return ExampleModel(example=example)
+
+  # Method with a default
+  - |
+    class ExampleFactory:
+        def build(self, name: str = "a"):
+            return ExampleModel(name=name)

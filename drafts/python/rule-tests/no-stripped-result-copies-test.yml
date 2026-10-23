@@ -1,0 +1,90 @@
+id: no-stripped-result-copies
+valid:
+  # Whole result compared
+  - |
+    def test_order():
+        order = place_order()
+        assert order == ExampleOrder(id=order.id, total=1)
+
+  # Copy of the expected value with a real field value
+  - |
+    def test_order():
+        expected = replace(template, total=1)
+        assert result == expected
+
+  # Stripped copy used but never compared
+  - |
+    def test_order():
+        payload = order.model_dump(exclude={"id"})
+        send(payload)
+        assert outbox.sent == [payload_message]
+
+  # Field blanked on an input passed to the code under test
+  - |
+    def test_total():
+        order.discount = None
+        assert compute_total(order) == 100
+
+  # pop with no key on a list
+  - |
+    def test_queue():
+        queue.pop()
+        assert queue == [first_job]
+
+  # Pydantic copy of the expected value with a real field value
+  - |
+    def test_order():
+        expected = template.model_copy(update={"total": 1})
+        assert result == expected
+
+invalid:
+  # Dump that excludes fields, then compared
+  - |
+    def test_order():
+        actual = order.model_dump(exclude={"id"})
+        assert actual == {"total": 1}
+
+  # dataclasses.replace blanking a field, then compared
+  - |
+    def test_order():
+        actual = dataclasses.replace(order, id=None)
+        assert actual == ExampleOrder(id=None, total=1)
+
+  # attrs.evolve blanking a field, compared on the right
+  - |
+    def test_order():
+        actual = attrs.evolve(order, id=None)
+        assert ExampleOrder(id=None, total=1) == actual
+
+  # Pydantic copy with a blanked update, then compared
+  - |
+    def test_order():
+        actual = order.model_copy(update={"id": None})
+        assert actual == expected
+
+  # Dict comprehension that filters keys, then compared
+  - |
+    def test_row():
+        actual = {key: value for key, value in row.items() if key != "id"}
+        assert actual == {"total": 1}
+
+  # del of a key, then compared
+  - |
+    def test_row():
+        row = load_row()
+        del row["id"]
+        assert row == {"total": 1}
+
+  # pop of a key, then compared
+  - |
+    def test_row():
+        row = load_row()
+        row.pop("id")
+        assert row == {"total": 1}
+
+  # Field set to None, then compared
+  - |
+    def test_order():
+        order = place_order()
+        order.created_at = None
+        assert order == ExampleOrder(created_at=None, total=1)

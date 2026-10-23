@@ -1,0 +1,50 @@
+id: parameter-field-read
+valid:
+# Function without parameters
+- |
+  def example_total():
+      return 1
+# Method that reads only fields of self
+- |
+  class ExampleCalculator:
+      def example_total(self):
+          return self.amount
+# Parameters used without reading a field
+- |
+  def example_total(amount, rate):
+      return round(amount * rate)
+# Field read of a local, not a parameter
+- |
+  def example_total(example_id):
+      example_context = load(example_id)
+      return example_context.amount
+invalid:
+# Field read of a plain parameter
+- |
+  def example_tax(example_context):
+      return example_context.subtotal
+# Field read of a typed parameter
+- |
+  def example_tax(example_context: ExampleContext) -> int:
+      return example_context.subtotal
+# Field read of a defaulted parameter
+- |
+  def example_tax(example_context=None):
+      return example_context.subtotal
+# Field read of a typed defaulted parameter
+- |
+  def example_tax(example_context: ExampleContext | None = None):
+      return example_context.subtotal
+# Field read of the second parameter of a method
+- |
+  class ExampleCalculator:
+      def example_tax(self, example_context: ExampleContext) -> int:
+          return round(example_context.subtotal * self.rate)
+# Field read inside a nested expression
+- |
+  def example_tax(rates, example_context):
+      return rates[example_context.region] * 2
+# Async function
+- |
+  async def example_tax(example_context):
+      return example_context.subtotal

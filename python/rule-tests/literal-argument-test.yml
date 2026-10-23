@@ -1,0 +1,85 @@
+id: literal-argument
+valid:
+  # Keyword argument with a local
+  - |
+    make_example_model(name=name)
+
+  # Keyword argument with a call
+  - |
+    make_example_model(created_at=now())
+
+  # Positional local and attribute arguments
+  - |
+    make_example_model(session, ExampleStatus.DRAFT)
+invalid:
+  # Keyword string
+  - |
+    make_example_model(name="a")
+
+  # Keyword integer
+  - |
+    make_example_model(count=0)
+
+  # Keyword float
+  - |
+    make_example_model(rate=0.5)
+
+  # Keyword boolean
+  - |
+    make_example_model(active=True)
+
+  # Keyword False
+  - |
+    make_example_model(active=False)
+
+  # Keyword None
+  - |
+    make_example_model(parent=None)
+
+  # Keyword empty list
+  - |
+    make_example_model(tags=[])
+
+  # Keyword empty dict
+  - |
+    make_example_model(meta={})
+
+  # Keyword tuple
+  - |
+    make_example_model(sizes=(1, 2))
+
+  # Keyword negative number
+  - |
+    make_example_model(offset=-1)
+
+  # Keyword enum member
+  - |
+    make_example_model(status=ExampleStatus.DRAFT)
+
+  # Positional string
+  - |
+    make_example_model(session, "a")
+
+  # Positional integer
+  - |
+    make_example_model(session, 1)
+
+  # Positional float
+  - |
+    make_example_model(session, 0.5)
+
+  # Positional negative number
+  - |
+    make_example_model(session, -1)
+
+  # Positional None
+  - |
+    make_example_model(session, None)
+
+  # Positional boolean
+  - |
+    make_example_model(session, True)
+
+  # Positional False
+  - |
+    make_example_model(session, False)

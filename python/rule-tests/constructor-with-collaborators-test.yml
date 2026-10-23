@@ -1,0 +1,45 @@
+id: constructor-with-collaborators
+valid:
+  # Constructor with literal arguments only
+  - |
+    example = ExampleModel(id="ex-1", total=120)
+
+  # Constructor without arguments
+  - |
+    example = ExampleModel()
+
+  # Lowercase factory call with a collaborator
+  - |
+    service = build_example_service(gateway=gateway)
+invalid:
+  # Constructor with a positional collaborator
+  - |
+    service = ExampleService(gateway)
+
+  # Constructor with a nested constructor
+  - |
+    service = ExampleService(ExampleRules.default(), ExamplePrinter(gateway))
+
+  # Constructor with a keyword collaborator
+  - |
+    service = ExampleService(gateway=gateway)
+
+  # Constructor with a derived attribute value
+  - |
+    invoice = ExampleInvoice(order_id=order.id)
+
+  # Constructor with a comprehension
+  - |
+    invoice = ExampleInvoice(lines=[line for line in order.lines])
+
+  # Constructor with a computed total
+  - |
+    invoice = ExampleInvoice(total=price * quantity)
+
+  # Constructor reached through a module
+  - |
+    service = examples.ExampleService(gateway)
+
+  # Constructor with a list of built values
+  - |
+    invoice = ExampleInvoice(lines=[ExampleLine(sku="a")])

@@ -1,0 +1,3 @@
+skill: python/skills/no-default-valued-arguments
+paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
+triggers: [literal-argument]

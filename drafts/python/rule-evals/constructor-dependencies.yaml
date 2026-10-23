@@ -22,6 +22,32 @@ cases:
                 return sum(self.quote_cents(shipment, rate_provider) for shipment in shipments)
     expected_output:
       outcome: invalid
+  - name: takes the rate provider in init
+    inputs:
+      file: shipments/quoter.py
+      after: |
+        from dataclasses import dataclass
+
+        from shipments.rates import RateProvider
+
+
+        @dataclass(frozen=True)
+        class Shipment:
+            destination: str
+            weight_kg: float
+
+
+        class ShipmentQuoter:
+            def __init__(self, rate_provider: RateProvider) -> None:
+                self._rate_provider = rate_provider
+
+            def quote_cents(self, shipment: Shipment) -> int:
+                return self._rate_provider.rate_cents(shipment.destination, shipment.weight_kg)
+
+            def total_quote_cents(self, shipments: list[Shipment]) -> int:
+                return sum(self.quote_cents(shipment) for shipment in shipments)
+    expected_output:
+      outcome: valid
   - name: adds a formatter parameter to methods
     inputs:
       file: invoices/renderer.py
@@ -61,9 +87,238 @@ cases:
                 return [self.render(invoice, formatter) for invoice in invoices]
     expected_output:
       outcome: invalid
-  - name: takes the rate provider in init
+  - name: calls methods of the order it describes
     inputs:
-      file: shipments/quoter.py
+      file: invoices/renderer.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class OrderLine:
+            quantity: int
+            unit_price_cents: int
+
+
+        @dataclass(frozen=True)
+        class Order:
+            number: str
+            lines: list[OrderLine]
+
+            def total_cents(self) -> int:
+                return sum(line.quantity * line.unit_price_cents for line in self.lines)
+
+
+        class OrderSummary:
+            def __init__(self, currency_symbol: str) -> None:
+                self._currency_symbol = currency_symbol
+
+            def describe(self, order: Order) -> str:
+                return f"{order.number}: {self._currency_symbol}{order.total_cents() / 100:.2f}"
+    expected_output:
+      outcome: valid
+  - name: passes an untyped mailer to the reminder method
+    inputs:
+      file: invoices/reminders.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            number: str
+            customer_email: str
+            balance_cents: int
+
+
+        class ReminderRun:
+            def __init__(self, sender_address: str) -> None:
+                self._sender_address = sender_address
+
+            def send_reminders(self, invoices, mailer):
+                for invoice in invoices:
+                    if invoice.balance_cents > 0:
+                        mailer.send(
+                            sender=self._sender_address,
+                            to=invoice.customer_email,
+                            subject=f"Invoice {invoice.number} is unpaid",
+                        )
+    expected_output:
+      outcome: invalid
+  - name: passes an HTTP client to an async refresh method
+    inputs:
+      file: accounts/sync.py
+      after: |
+        import httpx
+        from pydantic import BaseModel
+
+
+        class Account(BaseModel):
+            id: str
+            balance_cents: int
+
+
+        class AccountSync:
+            def __init__(self, base_url: str) -> None:
+                self._base_url = base_url
+
+            async def refresh(self, account_id: str, client: httpx.AsyncClient) -> Account:
+                response = await client.get(f"{self._base_url}/accounts/{account_id}")
+                return Account.model_validate_json(response.content)
+    expected_output:
+      outcome: invalid
+  - name: builds the sync from settings and a client in a classmethod
+    inputs:
+      file: accounts/sync.py
+      after: |
+        from dataclasses import dataclass
+        from typing import Self
+
+        import httpx
+        from pydantic import BaseModel
+
+
+        class Account(BaseModel):
+            id: str
+            balance_cents: int
+
+
+        @dataclass(frozen=True)
+        class SyncSettings:
+            base_url: str
+
+
+        class AccountSync:
+            def __init__(self, base_url: str, client: httpx.AsyncClient) -> None:
+                self._base_url = base_url
+                self._client = client
+
+            @classmethod
+            def from_settings(cls, settings: SyncSettings, client: httpx.AsyncClient) -> Self:
+                return cls(base_url=settings.base_url, client=client)
+
+            async def refresh(self, account_id: str) -> Account:
+                response = await self._client.get(f"{self._base_url}/accounts/{account_id}")
+                return Account.model_validate_json(response.content)
+    expected_output:
+      outcome: valid
+  - name: passes an exporter registry to the export method
+    inputs:
+      file: reports/export.py
+      after: |
+        from dataclasses import dataclass
+
+        from reports.exporters import ExporterRegistry
+
+
+        @dataclass(frozen=True)
+        class Report:
+            title: str
+            rows: list[dict[str, str]]
+
+
+        class ReportPublisher:
+            def __init__(self, bucket: str) -> None:
+                self._bucket = bucket
+
+            def publish(self, report: Report, file_format: str, exporters: ExporterRegistry) -> str:
+                body = exporters.exporter_for(file_format).export(report.rows)
+                return f"{self._bucket}/{report.title}.{file_format}:{len(body)}"
+    expected_output:
+      outcome: invalid
+  - name: implements a handler interface that passes the event bus
+    inputs:
+      file: shipments/handlers.py
+      after: |
+        from abc import ABC, abstractmethod
+        from dataclasses import dataclass
+
+        from shipments.bus import EventBus
+
+
+        @dataclass(frozen=True)
+        class ShipmentShipped:
+            shipment_id: str
+            order_number: str
+
+
+        @dataclass(frozen=True)
+        class OrderFulfilled:
+            order_number: str
+
+
+        class ShipmentEventHandler(ABC):
+            @abstractmethod
+            def handle(self, event: ShipmentShipped, bus: EventBus) -> None: ...
+
+
+        class FulfillOrderOnShipment(ShipmentEventHandler):
+            def handle(self, event: ShipmentShipped, bus: EventBus) -> None:
+                bus.publish(OrderFulfilled(order_number=event.order_number))
+    expected_output:
+      outcome: valid
+  - name: reads a Django order in a view method that takes the request
+    inputs:
+      file: orders/views.py
+      after: |
+        from django.http import HttpRequest, JsonResponse
+        from django.views import View
+
+        from orders.models import Order
+
+
+        class OrderDetailView(View):
+            def get(self, request: HttpRequest, order_number: str) -> JsonResponse:
+                order = Order.objects.get(number=order_number, customer=request.user)
+                return JsonResponse({"number": order.number, "status": order.status})
+    expected_output:
+      outcome: valid
+  - name: passes a clock to a Django view helper method
+    inputs:
+      file: orders/views.py
+      after: |
+        from django.http import HttpRequest, JsonResponse
+        from django.views import View
+
+        from orders.clock import Clock
+        from orders.models import Order
+
+
+        class OpenOrdersView(View):
+            clock: Clock
+
+            def get(self, request: HttpRequest) -> JsonResponse:
+                return JsonResponse({"open": self._open_numbers(request, self.clock)})
+
+            def _open_numbers(self, request: HttpRequest, clock: Clock) -> list[str]:
+                orders = Order.objects.filter(customer=request.user, due_at__gt=clock.now())
+                return [order.number for order in orders]
+    expected_output:
+      outcome: invalid
+  - name: filters orders placed since a given time
+    inputs:
+      file: orders/history.py
+      after: |
+        from datetime import datetime
+
+        from pydantic import BaseModel
+
+
+        class PlacedOrder(BaseModel):
+            number: str
+            placed_at: datetime
+
+
+        class OrderHistory(BaseModel):
+            orders: list[PlacedOrder]
+
+            def placed_since(self, since: datetime) -> list[PlacedOrder]:
+                return [order for order in self.orders if order.placed_at >= since]
+    expected_output:
+      outcome: valid
+  - name: adds a module function that takes a rate provider
+    inputs:
+      file: shipments/quoting.py
       after: |
         from dataclasses import dataclass
 
@@ -76,39 +331,28 @@ cases:
             weight_kg: float
 
 
-        class ShipmentQuoter:
-            def __init__(self, rate_provider: RateProvider) -> None:
-                self._rate_provider = rate_provider
-
-            def quote_cents(self, shipment: Shipment) -> int:
-                return self._rate_provider.rate_cents(shipment.destination, shipment.weight_kg)
-
-            def total_quote_cents(self, shipments: list[Shipment]) -> int:
-                return sum(self.quote_cents(shipment) for shipment in shipments)
+        def quote_cents(shipment: Shipment, rate_provider: RateProvider) -> int:
+            return rate_provider.rate_cents(shipment.destination, shipment.weight_kg)
     expected_output:
-      outcome: valid
-  - name: raises the free shipping threshold
+      outcome: skipped
+  - name: adds a collaborator to the constructor
     inputs:
       file: shipments/quoter.py
       before: |
-        from dataclasses import dataclass
-
-        FREE_SHIPPING_THRESHOLD_CENTS = 5000
+        from shipments.rates import RateProvider
 
 
-        @dataclass(frozen=True)
-        class Shipment:
-            destination: str
-            weight_kg: float
+        class ShipmentQuoter:
+            def __init__(self, rate_provider: RateProvider) -> None:
+                self._rate_provider = rate_provider
       after: |
-        from dataclasses import dataclass
+        from shipments.rates import RateProvider
+        from shipments.zones import ZoneMap
 
-        FREE_SHIPPING_THRESHOLD_CENTS = 7500
 
-
-        @dataclass(frozen=True)
-        class Shipment:
-            destination: str
-            weight_kg: float
+        class ShipmentQuoter:
+            def __init__(self, rate_provider: RateProvider, zones: ZoneMap) -> None:
+                self._rate_provider = rate_provider
+                self._zones = zones
     expected_output:
       outcome: skipped

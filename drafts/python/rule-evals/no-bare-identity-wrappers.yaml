@@ -1,0 +1,179 @@
+cases:
+  - name: wraps a bare order id string
+    inputs:
+      file: orders/order_id.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class OrderId:
+            value: str
+    expected_output:
+      outcome: invalid
+  - name: declares the order id as a NewType
+    inputs:
+      file: orders/order_id.py
+      after: |
+        from typing import NewType
+
+        OrderId = NewType("OrderId", str)
+
+
+        class OrderNumberFormat:
+            prefix = "ORD"
+    expected_output:
+      outcome: valid
+  - name: wraps a customer key in a pydantic model
+    inputs:
+      file: customers/keys.py
+      after: |
+        from pydantic import BaseModel, ConfigDict
+
+
+        class CustomerKey(BaseModel):
+            model_config = ConfigDict(frozen=True)
+
+            key: str
+    expected_output:
+      outcome: invalid
+  - name: constrains a sku with a pattern in a pydantic model
+    inputs:
+      file: catalog/sku.py
+      after: |
+        from pydantic import BaseModel, ConfigDict, Field
+
+
+        class Sku(BaseModel):
+            model_config = ConfigDict(frozen=True)
+
+            code: str = Field(pattern=r"^[A-Z]{3}-\d{4}$")
+    expected_output:
+      outcome: valid
+  - name: stores one shipment id in a plain class
+    inputs:
+      file: shipping/shipment_ref.py
+      after: |
+        class ShipmentRef:
+            def __init__(self, shipment_id: int) -> None:
+                self.shipment_id = shipment_id
+    expected_output:
+      outcome: invalid
+  - name: checks the iban checksum in post init
+    inputs:
+      file: payments/iban.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Iban:
+            value: str
+
+            def __post_init__(self) -> None:
+                digits = self.value[4:] + self.value[:4]
+                numeric = "".join(str(int(char, 36)) for char in digits)
+                if int(numeric) % 97 != 1:
+                    raise ValueError(f"invalid IBAN {self.value}")
+    expected_output:
+      outcome: valid
+  - name: subclasses UUID for a session id
+    inputs:
+      file: accounts/session_id.py
+      after: |
+        from uuid import UUID
+
+
+        class SessionId(UUID):
+            pass
+    expected_output:
+      outcome: invalid
+  - name: wraps a tracking number with carrier lookup
+    inputs:
+      file: shipping/tracking_number.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class TrackingNumber:
+            value: str
+
+            def carrier(self) -> str:
+                return "ups" if self.value.startswith("1Z") else "dhl"
+    expected_output:
+      outcome: valid
+  - name: wraps a slug in an attrs class
+    inputs:
+      file: blog/slug.py
+      after: |
+        import attrs
+
+
+        @attrs.frozen
+        class PostSlug:
+            slug: str
+    expected_output:
+      outcome: invalid
+  - name: holds a region and a number in an order reference
+    inputs:
+      file: orders/order_ref.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class OrderRef:
+            region: str
+            number: int
+    expected_output:
+      outcome: valid
+  - name: wraps an invoice number in a named tuple
+    inputs:
+      file: invoices/invoice_number.py
+      after: |
+        from typing import NamedTuple
+
+
+        class InvoiceNumber(NamedTuple):
+            number: str
+    expected_output:
+      outcome: invalid
+  - name: wraps an amount of cents in a value class
+    inputs:
+      file: billing/money.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Cents:
+            amount: int
+    expected_output:
+      outcome: valid
+  - name: adds a field to a large order class
+    inputs:
+      file: orders/order.py
+      before: |
+        from dataclasses import dataclass
+
+
+        @dataclass
+        class Order:
+            number: str
+            customer_id: int
+            total_cents: int
+            status: str
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass
+        class Order:
+            number: str
+            customer_id: int
+            total_cents: int
+            status: str
+            currency: str
+    expected_output:
+      outcome: skipped

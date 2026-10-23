@@ -1,9 +1,0 @@
-id: class
-valid:
-- |
-  def total():
-      return 1
-invalid:
-- |
-  class Order:
-      pass

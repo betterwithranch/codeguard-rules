@@ -1,0 +1,44 @@
+id: class-import
+snapshots:
+  ? |
+    from .checkout_result import CheckoutResult
+  : labels:
+    - source: from .checkout_result import CheckoutResult
+      style: primary
+      start: 0
+      end: 43
+  ? |
+    from retry.retry_attempt import RetryAttempt as Attempt
+  : labels:
+    - source: from retry.retry_attempt import RetryAttempt as Attempt
+      style: primary
+      start: 0
+      end: 55
+  ? |
+    from retry.retry_attempt import build, RetryAttempt
+  : labels:
+    - source: from retry.retry_attempt import build, RetryAttempt
+      style: primary
+      start: 0
+      end: 51
+  ? |
+    from retry.retry_attempt_params import RetryAttemptParams
+  : labels:
+    - source: from retry.retry_attempt_params import RetryAttemptParams
+      style: primary
+      start: 0
+      end: 57
+  ? |
+    from retry.shapes import (
+        RetryAttempt,
+        RetryAttemptParams,
+    )
+  : labels:
+    - source: |-
+        from retry.shapes import (
+            RetryAttempt,
+            RetryAttemptParams,
+        )
+      style: primary
+      start: 0
+      end: 70

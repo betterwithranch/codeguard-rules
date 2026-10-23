@@ -1,34 +1,49 @@
 ---
 name: trust-established-invariants
-description: Trust established invariants
+description: No guard re-checks a condition that other visible code already guarantees, such as the dispatch that routed the value here, an earlier check in the same flow, or a validator of the value's type.
 ---
 
 # Trust established invariants
 
-Do not re-check a fact already guaranteed upstream. Such a guard can never fire. The guarantee may come from:
+Code does not re-check a condition that other code already guarantees at that point.
 
-- Dispatch routing: a registry already chose this handler by the value's tag.
-- An enclosing branch: an outer check already narrowed the value.
-- A collaborator's return contract: a result that is non-empty only for one variant.
+A guard is code that checks a condition and stops or diverts when it fails: an `assert`,
+an `if` that raises or returns early, an `isinstance` check, a `cast`, a `match` case or
+`else` branch that raises. A guarantee is code that makes the condition true before the
+guard runs, so the guard can never fail. The guarantee is in the file under review or a
+file of the program it imports; read that file when the guarantee comes from there.
 
-Narrow at the contract instead. Make the handler generic over its variant so its type carries the guarantee, or move the dependent branch inside the check that establishes it. Put the one `Any` at the registry dict, not in handler bodies.
+## The test
 
-Bad:
+For each guard, ask: does code the reader can see make this condition true every time
+the guard runs?
 
-```python
-class RefundHandler:
-    def handle(self, request: PaymentRequest) -> PaymentResult:
-        if not isinstance(request.payload, RefundPayload):
-            raise TypeError("RefundHandler requires a refund payload")
-        ...
-```
+Guarantees that make the answer yes:
 
-Good:
+- an earlier check in the same function or flow that already stopped on the failing
+  value (`if not lines: return` above `if len(lines) == 0: raise`), or an enclosing
+  branch that already narrowed it;
+- a dispatch that routes only matching values to this code: a registry keyed by the
+  value's tag (`HANDLERS[request.kind].handle(request)`), a `match` or `if` chain that
+  calls this function only in the branch for that variant;
+- the value's type rejecting the failing value when it is built: a pydantic
+  `field_validator` or `Field(gt=0)`, a dataclass `__post_init__` that raises, an attrs
+  validator, a Django model field with `null=False`, a SQLAlchemy column with
+  `nullable=False`;
+- a collaborator whose code always returns the guaranteed form (a function that never
+  returns an empty list, a lookup that raises instead of returning `None`).
 
-```python
-class RefundHandler:
-    def handle(self, request: PaymentRequest[RefundPayload]) -> PaymentResult:
-        ...
-```
+The answer is no when nothing visible guarantees the condition: data from outside the
+program, a parameter the callers can pass in either form, an optional field, the result
+of `dict.get`, a lookup that may miss. Checking that is validation, not a re-check. A
+condition that only the parameter's declared type guarantees is the type checker's
+job (basedpyright's `reportUnnecessaryIsInstance` and `reportUnnecessaryComparison`),
+so this rule is about guarantees made by code, not by annotations.
 
-Validation of input the code received (an unknown key or id) is not covered by this rule.
+## Violation
+
+A guard whose condition visible code already guarantees where the guard runs: an
+`isinstance` check of a payload in a handler only a registry keyed by that payload's
+kind calls, an `assert x is not None` below an `if x is None: raise`, an
+`if amount <= 0: raise` on a model field whose validator already rejects non-positive
+amounts.

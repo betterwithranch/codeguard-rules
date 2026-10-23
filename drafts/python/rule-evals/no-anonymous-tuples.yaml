@@ -18,37 +18,185 @@ cases:
             return rejection_reason, bool(order.holds)
     expected_output:
       outcome: invalid
-  - name: packs arguments into a dict helper
+  - name: returns the order's hold reasons as a tuple
     inputs:
-      file: shipments/dispatch.py
-      before: |
-        from dataclasses import dataclass
-
-
-        @dataclass(frozen=True)
-        class Shipment:
-            carrier: str
-            tracking_number: str
-
-
-        def dispatch(shipment: Shipment) -> str:
-            return f"{shipment.carrier}:{shipment.tracking_number}"
+      file: orders/review.py
       after: |
         from dataclasses import dataclass
 
 
         @dataclass(frozen=True)
-        class Shipment:
-            carrier: str
-            tracking_number: str
+        class Order:
+            order_id: str
+            holds: tuple[str, ...]
+            balance_due: int
 
 
-        def _shipment_payload(carrier: str, tracking_number: str) -> dict[str, str]:
-            return {"carrier": carrier, "tracking_number": tracking_number}
+        def hold_reasons(order: Order) -> tuple[str, ...]:
+            reasons = tuple(order.holds)
+            if order.balance_due > 0:
+                reasons += ("unpaid balance",)
+            return reasons
+    expected_output:
+      outcome: valid
+  - name: returns a fee and a delivery date in a dict
+    inputs:
+      file: shipments/quotes.py
+      after: |
+        from dataclasses import dataclass
+        from datetime import date, timedelta
 
 
-        def dispatch(shipment: Shipment) -> dict[str, str]:
-            return _shipment_payload(shipment.carrier, shipment.tracking_number)
+        @dataclass(frozen=True)
+        class Parcel:
+            weight_grams: int
+            express: bool
+
+
+        def quote(parcel: Parcel, today: date) -> dict[str, object]:
+            fee_cents = 500 + parcel.weight_grams // 100
+            delivers_on = today + timedelta(days=1 if parcel.express else 3)
+            return {"fee_cents": fee_cents, "delivers_on": delivers_on}
+    expected_output:
+      outcome: invalid
+  - name: returns carriers keyed by country
+    inputs:
+      file: shipments/carriers.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Carrier:
+            name: str
+            country: str
+
+
+        def carriers_by_country(carriers: list[Carrier]) -> dict[str, Carrier]:
+            return {carrier.country: carrier for carrier in carriers}
+    expected_output:
+      outcome: valid
+  - name: returns a customer and whether it was created
+    inputs:
+      file: accounts/signup.py
+      after: |
+        from dataclasses import dataclass
+        from typing import Protocol
+
+
+        @dataclass(frozen=True)
+        class Customer:
+            email: str
+
+
+        class CustomerStore(Protocol):
+            def find(self, email: str) -> Customer | None: ...
+
+            def add(self, customer: Customer) -> None: ...
+
+
+        class Signup:
+            def __init__(self, customers: CustomerStore) -> None:
+                self.customers = customers
+
+            def register(self, email: str):
+                existing = self.customers.find(email)
+                if existing is not None:
+                    return existing, False
+                customer = Customer(email=email)
+                self.customers.add(customer)
+                return customer, True
+    expected_output:
+      outcome: invalid
+  - name: returns parsed rows and warnings through an annotation
+    inputs:
+      file: imports/rows.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Row:
+            sku: str
+            quantity: int
+
+
+        def parse_rows(lines: list[str]) -> tuple[list[Row], list[str]]:
+            rows: list[Row] = []
+            warnings: list[str] = []
+            for number, line in enumerate(lines, start=1):
+                sku, quantity = line.split(",")
+                if not quantity.isdigit():
+                    warnings.append(f"line {number}: bad quantity")
+                    continue
+                rows.append(Row(sku=sku, quantity=int(quantity)))
+            result = (rows, warnings)
+            return result
+    expected_output:
+      outcome: invalid
+  - name: returns request headers for a payment API
+    inputs:
+      file: payments/client.py
+      after: |
+        def auth_headers(api_key: str, idempotency_key: str) -> dict[str, str]:
+            return {
+                "Authorization": f"Bearer {api_key}",
+                "Idempotency-Key": idempotency_key,
+                "Accept": "application/json",
+            }
+    expected_output:
+      outcome: valid
+  - name: implements divmod for money
+    inputs:
+      file: billing/money.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Money:
+            cents: int
+
+            def __divmod__(self, parts: int) -> tuple["Money", "Money"]:
+                share, left_over = divmod(self.cents, parts)
+                return Money(share), Money(left_over)
+    expected_output:
+      outcome: valid
+  - name: returns a Django template context
+    inputs:
+      file: shop/views.py
+      after: |
+        from django.views.generic import TemplateView
+
+        from shop.models import Order
+
+
+        class OrderListView(TemplateView):
+            template_name = "shop/orders.html"
+
+            def get_context_data(self, **kwargs):
+                orders = Order.objects.filter(customer=self.request.user)
+                return {**super().get_context_data(**kwargs), "orders": orders, "count": orders.count()}
+    expected_output:
+      outcome: valid
+  - name: returns a total and a late flag from a SQLAlchemy query
+    inputs:
+      file: billing/queries.py
+      after: |
+        from datetime import date
+
+        from sqlalchemy import func, select
+        from sqlalchemy.orm import Session
+
+        from billing.models import Invoice
+
+
+        def customer_balance(session: Session, customer_id: int, today: date):
+            open_invoices = select(Invoice).where(Invoice.customer_id == customer_id, Invoice.paid.is_(False))
+            invoices = session.scalars(open_invoices).all()
+            total_cents = sum(invoice.amount_cents for invoice in invoices)
+            any_late = any(invoice.due_on < today for invoice in invoices)
+            return total_cents, any_late
     expected_output:
       outcome: invalid
   - name: returns a named review type
@@ -75,7 +223,7 @@ cases:
             rejection_reason = "unpaid balance" if order.balance_due > 0 else None
             return OrderReview(rejection_reason=rejection_reason, is_on_hold=bool(order.holds))
     expected_output:
-      outcome: valid
+      outcome: skipped
   - name: truncates tax instead of rounding
     inputs:
       file: invoices/tax.py

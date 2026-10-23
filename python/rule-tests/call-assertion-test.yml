@@ -1,0 +1,42 @@
+id: call-assertion
+valid:
+# Assertion on a returned value
+- |
+  assert invoice.total == 108
+# A method whose name starts with assert but is not a mock call check
+- |
+  assert_valid(invoice)
+# A fake's recorded state
+- |
+  assert queue.messages == ["order-1"]
+invalid:
+# assert_called_once_with
+- |
+  calculate_tax.assert_called_once_with(100)
+# assert_called_with on a nested mock attribute
+- |
+  repository.save.assert_called_with(invoice)
+# assert_not_called
+- |
+  mailer.send.assert_not_called()
+# assert_has_calls
+- |
+  notifier.notify.assert_has_calls([call("a"), call("b")])
+# assert_awaited_once_with
+- |
+  client.fetch.assert_awaited_once_with("orders")
+# call_args compared in an assert
+- |
+  assert repository.save.call_args == call(invoice)
+# call_args_list
+- |
+  assert pricing.quote.call_args_list == [call(order)]
+# mock_calls
+- |
+  assert service.mock_calls == [call.reserve(order)]
+# call_count
+- |
+  assert spy.call_count == 1
+# called flag
+- |
+  assert not repository.delete.called

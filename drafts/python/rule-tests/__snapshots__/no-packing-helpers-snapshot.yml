@@ -1,0 +1,141 @@
+id: no-packing-helpers
+snapshots:
+  ? |
+    class ExampleDispatcher:
+        def payload(self, carrier, number):
+            return {"carrier": carrier, "number": number}
+  : labels:
+    - source: '{"carrier": carrier, "number": number}'
+      style: primary
+      start: 80
+      end: 118
+    - source: |-
+        def payload(self, carrier, number):
+                return {"carrier": carrier, "number": number}
+      style: secondary
+      start: 29
+      end: 118
+    - source: 'return {"carrier": carrier, "number": number}'
+      style: secondary
+      start: 73
+      end: 118
+    - source: 'return {"carrier": carrier, "number": number}'
+      style: secondary
+      start: 73
+      end: 118
+    - source: '"number": number'
+      style: secondary
+      start: 101
+      end: 117
+  ? |
+    def pair_example(carrier, number):
+        return (carrier, number)
+  : labels:
+    - source: (carrier, number)
+      style: primary
+      start: 46
+      end: 63
+    - source: |-
+        def pair_example(carrier, number):
+            return (carrier, number)
+      style: secondary
+      start: 0
+      end: 63
+    - source: return (carrier, number)
+      style: secondary
+      start: 39
+      end: 63
+    - source: return (carrier, number)
+      style: secondary
+      start: 39
+      end: 63
+    - source: number
+      style: secondary
+      start: 56
+      end: 62
+  ? |
+    def pair_example(carrier, number):
+        return carrier, number
+  : labels:
+    - source: carrier, number
+      style: primary
+      start: 46
+      end: 61
+    - source: |-
+        def pair_example(carrier, number):
+            return carrier, number
+      style: secondary
+      start: 0
+      end: 61
+    - source: return carrier, number
+      style: secondary
+      start: 39
+      end: 61
+    - source: return carrier, number
+      style: secondary
+      start: 39
+      end: 61
+    - source: number
+      style: secondary
+      start: 55
+      end: 61
+  ? |
+    def payload_example(carrier, number):
+        return dict(carrier=carrier, number=number)
+  : labels:
+    - source: dict(carrier=carrier, number=number)
+      style: primary
+      start: 49
+      end: 85
+    - source: |-
+        def payload_example(carrier, number):
+            return dict(carrier=carrier, number=number)
+      style: secondary
+      start: 0
+      end: 85
+    - source: return dict(carrier=carrier, number=number)
+      style: secondary
+      start: 42
+      end: 85
+    - source: return dict(carrier=carrier, number=number)
+      style: secondary
+      start: 42
+      end: 85
+    - source: dict
+      style: secondary
+      start: 49
+      end: 53
+    - source: number=number
+      style: secondary
+      start: 71
+      end: 84
+    - source: (carrier=carrier, number=number)
+      style: secondary
+      start: 53
+      end: 85
+  ? |
+    def payload_example(carrier, number):
+        return {"carrier": carrier, "number": number}
+  : labels:
+    - source: '{"carrier": carrier, "number": number}'
+      style: primary
+      start: 49
+      end: 87
+    - source: |-
+        def payload_example(carrier, number):
+            return {"carrier": carrier, "number": number}
+      style: secondary
+      start: 0
+      end: 87
+    - source: 'return {"carrier": carrier, "number": number}'
+      style: secondary
+      start: 42
+      end: 87
+    - source: 'return {"carrier": carrier, "number": number}'
+      style: secondary
+      start: 42
+      end: 87
+    - source: '"number": number'
+      style: secondary
+      start: 70
+      end: 86

@@ -1,0 +1,81 @@
+id: sibling-private-function
+snapshots:
+  ? |
+    class ExampleValidator:
+        def _missing(self, field):
+            pass
+
+        def _invalid(self, field):
+            pass
+  : labels:
+    - source: |-
+        def _missing(self, field):
+                pass
+      style: primary
+      start: 28
+      end: 67
+    - source: _missing
+      style: secondary
+      start: 32
+      end: 40
+    - source: |-
+        def _invalid(self, field):
+                pass
+      style: secondary
+      start: 73
+      end: 112
+  ? |
+    class ExampleValidator:
+        def check(self):
+            pass
+
+        @staticmethod
+        def _missing(field):
+            pass
+  : labels:
+    - source: |-
+        @staticmethod
+            def _missing(field):
+                pass
+      style: primary
+      start: 63
+      end: 114
+    - source: _missing
+      style: secondary
+      start: 85
+      end: 93
+    - source: |-
+        def _missing(field):
+                pass
+      style: secondary
+      start: 81
+      end: 114
+    - source: |-
+        def check(self):
+                pass
+      style: secondary
+      start: 28
+      end: 57
+  ? |
+    def check(field):
+        return field
+
+    def _missing(field):
+        return field
+  : labels:
+    - source: |-
+        def _missing(field):
+            return field
+      style: primary
+      start: 36
+      end: 73
+    - source: _missing
+      style: secondary
+      start: 40
+      end: 48
+    - source: |-
+        def check(field):
+            return field
+      style: secondary
+      start: 0
+      end: 34

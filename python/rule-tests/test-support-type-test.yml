@@ -1,0 +1,48 @@
+id: test-support-type
+valid:
+  # Test class
+  - |
+    class TestExample:
+        def test_example(self):
+            assert run()
+
+  # Decorated test class
+  - |
+    @pytest.mark.usefixtures("example_flags")
+    class TestExample:
+        def test_example(self):
+            assert run()
+
+  # Call to a lowercase helper
+  - |
+    example = make_example_model(name="a")
+invalid:
+  # Decorated class, decorator line included
+  - |
+    @dataclass
+    class ExampleSetup:
+        example_model: ExampleModel
+
+  # NamedTuple subclass
+  - |
+    class ExampleResources(NamedTuple):
+        example_model: ExampleModel
+
+  # Plain class
+  - |
+    class FakeExampleGateway:
+        def charge(self, amount):
+            return amount
+
+  # SimpleNamespace call
+  - |
+    def make_example_setup():
+        return SimpleNamespace(example_model=ExampleModel())
+
+  # namedtuple call
+  - |
+    ExamplePair = collections.namedtuple("ExamplePair", ["left", "right"])
+
+  # Functional NamedTuple call
+  - |
+    ExamplePair = NamedTuple("ExamplePair", [("left", int)])

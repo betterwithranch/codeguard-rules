@@ -1,0 +1,3 @@
+skill: python/skills/test-owns-asserted-ids
+paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
+triggers: [module-constant, asserted-constant]

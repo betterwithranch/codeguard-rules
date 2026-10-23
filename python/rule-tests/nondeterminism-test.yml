@@ -1,9 +1,87 @@
 id: nondeterminism
 valid:
+# A plain call
 - |
   result = total(order)
+# A sorted list literal
+- |
+  skus = ["A-1", "B-2"]
+# A dict literal
+- |
+  totals = {"A-1": 3}
+# A test with fixed inputs
+- |
+  def test_price_for_returns_the_pen_price():
+      assert price_for("PEN-2") == Decimal("2.50")
 invalid:
+# uuid4
 - |
   key = uuid4()
+# datetime.now
 - |
   stamp = datetime.now()
+# date.today
+- |
+  day = date.today()
+# time.time
+- |
+  started = time.time()
+# time.monotonic
+- |
+  started = time.monotonic()
+# random.choice
+- |
+  sku = random.choice(skus)
+# A random generator
+- |
+  rng = random.Random(42)
+# secrets.token_hex
+- |
+  token = secrets.token_hex(8)
+# Faker
+- |
+  fake = Faker()
+# time.sleep
+- |
+  time.sleep(0.1)
+# asyncio.sleep
+- |
+  await asyncio.sleep(0.1)
+# A thread
+- |
+  worker = threading.Thread(target=run)
+# asyncio.wait_for
+- |
+  await asyncio.wait_for(task, timeout=1)
+# os.getenv
+- |
+  mode = os.getenv("PAYMENTS_MODE")
+# os.environ
+- |
+  mode = os.environ["PAYMENTS_MODE"]
+# Path.cwd
+- |
+  root = Path.cwd()
+# Path.home
+- |
+  root = Path.home()
+# os.listdir
+- |
+  names = os.listdir(folder)
+# Path.glob
+- |
+  reports = list(folder.glob("*.csv"))
+# set call
+- |
+  tags = set(order.tags)
+# set literal
+- |
+  tags = {"gift", "rush"}
+# set comprehension
+- |
+  tags = {tag.name for tag in order.tags}
+# The whole test around a set literal, so its assertion is inside the gate
+- |
+  def test_build_lines_makes_one_line_per_sku():
+      lines = build_lines({"PEN-2", "BOOK-1"})
+      assert [line.sku for line in lines] == ["PEN-2", "BOOK-1"]

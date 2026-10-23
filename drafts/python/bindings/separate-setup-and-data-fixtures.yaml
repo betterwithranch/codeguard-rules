@@ -1,0 +1,3 @@
+skill: python/skills/separate-setup-and-data-fixtures
+paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
+triggers: [fixture]

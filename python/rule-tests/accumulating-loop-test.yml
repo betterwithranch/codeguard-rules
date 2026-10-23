@@ -1,14 +1,108 @@
 id: accumulating-loop
 valid:
+# Append without a branch
 - |
   for line in lines:
       total.append(line)
+# Branch without accumulating into a collection
 - |
   for line in lines:
       if line:
           print(line)
+# Running total with augmented assignment
+- |
+  for payment in payments:
+      if payment.is_refund:
+          balance -= payment.amount
+      else:
+          balance += payment.amount
+# Every branch appends to the same list (pattern no-append-in-every-branch)
+- |
+  for item in items:
+      if item.active:
+          results.append(item.name)
+      else:
+          results.append(item.id)
+# Every branch of if/elif/else appends to the same list
+- |
+  for item in items:
+      if item.active:
+          results.append(item.name)
+      elif item.pending:
+          results.append(item.label)
+      else:
+          results.append(item.id)
+# Comprehension, not a loop
+- |
+  labels = [label(item) for item in items if item.active]
 invalid:
+# Filtering guard then append
 - |
   for line in lines:
       if line.sku:
           found.append(line)
+# continue guard then branches that append
+- |
+  for line in lines:
+      if line.is_voided:
+          continue
+      if line.is_refund:
+          amounts.append(-line.amount)
+      else:
+          amounts.append(line.amount)
+# Branch assigns a value appended after the if
+- |
+  for shipment in shipments:
+      if shipment.is_express:
+          label = "EXPRESS"
+      else:
+          label = "STANDARD"
+      labels.append(label)
+# Conditional expression in the appended value
+- |
+  for line in lines:
+      amounts.append(-line.amount if line.is_refund else line.amount)
+# match statement then append
+- |
+  for event in events:
+      match event.kind:
+          case "scan":
+              kind = "S"
+          case _:
+              kind = "X"
+      kinds.append(kind)
+# add to a set in a branch
+- |
+  for order in orders:
+      if order.is_paid:
+          paid.add(order.id)
+# extend in a branch
+- |
+  for order in orders:
+      if order.lines:
+          lines.extend(order.lines)
+# insert in a branch
+- |
+  for order in orders:
+      if order.is_urgent:
+          queue.insert(0, order)
+# augmented assignment of a list in a branch
+- |
+  for order in orders:
+      if order.is_paid:
+          paid += [order.id]
+# Every branch appends, with a for/else
+- |
+  for item in items:
+      if item.active:
+          results.append(item.name)
+      else:
+          results.append(item.id)
+  else:
+      results.append(None)
+# async for
+- |
+  async def collect(items):
+      async for item in items:
+          if item.active:
+              results.append(item.name)

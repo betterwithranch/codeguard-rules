@@ -1,0 +1,62 @@
+id: no-attribute-set-after-build
+valid:
+  # Value passed to the constructor
+  - |
+    def make_example_model():
+        return ExampleModel(status="paid")
+
+  # Attribute set on a parameter
+  - |
+    def mark_paid(example_model):
+        example_model.status = "paid"
+
+  # Attribute set on an object built by a lowercase factory
+  - |
+    def make_example_model():
+        model = make_base_model()
+        model.status = "paid"
+        return model
+
+  # Attribute set in a test body
+  - |
+    def test_example():
+        model = ExampleModel()
+        model.status = "paid"
+        assert model.paid
+
+  # Attribute set on self in a fake's constructor
+  - |
+    class FakeExampleGateway:
+        def __init__(self):
+            self.charges = []
+invalid:
+  # Attribute set after building in a helper
+  - |
+    def make_example_model():
+        model = ExampleModel(name="a")
+        model.status = "paid"
+        return model
+
+  # Attribute set after building in a fixture
+  - |
+    @pytest.fixture
+    def example_model():
+        model = ExampleModel(name="a")
+        model.status = "paid"
+        return model
+
+  # Attribute set after other statements
+  - |
+    def make_example_model(session):
+        model = examples.ExampleModel(name="a")
+        session.add(model)
+        model.status = "paid"
+        return model
+
+  # Attribute set on a built mock
+  - |
+    def make_example_gateway():
+        gateway = Mock()
+        gateway.return_value = 3
+        return gateway
+

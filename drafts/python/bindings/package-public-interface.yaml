@@ -1,4 +1,0 @@
-skill: python/skills/package-public-interface
-paths: ["**/*.py"]
-exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
-triggers: [import]

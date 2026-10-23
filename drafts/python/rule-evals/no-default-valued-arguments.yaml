@@ -1,0 +1,294 @@
+cases:
+  - name: passes the default status to a helper
+    inputs:
+      file: tests/test_invoices.py
+      after: |
+        from decimal import Decimal
+
+        from billing.invoices import Invoice
+
+
+        def make_invoice(number: str, amount: Decimal = Decimal("120.00"), status: str = "draft") -> Invoice:
+            return Invoice(number=number, amount=amount, status=status)
+
+
+        def test_draft_invoice_has_no_paid_date():
+            invoice = make_invoice("inv-1", status="draft")
+
+            assert invoice.paid_on is None
+    expected_output:
+      outcome: invalid
+  - name: passes a status other than the default to a helper
+    inputs:
+      file: tests/test_invoices.py
+      after: |
+        from decimal import Decimal
+
+        from billing.invoices import Invoice
+
+
+        def make_invoice(number: str, amount: Decimal = Decimal("120.00"), status: str = "draft") -> Invoice:
+            return Invoice(number=number, amount=amount, status=status)
+
+
+        def test_paid_invoice_is_settled():
+            invoice = make_invoice("inv-1", status="paid")
+
+            assert invoice.settled
+    expected_output:
+      outcome: valid
+  - name: passes None to a parameter that defaults to None
+    inputs:
+      file: tests/test_orders.py
+      unchanged:
+        shop/orders.py: |
+          from dataclasses import dataclass
+
+
+          @dataclass(frozen=True)
+          class Order:
+              number: str
+              total: int
+              notes: str | None = None
+              gift: bool = False
+      after: |
+        from shop.labels import packing_label
+        from shop.orders import Order
+
+
+        def test_label_shows_order_number():
+            order = Order(number="A-1", total=120, notes=None)
+
+            assert packing_label(order) == "A-1"
+    expected_output:
+      outcome: invalid
+  - name: passes a gift flag that differs from the field default
+    inputs:
+      file: tests/test_orders.py
+      unchanged:
+        shop/orders.py: |
+          from dataclasses import dataclass
+
+
+          @dataclass(frozen=True)
+          class Order:
+              number: str
+              total: int
+              notes: str | None = None
+              gift: bool = False
+      after: |
+        from shop.labels import packing_label
+        from shop.orders import Order
+
+
+        def test_gift_label_hides_total():
+            order = Order(number="A-1", total=120, gift=True)
+
+            assert packing_label(order) == "A-1 (gift)"
+    expected_output:
+      outcome: valid
+  - name: passes the default currency enum member to a pydantic model
+    inputs:
+      file: tests/test_prices.py
+      unchanged:
+        catalog/prices.py: |
+          from enum import StrEnum
+
+          from pydantic import BaseModel
+
+
+          class Currency(StrEnum):
+              EUR = "EUR"
+              USD = "USD"
+
+
+          class Price(BaseModel):
+              amount_cents: int
+              currency: Currency = Currency.EUR
+      after: |
+        from catalog.prices import Currency, Price
+        from catalog.format import format_price
+
+
+        def test_format_price_shows_euros():
+            price = Price(amount_cents=1999, currency=Currency.EUR)
+
+            assert format_price(price) == "19,99 €"
+    expected_output:
+      outcome: invalid
+  - name: passes a currency other than the model default
+    inputs:
+      file: tests/test_prices.py
+      unchanged:
+        catalog/prices.py: |
+          from enum import StrEnum
+
+          from pydantic import BaseModel
+
+
+          class Currency(StrEnum):
+              EUR = "EUR"
+              USD = "USD"
+
+
+          class Price(BaseModel):
+              amount_cents: int
+              currency: Currency = Currency.EUR
+      after: |
+        from catalog.prices import Currency, Price
+        from catalog.format import format_price
+
+
+        def test_format_price_shows_dollars():
+            price = Price(amount_cents=1999, currency=Currency.USD)
+
+            assert format_price(price) == "$19.99"
+    expected_output:
+      outcome: valid
+  - name: passes the default quantity by position
+    inputs:
+      file: tests/test_carts.py
+      unchanged:
+        tests/builders.py: |
+          from shop.carts import Cart, CartLine
+
+
+          def cart_with(sku: str, quantity: int = 1) -> Cart:
+              return Cart(lines=[CartLine(sku=sku, quantity=quantity)])
+      after: |
+        from tests.builders import cart_with
+
+
+        def test_single_item_cart_counts_one():
+            cart = cart_with("BOOK-1", 1)
+
+            assert cart.item_count == 1
+    expected_output:
+      outcome: invalid
+  - name: passes a required quantity by position
+    inputs:
+      file: tests/test_carts.py
+      unchanged:
+        tests/builders.py: |
+          from shop.carts import Cart, CartLine
+
+
+          def cart_with(sku: str, quantity: int) -> Cart:
+              return Cart(lines=[CartLine(sku=sku, quantity=quantity)])
+      after: |
+        from tests.builders import cart_with
+
+
+        def test_single_item_cart_counts_one():
+            cart = cart_with("BOOK-1", 1)
+
+            assert cart.item_count == 1
+    expected_output:
+      outcome: valid
+  - name: passes the default active flag to a Django model create
+    inputs:
+      file: accounts/tests/test_login.py
+      unchanged:
+        accounts/models.py: |
+          from django.db import models
+
+
+          class Member(models.Model):
+              email = models.EmailField(unique=True)
+              active = models.BooleanField(default=True)
+      after: |
+        import pytest
+
+        from accounts.login import can_log_in
+        from accounts.models import Member
+
+
+        @pytest.mark.django_db
+        def test_active_member_can_log_in():
+            member = Member.objects.create(email="ana@example.com", active=True)
+
+            assert can_log_in(member)
+    expected_output:
+      outcome: invalid
+  - name: passes a non-default active flag to a Django model create
+    inputs:
+      file: accounts/tests/test_login.py
+      unchanged:
+        accounts/models.py: |
+          from django.db import models
+
+
+          class Member(models.Model):
+              email = models.EmailField(unique=True)
+              active = models.BooleanField(default=True)
+      after: |
+        import pytest
+
+        from accounts.login import can_log_in
+        from accounts.models import Member
+
+
+        @pytest.mark.django_db
+        def test_inactive_member_cannot_log_in():
+            member = Member.objects.create(email="ana@example.com", active=False)
+
+            assert not can_log_in(member)
+    expected_output:
+      outcome: valid
+  - name: passes the default retry count to a fixture factory
+    inputs:
+      file: tests/test_jobs.py
+      after: |
+        import pytest
+
+        from jobs.runner import Job
+
+
+        @pytest.fixture
+        def make_job():
+            def make(name: str, retries: int = 3) -> Job:
+                return Job(name=name, retries=retries)
+
+            return make
+
+
+        def test_job_is_queued(make_job):
+            job = make_job("export", retries=3)
+
+            assert job.state == "queued"
+    expected_output:
+      outcome: invalid
+  - name: passes a standard-library argument that equals its default
+    inputs:
+      file: tests/test_reports.py
+      after: |
+        import json
+
+        from reports.summary import summary
+
+
+        def test_summary_is_serializable():
+            text = json.dumps(summary(month="2026-09"), sort_keys=False)
+
+            assert json.loads(text)["month"] == "2026-09"
+    expected_output:
+      outcome: valid
+  - name: changes a local passed as an argument
+    inputs:
+      file: tests/test_carts.py
+      before: |
+        from tests.builders import cart_with
+
+
+        def test_cart_counts_items():
+            sku = make_sku()
+            assert cart_with(sku).item_count == 1
+      after: |
+        from tests.builders import cart_with
+
+
+        def test_cart_counts_items():
+            book_sku = make_sku()
+            assert cart_with(book_sku).item_count == 1
+    expected_output:
+      outcome: skipped

@@ -16,3 +16,213 @@ snapshots:
       style: secondary
       start: 0
       end: 23
+  ? |
+    @model_validator(mode='after')
+    def check(self):
+        return self
+  : labels:
+    - source: |-
+        @model_validator(mode='after')
+        def check(self):
+            return self
+      style: primary
+      start: 0
+      end: 63
+    - source: '@model_validator(mode=''after'')'
+      style: secondary
+      start: 0
+      end: 30
+  ? |
+    @root_validator
+    def check(cls, values):
+        return values
+  : labels:
+    - source: |-
+        @root_validator
+        def check(cls, values):
+            return values
+      style: primary
+      start: 0
+      end: 57
+    - source: '@root_validator'
+      style: secondary
+      start: 0
+      end: 15
+  ? |
+    @sku.validator
+    def _check_sku(self, attribute, value):
+        pass
+  : labels:
+    - source: |-
+        @sku.validator
+        def _check_sku(self, attribute, value):
+            pass
+      style: primary
+      start: 0
+      end: 63
+    - source: '@sku.validator'
+      style: secondary
+      start: 0
+      end: 14
+  ? |
+    class Shipment(BaseModel):
+        def model_post_init(self, context):
+            pass
+  : labels:
+    - source: |-
+        def model_post_init(self, context):
+                pass
+      style: primary
+      start: 31
+      end: 79
+    - source: |-
+        class Shipment(BaseModel):
+            def model_post_init(self, context):
+                pass
+      style: secondary
+      start: 0
+      end: 79
+    - source: |-
+        def model_post_init(self, context):
+                pass
+      style: secondary
+      start: 31
+      end: 79
+    - source: model_post_init
+      style: secondary
+      start: 35
+      end: 50
+  ? |
+    class Shipment(models.Model):
+        def clean(self):
+            pass
+  : labels:
+    - source: |-
+        def clean(self):
+                pass
+      style: primary
+      start: 34
+      end: 63
+    - source: |-
+        class Shipment(models.Model):
+            def clean(self):
+                pass
+      style: secondary
+      start: 0
+      end: 63
+    - source: |-
+        def clean(self):
+                pass
+      style: secondary
+      start: 34
+      end: 63
+    - source: clean
+      style: secondary
+      start: 38
+      end: 43
+  ? |
+    class Shipment(models.Model):
+        def clean_sku(self):
+            return self.sku
+  : labels:
+    - source: |-
+        def clean_sku(self):
+                return self.sku
+      style: primary
+      start: 34
+      end: 78
+    - source: |-
+        class Shipment(models.Model):
+            def clean_sku(self):
+                return self.sku
+      style: secondary
+      start: 0
+      end: 78
+    - source: |-
+        def clean_sku(self):
+                return self.sku
+      style: secondary
+      start: 34
+      end: 78
+    - source: clean_sku
+      style: secondary
+      start: 38
+      end: 47
+  ? |
+    class Shipment:
+        def __attrs_post_init__(self):
+            pass
+  : labels:
+    - source: |-
+        def __attrs_post_init__(self):
+                pass
+      style: primary
+      start: 20
+      end: 63
+    - source: |-
+        class Shipment:
+            def __attrs_post_init__(self):
+                pass
+      style: secondary
+      start: 0
+      end: 63
+    - source: |-
+        def __attrs_post_init__(self):
+                pass
+      style: secondary
+      start: 20
+      end: 63
+    - source: __attrs_post_init__
+      style: secondary
+      start: 24
+      end: 43
+  ? |
+    class Shipment:
+        def __post_init__(self):
+            pass
+  : labels:
+    - source: |-
+        def __post_init__(self):
+                pass
+      style: primary
+      start: 20
+      end: 57
+    - source: |-
+        class Shipment:
+            def __post_init__(self):
+                pass
+      style: secondary
+      start: 0
+      end: 57
+    - source: |-
+        def __post_init__(self):
+                pass
+      style: secondary
+      start: 20
+      end: 57
+    - source: __post_init__
+      style: secondary
+      start: 24
+      end: 37
+  ? |
+    sku = models.CharField(max_length=12, validators=[check_sku])
+  : labels:
+    - source: validators=[check_sku]
+      style: primary
+      start: 38
+      end: 60
+    - source: validators
+      style: secondary
+      start: 38
+      end: 48
+  ? |
+    sku: str = attrs.field(validator=check_sku)
+  : labels:
+    - source: validator=check_sku
+      style: primary
+      start: 23
+      end: 42
+    - source: validator
+      style: secondary
+      start: 23
+      end: 32

@@ -1,27 +1,204 @@
 id: guard-check
 snapshots:
   ? |
-    assert request.payload
+    assert example_order.carrier is not None
   : labels:
-    - source: assert request.payload
+    - source: assert example_order.carrier is not None
       style: primary
       start: 0
-      end: 22
+      end: 40
   ? |
-    if not isinstance(request.payload, Refund):
-        raise TypeError('refund')
+    def example_total(example_lines):
+        if not example_lines:
+            return 0
+        return sum(example_lines)
   : labels:
     - source: |-
-        if not isinstance(request.payload, Refund):
-            raise TypeError('refund')
+        if not example_lines:
+                return 0
+      style: primary
+      start: 38
+      end: 76
+    - source: return 0
+      style: secondary
+      start: 68
+      end: 76
+    - source: return 0
+      style: secondary
+      start: 68
+      end: 76
+  ? |
+    example_payload = cast(ExamplePayload, example_request.payload)
+  : labels:
+    - source: cast(ExamplePayload, example_request.payload)
+      style: primary
+      start: 18
+      end: 63
+    - source: cast
+      style: secondary
+      start: 18
+      end: 22
+  ? |
+    example_payload = typing.cast(ExamplePayload, example_request.payload)
+  : labels:
+    - source: typing.cast(ExamplePayload, example_request.payload)
+      style: primary
+      start: 18
+      end: 70
+    - source: typing.cast
+      style: secondary
+      start: 18
+      end: 29
+  ? |
+    for example_line in example_lines:
+        if example_line.amount <= 0:
+            continue
+        add(example_line)
+  : labels:
+    - source: |-
+        if example_line.amount <= 0:
+                continue
+      style: primary
+      start: 39
+      end: 84
+    - source: continue
+      style: secondary
+      start: 76
+      end: 84
+    - source: continue
+      style: secondary
+      start: 76
+      end: 84
+  ? |
+    for example_line in example_lines:
+        if example_line.amount is None:
+            break
+        add(example_line)
+  : labels:
+    - source: |-
+        if example_line.amount is None:
+                break
+      style: primary
+      start: 39
+      end: 84
+    - source: break
+      style: secondary
+      start: 79
+      end: 84
+    - source: break
+      style: secondary
+      start: 79
+      end: 84
+  ? |
+    if example_kind == "refund":
+        refund(example_request)
+    elif example_kind != "charge":
+        raise ExampleError(example_kind)
+  : labels:
+    - source: |-
+        elif example_kind != "charge":
+            raise ExampleError(example_kind)
+      style: primary
+      start: 57
+      end: 124
+    - source: raise ExampleError(example_kind)
+      style: secondary
+      start: 92
+      end: 124
+    - source: raise ExampleError(example_kind)
+      style: secondary
+      start: 92
+      end: 124
+  ? |
+    if example_order.carrier is None:
+        raise ExampleError(example_order.id)
+  : labels:
+    - source: |-
+        if example_order.carrier is None:
+            raise ExampleError(example_order.id)
       style: primary
       start: 0
-      end: 73
-    - source: raise TypeError('refund')
+      end: 74
+    - source: raise ExampleError(example_order.id)
       style: secondary
-      start: 48
-      end: 73
-    - source: raise TypeError('refund')
+      start: 38
+      end: 74
+    - source: raise ExampleError(example_order.id)
       style: secondary
-      start: 48
-      end: 73
+      start: 38
+      end: 74
+  ? |
+    if isinstance_like(example_request):
+        refund(example_request)
+    else:
+        raise ExampleError(example_request)
+  : labels:
+    - source: |-
+        else:
+            raise ExampleError(example_request)
+      style: primary
+      start: 65
+      end: 110
+    - source: raise ExampleError(example_request)
+      style: secondary
+      start: 75
+      end: 110
+    - source: raise ExampleError(example_request)
+      style: secondary
+      start: 75
+      end: 110
+  ? |
+    if not isinstance(example_payload, ExamplePayload):
+        log(example_payload)
+  : labels:
+    - source: isinstance(example_payload, ExamplePayload)
+      style: primary
+      start: 7
+      end: 50
+    - source: isinstance
+      style: secondary
+      start: 7
+      end: 17
+  ? |
+    match example_kind:
+        case "refund":
+            refund(example_request)
+        case _:
+            raise ExampleError(example_kind)
+  : labels:
+    - source: |-
+        case _:
+                raise ExampleError(example_kind)
+      style: primary
+      start: 75
+      end: 123
+    - source: raise ExampleError(example_kind)
+      style: secondary
+      start: 91
+      end: 123
+    - source: raise ExampleError(example_kind)
+      style: secondary
+      start: 91
+      end: 123
+  ? |
+    name = example_order.carrier.name if example_order.carrier is not None else "none"
+  : labels:
+    - source: example_order.carrier.name if example_order.carrier is not None else "none"
+      style: primary
+      start: 7
+      end: 82
+    - source: example_order.carrier is not None
+      style: secondary
+      start: 37
+      end: 70
+  ? |
+    ok = issubclass(example_type, ExampleBase)
+  : labels:
+    - source: issubclass(example_type, ExampleBase)
+      style: primary
+      start: 5
+      end: 42
+    - source: issubclass
+      style: secondary
+      start: 5
+      end: 15

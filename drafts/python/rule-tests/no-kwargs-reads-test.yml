@@ -1,0 +1,61 @@
+id: no-kwargs-reads
+valid:
+  # kwargs passed untouched to one target
+  - |
+    def make_example_model(name: str, **overrides):
+        return ExampleModel(name=name, **overrides)
+
+  # kwargs merged into a dict display
+  - |
+    def make_example_model(**overrides):
+        return ExampleModel(**{"name": "a", **overrides})
+
+  # pop, covered by no-pop-from-kwargs
+  - |
+    def make_example_model(**kwargs):
+        kwargs.pop("name")
+        return ExampleModel(**kwargs)
+
+  # Same name read in a function without a **kwargs parameter
+  - |
+    def make_example_model(kwargs: dict[str, str]):
+        return ExampleModel(name=kwargs["name"])
+invalid:
+  # get on kwargs
+  - |
+    def make_example_model(**kwargs):
+        return ExampleModel(name=kwargs.get("name", "a"))
+
+  # Subscript on kwargs
+  - |
+    def make_example_model(**overrides):
+        name = overrides["name"]
+        return ExampleModel(name=name)
+
+  # Membership test on kwargs
+  - |
+    def make_example_model(**kwargs):
+        if "name" in kwargs:
+            return ExampleModel(name="a")
+        return ExampleModel()
+
+  # kwargs passed as a plain argument
+  - |
+    def make_example_model(**kwargs):
+        return ExampleModel.from_fields(kwargs)
+
+  # Iterating kwargs
+  - |
+    def make_example_model(**kwargs):
+        model = ExampleModel()
+        for key in kwargs:
+            model.tag(key)
+        return model
+
+  # update with kwargs in a method
+  - |
+    class ExampleFactory:
+        def build(self, **overrides):
+            fields = {"name": "a"}
+            fields.update(overrides)
+            return ExampleModel(**fields)

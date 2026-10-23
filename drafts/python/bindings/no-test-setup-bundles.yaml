@@ -1,0 +1,3 @@
+skill: python/skills/no-test-setup-bundles
+paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
+triggers: [test-support-type]

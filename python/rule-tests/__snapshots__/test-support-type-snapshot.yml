@@ -1,0 +1,76 @@
+id: test-support-type
+snapshots:
+  ? |
+    @dataclass
+    class ExampleSetup:
+        example_model: ExampleModel
+  : labels:
+    - source: |-
+        @dataclass
+        class ExampleSetup:
+            example_model: ExampleModel
+      style: primary
+      start: 0
+      end: 62
+    - source: |-
+        class ExampleSetup:
+            example_model: ExampleModel
+      style: secondary
+      start: 11
+      end: 62
+  ? |
+    ExamplePair = NamedTuple("ExamplePair", [("left", int)])
+  : labels:
+    - source: NamedTuple("ExamplePair", [("left", int)])
+      style: primary
+      start: 14
+      end: 56
+    - source: NamedTuple
+      style: secondary
+      start: 14
+      end: 24
+  ? |
+    ExamplePair = collections.namedtuple("ExamplePair", ["left", "right"])
+  : labels:
+    - source: collections.namedtuple("ExamplePair", ["left", "right"])
+      style: primary
+      start: 14
+      end: 70
+    - source: collections.namedtuple
+      style: secondary
+      start: 14
+      end: 36
+  ? |
+    class ExampleResources(NamedTuple):
+        example_model: ExampleModel
+  : labels:
+    - source: |-
+        class ExampleResources(NamedTuple):
+            example_model: ExampleModel
+      style: primary
+      start: 0
+      end: 67
+  ? |
+    class FakeExampleGateway:
+        def charge(self, amount):
+            return amount
+  : labels:
+    - source: |-
+        class FakeExampleGateway:
+            def charge(self, amount):
+                return amount
+      style: primary
+      start: 0
+      end: 77
+  ? |
+    def make_example_setup():
+        return SimpleNamespace(example_model=ExampleModel())
+  : labels:
+    - source: SimpleNamespace(example_model=ExampleModel())
+      style: primary
+      start: 37
+      end: 82
+    - source: SimpleNamespace
+      style: secondary
+      start: 37
+      end: 52

@@ -1,11 +1,85 @@
 id: guard-check
 valid:
+# if whose body does work
 - |
-  def handle(request):
-      return request.payload
+  if example_order.paid:
+      send_receipt(example_order)
+      archive(example_order)
+# Plain return at the end of a function
+- |
+  def example_total(example_order):
+      return example_order.total
+# Conditional expression without a None check
+- |
+  label = "big" if example_order.total > 100 else "small"
+# else branch that does work
+- |
+  if example_order.paid:
+      send_receipt(example_order)
+  else:
+      remind(example_order)
+# raise outside a check
+- |
+  def example_fail(example_order):
+      raise ExampleError(example_order.id)
 invalid:
+# assert
 - |
-  if not isinstance(request.payload, Refund):
-      raise TypeError('refund')
+  assert example_order.carrier is not None
+# isinstance call
 - |
-  assert request.payload
+  if not isinstance(example_payload, ExamplePayload):
+      log(example_payload)
+# issubclass call
+- |
+  ok = issubclass(example_type, ExampleBase)
+# cast call
+- |
+  example_payload = cast(ExamplePayload, example_request.payload)
+# typing.cast call
+- |
+  example_payload = typing.cast(ExamplePayload, example_request.payload)
+# if that raises
+- |
+  if example_order.carrier is None:
+      raise ExampleError(example_order.id)
+# if that returns early
+- |
+  def example_total(example_lines):
+      if not example_lines:
+          return 0
+      return sum(example_lines)
+# if that continues
+- |
+  for example_line in example_lines:
+      if example_line.amount <= 0:
+          continue
+      add(example_line)
+# if that breaks
+- |
+  for example_line in example_lines:
+      if example_line.amount is None:
+          break
+      add(example_line)
+# elif that raises
+- |
+  if example_kind == "refund":
+      refund(example_request)
+  elif example_kind != "charge":
+      raise ExampleError(example_kind)
+# else that raises
+- |
+  if isinstance_like(example_request):
+      refund(example_request)
+  else:
+      raise ExampleError(example_request)
+# match case that raises
+- |
+  match example_kind:
+      case "refund":
+          refund(example_request)
+      case _:
+          raise ExampleError(example_kind)
+# Conditional expression on a None check
+- |
+  name = example_order.carrier.name if example_order.carrier is not None else "none"

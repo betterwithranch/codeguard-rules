@@ -9,16 +9,15 @@ rule:
       regex: ^(typing\.)?Union$
   - kind: generic_type
     regex: ^(typing\.)?Union\[
+  - kind: binary_operator
+    regex: ^[A-Z][\w.]*(\[[^|]*\])? *\| *[A-Z]
+    not:
+      regex: ^[\w.]+ *\| *None$
   - kind: keyword_argument
     has:
       field: name
-      regex: ^discriminator$
-  - kind: assignment
-    inside:
-      kind: expression_statement
-      inside:
-        kind: module
+      regex: ^(discriminator|tag|tag_field)$
+  - kind: call
     has:
-      field: right
-      kind: binary_operator
-      regex: ^[A-Z][\w.\[\], ]* *\| *[A-Z]
+      field: function
+      regex: (^|\.)(Discriminator|Tag|TypeAdapter)$

@@ -1,0 +1,227 @@
+id: union-alias-module
+snapshots:
+  ? |
+    @dataclass
+    class Card:
+        pass
+
+
+    Payment = Card | Transfer
+  : labels:
+    - source: |-
+        @dataclass
+        class Card:
+            pass
+      style: primary
+      start: 0
+      end: 31
+    - source: Card | Transfer
+      style: secondary
+      start: 44
+      end: 59
+    - source: Payment = Card | Transfer
+      style: secondary
+      start: 34
+      end: 59
+    - source: Payment = Card | Transfer
+      style: secondary
+      start: 34
+      end: 59
+    - source: |
+        @dataclass
+        class Card:
+            pass
+
+
+        Payment = Card | Transfer
+      style: secondary
+      start: 0
+      end: 60
+  ? |
+    Payment = Annotated[Card | Transfer, Field(discriminator="kind")]
+  : labels:
+    - source: Payment = Annotated[Card | Transfer, Field(discriminator="kind")]
+      style: primary
+      start: 0
+      end: 65
+    - source: Annotated[Card | Transfer, Field(discriminator="kind")]
+      style: secondary
+      start: 10
+      end: 65
+    - source: Payment = Annotated[Card | Transfer, Field(discriminator="kind")]
+      style: secondary
+      start: 0
+      end: 65
+    - source: |
+        Payment = Annotated[Card | Transfer, Field(discriminator="kind")]
+      style: secondary
+      start: 0
+      end: 66
+  ? |
+    Payment = Card | Transfer
+  : labels:
+    - source: Payment = Card | Transfer
+      style: primary
+      start: 0
+      end: 25
+    - source: Card | Transfer
+      style: secondary
+      start: 10
+      end: 25
+    - source: Payment = Card | Transfer
+      style: secondary
+      start: 0
+      end: 25
+    - source: |
+        Payment = Card | Transfer
+      style: secondary
+      start: 0
+      end: 26
+  ? |
+    Payment = Union[Card, Transfer]
+  : labels:
+    - source: Payment = Union[Card, Transfer]
+      style: primary
+      start: 0
+      end: 31
+    - source: Union[Card, Transfer]
+      style: secondary
+      start: 10
+      end: 31
+    - source: Payment = Union[Card, Transfer]
+      style: secondary
+      start: 0
+      end: 31
+    - source: |
+        Payment = Union[Card, Transfer]
+      style: secondary
+      start: 0
+      end: 32
+  ? |
+    VERSION = "2024-06"
+
+
+    type Payment = Card | Transfer
+  : labels:
+    - source: VERSION = "2024-06"
+      style: primary
+      start: 0
+      end: 19
+    - source: Card | Transfer
+      style: secondary
+      start: 37
+      end: 52
+    - source: type Payment = Card | Transfer
+      style: secondary
+      start: 22
+      end: 52
+    - source: |
+        VERSION = "2024-06"
+
+
+        type Payment = Card | Transfer
+      style: secondary
+      start: 0
+      end: 53
+  ? |
+    class Card:
+        pass
+
+
+    type Payment = Card | Transfer
+  : labels:
+    - source: |-
+        class Card:
+            pass
+      style: primary
+      start: 0
+      end: 20
+    - source: Card | Transfer
+      style: secondary
+      start: 38
+      end: 53
+    - source: type Payment = Card | Transfer
+      style: secondary
+      start: 23
+      end: 53
+    - source: |
+        class Card:
+            pass
+
+
+        type Payment = Card | Transfer
+      style: secondary
+      start: 0
+      end: 54
+  ? |
+    def fee(payment):
+        return 1
+
+
+    type Payment = Card | Transfer
+  : labels:
+    - source: |-
+        def fee(payment):
+            return 1
+      style: primary
+      start: 0
+      end: 30
+    - source: Card | Transfer
+      style: secondary
+      start: 48
+      end: 63
+    - source: type Payment = Card | Transfer
+      style: secondary
+      start: 33
+      end: 63
+    - source: |
+        def fee(payment):
+            return 1
+
+
+        type Payment = Card | Transfer
+      style: secondary
+      start: 0
+      end: 64
+  ? |
+    from payments.transfer import Transfer
+
+
+    type Payment = Card | Transfer
+  : labels:
+    - source: from payments.transfer import Transfer
+      style: primary
+      start: 0
+      end: 38
+    - source: Card | Transfer
+      style: secondary
+      start: 56
+      end: 71
+    - source: type Payment = Card | Transfer
+      style: secondary
+      start: 41
+      end: 71
+    - source: |
+        from payments.transfer import Transfer
+
+
+        type Payment = Card | Transfer
+      style: secondary
+      start: 0
+      end: 72
+  ? |
+    type Payment = Card | Transfer
+  : labels:
+    - source: type Payment = Card | Transfer
+      style: primary
+      start: 0
+      end: 30
+    - source: Card | Transfer
+      style: secondary
+      start: 15
+      end: 30
+    - source: |
+        type Payment = Card | Transfer
+      style: secondary
+      start: 0
+      end: 31

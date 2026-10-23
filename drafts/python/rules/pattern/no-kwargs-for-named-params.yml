@@ -1,0 +1,40 @@
+id: no-kwargs-for-named-params
+language: python
+severity: error
+message: Don't read a named key out of a `**kwargs` parameter.
+note: |
+  A key the function reads by name (`options["timeout"]`, `options.get("retries")`,
+  `options.pop("verbose")`, `"retries" in options`) is a parameter hidden from the
+  signature: callers can't see it, the type checker can't check it, and a misspelled key
+  passes silently. Declare it as a typed parameter (keyword-only after `*` if it should
+  be passed by name), and pass any remaining `**kwargs` untouched to one typed target.
+rule:
+  any:
+    - kind: subscript
+      all:
+        - has: {field: value, kind: identifier, pattern: $KWARGS}
+        - has: {field: subscript, kind: string}
+    - kind: call
+      all:
+        - has:
+            field: function
+            kind: attribute
+            all:
+              - has: {field: object, kind: identifier, pattern: $KWARGS}
+              - has: {field: attribute, regex: ^(get|pop|setdefault)$}
+        - has:
+            field: arguments
+            has: {nthChild: 1, kind: string}
+    - kind: comparison_operator
+      all:
+        - has: {nthChild: 1, kind: string}
+        - has: {nthChild: 2, kind: identifier, pattern: $KWARGS}
+        - regex: \sin\s
+  inside:
+    kind: function_definition
+    stopBy: end
+    has:
+      field: parameters
+      has:
+        kind: dictionary_splat_pattern
+        has: {kind: identifier, pattern: $KWARGS}

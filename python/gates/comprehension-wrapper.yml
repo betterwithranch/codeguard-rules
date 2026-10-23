@@ -1,0 +1,35 @@
+id: comprehension-wrapper
+language: python
+rule:
+  kind: function_definition
+  has:
+    field: body
+    kind: block
+    all:
+    - not:
+        has:
+          nthChild: 2
+    - has:
+        nthChild: 1
+        kind: return_statement
+        has:
+          any:
+          - kind: list_comprehension
+          - kind: set_comprehension
+          - kind: dictionary_comprehension
+          - kind: generator_expression
+          - kind: call
+            all:
+            - has:
+                field: function
+                regex: ^(list|set|tuple|dict|frozenset)$
+            - has:
+                field: arguments
+                any:
+                - kind: generator_expression
+                - has:
+                    nthChild: 1
+                    kind: call
+                    has:
+                      field: function
+                      regex: ^map$

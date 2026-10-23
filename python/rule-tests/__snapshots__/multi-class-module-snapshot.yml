@@ -26,6 +26,16 @@ snapshots:
       style: secondary
       start: 35
       end: 58
+    - source: Order
+      style: secondary
+      start: 17
+      end: 22
+    - source: |-
+        class Order:
+            pass
+      style: secondary
+      start: 11
+      end: 32
     - source: |
         @dataclass
         class Order:
@@ -37,16 +47,145 @@ snapshots:
       style: secondary
       start: 0
       end: 59
+  ? |
+    Status = Enum("Status", "OPEN SHIPPED")
+
+
+    class Order:
+        pass
+  : labels:
+    - source: Status = Enum("Status", "OPEN SHIPPED")
+      style: primary
+      start: 0
+      end: 39
     - source: Order
       style: secondary
-      start: 17
-      end: 22
+      start: 48
+      end: 53
     - source: |-
         class Order:
             pass
       style: secondary
-      start: 11
-      end: 32
+      start: 42
+      end: 63
+    - source: Status
+      style: secondary
+      start: 0
+      end: 6
+    - source: Enum
+      style: secondary
+      start: 9
+      end: 13
+    - source: Enum("Status", "OPEN SHIPPED")
+      style: secondary
+      start: 9
+      end: 39
+    - source: Status = Enum("Status", "OPEN SHIPPED")
+      style: secondary
+      start: 0
+      end: 39
+    - source: |
+        Status = Enum("Status", "OPEN SHIPPED")
+
+
+        class Order:
+            pass
+      style: secondary
+      start: 0
+      end: 64
+  ? |
+    class Order:
+        pass
+
+
+    @dataclass
+    class Invoice:
+        pass
+  : labels:
+    - source: |-
+        class Order:
+            pass
+      style: primary
+      start: 0
+      end: 21
+    - source: Invoice
+      style: secondary
+      start: 41
+      end: 48
+    - source: |-
+        class Invoice:
+            pass
+      style: secondary
+      start: 35
+      end: 58
+    - source: |-
+        @dataclass
+        class Invoice:
+            pass
+      style: secondary
+      start: 24
+      end: 58
+    - source: Order
+      style: secondary
+      start: 6
+      end: 11
+    - source: |
+        class Order:
+            pass
+
+
+        @dataclass
+        class Invoice:
+            pass
+      style: secondary
+      start: 0
+      end: 59
+  ? |
+    class Order:
+        pass
+
+
+    Line = NamedTuple("Line", [("sku", str)])
+  : labels:
+    - source: |-
+        class Order:
+            pass
+      style: primary
+      start: 0
+      end: 21
+    - source: Line
+      style: secondary
+      start: 24
+      end: 28
+    - source: NamedTuple
+      style: secondary
+      start: 31
+      end: 41
+    - source: NamedTuple("Line", [("sku", str)])
+      style: secondary
+      start: 31
+      end: 65
+    - source: Line = NamedTuple("Line", [("sku", str)])
+      style: secondary
+      start: 24
+      end: 65
+    - source: Line = NamedTuple("Line", [("sku", str)])
+      style: secondary
+      start: 24
+      end: 65
+    - source: Order
+      style: secondary
+      start: 6
+      end: 11
+    - source: |
+        class Order:
+            pass
+
+
+        Line = NamedTuple("Line", [("sku", str)])
+      style: secondary
+      start: 0
+      end: 66
   ? |
     class Order:
         pass
@@ -71,6 +210,10 @@ snapshots:
       style: secondary
       start: 24
       end: 47
+    - source: Order
+      style: secondary
+      start: 6
+      end: 11
     - source: |
         class Order:
             pass
@@ -81,7 +224,3 @@ snapshots:
       style: secondary
       start: 0
       end: 48
-    - source: Order
-      style: secondary
-      start: 6
-      end: 11

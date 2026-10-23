@@ -137,6 +137,189 @@ cases:
                 self.issues.append(ValidationIssue(field, issue_type))
     expected_output:
       outcome: valid
+  - name: adds module helpers that differ by a status string
+    inputs:
+      file: orders/order_events.py
+      after: |
+        from .events import OrderEvent
+
+
+        def _opened(order_id: str) -> OrderEvent:
+            return OrderEvent(order_id=order_id, status="opened")
+
+
+        def _shipped(order_id: str) -> OrderEvent:
+            return OrderEvent(order_id=order_id, status="shipped")
+
+
+        def events_for(order_ids: list[str], shipped: bool) -> list[OrderEvent]:
+            make = _shipped if shipped else _opened
+            return [make(order_id) for order_id in order_ids]
+    expected_output:
+      outcome: invalid
+  - name: adds module helpers that build different events
+    inputs:
+      file: orders/order_events.py
+      after: |
+        from datetime import datetime
+
+        from .events import OrderEvent, ShipmentEvent
+
+
+        def _opened(order_id: str) -> OrderEvent:
+            return OrderEvent(order_id=order_id, status="opened")
+
+
+        def _shipped(order_id: str, carrier: str, at: datetime) -> ShipmentEvent:
+            return ShipmentEvent(order_id=order_id, carrier=carrier, shipped_at=at)
+
+
+        def events_for(order_ids: list[str]) -> list[OrderEvent]:
+            return [_opened(order_id) for order_id in order_ids]
+    expected_output:
+      outcome: valid
+  - name: adds serializer helpers that differ by a field name
+    inputs:
+      file: accounts/serializers.py
+      after: |
+        from rest_framework import serializers
+
+
+        class AddressSerializer(serializers.Serializer):
+            street = serializers.CharField()
+            city = serializers.CharField()
+
+            def validate(self, attrs: dict[str, str]) -> dict[str, str]:
+                self._require_text(attrs)
+                self._require_city(attrs)
+                return attrs
+
+            def _require_text(self, attrs: dict[str, str]) -> None:
+                if not attrs.get("street", "").strip():
+                    raise serializers.ValidationError({"street": "required"})
+
+            def _require_city(self, attrs: dict[str, str]) -> None:
+                if not attrs.get("city", "").strip():
+                    raise serializers.ValidationError({"city": "required"})
+    expected_output:
+      outcome: invalid
+  - name: adds a helper that takes the field name
+    inputs:
+      file: accounts/serializers.py
+      after: |
+        from rest_framework import serializers
+
+
+        class AddressSerializer(serializers.Serializer):
+            street = serializers.CharField()
+            city = serializers.CharField()
+
+            def validate(self, attrs: dict[str, str]) -> dict[str, str]:
+                self._require(attrs, "street")
+                self._require(attrs, "city")
+                return attrs
+
+            def _require(self, attrs: dict[str, str], field: str) -> None:
+                if not attrs.get(field, "").strip():
+                    raise serializers.ValidationError({field: "required"})
+
+            def _normalised(self, attrs: dict[str, str]) -> dict[str, str]:
+                return {key: value.strip() for key, value in attrs.items()}
+    expected_output:
+      outcome: valid
+  - name: adds static rate helpers that differ by a number
+    inputs:
+      file: shipping/rates.py
+      after: |
+        class ParcelRates:
+            def quote(self, weight_grams: int, express: bool) -> int:
+                if express:
+                    return self._express(weight_grams)
+                return self._standard(weight_grams)
+
+            @staticmethod
+            def _standard(weight_grams: int) -> int:
+                return 500 + weight_grams // 100 * 20
+
+            @staticmethod
+            def _express(weight_grams: int) -> int:
+                return 500 + weight_grams // 100 * 45
+    expected_output:
+      outcome: invalid
+  - name: keeps public log methods over one private helper
+    inputs:
+      file: audit/audit_log.py
+      after: |
+        from enum import StrEnum
+
+
+        class Level(StrEnum):
+            INFO = "info"
+            WARNING = "warning"
+
+
+        class AuditLog:
+            def __init__(self) -> None:
+                self.entries: list[tuple[Level, str]] = []
+
+            def info(self, message: str) -> None:
+                self._write(Level.INFO, message)
+
+            def warning(self, message: str) -> None:
+                self._write(Level.WARNING, message)
+
+            def _write(self, level: Level, message: str) -> None:
+                self.entries.append((level, message.strip()))
+
+            def _reset(self) -> None:
+                self.entries.clear()
+    expected_output:
+      outcome: valid
+  - name: adds async fetch helpers that differ by a path
+    inputs:
+      file: carriers/carrier_client.py
+      after: |
+        import httpx
+
+
+        class CarrierClient:
+            def __init__(self, http: httpx.AsyncClient) -> None:
+                self._http = http
+
+            async def _fetch_rates(self) -> bytes:
+                response = await self._http.get("/v1/rates", timeout=10)
+                response.raise_for_status()
+                return response.content
+
+            async def _fetch_zones(self) -> bytes:
+                response = await self._http.get("/v1/zones", timeout=10)
+                response.raise_for_status()
+                return response.content
+    expected_output:
+      outcome: invalid
+  - name: adds async helpers that parse different responses
+    inputs:
+      file: carriers/carrier_client.py
+      after: |
+        import httpx
+
+        from .models import RateTable, ZoneMap
+
+
+        class CarrierClient:
+            def __init__(self, http: httpx.AsyncClient) -> None:
+                self._http = http
+
+            async def _fetch_rates(self) -> RateTable:
+                response = await self._http.get("/v1/rates", timeout=10)
+                return RateTable.model_validate_json(response.content)
+
+            async def _fetch_zones(self, region: str) -> ZoneMap:
+                response = await self._http.get("/v1/zones", params={"region": region})
+                response.raise_for_status()
+                return ZoneMap.from_csv(response.text)
+    expected_output:
+      outcome: valid
   - name: raises the reported issue limit
     inputs:
       file: shipments/shipment_validator.py
@@ -158,5 +341,18 @@ cases:
         class IssueType(StrEnum):
             MISSING = "missing"
             INVALID = "invalid"
+    expected_output:
+      outcome: skipped
+  - name: renames a public method on a class without helpers
+    inputs:
+      file: shipping/rates.py
+      before: |
+        class ParcelRates:
+            def quote(self, weight_grams: int) -> int:
+                return 500 + weight_grams // 100 * 20
+      after: |
+        class ParcelRates:
+            def standard_quote(self, weight_grams: int) -> int:
+                return 500 + weight_grams // 100 * 20
     expected_output:
       outcome: skipped

@@ -1,0 +1,352 @@
+cases:
+  - name: adds a fixture only one of two tests requests
+    inputs:
+      file: tests/test_reminders.py
+      after: |
+        import pytest
+
+        from billing.reminders import ReminderSender
+        from tests.fakes import FakeLedger, FakeMailbox
+
+
+        @pytest.fixture
+        def overdue_ledger():
+            ledger = FakeLedger(currency="EUR")
+            ledger.add_invoice("inv-42", amount=120, due="2026-01-15")
+            return ledger
+
+
+        def test_sends_reminder_for_overdue_invoice(overdue_ledger):
+            mailbox = FakeMailbox()
+
+            ReminderSender(overdue_ledger, mailbox).send_overdue(today="2026-02-01")
+
+            assert mailbox.subjects == ["Invoice inv-42 is overdue"]
+
+
+        def test_sends_nothing_for_empty_ledger():
+            mailbox = FakeMailbox()
+
+            ReminderSender(FakeLedger(currency="EUR"), mailbox).send_overdue(today="2026-02-01")
+
+            assert mailbox.subjects == []
+    expected_output:
+      outcome: invalid
+  - name: adds a fixture both tests request
+    inputs:
+      file: tests/test_reminders.py
+      after: |
+        import pytest
+
+        from billing.reminders import ReminderSender
+        from tests.fakes import FakeLedger, FakeMailbox
+
+
+        @pytest.fixture
+        def mailbox():
+            return FakeMailbox()
+
+
+        def test_sends_reminder_for_overdue_invoice(mailbox):
+            ledger = FakeLedger(currency="EUR")
+            ledger.add_invoice("inv-42", amount=120, due="2026-01-15")
+
+            ReminderSender(ledger, mailbox).send_overdue(today="2026-02-01")
+
+            assert mailbox.subjects == ["Invoice inv-42 is overdue"]
+
+
+        def test_sends_nothing_for_empty_ledger(mailbox):
+            ReminderSender(FakeLedger(currency="EUR"), mailbox).send_overdue(today="2026-02-01")
+
+            assert mailbox.subjects == []
+    expected_output:
+      outcome: valid
+  - name: marks a single test with usefixtures for a frozen clock
+    inputs:
+      file: tests/test_tokens.py
+      after: |
+        import pytest
+
+        from auth.tokens import issue_token, is_expired
+
+
+        @pytest.fixture
+        def frozen_clock(freezer):
+            freezer.move_to("2026-03-01T09:00:00Z")
+
+
+        @pytest.mark.usefixtures("frozen_clock")
+        def test_new_token_is_not_expired():
+            token = issue_token(user_id="usr-1", ttl_minutes=5)
+
+            assert not is_expired(token)
+
+
+        def test_token_with_zero_ttl_is_expired():
+            token = issue_token(user_id="usr-1", ttl_minutes=0)
+
+            assert is_expired(token)
+    expected_output:
+      outcome: invalid
+  - name: marks a test class of two tests with usefixtures
+    inputs:
+      file: tests/test_tokens.py
+      after: |
+        import pytest
+
+        from auth.tokens import issue_token, is_expired
+
+
+        @pytest.fixture
+        def frozen_clock(freezer):
+            freezer.move_to("2026-03-01T09:00:00Z")
+
+
+        @pytest.mark.usefixtures("frozen_clock")
+        class TestTokenExpiry:
+            def test_new_token_is_not_expired(self):
+                token = issue_token(user_id="usr-1", ttl_minutes=5)
+
+                assert not is_expired(token)
+
+            def test_token_with_zero_ttl_is_expired(self):
+                token = issue_token(user_id="usr-1", ttl_minutes=0)
+
+                assert is_expired(token)
+    expected_output:
+      outcome: valid
+  - name: adds a rules fixture only the mapper fixture requests
+    inputs:
+      file: tests/test_invoice_mapper.py
+      after: |
+        import pytest
+
+        from billing.invoices import Invoice
+        from billing.mapper import InvoiceMapper, MappingRules
+
+
+        @pytest.fixture
+        def rules():
+            return MappingRules(currency="EUR")
+
+
+        @pytest.fixture
+        def mapper(rules):
+            return InvoiceMapper(rules)
+
+
+        def test_map_reads_number(mapper):
+            assert mapper.map({"no": "42", "sum": "1"}).number == "42"
+
+
+        def test_map_reads_total(mapper):
+            assert mapper.map({"no": "42", "sum": "120.00"}).total == 120
+    expected_output:
+      outcome: invalid
+  - name: adds a rules fixture a test and the mapper fixture request
+    inputs:
+      file: tests/test_invoice_mapper.py
+      after: |
+        import pytest
+
+        from billing.invoices import Invoice
+        from billing.mapper import InvoiceMapper, MappingRules
+
+
+        @pytest.fixture
+        def rules():
+            return MappingRules(currency="EUR")
+
+
+        @pytest.fixture
+        def mapper(rules):
+            return InvoiceMapper(rules)
+
+
+        def test_map_reads_number(mapper):
+            assert mapper.map({"no": "42", "sum": "1"}).number == "42"
+
+
+        def test_map_reads_total(mapper):
+            assert mapper.map({"no": "42", "sum": "120.00"}).total == 120
+
+
+        def test_rules_currency_is_used(rules):
+            assert InvoiceMapper(rules).map({"no": "42", "sum": "1"}).currency == "EUR"
+    expected_output:
+      outcome: valid
+  - name: adds an autouse fixture for a module of tests
+    inputs:
+      file: tests/test_tokens.py
+      after: |
+        import pytest
+
+        from auth.tokens import issue_token, is_expired
+
+
+        @pytest.fixture(autouse=True)
+        def frozen_clock(freezer):
+            freezer.move_to("2026-03-01T09:00:00Z")
+
+
+        def test_new_token_is_not_expired():
+            token = issue_token(user_id="usr-1", ttl_minutes=5)
+
+            assert not is_expired(token)
+    expected_output:
+      outcome: valid
+  - name: adds a fixture one method of a test class requests
+    inputs:
+      file: tests/test_orders.py
+      after: |
+        import pytest
+
+        from shop.orders import Order, OrderLine
+
+
+        @pytest.fixture
+        def discounted_line():
+            return OrderLine(sku="BOOK-1", price=60, quantity=2, discount=10)
+
+
+        class TestOrderTotal:
+            def test_total_applies_line_discount(self, discounted_line):
+                assert Order(lines=[discounted_line]).total == 110
+
+            def test_empty_order_totals_zero(self):
+                assert Order(lines=[]).total == 0
+    expected_output:
+      outcome: invalid
+  - name: drops the fixture from one of the two tests that requested it
+    inputs:
+      file: tests/test_orders.py
+      before: |
+        import pytest
+
+        from shop.orders import Order, OrderLine
+
+
+        @pytest.fixture
+        def book_line():
+            return OrderLine(sku="BOOK-1", price=60, quantity=2)
+
+
+        def test_total_sums_lines(book_line):
+            assert Order(lines=[book_line]).total == 120
+
+
+        def test_line_count(book_line):
+            assert Order(lines=[book_line, book_line]).line_count == 2
+      after: |
+        import pytest
+
+        from shop.orders import Order, OrderLine
+
+
+        @pytest.fixture
+        def book_line():
+            return OrderLine(sku="BOOK-1", price=60, quantity=2)
+
+
+        def test_total_sums_lines(book_line):
+            assert Order(lines=[book_line]).total == 120
+
+
+        def test_line_count():
+            line = OrderLine(sku="PEN-1", price=2, quantity=1)
+
+            assert Order(lines=[line, line]).line_count == 2
+    expected_output:
+      outcome: invalid
+  - name: adds a second test that requests an existing fixture
+    inputs:
+      file: tests/test_orders.py
+      before: |
+        import pytest
+
+        from shop.orders import Order, OrderLine
+
+
+        @pytest.fixture
+        def book_line():
+            return OrderLine(sku="BOOK-1", price=60, quantity=2)
+
+
+        def test_total_sums_lines(book_line):
+            assert Order(lines=[book_line]).total == 120
+      after: |
+        import pytest
+
+        from shop.orders import Order, OrderLine
+
+
+        @pytest.fixture
+        def book_line():
+            return OrderLine(sku="BOOK-1", price=60, quantity=2)
+
+
+        def test_total_sums_lines(book_line):
+            assert Order(lines=[book_line]).total == 120
+
+
+        def test_line_count(book_line):
+            assert Order(lines=[book_line, book_line]).line_count == 2
+    expected_output:
+      outcome: valid
+  - name: adds a parametrized fixture two tests request
+    inputs:
+      file: tests/test_parsers.py
+      after: |
+        import pytest
+
+        from imports.parsers import CsvParser, JsonParser
+
+
+        @pytest.fixture(params=[CsvParser, JsonParser])
+        def parser_class(request):
+            return request.param
+
+
+        def test_parse_empty_text_returns_no_rows(parser_class):
+            assert parser_class().parse("") == []
+
+
+        def test_parser_names_its_format(parser_class):
+            assert parser_class().format_name in {"csv", "json"}
+    expected_output:
+      outcome: valid
+  - name: changes an expected total in a test body
+    inputs:
+      file: tests/test_orders.py
+      before: |
+        from shop.orders import Order, OrderLine
+
+
+        def test_total_sums_lines():
+            assert Order(lines=[OrderLine(sku="BOOK-1", price=60, quantity=2)]).total == 120
+      after: |
+        from shop.orders import Order, OrderLine
+
+
+        def test_total_sums_lines():
+            assert Order(lines=[OrderLine(sku="BOOK-1", price=60, quantity=3)]).total == 180
+    expected_output:
+      outcome: skipped
+  - name: changes a helper's default price
+    inputs:
+      file: tests/test_orders.py
+      before: |
+        from shop.orders import OrderLine
+
+
+        def make_line(sku):
+            return OrderLine(sku=sku, price=60, quantity=1)
+      after: |
+        from shop.orders import OrderLine
+
+
+        def make_line(sku):
+            return OrderLine(sku=sku, price=75, quantity=1)
+    expected_output:
+      outcome: skipped

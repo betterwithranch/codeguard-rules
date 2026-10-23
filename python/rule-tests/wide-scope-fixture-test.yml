@@ -1,0 +1,49 @@
+id: wide-scope-fixture
+valid:
+# A function-scoped fixture
+- |
+  @pytest.fixture
+  def cart():
+      return Cart()
+# A fixture with scope set to function
+- |
+  @pytest.fixture(scope="function")
+  def cart():
+      return Cart()
+# An autouse fixture with the default scope
+- |
+  @pytest.fixture(autouse=True)
+  def reset():
+      yield
+invalid:
+# Session scope
+- |
+  @pytest.fixture(scope="session")
+  def catalog():
+      return []
+# Module scope with autouse
+- |
+  @pytest.fixture(scope="module", autouse=True)
+  def reset_registry():
+      yield
+      registry.clear()
+# Class scope
+- |
+  @pytest.fixture(scope='class')
+  def cart():
+      return Cart()
+# Package scope on a pytest_asyncio fixture
+- |
+  @pytest_asyncio.fixture(scope="package")
+  async def client():
+      return Client()
+# A callable scope
+- |
+  @pytest.fixture(scope=pick_scope)
+  def catalog():
+      return []
+# A bare imported fixture decorator
+- |
+  @fixture(scope="session")
+  def catalog():
+      return {}

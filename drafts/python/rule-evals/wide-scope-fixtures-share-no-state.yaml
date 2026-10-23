@@ -1,0 +1,335 @@
+cases:
+  - name: shares a module-scoped cart that tests add to
+    inputs:
+      file: tests/test_carts.py
+      after: |
+        import pytest
+
+        from shop.carts import Cart
+
+
+        @pytest.fixture(scope="module")
+        def cart():
+            return Cart()
+
+
+        def test_add_one_book(cart):
+            cart.add(sku="BOOK-1", quantity=1)
+
+            assert cart.quantity("BOOK-1") == 1
+
+
+        def test_add_one_pen(cart):
+            cart.add(sku="PEN-2", quantity=1)
+
+            assert cart.skus() == ["PEN-2"]
+    expected_output:
+      outcome: invalid
+  - name: shares a session-scoped dict of rates that a test changes
+    inputs:
+      file: tests/test_conversion.py
+      after: |
+        from decimal import Decimal
+
+        import pytest
+
+        from billing.conversion import convert
+
+
+        @pytest.fixture(scope="session")
+        def rates():
+            return {"EUR": Decimal("1.10"), "GBP": Decimal("0.80")}
+
+
+        def test_convert_to_euros(rates):
+            assert convert(Decimal("100"), "EUR", rates) == Decimal("110.00")
+
+
+        def test_convert_uses_an_updated_rate(rates):
+            rates["EUR"] = Decimal("1.20")
+
+            assert convert(Decimal("100"), "EUR", rates) == Decimal("120.00")
+    expected_output:
+      outcome: invalid
+  - name: shares a session-scoped frozen rate table
+    inputs:
+      file: tests/test_conversion.py
+      after: |
+        from dataclasses import dataclass
+        from decimal import Decimal
+
+        import pytest
+
+        from billing.conversion import convert
+
+
+        @dataclass(frozen=True)
+        class RateTable:
+            eur: Decimal
+            gbp: Decimal
+
+
+        @pytest.fixture(scope="session")
+        def rates():
+            return RateTable(eur=Decimal("1.10"), gbp=Decimal("0.80"))
+
+
+        def test_convert_to_euros(rates):
+            assert convert(Decimal("100"), rates.eur) == Decimal("110.00")
+    expected_output:
+      outcome: valid
+  - name: clears the exporter registry once per module while each test registers
+    inputs:
+      file: tests/test_exporters.py
+      after: |
+        import pytest
+
+        from reports import exporters
+        from reports.exporters import CsvExporter, JsonExporter, export
+
+
+        @pytest.fixture(scope="module", autouse=True)
+        def clean_registry():
+            yield
+            exporters.clear()
+
+
+        def test_export_writes_csv(monthly_report):
+            exporters.register(CsvExporter)
+
+            assert export(monthly_report).startswith("id,total")
+
+
+        def test_export_writes_json(monthly_report):
+            exporters.register(JsonExporter)
+
+            assert export(monthly_report).startswith("{")
+    expected_output:
+      outcome: invalid
+  - name: removes a module's catalog file that tests only read
+    inputs:
+      file: tests/test_catalog_loading.py
+      after: |
+        import pytest
+
+        from shop.catalog import load_catalog
+
+
+        @pytest.fixture(scope="module")
+        def catalog_path(tmp_path_factory):
+            path = tmp_path_factory.mktemp("catalog") / "catalog.json"
+            path.write_text('{"BOOK-1": "Atlas"}')
+            yield path
+            path.unlink()
+
+
+        def test_load_catalog_reads_names(catalog_path):
+            assert load_catalog(catalog_path).name_of("BOOK-1") == "Atlas"
+    expected_output:
+      outcome: valid
+  - name: shares a class-scoped customer that a test renames
+    inputs:
+      file: tests/test_customers.py
+      unchanged:
+        shop/customers.py: |
+          from dataclasses import dataclass
+
+
+          @dataclass
+          class Customer:
+              name: str
+              email: str
+      after: |
+        import pytest
+
+        from shop.customers import Customer
+        from shop.greetings import greeting
+
+
+        class TestGreeting:
+            @pytest.fixture(scope="class")
+            def customer(self):
+                return Customer(name="Ada", email="ada@example.com")
+
+            def test_greeting_uses_the_name(self, customer):
+                assert greeting(customer) == "Hello, Ada"
+
+            def test_greeting_after_a_rename(self, customer):
+                customer.name = "Grace"
+
+                assert greeting(customer) == "Hello, Grace"
+    expected_output:
+      outcome: invalid
+  - name: shares a session-scoped in-memory order store tests write to
+    inputs:
+      file: tests/test_order_service.py
+      after: |
+        import pytest
+
+        from orders.service import OrderService
+        from tests.fakes import InMemoryOrderStore
+
+
+        @pytest.fixture(scope="session")
+        def store():
+            return InMemoryOrderStore()
+
+
+        def test_place_saves_the_order(store):
+            OrderService(store).place(order_id="ord-1")
+
+            assert store.ids() == ["ord-1"]
+
+
+        def test_place_two_orders(store):
+            service = OrderService(store)
+            service.place(order_id="ord-2")
+            service.place(order_id="ord-3")
+
+            assert store.ids() == ["ord-2", "ord-3"]
+    expected_output:
+      outcome: invalid
+  - name: shares a session-scoped tuple of order ids
+    inputs:
+      file: tests/test_order_lookup.py
+      after: |
+        import pytest
+
+        from orders.lookup import find_order
+
+
+        @pytest.fixture(scope="session")
+        def order_ids():
+            return ("ord-1", "ord-2")
+
+
+        def test_find_order_finds_each_seeded_order(order_ids, seeded_db):
+            assert [find_order(seeded_db, order_id).id for order_id in order_ids] == ["ord-1", "ord-2"]
+    expected_output:
+      outcome: valid
+  - name: shares a session-scoped path to read-only fixtures
+    inputs:
+      file: tests/test_imports.py
+      after: |
+        from pathlib import Path
+
+        import pytest
+
+        from orders.imports import import_orders
+
+
+        @pytest.fixture(scope="session")
+        def samples_dir():
+            return Path(__file__).parent / "samples"
+
+
+        def test_import_orders_reads_each_row(samples_dir):
+            assert [order.id for order in import_orders(samples_dir / "two_orders.csv")] == ["ord-1", "ord-2"]
+    expected_output:
+      outcome: valid
+  - name: shares a session-scoped frozen pydantic settings model
+    inputs:
+      file: tests/test_settings.py
+      after: |
+        import pytest
+        from pydantic import BaseModel, ConfigDict
+
+        from billing.payments import payment_gateway_for
+
+
+        class PaymentSettings(BaseModel):
+            model_config = ConfigDict(frozen=True)
+
+            mode: str
+            currency: str
+
+
+        @pytest.fixture(scope="session")
+        def payment_settings():
+            return PaymentSettings(mode="sandbox", currency="EUR")
+
+
+        def test_sandbox_settings_pick_the_sandbox_gateway(payment_settings):
+            assert payment_gateway_for(payment_settings).name == "sandbox"
+    expected_output:
+      outcome: valid
+  - name: shares a session-scoped async fixture list that a test appends to
+    inputs:
+      file: tests/test_sync.py
+      after: |
+        import pytest_asyncio
+
+        from orders.sync import sync_orders
+
+
+        @pytest_asyncio.fixture(scope="session")
+        async def pending_ids():
+            return ["ord-1"]
+
+
+        async def test_sync_sends_pending_orders(pending_ids, remote):
+            await sync_orders(pending_ids, remote)
+
+            assert remote.received == ["ord-1"]
+
+
+        async def test_sync_sends_a_new_order(pending_ids, remote):
+            pending_ids.append("ord-2")
+            await sync_orders(pending_ids, remote)
+
+            assert remote.received == ["ord-1", "ord-2"]
+    expected_output:
+      outcome: invalid
+  - name: adds a function-scoped cart fixture
+    inputs:
+      file: tests/test_carts.py
+      before: |
+        from shop.carts import Cart
+      after: |
+        import pytest
+
+        from shop.carts import Cart
+
+
+        @pytest.fixture
+        def cart():
+            return Cart()
+
+
+        def test_add_one_book(cart):
+            cart.add(sku="BOOK-1", quantity=1)
+
+            assert cart.quantity("BOOK-1") == 1
+    expected_output:
+      outcome: skipped
+  - name: changes a test that uses a session fixture
+    inputs:
+      file: tests/test_order_lookup.py
+      before: |
+        import pytest
+
+        from orders.lookup import find_order
+
+
+        @pytest.fixture(scope="session")
+        def order_ids():
+            return ("ord-1", "ord-2")
+
+
+        def test_find_order_finds_the_first_order(order_ids, seeded_db):
+            assert find_order(seeded_db, order_ids[0]).id == "ord-1"
+      after: |
+        import pytest
+
+        from orders.lookup import find_order
+
+
+        @pytest.fixture(scope="session")
+        def order_ids():
+            return ("ord-1", "ord-2")
+
+
+        def test_find_order_finds_the_second_order(order_ids, seeded_db):
+            assert find_order(seeded_db, order_ids[1]).id == "ord-2"
+    expected_output:
+      outcome: skipped

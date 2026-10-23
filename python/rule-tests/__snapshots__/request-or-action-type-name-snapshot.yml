@@ -1,0 +1,96 @@
+id: request-or-action-type-name
+snapshots:
+  ? |
+    ExampleOrderCreate = namedtuple("ExampleOrderCreate", ["total"])
+  : labels:
+    - source: ExampleOrderCreate = namedtuple("ExampleOrderCreate", ["total"])
+      style: primary
+      start: 0
+      end: 64
+    - source: ExampleOrderCreate
+      style: secondary
+      start: 0
+      end: 18
+    - source: namedtuple
+      style: secondary
+      start: 21
+      end: 31
+    - source: namedtuple("ExampleOrderCreate", ["total"])
+      style: secondary
+      start: 21
+      end: 64
+  ? |
+    ExampleQuoteRequest = TypedDict("ExampleQuoteRequest", {"weight": int})
+  : labels:
+    - source: 'ExampleQuoteRequest = TypedDict("ExampleQuoteRequest", {"weight": int})'
+      style: primary
+      start: 0
+      end: 71
+    - source: ExampleQuoteRequest
+      style: secondary
+      start: 0
+      end: 19
+    - source: TypedDict
+      style: secondary
+      start: 22
+      end: 31
+    - source: 'TypedDict("ExampleQuoteRequest", {"weight": int})'
+      style: secondary
+      start: 22
+      end: 71
+  ? |
+    class CreateExampleOrder:
+        total: int
+  : labels:
+    - source: CreateExampleOrder
+      style: primary
+      start: 6
+      end: 24
+    - source: |-
+        class CreateExampleOrder:
+            total: int
+      style: secondary
+      start: 0
+      end: 40
+  ? |
+    class ExampleOrderCreate(BaseModel):
+        total: int
+  : labels:
+    - source: ExampleOrderCreate
+      style: primary
+      start: 6
+      end: 24
+    - source: |-
+        class ExampleOrderCreate(BaseModel):
+            total: int
+      style: secondary
+      start: 0
+      end: 51
+  ? |
+    class ExampleOrderUpdate:
+        total: int
+  : labels:
+    - source: ExampleOrderUpdate
+      style: primary
+      start: 6
+      end: 24
+    - source: |-
+        class ExampleOrderUpdate:
+            total: int
+      style: secondary
+      start: 0
+      end: 40
+  ? |
+    class ExampleQuoteRequest:
+        weight: int
+  : labels:
+    - source: ExampleQuoteRequest
+      style: primary
+      start: 6
+      end: 25
+    - source: |-
+        class ExampleQuoteRequest:
+            weight: int
+      style: secondary
+      start: 0
+      end: 42

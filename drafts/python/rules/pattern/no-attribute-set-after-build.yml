@@ -1,0 +1,42 @@
+id: no-attribute-set-after-build
+language: python
+severity: error
+message: Don't set an attribute on an object a test helper just built.
+note: |
+  A helper that builds an object and then assigns its attributes makes a state its
+  constructor never produces, so the test checks an object production can't create.
+  Pass the value to the constructor or factory, or reach the state through the
+  production code that sets it.
+rule:
+  kind: expression_statement
+  has:
+    kind: assignment
+    has:
+      field: left
+      kind: attribute
+      has:
+        field: object
+        kind: identifier
+        pattern: $V
+  follows:
+    stopBy: end
+    kind: expression_statement
+    has:
+      kind: assignment
+      all:
+      - has:
+          field: left
+          pattern: $V
+      - has:
+          field: right
+          kind: call
+          has:
+            field: function
+            regex: (^|\.)[A-Z][A-Za-z0-9_]*$
+  inside:
+    kind: function_definition
+    stopBy: end
+    not:
+      has:
+        field: name
+        regex: ^test

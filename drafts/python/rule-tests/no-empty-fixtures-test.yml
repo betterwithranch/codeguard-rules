@@ -1,0 +1,78 @@
+id: no-empty-fixtures
+valid:
+  # Fixture that returns a value
+  - |
+    @pytest.fixture
+    def example_cart():
+        return ExampleCart()
+
+  # Fixture that sets up and tears down around a bare yield
+  - |
+    @pytest.fixture
+    def example_registry():
+        registry.load()
+        yield
+        registry.clear()
+
+  # Fixture with a docstring and a return value
+  - |
+    @pytest.fixture
+    def example_cart():
+        """A cart with one item."""
+        return ExampleCart(items=1)
+
+  # Empty function that is not a fixture
+  - |
+    def example_hook():
+        pass
+
+  # Empty function under a decorator that only contains "fixture"
+  - |
+    @fixture_factory
+    def example_cart():
+        pass
+
+invalid:
+  # Body is only pass
+  - |
+    @pytest.fixture
+    def example_cart():
+        pass
+
+  # Body is only an ellipsis
+  - |
+    @pytest.fixture
+    def example_cart():
+        ...
+
+  # Body is only a docstring
+  - |
+    @pytest.fixture(autouse=True)
+    def example_setup():
+        """Placeholder for later setup."""
+
+  # Body is only a bare return
+  - |
+    @fixture
+    def example_cart():
+        return
+
+  # Body is only return None
+  - |
+    @pytest.fixture
+    def example_cart():
+        return None
+
+  # Body is only a bare yield
+  - |
+    @pytest.fixture
+    def example_cart():
+        yield
+
+  # Body is a docstring and pass, on a pytest_asyncio fixture method
+  - |
+    class TestExampleCart:
+        @pytest_asyncio.fixture
+        async def example_cart(self):
+            """Not used yet."""
+            pass

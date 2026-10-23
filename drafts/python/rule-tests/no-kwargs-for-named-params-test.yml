@@ -1,0 +1,71 @@
+id: no-kwargs-for-named-params
+valid:
+  # kwargs passed on untouched
+  - |
+    def send_example(order, **options):
+        return post_example(order, **options)
+
+  # Named key read from a declared parameter, not kwargs
+  - |
+    def send_example(order, settings, **options):
+        return post_example(order, settings["timeout"], **options)
+
+  # kwargs read by a variable key
+  - |
+    def describe_example(**fields):
+        return [fields[name] for name in sorted(fields)]
+
+  # Name shadowing kwargs in a nested function without **kwargs
+  - |
+    def outer_example(**options):
+        def inner_example(options):
+            return options
+        return inner_example(options)
+
+  # Membership test of a variable key
+  - |
+    def has_example(key, **options):
+        return key in options
+
+invalid:
+  # Subscript by a string key
+  - |
+    def send_example(order, **options):
+        return post_example(order, options["timeout"])
+
+  # get with a string key
+  - |
+    def send_example(order, **options):
+        retries = options.get("retries", 3)
+        return post_example(order, retries)
+
+  # pop with a string key
+  - |
+    def send_example(order, **options):
+        verbose = options.pop("verbose", False)
+        return post_example(order, verbose, **options)
+
+  # setdefault with a string key
+  - |
+    def send_example(order, **options):
+        options.setdefault("timeout", 30)
+        return post_example(order, **options)
+
+  # Membership test of a string key
+  - |
+    def send_example(order, **options):
+        if "retries" in options:
+            return retry_example(order)
+        return post_example(order)
+
+  # Method reading its kwargs
+  - |
+    class ExampleClient:
+        def send(self, order, **options):
+            return self.post(order, options["timeout"])
+
+  # Read inside a nested block of the function
+  - |
+    def send_example(orders, **options):
+        for order in orders:
+            post_example(order, options["timeout"])

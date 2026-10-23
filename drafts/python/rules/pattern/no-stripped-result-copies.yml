@@ -1,0 +1,78 @@
+id: no-stripped-result-copies
+language: python
+severity: error
+message: Don't strip fields from a copy of the result and then assert the copy.
+note: |
+  Each field the copy drops or blanks goes unchecked, though the assert reads as a whole
+  comparison. Assert the noisy field's meaningful part directly
+  (`assert error.context["input"] == "abc"`) and compare the rest of the object normally.
+rule:
+  all:
+    - any:
+        - kind: expression_statement
+          has:
+            kind: assignment
+            all:
+              - has: {field: left, kind: identifier, pattern: $X}
+              - has:
+                  field: right
+                  any:
+                    - kind: call
+                      all:
+                        - has: {field: function, regex: "\\.(model_dump|model_dump_json|dict|json)$"}
+                        - has:
+                            field: arguments
+                            has: {kind: keyword_argument, has: {field: name, regex: "^exclude$"}}
+                    - kind: call
+                      all:
+                        - has: {field: function, regex: "^((dataclasses|copy|attr|attrs)\\.)?(replace|evolve)$"}
+                        - has:
+                            field: arguments
+                            has: {kind: keyword_argument, has: {field: value, kind: none}}
+                    - kind: call
+                      all:
+                        - has: {field: function, regex: "\\.model_copy$"}
+                        - has:
+                            field: arguments
+                            has:
+                              kind: keyword_argument
+                              all:
+                                - has: {field: name, regex: "^update$"}
+                                - has:
+                                    field: value
+                                    has: {kind: pair, has: {field: value, kind: none}}
+                    - kind: dictionary_comprehension
+                      has: {kind: if_clause}
+        - kind: delete_statement
+          has:
+            kind: subscript
+            all:
+              - has: {field: value, kind: identifier, pattern: $X}
+              - has: {field: subscript, kind: string}
+        - kind: expression_statement
+          has:
+            kind: call
+            all:
+              - has:
+                  field: function
+                  kind: attribute
+                  all:
+                    - has: {field: object, kind: identifier, pattern: $X}
+                    - has: {field: attribute, regex: "^pop$"}
+              - has:
+                  field: arguments
+                  has: {nthChild: 1, kind: string}
+        - kind: expression_statement
+          has:
+            kind: assignment
+            all:
+              - has:
+                  field: left
+                  kind: attribute
+                  has: {field: object, kind: identifier, pattern: $X}
+              - has: {field: right, kind: none}
+    - precedes:
+        stopBy: end
+        any:
+          - pattern: assert $X == $_
+          - pattern: assert $_ == $X

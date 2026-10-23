@@ -1,0 +1,89 @@
+id: reference-id
+valid:
+  # Own id keyword
+  - |
+    example = ExampleModel(id="ex-1")
+
+  # Other keyword
+  - |
+    example = ExampleModel(name="a")
+
+  # Name containing id in the middle
+  - |
+    example = ExampleModel(idle_minutes=5)
+invalid:
+  # Reference id keyword
+  - |
+    shipment = ExampleShipment(order_id=order.id)
+
+  # Reference ids keyword
+  - |
+    batch = ExampleBatch(order_ids=[order.id])
+
+  # Reference pk keyword
+  - |
+    line = ExampleLine(invoice_pk=invoice.pk)
+
+  # Reference uuid keyword
+  - |
+    line = ExampleLine(invoice_uuid=invoice.uuid)
+
+  # Parent keyword
+  - |
+    node = ExampleNode(parent=root)
+
+  # Reference id key in a dict
+  - |
+    payload = {"order_id": order.id}
+
+  # Reference id attribute assignment
+  - |
+    shipment.order_id = order.id
+
+  # uuid4 call
+  - |
+    example = ExampleModel(uuid4())
+
+  # uuid.uuid4 call
+  - |
+    example = ExampleModel(uuid.uuid4())
+
+  # uuid1 call
+  - |
+    example = ExampleModel(uuid1())
+
+  # uuid7 call
+  - |
+    example = ExampleModel(uuid7())
+
+  # UUID literal
+  - |
+    example = ExampleModel(UUID("8f14e45f-ceea-4672-9c3d-1b2a5f7e6d10"))
+
+  # ULID call
+  - |
+    example = ExampleModel(ULID())
+
+  # ulid call
+  - |
+    example = ExampleModel(ulid())
+
+  # secrets token_hex
+  - |
+    example = ExampleModel(secrets.token_hex(8))
+
+  # secrets token_urlsafe
+  - |
+    example = ExampleModel(secrets.token_urlsafe())
+
+  # random randint
+  - |
+    example = ExampleModel(random.randint(1, 9))
+
+  # random getrandbits
+  - |
+    example = ExampleModel(random.getrandbits(32))
+
+  # random choice
+  - |
+    example = ExampleModel(kind=random.choice(["a", "b"]))

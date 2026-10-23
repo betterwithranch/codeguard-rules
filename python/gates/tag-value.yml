@@ -2,20 +2,26 @@ id: tag-value
 language: python
 rule:
   any:
-  - kind: subscript
-    has:
-      field: value
-      regex: ^(typing\.)?Literal$
-  - kind: generic_type
-    regex: ^(typing\.)?Literal\[
-  - kind: class_definition
-    has:
-      field: superclasses
-      regex: \b(Str|Int)?Enum\b
   - kind: comparison_operator
     has:
-      kind: string
-  - kind: case_pattern
+      any:
+      - kind: string
+      - kind: tuple
+        has: {kind: string}
+      - kind: list
+        has: {kind: string}
+      - kind: set
+        has: {kind: string}
+  - kind: match_statement
     has:
-      kind: string
+      kind: case_pattern
       stopBy: end
+      has:
+        kind: string
+        stopBy: end
+  - kind: dictionary
+    has:
+      kind: pair
+      has:
+        field: key
+        kind: string

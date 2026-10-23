@@ -1,20 +1,15 @@
 id: multi-method-class
 language: python
 rule:
-  any:
-  - kind: class_definition
+  kind: class_definition
+  has:
+    field: body
     has:
-      field: body
-      has:
+      any:
+      - kind: function_definition
+      - kind: decorated_definition
+      follows:
+        stopBy: end
         any:
         - kind: function_definition
         - kind: decorated_definition
-        follows:
-          stopBy: end
-          any:
-          - kind: function_definition
-          - kind: decorated_definition
-  - kind: function_definition
-    has:
-      field: name
-      regex: _and_

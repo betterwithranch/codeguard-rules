@@ -1,0 +1,265 @@
+cases:
+  - name: defines a notifier ABC beside its implementer for checkout to use
+    inputs:
+      file: notifications/base.py
+      unchanged:
+        notifications/sms.py: |
+          from notifications.base import Notifier
+          from notifications.twilio import TwilioClient
+
+
+          class SmsNotifier(Notifier):
+              def __init__(self, client: TwilioClient) -> None:
+                  self._client = client
+
+              def notify(self, recipient: str, text: str) -> None:
+                  self._client.send_sms(recipient, text)
+        orders/checkout.py: |
+          from notifications.base import Notifier
+
+
+          class Checkout:
+              def __init__(self, notifier: Notifier) -> None:
+                  self._notifier = notifier
+
+              def complete(self, phone: str, order_number: str) -> None:
+                  self._notifier.notify(phone, f"Order {order_number} confirmed")
+      after: |
+        from abc import ABC, abstractmethod
+
+
+        class Notifier(ABC):
+            @abstractmethod
+            def notify(self, recipient: str, text: str) -> None: ...
+    expected_output:
+      outcome: invalid
+  - name: defines a notifier ABC in the checkout package
+    inputs:
+      file: orders/ports.py
+      unchanged:
+        notifications/sms.py: |
+          from notifications.twilio import TwilioClient
+          from orders.ports import Notifier
+
+
+          class SmsNotifier(Notifier):
+              def __init__(self, client: TwilioClient) -> None:
+                  self._client = client
+
+              def notify(self, recipient: str, text: str) -> None:
+                  self._client.send_sms(recipient, text)
+        orders/checkout.py: |
+          from orders.ports import Notifier
+
+
+          class Checkout:
+              def __init__(self, notifier: Notifier) -> None:
+                  self._notifier = notifier
+
+              def complete(self, phone: str, order_number: str) -> None:
+                  self._notifier.notify(phone, f"Order {order_number} confirmed")
+      after: |
+        from abc import ABC, abstractmethod
+
+
+        class Notifier(ABC):
+            @abstractmethod
+            def notify(self, recipient: str, text: str) -> None: ...
+    expected_output:
+      outcome: valid
+  - name: defines a gateway protocol in the payments package for billing to use
+    inputs:
+      file: payments/protocols.py
+      unchanged:
+        payments/stripe_gateway.py: |
+          from payments.stripe_client import StripeClient
+
+
+          class StripeGateway:
+              def __init__(self, client: StripeClient) -> None:
+                  self._client = client
+
+              def charge(self, token: str, amount_cents: int) -> str:
+                  return self._client.create_charge(token, amount_cents)
+        billing/invoicing.py: |
+          from payments.protocols import Gateway
+
+
+          def settle(gateway: Gateway, token: str, total_cents: int) -> str:
+              return gateway.charge(token, total_cents)
+      after: |
+        from typing import Protocol
+
+
+        class Gateway(Protocol):
+            def charge(self, token: str, amount_cents: int) -> str: ...
+    expected_output:
+      outcome: invalid
+  - name: defines a gateway protocol beside the function that takes it
+    inputs:
+      file: billing/invoicing.py
+      unchanged:
+        payments/stripe_gateway.py: |
+          from payments.stripe_client import StripeClient
+
+
+          class StripeGateway:
+              def __init__(self, client: StripeClient) -> None:
+                  self._client = client
+
+              def charge(self, token: str, amount_cents: int) -> str:
+                  return self._client.create_charge(token, amount_cents)
+      after: |
+        from typing import Protocol
+
+
+        class Gateway(Protocol):
+            def charge(self, token: str, amount_cents: int) -> str: ...
+
+
+        def settle(gateway: Gateway, token: str, total_cents: int) -> str:
+            return gateway.charge(token, total_cents)
+    expected_output:
+      outcome: valid
+  - name: defines a storage ABC in a shared interfaces module used by reports
+    inputs:
+      file: interfaces/storage.py
+      unchanged:
+        storage/s3_store.py: |
+          from interfaces.storage import BlobStore
+          from storage.s3 import S3Client
+
+
+          class S3Store(BlobStore):
+              def __init__(self, client: S3Client) -> None:
+                  self._client = client
+
+              def put(self, key: str, data: bytes) -> None:
+                  self._client.upload(key, data)
+        reports/archive.py: |
+          from interfaces.storage import BlobStore
+
+
+          def archive_report(store: BlobStore, name: str, body: bytes) -> None:
+              store.put(f"reports/{name}", body)
+      after: |
+        from abc import ABC, abstractmethod
+
+
+        class BlobStore(ABC):
+            @abstractmethod
+            def put(self, key: str, data: bytes) -> None: ...
+    expected_output:
+      outcome: invalid
+  - name: defines a storage ABC used both in its package and in reports
+    inputs:
+      file: storage/blob_store.py
+      unchanged:
+        storage/s3_store.py: |
+          from storage.blob_store import BlobStore
+          from storage.s3 import S3Client
+
+
+          class S3Store(BlobStore):
+              def __init__(self, client: S3Client) -> None:
+                  self._client = client
+
+              def put(self, key: str, data: bytes) -> None:
+                  self._client.upload(key, data)
+        storage/mirroring.py: |
+          from storage.blob_store import BlobStore
+
+
+          def mirror(primary: BlobStore, backup: BlobStore, key: str, data: bytes) -> None:
+              primary.put(key, data)
+              backup.put(key, data)
+        reports/archive.py: |
+          from storage.blob_store import BlobStore
+
+
+          def archive_report(store: BlobStore, name: str, body: bytes) -> None:
+              store.put(f"reports/{name}", body)
+      after: |
+        from abc import ABC, abstractmethod
+
+
+        class BlobStore(ABC):
+            @abstractmethod
+            def put(self, key: str, data: bytes) -> None: ...
+    expected_output:
+      outcome: valid
+  - name: defines a clock protocol in a subpackage used only by its parent
+    inputs:
+      file: scheduling/clocks/protocol.py
+      unchanged:
+        scheduling/clocks/system.py: |
+          from datetime import datetime, timezone
+
+
+          class SystemClock:
+              def now(self) -> datetime:
+                  return datetime.now(timezone.utc)
+        scheduling/planner.py: |
+          from datetime import timedelta
+
+          from scheduling.clocks.protocol import Clock
+
+
+          class Planner:
+              def __init__(self, clock: Clock) -> None:
+                  self._clock = clock
+
+              def due_in(self, days: int):
+                  return self._clock.now() + timedelta(days=days)
+      after: |
+        from datetime import datetime
+        from typing import Protocol
+
+
+        class Clock(Protocol):
+            def now(self) -> datetime: ...
+    expected_output:
+      outcome: invalid
+  - name: defines a clock protocol in the package of the planner that uses it
+    inputs:
+      file: scheduling/clock.py
+      unchanged:
+        infrastructure/system_clock.py: |
+          from datetime import datetime, timezone
+
+
+          class SystemClock:
+              def now(self) -> datetime:
+                  return datetime.now(timezone.utc)
+        scheduling/planner.py: |
+          from datetime import timedelta
+
+          from scheduling.clock import Clock
+
+
+          class Planner:
+              def __init__(self, clock: Clock) -> None:
+                  self._clock = clock
+
+              def due_in(self, days: int):
+                  return self._clock.now() + timedelta(days=days)
+      after: |
+        from datetime import datetime
+        from typing import Protocol
+
+
+        class Clock(Protocol):
+            def now(self) -> datetime: ...
+    expected_output:
+      outcome: valid
+  - name: changes a function in a module without interfaces
+    inputs:
+      file: billing/invoicing.py
+      before: |
+        def settle_note(total_cents: int) -> str:
+            return f"Settled {total_cents / 100:.2f}"
+      after: |
+        def settle_note(total_cents: int) -> str:
+            return f"Settled {total_cents / 100:.2f} EUR"
+    expected_output:
+      outcome: skipped

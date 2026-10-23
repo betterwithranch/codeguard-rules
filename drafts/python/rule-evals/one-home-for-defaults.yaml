@@ -18,6 +18,31 @@ cases:
             return Invoice(invoice_id=invoice_id or str(uuid4()), total=total)
     expected_output:
       outcome: invalid
+  - name: issues an invoice whose type generates its id
+    inputs:
+      file: invoices/issue.py
+      after: |
+        from dataclasses import dataclass, field
+        from uuid import uuid4
+
+
+        def new_invoice_id() -> str:
+            return str(uuid4())
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            total: int
+            invoice_id: str = field(default_factory=new_invoice_id)
+            currency: str = "EUR"
+
+
+        def issue_invoice(total: int, *, draft: bool = False) -> Invoice | None:
+            if draft:
+                return None
+            return Invoice(total=total)
+    expected_output:
+      outcome: valid
   - name: duplicates the carrier default in a caller
     inputs:
       file: shipments/booking.py
@@ -47,27 +72,179 @@ cases:
             return Shipment(order_id=order_id, carrier=carrier if carrier is not None else "DHL")
     expected_output:
       outcome: invalid
-  - name: declares the id default on the type
+  - name: falls back to the customer's preferred carrier
     inputs:
-      file: invoices/issue.py
+      file: shipments/booking.py
       after: |
-        from dataclasses import dataclass, field
-        from uuid import uuid4
-
-
-        def new_invoice_id() -> str:
-            return str(uuid4())
+        from dataclasses import dataclass
 
 
         @dataclass(frozen=True)
-        class Invoice:
-            total: int
-            invoice_id: str = field(default_factory=new_invoice_id)
-            currency: str = "EUR"
+        class Customer:
+            id: str
+            preferred_carrier: str
+
+
+        @dataclass(frozen=True)
+        class Shipment:
+            order_id: str
+            carrier: str = "DHL"
+
+
+        def book_shipment(order_id: str, customer: Customer, requested_carrier: str | None) -> Shipment:
+            return Shipment(order_id=order_id, carrier=requested_carrier or customer.preferred_carrier)
+    expected_output:
+      outcome: valid
+  - name: defaults the currency of an imported pydantic account in a parameter
+    inputs:
+      file: accounts/opening.py
+      unchanged:
+        accounts/models.py: |
+          from pydantic import BaseModel
+
+
+          class Account(BaseModel):
+              owner: str
+              currency: str
+      after: |
+        from accounts.models import Account
+
+
+        def open_account(owner: str, currency: str = "EUR") -> Account:
+            return Account(owner=owner, currency=currency)
+    expected_output:
+      outcome: invalid
+  - name: omits the currency an imported pydantic account defaults
+    inputs:
+      file: accounts/opening.py
+      unchanged:
+        accounts/models.py: |
+          from pydantic import BaseModel
+
+
+          class Account(BaseModel):
+              owner: str
+              currency: str = "EUR"
+      after: |
+        from accounts.models import Account
+
+
+        def open_account(owner: str, currency: str | None = None) -> Account:
+            if currency is None:
+                return Account(owner=owner)
+            return Account(owner=owner, currency=currency)
+    expected_output:
+      outcome: valid
+  - name: assigns a default carrier before building an imported attrs parcel
+    inputs:
+      file: warehouse/intake.py
+      unchanged:
+        warehouse/parcels.py: |
+          import attrs
+
+
+          @attrs.frozen
+          class Parcel:
+              barcode: str
+              carrier: str
+      after: |
+        from warehouse.parcels import Parcel
+
+        DEFAULT_CARRIER = "UPS"
+
+
+        def receive_parcel(barcode: str, carrier: str | None) -> Parcel:
+            if carrier is None:
+                carrier = DEFAULT_CARRIER
+            return Parcel(barcode=barcode, carrier=carrier)
+    expected_output:
+      outcome: invalid
+  - name: generates the id an imported invoice leaves required
+    inputs:
+      file: invoices/issue.py
+      unchanged:
+        invoices/models.py: |
+          from dataclasses import dataclass
+
+
+          @dataclass(frozen=True)
+          class Invoice:
+              invoice_id: str
+              total: int
+      after: |
+        from uuid import uuid4
+
+        from invoices.models import Invoice
 
 
         def issue_invoice(total: int) -> Invoice:
-            return Invoice(total=total)
+            return Invoice(invoice_id=str(uuid4()), total=total)
+    expected_output:
+      outcome: invalid
+  - name: falls back to a timeout for a library client
+    inputs:
+      file: carriers/client.py
+      after: |
+        import httpx
+
+
+        def carrier_client(base_url: str, timeout: float | None = None) -> httpx.Client:
+            return httpx.Client(base_url=base_url, timeout=timeout or 10.0)
+    expected_output:
+      outcome: valid
+  - name: duplicates a Django model's status default in a create call
+    inputs:
+      file: orders/services.py
+      unchanged:
+        orders/models.py: |
+          from django.db import models
+
+
+          class Order(models.Model):
+              number = models.CharField(max_length=20)
+              status = models.CharField(max_length=20, default="pending")
+      after: |
+        from orders.models import Order
+
+
+        def place_order(number: str, status: str | None = None) -> Order:
+            return Order.objects.create(number=number, status=status or "pending")
+    expected_output:
+      outcome: invalid
+  - name: copies the status from the order being split
+    inputs:
+      file: orders/services.py
+      unchanged:
+        orders/models.py: |
+          from django.db import models
+
+
+          class Order(models.Model):
+              number = models.CharField(max_length=20)
+              status = models.CharField(max_length=20, default="pending")
+      after: |
+        from orders.models import Order
+
+
+        def split_order(order: Order, suffix: str = "B") -> Order:
+            return Order.objects.create(number=f"{order.number}-{suffix}", status=order.status)
+    expected_output:
+      outcome: valid
+  - name: defaults a page size used only to slice
+    inputs:
+      file: catalog/listing.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Product:
+            sku: str
+            name: str
+
+
+        def first_page(products: list[Product], page_size: int = 50) -> list[Product]:
+            return products[:page_size]
     expected_output:
       outcome: valid
   - name: changes the booking reference separator
@@ -97,5 +274,26 @@ cases:
 
         def booking_reference(shipment: Shipment) -> str:
             return f"{shipment.carrier}/{shipment.order_id}"
+    expected_output:
+      outcome: skipped
+  - name: changes the default carrier on the type
+    inputs:
+      file: shipments/booking.py
+      before: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Shipment:
+            order_id: str
+            carrier: str = "DHL"
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Shipment:
+            order_id: str
+            carrier: str = "UPS"
     expected_output:
       outcome: skipped

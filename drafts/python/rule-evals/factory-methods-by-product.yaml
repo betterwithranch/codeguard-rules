@@ -1,0 +1,173 @@
+cases:
+  - name: adds a per-caller factory method
+    inputs:
+      file: invoicing/invoice_factory.py
+      before: |
+        from invoicing.invoice import Invoice, InvoiceParams
+
+
+        class InvoiceFactory:
+            def create(self, params: InvoiceParams) -> Invoice:
+                return Invoice(order_id=params.order_id, total_cents=params.total_cents)
+      after: |
+        from invoicing.invoice import Invoice, InvoiceParams
+
+
+        class InvoiceFactory:
+            def create(self, params: InvoiceParams) -> Invoice:
+                return Invoice(order_id=params.order_id, total_cents=params.total_cents)
+
+            def create_for_admin_dashboard(self, params: InvoiceParams) -> Invoice:
+                return Invoice(order_id=params.order_id, total_cents=params.total_cents)
+    expected_output:
+      outcome: invalid
+  - name: exposes a single create method
+    inputs:
+      file: invoicing/invoice_factory.py
+      after: |
+        from invoicing.invoice import Invoice, InvoiceParams
+
+
+        class InvoiceFactory:
+            def create(self, params: InvoiceParams) -> Invoice:
+                return Invoice(order_id=params.order_id, total_cents=params.total_cents)
+    expected_output:
+      outcome: valid
+  - name: adds draft and final creation methods
+    inputs:
+      file: invoicing/invoice_factory.py
+      after: |
+        from invoicing.invoice import Invoice, InvoiceParams, InvoiceStatus
+
+
+        class InvoiceFactory:
+            def create_draft(self, params: InvoiceParams) -> Invoice:
+                return Invoice(order_id=params.order_id, total_cents=params.total_cents, status=InvoiceStatus.DRAFT)
+
+            def create_issued(self, params: InvoiceParams) -> Invoice:
+                return Invoice(order_id=params.order_id, total_cents=params.total_cents, status=InvoiceStatus.ISSUED)
+    expected_output:
+      outcome: valid
+  - name: adds a checkout class method on the order model
+    inputs:
+      file: orders/order.py
+      after: |
+        from dataclasses import dataclass
+
+        from .cart import Cart
+
+
+        @dataclass(frozen=True)
+        class Order:
+            customer_id: int
+            total_cents: int
+
+            @classmethod
+            def for_checkout(cls, cart: Cart) -> "Order":
+                return cls(customer_id=cart.customer_id, total_cents=cart.total_cents)
+    expected_output:
+      outcome: invalid
+  - name: adds a class method that builds the order from a cart
+    inputs:
+      file: orders/order.py
+      after: |
+        from dataclasses import dataclass
+
+        from .cart import Cart
+
+
+        @dataclass(frozen=True)
+        class Order:
+            customer_id: int
+            total_cents: int
+
+            @classmethod
+            def from_cart(cls, cart: Cart) -> "Order":
+                return cls(customer_id=cart.customer_id, total_cents=cart.total_cents)
+    expected_output:
+      outcome: valid
+  - name: adds a mobile app method to a user creator
+    inputs:
+      file: accounts/user_creator.py
+      after: |
+        from accounts.models import User
+
+
+        class UserCreator:
+            def create(self, email: str, name: str) -> User:
+                return User(email=email.lower(), name=name)
+
+            def mobile_app_user(self, email: str, name: str, device_id: str) -> User:
+                return User(email=email.lower(), name=name, device_id=device_id)
+    expected_output:
+      outcome: invalid
+  - name: adds a factory method that parses a csv row
+    inputs:
+      file: catalog/product_factory.py
+      after: |
+        from catalog.product import Product
+
+
+        class ProductFactory:
+            def create(self, sku: str, name: str, price_cents: int) -> Product:
+                return Product(sku=sku, name=name, price_cents=price_cents)
+
+            def from_csv_row(self, row: list[str]) -> Product:
+                return self.create(row[0], row[1], int(row[2]))
+    expected_output:
+      outcome: valid
+  - name: adds a nightly import method to a product factory
+    inputs:
+      file: catalog/product_factory.py
+      after: |
+        from catalog.product import Product
+
+
+        class ProductFactory:
+            def create(self, sku: str, name: str, price_cents: int) -> Product:
+                return Product(sku=sku, name=name, price_cents=price_cents)
+
+            def create_for_nightly_import(self, sku: str, name: str, price_cents: int) -> Product:
+                return Product(sku=sku.strip(), name=name.strip(), price_cents=price_cents)
+    expected_output:
+      outcome: invalid
+  - name: adds a recurring subscription method on a service
+    inputs:
+      file: billing/subscriptions.py
+      after: |
+        from billing.models import Subscription
+
+
+        class SubscriptionService:
+            def create_monthly(self, customer_id: int, plan: str) -> Subscription:
+                return Subscription(customer_id=customer_id, plan=plan, interval_months=1)
+
+            def create_yearly(self, customer_id: int, plan: str) -> Subscription:
+                return Subscription(customer_id=customer_id, plan=plan, interval_months=12)
+    expected_output:
+      outcome: valid
+  - name: adds a support team method to a refund service
+    inputs:
+      file: billing/refunds.py
+      after: |
+        from billing.models import Refund
+
+
+        class RefundService:
+            def create_for_support_team(self, charge_id: str, cents: int) -> Refund:
+                return Refund(charge_id=charge_id, cents=cents, reason="support")
+    expected_output:
+      outcome: invalid
+  - name: changes a total method on an invoice service
+    inputs:
+      file: invoicing/invoice_service.py
+      before: |
+        class InvoiceService:
+            def total(self, cents: list[int]) -> int:
+                return sum(cents)
+      after: |
+        class InvoiceService:
+            def total(self, cents: list[int]) -> int:
+                return max(sum(cents), 0)
+    expected_output:
+      outcome: skipped
