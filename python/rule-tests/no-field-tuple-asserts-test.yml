@@ -30,6 +30,26 @@ valid:
     def test_skips():
         assert binding.skips == (Skip.RENAMES, Skip.COMMENTS)
 
+  # Fields build the expected tuple for a call
+  - |
+    def test_divmod():
+        assert divmod(7, 2) == (expected.quotient, expected.remainder)
+
+  # Fields build the expected tuple, on the left
+  - |
+    def test_divmod():
+        assert (expected.quotient, expected.remainder) == divmod(7, 2)
+
+  # Field tuple inside a comparison nested in the expected value
+  - |
+    def test_orders():
+        assert found == [order for order in orders if (order.id, order.total) == (1, 5)]
+
+  # Field tuple compared with a name
+  - |
+    def test_total():
+        assert (result.name, result.total) == expected_pair
+
 invalid:
   # Two fields on the left
   - |
@@ -55,3 +75,33 @@ invalid:
   - |
     def test_line():
         assert (result.line.sku, result.line.qty) == (expected.sku, expected.qty)
+
+  # Field tuples of two values on both sides
+  - |
+    def test_total():
+        assert (result.name, result.total) == (expected.name, expected.total)
+
+  # Field tuple compared with constants
+  - |
+    def test_total():
+        assert (result.name, result.total) == (EXPECTED_NAME, ExampleTotal.ONE)
+
+  # Field tuple checked for membership
+  - |
+    def test_total():
+        assert (result.name, result.total) in {("a", 1), ("b", 2)}
+
+  # Negated field tuple comparison
+  - |
+    def test_total():
+        assert not (result.name, result.total) != ("a", 1)
+
+  # Field tuple checked alongside another condition
+  - |
+    def test_total():
+        assert ready and (result.name, result.total) == ("a", 1)
+
+  # Parenthesized field tuple comparison
+  - |
+    def test_total():
+        assert ((result.name, result.total) == ("a", 1)), "total"

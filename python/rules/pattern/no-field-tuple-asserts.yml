@@ -3,14 +3,76 @@ language: python
 severity: error
 message: Don't assert a tuple of one value's fields.
 note: |
-  A tuple of fields drops the field names, so a failure shows positions instead of
-  fields. Compare the whole object (`assert result == ExampleModel(name="a", total=1)`).
-  If the type has no usable `__eq__`, assert each field on its own line.
+  A tuple of fields leaves the value's other fields unchecked, including fields added
+  later, and a failure shows positions instead of field names. Compare the whole object
+  (`assert result == ExampleModel(name="a", total=1)`). If the type has no usable
+  `__eq__`, assert each field on its own line.
+utils:
+  field-tuple:
+    kind: tuple
+    any:
+      - pattern: ($A.$F, $A.$G)
+      - pattern: ($A.$F, $A.$G, $$$REST)
+    has: {nthChild: 1, kind: attribute, has: {field: object, regex: "^[a-z_]"}}
+  other-field-tuple:
+    kind: tuple
+    any:
+      - pattern: ($B.$H, $B.$I)
+      - pattern: ($B.$H, $B.$I, $$$OTHER)
+    has: {nthChild: 1, kind: attribute, has: {field: object, regex: "^[a-z_]"}}
+  stated-value:
+    any:
+      - kind: integer
+      - kind: float
+      - kind: string
+      - kind: concatenated_string
+      - kind: "true"
+      - kind: "false"
+      - kind: none
+      - kind: unary_operator
+      - kind: identifier
+      - kind: attribute
+      - kind: call
+      - kind: list
+      - kind: tuple
+      - kind: set
+      - kind: dictionary
+      - kind: parenthesized_expression
+    not:
+      any:
+        - kind: identifier
+          regex: ^[a-z_]
+        - has:
+            stopBy: end
+            kind: identifier
+            regex: ^[a-z_]
+            not:
+              inside: {kind: keyword_argument, field: name}
+  condition-part:
+    any:
+      - kind: not_operator
+      - kind: boolean_operator
+      - kind: parenthesized_expression
+  in-condition:
+    any:
+      - nthChild: 1
+        inside: {kind: assert_statement}
+      - inside:
+          stopBy:
+            not: {matches: condition-part}
+          matches: condition-part
+          nthChild: 1
+          inside: {kind: assert_statement}
+  assert-comparison:
+    kind: comparison_operator
+    matches: in-condition
 rule:
-  any:
-    - pattern: assert ($A.$F, $A.$G) == $_
-    - pattern: assert ($A.$F, $A.$G, $$$) == $_
-    - pattern: assert $_ == ($A.$F, $A.$G)
-    - pattern: assert $_ == ($A.$F, $A.$G, $$$)
-constraints:
-  A: {regex: "^[a-z_]"}
+  kind: assert_statement
+  has:
+    stopBy: end
+    matches: assert-comparison
+    has:
+      matches: field-tuple
+      any:
+        - precedes: {stopBy: end, any: [{matches: other-field-tuple}, {matches: stated-value}]}
+        - follows: {stopBy: end, matches: stated-value}
