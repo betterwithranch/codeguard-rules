@@ -1,11 +1,38 @@
 id: normalizing-call
 valid:
 - |
+  skus = [line.sku for line in lines]
+- |
+  assert all(line.paid for line in lines if line.due)
+- |
+  totals = {sku: total for sku, total in rows}
+- |
+  assert result == expected
+- |
+  fake.status = 'down'
+- |
+  fake.status = 'down'
   assert result == expected
 invalid:
 - |
+  errors = [d for d in review.diagnostics if d.is_error]
+- |
+  actual = {key: value for key, value in vars(order).items() if key != 'id'}
+- |
   assert replace(result, id=None) == expected
+- |
+  assert expected == result.model_copy(update={'id': None})
 - |
   del actual['id']
 - |
   actual = result.model_dump(exclude={'id'})
+- |
+  actual = result.model_dump(include={'total'})
+- |
+  actual = result.model_dump(exclude_none=True)
+- |
+  actual = copy.copy(order)
+  actual.id = None
+- |
+  order.id = None
+  assert order == Order(id=None, total=1)

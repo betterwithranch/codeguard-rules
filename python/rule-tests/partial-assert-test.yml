@@ -1,11 +1,61 @@
 id: partial-assert
 valid:
 - |
-  assert result == Invoice(number='42')
+  result = issue_invoice(order)
+- |
+  assert is_ready(order)
+- |
+  count = len(items)
+- |
+  pair = (result.number, result.total)
 invalid:
+- |
+  self.assertEqual(result, Invoice(number='42'))
+- |
+  assert failures == []
+- |
+  assert name == 'small'
+- |
+  assert result == Invoice(number='42')
+- |
+  assert ChangeKind.FUNCTION_BODY in kinds
+- |
+  assert ChangeKind.CLASS_HEADER not in kinds
+- |
+  assert response['systemMessage'].startswith('codeguard warnings:')
 - |
   assert result.number == '42'
 - |
-  assert len(items) == 1
+  assert '42' == result.number
 - |
   assert items[0] == line
+- |
+  assert line == items[0]
+- |
+  assert len(items) == 1
+- |
+  assert count == len(items)
+- |
+  assert all(len(group) == 2 for group in groups)
+- |
+  assert (result.number, result.total) == expected_pair
+- |
+  assert expected_pair == (result.number, result.total)
+- |
+  assert (row['number'], row['total']) == expected_pair
+- |
+  assert [result.number, result.total] == expected
+- |
+  assert result == Invoice(id=ANY, number='42')
+- |
+  assert result == Invoice(id=mock.ANY, number='42')
+- |
+  assert parcels
+- |
+  assert invoice.paid
+- |
+  assert not result.errors
+- |
+  self.assertEqual(invoice.number, '42')
+- |
+  self.assertEqual(len(parcels), 2)
