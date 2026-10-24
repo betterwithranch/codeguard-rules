@@ -8,6 +8,12 @@ description: Modules and packages are organized around what they know, so what c
 Modules are organized around what they know: a definition lives with the code it
 changes with, and a module or package is split by concept, never by when its code runs.
 
+Every judgement under this rule starts with the Read tool: Read the whole file under
+review, and each module of the program it imports, before deciding anything. The
+changed lines shown never decide it alone: every form places a definition by code the
+change may not show, such as the union a new function sits between, the class a changed
+method belongs to, or the module an imported shape comes from.
+
 ## Definitions
 
 - A module's **public classes** are its module-level classes whose names don't start
@@ -48,17 +54,15 @@ program (Grep for its name, and read the files that import it).
 
 ## The test
 
-The changed lines alone never decide this test: every form places a definition by
-code the change may not show, such as the union a new function sits inside, the
-class a changed method belongs to, or the module an imported shape comes from. So
-first Read the whole file under review and each program module it imports, then judge.
-
 For each definition and import in the file, ask: is it kept apart from the code it
 changes with, or does it sit in a module split by execution phase rather than by what it
 knows? Each form below names one way this happens. Go through the forms one by one,
 and for each find the code in the file it describes and decide it by that form's
 violation: a definition is a violation when any one form names it one, and a form's
-"not a violation" clears it of that form only, never of the others.
+"not a violation" clears it of that form only, never of the others. Each form names
+where its violation is reported; when that line is unchanged and the change is inside
+the misplaced definition (a method body of a misplaced class), report it on a changed
+line of that definition instead.
 
 ### More than one concept in a module
 
@@ -85,7 +89,8 @@ the primary type (a `RetryBackoffPolicy` with a `delay()` method in the
 `NotificationDispatcher` module), a class unrelated to the primary type
 (`InvoiceTotals` in `notifications/dispatcher.py`), or two or more unrelated public
 classes grouped by construct kind (`CarrierCode`, `RefundReason` and `InvoiceStatus` in
-`enums.py`). Reported on the class outside the concept.
+`enums.py`). Reported on the `class` line of the class outside the concept, or on a
+changed line inside that class when its `class` line is unchanged.
 
 Not a violation: a module with one public class and any number of functions and
 `_`-private classes; an exception family; a union's variants and its alias; a service
@@ -175,8 +180,11 @@ An interface is a class whose bases include `Protocol` (`typing.Protocol`,
 to supply. Its consumers are code outside test files that annotates a parameter,
 attribute or return value with it and uses its members.
 
+Its own package is the directory its module is in; the parent package and any
+subpackage are other packages.
+
 Violation: an interface defined in the file under review whose consumers are all in
-packages other than its own, whether it sits beside its implementers, in a shared
+packages other than its own, a parent package included, whether it sits beside its implementers, in a shared
 `interfaces` or `base` module, or alone (`notifications/base.py` defines
 `Notifier(ABC)`, `notifications/sms.py` implements it, and only `orders/checkout.py`
 takes one). Reported on the interface.
