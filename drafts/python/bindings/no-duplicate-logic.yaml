@@ -1,4 +1,4 @@
 skill: python/skills/no-duplicate-logic
 paths: ["**/*.py"]
 exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
-triggers: [function]
+triggers: [nontrivial-function]

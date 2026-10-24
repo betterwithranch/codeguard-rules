@@ -1,0 +1,140 @@
+cases:
+  - name: names a plain factory a builder
+    inputs:
+      file: invoicing/invoice_builder.py
+      after: |
+        from invoicing.invoice import Invoice
+
+
+        class InvoiceBuilder:
+            def build(self, order_id: str, total_cents: int) -> Invoice:
+                return Invoice(order_id=order_id, total_cents=total_cents)
+    expected_output:
+      outcome: invalid
+  - name: adds invoice lines step by step before building
+    inputs:
+      file: invoicing/invoice_builder.py
+      after: |
+        from typing import Self
+
+        from invoicing.invoice import Invoice, InvoiceLine
+
+
+        class InvoiceBuilder:
+            def __init__(self, order_id: str) -> None:
+                self._order_id = order_id
+                self._lines: list[InvoiceLine] = []
+                self._note = ""
+
+            def add_line(self, sku: str, cents: int) -> Self:
+                self._lines.append(InvoiceLine(sku=sku, cents=cents))
+                return self
+
+            def with_note(self, note: str) -> Self:
+                self._note = note
+                return self
+
+            def build(self) -> Invoice:
+                return Invoice(order_id=self._order_id, lines=tuple(self._lines), note=self._note)
+    expected_output:
+      outcome: valid
+  - name: builds a query from constructor arguments only
+    inputs:
+      file: search/query_builder.py
+      after: |
+        from search.query import SearchQuery
+
+
+        class SearchQueryBuilder:
+            def __init__(self, text: str, limit: int) -> None:
+                self._text = text
+                self._limit = limit
+
+            def build(self) -> SearchQuery:
+                return SearchQuery(terms=self._text.split(), limit=self._limit)
+    expected_output:
+      outcome: invalid
+  - name: adds query filters without returning self before building
+    inputs:
+      file: search/query_builder.py
+      after: |
+        from search.query import Filter, SearchQuery
+
+
+        class SearchQueryBuilder:
+            def __init__(self, text: str) -> None:
+                self._text = text
+                self._filters: list[Filter] = []
+
+            def filter_by(self, field: str, value: str) -> None:
+                self._filters.append(Filter(field=field, value=value))
+
+            def build(self) -> SearchQuery:
+                return SearchQuery(terms=self._text.split(), filters=tuple(self._filters))
+    expected_output:
+      outcome: valid
+  - name: names a static report maker a builder
+    inputs:
+      file: reports/report_builder.py
+      after: |
+        from reports.report import MonthlyReport
+
+
+        class MonthlyReportBuilder:
+            @staticmethod
+            def create(month: str, totals: dict[str, int]) -> MonthlyReport:
+                return MonthlyReport(month=month, rows=sorted(totals.items()))
+    expected_output:
+      outcome: invalid
+  - name: sets email parts on a dataclass builder before building
+    inputs:
+      file: notifications/email_builder.py
+      after: |
+        from dataclasses import dataclass, field
+
+        from notifications.email import Email
+
+
+        @dataclass
+        class EmailBuilder:
+            recipients: list[str] = field(default_factory=list)
+            subject: str = ""
+            body: str = ""
+
+            def to(self, address: str) -> "EmailBuilder":
+                self.recipients.append(address)
+                return self
+
+            def build(self) -> Email:
+                return Email(recipients=tuple(self.recipients), subject=self.subject, body=self.body)
+    expected_output:
+      outcome: valid
+  - name: names a callable label maker a builder
+    inputs:
+      file: shipping/label_builder.py
+      after: |
+        from shipping.label import Label
+        from shipping.shipment import Shipment
+
+
+        class LabelBuilder:
+            def __init__(self, sender_name: str) -> None:
+                self._sender_name = sender_name
+
+            def __call__(self, shipment: Shipment) -> Label:
+                return Label(sender=self._sender_name, recipient=shipment.recipient_name)
+    expected_output:
+      outcome: invalid
+  - name: changes a method on a composer
+    inputs:
+      file: invoicing/invoice_composer.py
+      before: |
+        class InvoiceComposer:
+            def compose(self, order_id: str) -> str:
+                return f"Invoice for {order_id}"
+      after: |
+        class InvoiceComposer:
+            def compose(self, order_id: str) -> str:
+                return f"Invoice for order {order_id}"
+    expected_output:
+      outcome: skipped

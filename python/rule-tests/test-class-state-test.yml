@@ -1,0 +1,48 @@
+id: test-class-state
+valid:
+# A class attribute outside a test class
+- |
+  class Cart:
+      items = []
+# Appending to a local list
+- |
+  skus.append("BOOK-1")
+# Assigning an instance attribute
+- |
+  self.skus = []
+# Appending to a value nested deeper than an attribute of self
+- |
+  self.cart.items.append(item)
+invalid:
+# Class attribute in a pytest test class
+- |
+  class TestCart:
+      added_skus = []
+# Class attribute in a unittest class
+- |
+  class CartTests(TestCase):
+      seen = {}
+# Mutating method called on an attribute of self
+- |
+  self.added_skus.append("BOOK-1")
+# Mutating method called on an attribute of cls
+- |
+  cls.seen.add(sku)
+# Mutating method called through type(self)
+- |
+  type(self).seen.update({"a": 1})
+# Mutating method called through the class name
+- |
+  TestCart.added_skus.extend(skus)
+# Item assignment on an attribute of self
+- |
+  self.totals["BOOK-1"] = 3
+# Attribute assigned on cls
+- |
+  cls.last_cart = cart
+# Attribute assigned through the class name
+- |
+  TestCart.last_cart = cart
+# Augmented assignment through cls
+- |
+  cls.count += 1

@@ -1,0 +1,27 @@
+id: creation-method
+language: python
+rule:
+  kind: function_definition
+  any:
+  - has:
+      field: name
+      regex: ^(create|make|build|new|for|from)(_|$)
+    any:
+    - inside:
+        kind: block
+        inside:
+          kind: class_definition
+          field: body
+    - inside:
+        kind: decorated_definition
+        inside:
+          kind: block
+          inside:
+            kind: class_definition
+            field: body
+  - inside:
+      stopBy: end
+      kind: class_definition
+      has:
+        field: name
+        regex: (Factory|Creator|Maker)$

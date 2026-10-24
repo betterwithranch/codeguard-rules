@@ -1,34 +1,310 @@
 id: method-with-parameters
 snapshots:
   ? |
-    class Order:
-        def total(self, rate):
-            return rate
+    class ExampleQuoter:
+        @classmethod
+        def quote(cls, example_provider):
+            return example_provider.rate()
   : labels:
     - source: |-
-        def total(self, rate):
-                return rate
+        def quote(cls, example_provider):
+                return example_provider.rate()
       style: primary
-      start: 17
-      end: 59
+      start: 42
+      end: 114
     - source: |-
-        class Order:
-            def total(self, rate):
-                return rate
+        class ExampleQuoter:
+            @classmethod
+            def quote(cls, example_provider):
+                return example_provider.rate()
       style: secondary
       start: 0
-      end: 59
+      end: 114
     - source: |-
-        def total(self, rate):
-                return rate
+        @classmethod
+            def quote(cls, example_provider):
+                return example_provider.rate()
       style: secondary
-      start: 17
+      start: 25
+      end: 114
+    - source: |-
+        @classmethod
+            def quote(cls, example_provider):
+                return example_provider.rate()
+      style: secondary
+      start: 25
+      end: 114
+    - source: example_provider
+      style: secondary
+      start: 57
+      end: 73
+    - source: example_provider
+      style: secondary
+      start: 57
+      end: 73
+  ? |
+    class ExampleQuoter:
+        @staticmethod
+        def quote(example_provider):
+            return example_provider.rate()
+  : labels:
+    - source: |-
+        def quote(example_provider):
+                return example_provider.rate()
+      style: primary
+      start: 43
+      end: 110
+    - source: |-
+        class ExampleQuoter:
+            @staticmethod
+            def quote(example_provider):
+                return example_provider.rate()
+      style: secondary
+      start: 0
+      end: 110
+    - source: |-
+        @staticmethod
+            def quote(example_provider):
+                return example_provider.rate()
+      style: secondary
+      start: 25
+      end: 110
+    - source: |-
+        @staticmethod
+            def quote(example_provider):
+                return example_provider.rate()
+      style: secondary
+      start: 25
+      end: 110
+    - source: example_provider
+      style: secondary
+      start: 53
+      end: 69
+    - source: example_provider
+      style: secondary
+      start: 53
+      end: 69
+  ? |
+    class ExampleQuoter:
+        async def quote(self, example_client):
+            return await example_client.fetch()
+  : labels:
+    - source: |-
+        async def quote(self, example_client):
+                return await example_client.fetch()
+      style: primary
+      start: 25
+      end: 107
+    - source: |-
+        class ExampleQuoter:
+            async def quote(self, example_client):
+                return await example_client.fetch()
+      style: secondary
+      start: 0
+      end: 107
+    - source: |-
+        async def quote(self, example_client):
+                return await example_client.fetch()
+      style: secondary
+      start: 25
+      end: 107
+    - source: example_client
+      style: secondary
+      start: 47
+      end: 61
+    - source: example_client
+      style: secondary
+      start: 47
+      end: 61
+  ? |
+    class ExampleQuoter:
+        def quote(self, **example_options):
+            return example_options
+  : labels:
+    - source: |-
+        def quote(self, **example_options):
+                return example_options
+      style: primary
+      start: 25
+      end: 91
+    - source: |-
+        class ExampleQuoter:
+            def quote(self, **example_options):
+                return example_options
+      style: secondary
+      start: 0
+      end: 91
+    - source: |-
+        def quote(self, **example_options):
+                return example_options
+      style: secondary
+      start: 25
+      end: 91
+    - source: '**example_options'
+      style: secondary
+      start: 41
+      end: 58
+    - source: '**example_options'
+      style: secondary
+      start: 41
+      end: 58
+  ? |
+    class ExampleQuoter:
+        def quote(self, *example_providers):
+            return example_providers
+  : labels:
+    - source: |-
+        def quote(self, *example_providers):
+                return example_providers
+      style: primary
+      start: 25
+      end: 94
+    - source: |-
+        class ExampleQuoter:
+            def quote(self, *example_providers):
+                return example_providers
+      style: secondary
+      start: 0
+      end: 94
+    - source: |-
+        def quote(self, *example_providers):
+                return example_providers
+      style: secondary
+      start: 25
+      end: 94
+    - source: '*example_providers'
+      style: secondary
+      start: 41
       end: 59
-    - source: rate
+    - source: '*example_providers'
       style: secondary
-      start: 33
-      end: 37
-    - source: rate
+      start: 41
+      end: 59
+  ? |
+    class ExampleQuoter:
+        def quote(self, example_provider):
+            return example_provider.rate()
+  : labels:
+    - source: |-
+        def quote(self, example_provider):
+                return example_provider.rate()
+      style: primary
+      start: 25
+      end: 98
+    - source: |-
+        class ExampleQuoter:
+            def quote(self, example_provider):
+                return example_provider.rate()
       style: secondary
-      start: 33
-      end: 37
+      start: 0
+      end: 98
+    - source: |-
+        def quote(self, example_provider):
+                return example_provider.rate()
+      style: secondary
+      start: 25
+      end: 98
+    - source: example_provider
+      style: secondary
+      start: 41
+      end: 57
+    - source: example_provider
+      style: secondary
+      start: 41
+      end: 57
+  ? |
+    class ExampleQuoter:
+        def quote(self, example_provider: ExampleProvider | None = None):
+            return example_provider
+  : labels:
+    - source: |-
+        def quote(self, example_provider: ExampleProvider | None = None):
+                return example_provider
+      style: primary
+      start: 25
+      end: 122
+    - source: |-
+        class ExampleQuoter:
+            def quote(self, example_provider: ExampleProvider | None = None):
+                return example_provider
+      style: secondary
+      start: 0
+      end: 122
+    - source: |-
+        def quote(self, example_provider: ExampleProvider | None = None):
+                return example_provider
+      style: secondary
+      start: 25
+      end: 122
+    - source: 'example_provider: ExampleProvider | None = None'
+      style: secondary
+      start: 41
+      end: 88
+    - source: 'example_provider: ExampleProvider | None = None'
+      style: secondary
+      start: 41
+      end: 88
+  ? |
+    class ExampleQuoter:
+        def quote(self, example_provider: ExampleProvider) -> int:
+            return example_provider.rate()
+  : labels:
+    - source: |-
+        def quote(self, example_provider: ExampleProvider) -> int:
+                return example_provider.rate()
+      style: primary
+      start: 25
+      end: 122
+    - source: |-
+        class ExampleQuoter:
+            def quote(self, example_provider: ExampleProvider) -> int:
+                return example_provider.rate()
+      style: secondary
+      start: 0
+      end: 122
+    - source: |-
+        def quote(self, example_provider: ExampleProvider) -> int:
+                return example_provider.rate()
+      style: secondary
+      start: 25
+      end: 122
+    - source: 'example_provider: ExampleProvider'
+      style: secondary
+      start: 41
+      end: 74
+    - source: 'example_provider: ExampleProvider'
+      style: secondary
+      start: 41
+      end: 74
+  ? |
+    class ExampleQuoter:
+        def quote(self, example_provider=None):
+            return example_provider
+  : labels:
+    - source: |-
+        def quote(self, example_provider=None):
+                return example_provider
+      style: primary
+      start: 25
+      end: 96
+    - source: |-
+        class ExampleQuoter:
+            def quote(self, example_provider=None):
+                return example_provider
+      style: secondary
+      start: 0
+      end: 96
+    - source: |-
+        def quote(self, example_provider=None):
+                return example_provider
+      style: secondary
+      start: 25
+      end: 96
+    - source: example_provider=None
+      style: secondary
+      start: 41
+      end: 62
+    - source: example_provider=None
+      style: secondary
+      start: 41
+      end: 62

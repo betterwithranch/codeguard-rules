@@ -1,0 +1,96 @@
+id: no-forwarding-wrappers
+valid:
+  # Drops a parameter
+  - |
+    def send_example(order, retries):
+        return post_example(order)
+
+  # Adds a literal argument
+  - |
+    def send_example(order):
+        return post_example(order, 3)
+
+  # Transforms an argument
+  - |
+    def send_example(order):
+        return post_example(serialize_example(order))
+
+  # Reorders the parameters
+  - |
+    def send_example(order, carrier):
+        post_example(carrier, order)
+
+  # Has a second statement
+  - |
+    def send_example(order):
+        log_example(order)
+        return post_example(order)
+
+  # Method delegating to a collaborator
+  - |
+    class ExampleClient:
+        def send(self, order):
+            return self.transport.send(order)
+
+  # Classmethod passing cls on
+  - |
+    class ExampleOrder:
+        def build(cls, number):
+            return cls(number)
+
+  # Decorated function
+  - |
+    @cache
+    def send_example(order):
+        return post_example(order)
+
+  # Function with no parameters
+  - |
+    def now_example():
+        return clock_example()
+
+invalid:
+  # One parameter
+  - |
+    def send_example(order):
+        return post_example(order)
+
+  # Two typed parameters with a default, one passed by keyword
+  - |
+    def send_example(order: ExampleOrder, retries: int = 3) -> bool:
+        return transport_example.post(order, retries=retries)
+
+  # Three parameters
+  - |
+    def send_example(order, carrier, retries):
+        return post_example(order, carrier, retries)
+
+  # Four parameters
+  - |
+    def send_example(order, carrier, retries, timeout):
+        return post_example(order, carrier, retries, timeout)
+
+  # Five parameters
+  - |
+    def send_example(order, carrier, retries, timeout, priority):
+        return post_example(order, carrier, retries, timeout, priority)
+
+  # *args and **kwargs
+  - |
+    def send_example(*args, **kwargs):
+        return post_example(*args, **kwargs)
+
+  # Awaited call in an async function
+  - |
+    async def send_example(order):
+        return await post_example(order)
+
+  # Call as a statement, not returned
+  - |
+    def send_example(order, carrier):
+        post_example(order, carrier)
+
+  # Untyped default parameter
+  - |
+    def send_example(order, retries=3):
+        return post_example(order, retries)

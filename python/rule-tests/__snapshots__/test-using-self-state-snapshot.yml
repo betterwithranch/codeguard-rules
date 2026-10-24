@@ -1,0 +1,72 @@
+id: test-using-self-state
+snapshots:
+  ? |
+    class TestExample(unittest.TestCase):
+        def test_total(self):
+            self.assertEqual(self.example_service.total(), 1)
+  : labels:
+    - source: |-
+        def test_total(self):
+                self.assertEqual(self.example_service.total(), 1)
+      style: primary
+      start: 42
+      end: 121
+    - source: self
+      style: secondary
+      start: 89
+      end: 93
+    - source: self.example_service
+      style: secondary
+      start: 89
+      end: 109
+    - source: self.example_service.total
+      style: secondary
+      start: 89
+      end: 115
+    - source: self.example_service.total()
+      style: secondary
+      start: 89
+      end: 117
+    - source: self.example_service.total()
+      style: secondary
+      start: 89
+      end: 117
+    - source: test_total
+      style: secondary
+      start: 46
+      end: 56
+  ? |
+    class TestExample:
+        async def test_total(self):
+            assert await self.example_service.total() == 1
+  : labels:
+    - source: |-
+        async def test_total(self):
+                assert await self.example_service.total() == 1
+      style: primary
+      start: 23
+      end: 105
+    - source: self
+      style: secondary
+      start: 72
+      end: 76
+    - source: self.example_service
+      style: secondary
+      start: 72
+      end: 92
+    - source: self.example_service.total
+      style: secondary
+      start: 72
+      end: 98
+    - source: self.example_service.total()
+      style: secondary
+      start: 72
+      end: 100
+    - source: self.example_service.total()
+      style: secondary
+      start: 72
+      end: 100
+    - source: test_total
+      style: secondary
+      start: 33
+      end: 43

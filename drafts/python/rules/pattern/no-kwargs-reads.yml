@@ -1,0 +1,34 @@
+id: no-kwargs-reads
+language: python
+severity: error
+message: Don't read a `**kwargs` parameter in test code; pass it on untouched.
+note: |
+  A helper that reads keys out of `**kwargs` has parameters its signature doesn't show,
+  so a caller can't tell what it accepts. Declare each key the helper reads as a typed
+  parameter, and pass the rest as `**kwargs` to one typed target.
+rule:
+  kind: identifier
+  pattern: $K
+  not:
+    any:
+    - inside:
+        kind: dictionary_splat
+    - inside:
+        kind: dictionary_splat_pattern
+    - inside:
+        kind: attribute
+        has:
+          field: attribute
+          regex: ^pop$
+        inside:
+          kind: call
+          field: function
+  inside:
+    kind: function_definition
+    stopBy: end
+    has:
+      field: parameters
+      has:
+        kind: dictionary_splat_pattern
+        has:
+          pattern: $K

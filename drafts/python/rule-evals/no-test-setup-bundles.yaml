@@ -1,0 +1,288 @@
+cases:
+  - name: returns a dataclass bundle of customer and cart
+    inputs:
+      file: tests/test_checkout.py
+      after: |
+        from dataclasses import dataclass
+
+        from sqlalchemy.orm import Session
+
+        from shop.carts import Cart, CartService
+        from shop.checkout import checkout
+        from shop.customers import Customer, CustomerService
+
+
+        @dataclass
+        class CheckoutSetup:
+            customer: Customer
+            cart: Cart
+
+
+        def make_checkout_setup(db_session: Session, sku: str) -> CheckoutSetup:
+            customer = CustomerService(db_session).register(email="ana@example.com")
+            cart = CartService(db_session).create(customer_id=customer.id)
+            cart.add(sku=sku, quantity=1)
+            return CheckoutSetup(customer=customer, cart=cart)
+
+
+        def test_checkout_charges_the_customer(db_session):
+            setup = make_checkout_setup(db_session, sku="BOOK-1")
+
+            receipt = checkout(setup.cart)
+
+            assert receipt.customer_id == setup.customer.id
+    expected_output:
+      outcome: invalid
+  - name: defines a fake ledger with behavior
+    inputs:
+      file: tests/fakes.py
+      after: |
+        from dataclasses import dataclass, field
+
+
+        @dataclass
+        class FakeLedger:
+            currency: str = "EUR"
+            entries: list[tuple[str, int]] = field(default_factory=list)
+
+            def record(self, invoice_number: str, amount: int) -> None:
+                self.entries.append((invoice_number, amount))
+
+            def balance(self) -> int:
+                return sum(amount for _, amount in self.entries)
+    expected_output:
+      outcome: valid
+  - name: bundles an order and its service in a NamedTuple
+    inputs:
+      file: tests/conftest.py
+      after: |
+        from typing import NamedTuple
+
+        import pytest
+
+        from shop.orders import Order, OrderService
+
+
+        class OrderResources(NamedTuple):
+            order: Order
+            service: OrderService
+
+
+        @pytest.fixture
+        def order_resources(db_session, customer) -> OrderResources:
+            service = OrderService(db_session)
+            order = service.place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+            return OrderResources(order=order, service=service)
+    expected_output:
+      outcome: invalid
+  - name: defines a parametrize case type of literal inputs
+    inputs:
+      file: tests/test_tax.py
+      after: |
+        from dataclasses import dataclass
+
+        import pytest
+
+        from shop.tax import tax_for
+
+
+        @dataclass(frozen=True)
+        class TaxCase:
+            region: str
+            total: int
+            expected_tax: int
+
+
+        @pytest.mark.parametrize(
+            "case",
+            [TaxCase(region="eu", total=100, expected_tax=21), TaxCase(region="us", total=100, expected_tax=8)],
+        )
+        def test_tax_for_region(case):
+            assert tax_for(region=case.region, total=case.total) == case.expected_tax
+    expected_output:
+      outcome: valid
+  - name: returns a SimpleNamespace of built records from a fixture
+    inputs:
+      file: tests/conftest.py
+      after: |
+        from types import SimpleNamespace
+
+        import pytest
+
+        from shop.carts import CartService
+        from shop.customers import CustomerService
+
+
+        @pytest.fixture
+        def checkout_world(db_session):
+            customer = CustomerService(db_session).register(email="ana@example.com")
+            cart = CartService(db_session).create(customer_id=customer.id)
+            return SimpleNamespace(customer=customer, cart=cart)
+    expected_output:
+      outcome: invalid
+  - name: defines a checkout driver whose methods act
+    inputs:
+      file: tests/drivers.py
+      after: |
+        from shop.carts import CartService
+        from shop.checkout import checkout
+
+
+        class CheckoutDriver:
+            def __init__(self, db_session, customer):
+                self._carts = CartService(db_session)
+                self._cart = self._carts.create(customer_id=customer.id)
+
+            def add_item(self, sku: str, quantity: int = 1) -> None:
+                self._cart.add(sku=sku, quantity=quantity)
+
+            def pay(self):
+                return checkout(self._cart)
+    expected_output:
+      outcome: valid
+  - name: stores built objects in a plain class constructor
+    inputs:
+      file: tests/test_shipping.py
+      after: |
+        from shipping.carriers import CarrierClient
+        from shipping.service import ShipmentService
+        from tests.fakes import FakeCarrierApi
+
+
+        class ShippingContext:
+            def __init__(self, api, client, service):
+                self.api = api
+                self.client = client
+                self.service = service
+
+
+        def make_shipping_context():
+            api = FakeCarrierApi()
+            client = CarrierClient(api)
+            return ShippingContext(api=api, client=client, service=ShipmentService(client))
+
+
+        def test_ship_books_a_pickup():
+            context = make_shipping_context()
+
+            context.service.ship(order_id="ord-1", weight_kg=2)
+
+            assert context.api.pickups == ["ord-1"]
+    expected_output:
+      outcome: invalid
+  - name: bundles built objects in an attrs class
+    inputs:
+      file: tests/test_payroll.py
+      after: |
+        import attrs
+
+        from payroll.employees import Employee, EmployeeRepository
+        from payroll.runs import PayrollRun
+
+
+        @attrs.frozen
+        class PayrollFixtures:
+            employee: Employee
+            repository: EmployeeRepository
+            run: PayrollRun
+
+
+        def make_payroll_fixtures(db_session) -> PayrollFixtures:
+            repository = EmployeeRepository(db_session)
+            employee = repository.add(Employee(name="Ana", salary=5000))
+            return PayrollFixtures(employee=employee, repository=repository, run=PayrollRun(month="2026-09"))
+
+
+        def test_run_pays_each_employee(db_session):
+            fixtures = make_payroll_fixtures(db_session)
+
+            payslips = fixtures.run.execute(fixtures.repository)
+
+            assert [slip.employee_id for slip in payslips] == [fixtures.employee.id]
+    expected_output:
+      outcome: invalid
+  - name: defines a stub carrier api that records pickups
+    inputs:
+      file: tests/test_shipping.py
+      after: |
+        from shipping.carriers import CarrierClient
+
+
+        class StubCarrierApi:
+            def __init__(self):
+                self.pickups = []
+
+            def book_pickup(self, order_id: str) -> str:
+                self.pickups.append(order_id)
+                return f"pk-{order_id}"
+
+
+        def test_book_pickup_returns_reference():
+            api = StubCarrierApi()
+
+            assert CarrierClient(api).book_pickup("ord-1") == "pk-ord-1"
+    expected_output:
+      outcome: valid
+  - name: builds a namedtuple of an invoice and its ledger
+    inputs:
+      file: tests/test_invoices.py
+      after: |
+        from collections import namedtuple
+
+        from billing.invoices import InvoiceService
+        from tests.fakes import FakeLedger
+
+        IssuedInvoice = namedtuple("IssuedInvoice", ["invoice", "ledger"])
+
+
+        def issue_invoice(amount):
+            ledger = FakeLedger()
+            invoice = InvoiceService(ledger).issue("inv-1", amount=amount)
+            return IssuedInvoice(invoice=invoice, ledger=ledger)
+
+
+        def test_issue_records_nothing_until_paid():
+            issued = issue_invoice(120)
+
+            assert issued.ledger.entries == []
+    expected_output:
+      outcome: invalid
+  - name: changes a literal in a test function
+    inputs:
+      file: tests/test_tax.py
+      before: |
+        from shop.tax import tax_for
+
+
+        def test_tax_for_eu():
+            assert tax_for(region="eu", total=100) == 21
+      after: |
+        from shop.tax import tax_for
+
+
+        def test_tax_for_eu():
+            assert tax_for(region="eu", total=200) == 42
+    expected_output:
+      outcome: skipped
+  - name: adds a test method to a test class
+    inputs:
+      file: tests/test_tax.py
+      before: |
+        from shop.tax import tax_for
+
+
+        class TestTax:
+            def test_tax_for_eu(self):
+                assert tax_for(region="eu", total=100) == 21
+      after: |
+        from shop.tax import tax_for
+
+
+        class TestTax:
+            def test_tax_for_eu(self):
+                assert tax_for(region="eu", total=100) == 21
+
+            def test_tax_for_us(self):
+                assert tax_for(region="us", total=100) == 8
+    expected_output:
+      outcome: skipped

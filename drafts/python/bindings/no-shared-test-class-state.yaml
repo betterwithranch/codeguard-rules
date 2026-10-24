@@ -1,0 +1,3 @@
+skill: python/skills/no-shared-test-class-state
+paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
+triggers: [test-class-state]

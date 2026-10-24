@@ -1,0 +1,22 @@
+id: test-using-self-state
+language: python
+rule:
+  kind: function_definition
+  has:
+    field: name
+    regex: ^test
+  all:
+  - has:
+      field: body
+      has:
+        stopBy: end
+        kind: call
+        has:
+          field: function
+          kind: attribute
+          has:
+            field: object
+            kind: attribute
+            has:
+              field: object
+              regex: ^self$

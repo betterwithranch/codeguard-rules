@@ -1,0 +1,11 @@
+id: wide-scope-fixture
+language: python
+rule:
+  kind: decorated_definition
+  all:
+  - has:
+      kind: decorator
+      regex: fixture\b[\s\S]*scope\s*=\s*([^"'\s]|["'](session|package|module|class)["'])
+  - has:
+      kind: function_definition
+      field: definition

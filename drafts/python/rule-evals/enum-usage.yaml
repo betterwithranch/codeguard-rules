@@ -1,7 +1,7 @@
 cases:
-  - name: calls value on a StrEnum member
+  - name: formats a StrEnum field's value
     inputs:
-      file: shipment_label.py
+      file: shipping/shipment_label.py
       before: |
         from dataclasses import dataclass
         from enum import StrEnum
@@ -38,28 +38,306 @@ cases:
             return f"Shipment is {shipment.status.value}"
     expected_output:
       outcome: invalid
-  - name: defaults a Literal severity field
+  - name: formats a plain Enum field's value
     inputs:
-      file: literal_severity.py
+      file: shipping/shipment_label.py
       after: |
         from dataclasses import dataclass
-        from typing import Literal
+        from enum import Enum
 
-        type Severity = Literal["error", "warning"]
+
+        class ShipmentStatus(Enum):
+            PENDING = "pending"
+            SHIPPED = "shipped"
 
 
         @dataclass(frozen=True)
-        class Override:
-            severity: Severity = "error"
+        class Shipment:
+            status: ShipmentStatus
 
 
-        def relaxed() -> Override:
-            return Override(severity="warning")
+        def label(shipment: Shipment) -> str:
+            return f"Shipment is {shipment.status.value}"
+    expected_output:
+      outcome: valid
+  - name: formats a str-mixin Enum field's value
+    inputs:
+      file: shipping/shipment_label.py
+      after: |
+        from dataclasses import dataclass
+        from enum import Enum
+
+
+        class ShipmentStatus(str, Enum):
+            PENDING = "pending"
+            SHIPPED = "shipped"
+
+
+        @dataclass(frozen=True)
+        class Shipment:
+            status: ShipmentStatus
+
+
+        def label(shipment: Shipment) -> str:
+            return f"Shipment is {shipment.status.value}"
+    expected_output:
+      outcome: valid
+  - name: keys a threshold table by IntEnum values
+    inputs:
+      file: alerts/thresholds.py
+      after: |
+        from enum import IntEnum
+
+
+        class Priority(IntEnum):
+            LOW = 1
+            HIGH = 2
+
+
+        RESPONSE_MINUTES = {
+            Priority.LOW.value: 240,
+            Priority.HIGH.value: 15,
+        }
+
+
+        def response_minutes(priority: Priority) -> int:
+            return RESPONSE_MINUTES[priority.value]
+    expected_output:
+      outcome: invalid
+  - name: keys a threshold table by plain Enum values
+    inputs:
+      file: alerts/thresholds.py
+      after: |
+        from enum import Enum
+
+
+        class Priority(Enum):
+            LOW = 1
+            HIGH = 2
+
+
+        RESPONSE_MINUTES = {
+            Priority.LOW.value: 240,
+            Priority.HIGH.value: 15,
+        }
+
+
+        def response_minutes(priority: Priority) -> int:
+            return RESPONSE_MINUTES[priority.value]
+    expected_output:
+      outcome: valid
+  - name: filters orders by a TextChoices value
+    inputs:
+      file: orders/queries.py
+      after: |
+        from django.db import models
+
+
+        class OrderStatus(models.TextChoices):
+            OPEN = "open", "Open"
+            SHIPPED = "shipped", "Shipped"
+
+
+        class Order(models.Model):
+            status = models.CharField(max_length=16, choices=OrderStatus.choices)
+
+
+        def shipped_orders() -> models.QuerySet[Order]:
+            return Order.objects.filter(status=OrderStatus.SHIPPED.value)
+    expected_output:
+      outcome: invalid
+  - name: serializes an imported StrEnum's value
+    inputs:
+      file: billing/invoice_payload.py
+      before: |
+        import json
+
+        from billing.invoice import Invoice
+
+
+        def invoice_json(invoice: Invoice) -> str:
+            return json.dumps({"number": invoice.number})
+      after: |
+        import json
+
+        from billing.invoice import Invoice
+
+
+        def invoice_json(invoice: Invoice) -> str:
+            return json.dumps({"number": invoice.number, "state": invoice.state.value})
+      unchanged:
+        billing/invoice.py: |
+          from dataclasses import dataclass
+
+          from billing.invoice_state import InvoiceState
+
+
+          @dataclass(frozen=True)
+          class Invoice:
+              number: str
+              state: InvoiceState
+        billing/invoice_state.py: |
+          from enum import StrEnum
+
+
+          class InvoiceState(StrEnum):
+              DRAFT = "draft"
+              PAID = "paid"
+    expected_output:
+      outcome: invalid
+  - name: serializes an imported plain Enum's value
+    inputs:
+      file: billing/invoice_payload.py
+      before: |
+        import json
+
+        from billing.invoice import Invoice
+
+
+        def invoice_json(invoice: Invoice) -> str:
+            return json.dumps({"number": invoice.number})
+      after: |
+        import json
+
+        from billing.invoice import Invoice
+
+
+        def invoice_json(invoice: Invoice) -> str:
+            return json.dumps({"number": invoice.number, "state": invoice.state.value})
+      unchanged:
+        billing/invoice.py: |
+          from dataclasses import dataclass
+
+          from billing.invoice_state import InvoiceState
+
+
+          @dataclass(frozen=True)
+          class Invoice:
+              number: str
+              state: InvoiceState
+        billing/invoice_state.py: |
+          from enum import Enum
+
+
+          class InvoiceState(Enum):
+              DRAFT = "draft"
+              PAID = "paid"
+    expected_output:
+      outcome: valid
+  - name: lists the values of a StrEnum subclass
+    inputs:
+      file: documents/kinds.py
+      after: |
+        from enum import StrEnum
+
+
+        class LowercaseCode(StrEnum):
+            @staticmethod
+            def _generate_next_value_(name, start, count, last_values):
+                return name.lower()
+
+
+        class DocumentKind(LowercaseCode):
+            CONTRACT = "contract"
+            RECEIPT = "receipt"
+
+
+        def kind_choices() -> list[str]:
+            return [kind.value for kind in DocumentKind]
+    expected_output:
+      outcome: invalid
+  - name: sorts StrEnum members by an attrgetter of value
+    inputs:
+      file: documents/kinds.py
+      after: |
+        from enum import StrEnum
+        from operator import attrgetter
+
+
+        class DocumentKind(StrEnum):
+            CONTRACT = "contract"
+            RECEIPT = "receipt"
+
+
+        def sorted_kinds(kinds: list[DocumentKind]) -> list[DocumentKind]:
+            return sorted(kinds, key=attrgetter("value"))
+    expected_output:
+      outcome: invalid
+  - name: compares a pydantic StrEnum field's value
+    inputs:
+      file: payments/refunds.py
+      after: |
+        from enum import StrEnum
+
+        from pydantic import BaseModel
+
+
+        class RefundReason(StrEnum):
+            DAMAGED = "damaged"
+            LATE = "late"
+
+
+        class RefundRequest(BaseModel):
+            order_id: str
+            reason: RefundReason
+
+
+        def needs_photo(request: RefundRequest) -> bool:
+            return request.reason.value == "damaged"
+    expected_output:
+      outcome: invalid
+  - name: reads a meter reading's value field
+    inputs:
+      file: metering/usage.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class MeterReading:
+            meter_id: str
+            value: float
+
+
+        def total_usage(readings: list[MeterReading]) -> float:
+            return sum(reading.value for reading in readings)
+    expected_output:
+      outcome: valid
+  - name: reads a shared counter's value
+    inputs:
+      file: workers/progress.py
+      after: |
+        from multiprocessing import Value
+
+
+        def make_counter():
+            return Value("i", 0)
+
+
+        def processed(counter) -> int:
+            with counter.get_lock():
+                return counter.value
+    expected_output:
+      outcome: valid
+  - name: reads a Django setting row's value
+    inputs:
+      file: settings_store/lookup.py
+      after: |
+        from django.db import models
+
+
+        class SiteSetting(models.Model):
+            key = models.CharField(max_length=64, unique=True)
+            value = models.TextField()
+
+
+        def setting(key: str) -> str:
+            return SiteSetting.objects.get(key=key).value
     expected_output:
       outcome: valid
   - name: adds a member to a StrEnum
     inputs:
-      file: shipment_label.py
+      file: shipping/shipment_status.py
       before: |
         from enum import StrEnum
 
@@ -73,5 +351,30 @@ cases:
         class ShipmentStatus(StrEnum):
             PENDING = "pending"
             SHIPPED = "shipped"
+    expected_output:
+      outcome: skipped
+  - name: formats a StrEnum member's name
+    inputs:
+      file: shipping/shipment_label.py
+      before: |
+        from enum import StrEnum
+
+
+        class ShipmentStatus(StrEnum):
+            PENDING = "pending"
+
+
+        def label(status: ShipmentStatus) -> str:
+            return f"Shipment is {status}"
+      after: |
+        from enum import StrEnum
+
+
+        class ShipmentStatus(StrEnum):
+            PENDING = "pending"
+
+
+        def label(status: ShipmentStatus) -> str:
+            return f"Shipment is {status.name.title()}"
     expected_output:
       outcome: skipped

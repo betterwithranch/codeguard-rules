@@ -1,87 +1,200 @@
 cases:
-  - name: claims a refund but asserts status
+  - name: claims stock is restored but asserts the refund status
     inputs:
-      file: tests/test_orders.py
+      file: tests/test_refunds.py
       after: |
-        from shop.orders import OrderService, OrderStatus
+        from shop.refunds import refund
 
 
-        def test_cancel_order_refunds_the_payment(customer):
-            service = OrderService()
-            order = service.place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+        def test_refund_restores_stock(paid_order):
+            result = refund(paid_order)
 
-            cancelled = service.cancel(order.id)
-
-            assert cancelled.status == OrderStatus.CANCELLED
+            assert result.status == "refunded"
     expected_output:
       outcome: invalid
-  - name: renames test to an unasserted email
+  - name: claims stock is restored and asserts the stock level
+    inputs:
+      file: tests/test_refunds.py
+      after: |
+        from shop.inventory import stock_level
+        from shop.refunds import refund
+
+
+        def test_refund_restores_stock(paid_order):
+            refund(paid_order)
+
+            assert stock_level("BOOK-1") == 5
+    expected_output:
+      outcome: valid
+  - name: renames a test to an email it never asserts
     inputs:
       file: tests/test_orders.py
       before: |
-        from shop.orders import OrderService, OrderStatus
+        from shop.orders import place_order
 
 
-        def test_cancel_sets_status_to_cancelled(customer):
-            service = OrderService()
-            order = service.place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+        def test_place_order_sets_pending_status(cart):
+            order = place_order(cart)
 
-            cancelled = service.cancel(order.id)
-
-            assert cancelled.status == OrderStatus.CANCELLED
+            assert order.status == "pending"
       after: |
-        from shop.orders import OrderService, OrderStatus
+        from shop.orders import place_order
 
 
-        def test_cancel_sends_the_cancellation_email(customer):
-            service = OrderService()
-            order = service.place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+        def test_place_order_sends_confirmation_email(cart):
+            order = place_order(cart)
 
-            cancelled = service.cancel(order.id)
+            assert order.status == "pending"
+    expected_output:
+      outcome: invalid
+  - name: claims an email and checks it through an asserting helper
+    inputs:
+      file: tests/test_orders.py
+      after: |
+        from shop.orders import place_order
 
-            assert cancelled.status == OrderStatus.CANCELLED
+
+        def assert_mailed(outbox, to, subject):
+            assert (to, subject) in [(mail.to, mail.subject) for mail in outbox]
+
+
+        def test_place_order_sends_confirmation_email(cart, mail_outbox):
+            place_order(cart)
+
+            assert_mailed(mail_outbox, cart.customer_email, "Order confirmed")
+    expected_output:
+      outcome: valid
+  - name: claims the rates come from the cache but asserts the amount
+    inputs:
+      file: tests/test_conversion.py
+      after: |
+        from decimal import Decimal
+
+        from billing.conversion import Converter
+
+
+        def test_convert_reads_rates_from_cache(rate_cache):
+            converter = Converter(rate_cache)
+
+            assert converter.convert(Decimal("100"), "EUR") == Decimal("110.00")
+    expected_output:
+      outcome: invalid
+  - name: claims a rejection but asserts a zeroed quantity
+    inputs:
+      file: tests/test_cart_lines.py
+      after: |
+        from shop.carts import Cart
+
+
+        def test_add_rejects_negative_quantity():
+            cart = Cart()
+
+            cart.add(sku="BOOK-1", quantity=-2)
+
+            assert cart.quantity("BOOK-1") == 0
+    expected_output:
+      outcome: invalid
+  - name: claims a rejection and asserts the raised error
+    inputs:
+      file: tests/test_cart_lines.py
+      after: |
+        import pytest
+
+        from shop.carts import Cart, InvalidQuantity
+
+
+        def test_add_rejects_negative_quantity():
+            cart = Cart()
+
+            with pytest.raises(InvalidQuantity):
+                cart.add(sku="BOOK-1", quantity=-2)
+    expected_output:
+      outcome: valid
+  - name: claims a warning is logged but asserts the returned value
+    inputs:
+      file: tests/test_stock.py
+      after: |
+        import unittest
+
+        from shop.inventory import reserve
+
+
+        class ReserveTests(unittest.TestCase):
+            def test_reserve_logs_a_warning_when_stock_runs_low(self):
+                reserved = reserve(sku="BOOK-1", quantity=4, available=5)
+
+                self.assertEqual(reserved, 4)
+    expected_output:
+      outcome: invalid
+  - name: claims a warning is logged and asserts the log
+    inputs:
+      file: tests/test_stock.py
+      after: |
+        import unittest
+
+        from shop.inventory import reserve
+
+
+        class ReserveTests(unittest.TestCase):
+            def test_reserve_logs_a_warning_when_stock_runs_low(self):
+                with self.assertLogs("shop.inventory", level="WARNING") as logs:
+                    reserve(sku="BOOK-1", quantity=4, available=5)
+
+                self.assertEqual(logs.output, ["WARNING:shop.inventory:BOOK-1 has 1 left"])
+    expected_output:
+      outcome: valid
+  - name: claims the total includes tax but asserts only the subtotal
+    inputs:
+      file: tests/test_invoices.py
+      after: |
+        from decimal import Decimal
+
+        from billing.invoices import Invoice
+
+
+        def test_total_includes_tax():
+            invoice = Invoice(lines=[Decimal("100.00")], region="CA")
+
+            assert invoice.subtotal == Decimal("100.00")
     expected_output:
       outcome: invalid
   - name: names the asserted cancelled status
     inputs:
       file: tests/test_orders.py
       after: |
-        from shop.orders import OrderService, OrderStatus
+        from shop.orders import OrderStatus, cancel
 
 
-        def test_cancel_sets_status_to_cancelled(customer):
-            service = OrderService()
-            order = service.place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+        def test_cancel_sets_cancelled_status(pending_order):
+            order = cancel(pending_order)
 
-            cancelled = service.cancel(order.id)
+            assert order.status == OrderStatus.CANCELLED
+            assert order.cancelled_at is not None
+    expected_output:
+      outcome: valid
+  - name: names only the scenario and asserts the total
+    inputs:
+      file: tests/test_carts.py
+      after: |
+        from decimal import Decimal
 
-            assert cancelled.status == OrderStatus.CANCELLED
+        from shop.carts import Cart
+
+
+        def test_cart_total_with_two_items():
+            cart = Cart()
+            cart.add(sku="BOOK-1", quantity=1, price=Decimal("12.00"))
+            cart.add(sku="PEN-2", quantity=1, price=Decimal("3.00"))
+
+            assert cart.total() == Decimal("15.00")
     expected_output:
       outcome: valid
   - name: changes the imported module path
     inputs:
       file: tests/test_orders.py
       before: |
-        from shop.orders import OrderService, OrderStatus
-
-
-        def test_cancel_sets_status_to_cancelled(customer):
-            service = OrderService()
-            order = service.place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
-
-            cancelled = service.cancel(order.id)
-
-            assert cancelled.status == OrderStatus.CANCELLED
+        from shop.orders import place_order
       after: |
-        from shop.ordering import OrderService, OrderStatus
-
-
-        def test_cancel_sets_status_to_cancelled(customer):
-            service = OrderService()
-            order = service.place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
-
-            cancelled = service.cancel(order.id)
-
-            assert cancelled.status == OrderStatus.CANCELLED
+        from shop.ordering import place_order
     expected_output:
       outcome: skipped

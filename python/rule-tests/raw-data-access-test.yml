@@ -1,37 +1,70 @@
 id: raw-data-access
 valid:
+# Attribute read
 - |
   name = order.name
+# Subscript by a variable key
 - |
   value = cache[key]
+# get with a variable key
 - |
   text = fallbacks.get(name)
+# Membership of a variable in a collection
+- |
+  found = name in names
 invalid:
+# Subscript by an integer index
 - |
   head = parts[0]
+# Subscript by a slice
 - |
   rest = loc[2:]
+# Subscript by a negative index
+- |
+  last = events[-1]
+# isinstance call
 - |
   if isinstance(x, int):
       pass
+# json.loads call
+- |
+  payload = json.loads(text)
+# json.load call
+- |
+  payload = json.load(handle)
+# Annotation naming Any or dict[...]
 - |
   def parse(raw: dict[str, Any]):
       return raw
+# Subscript by a string key
 - |
   value = lookup['key']
+# get with a string key
 - |
   events = payload.get("events")
+# String key on a framework request
 - |
   events = request.data["events"]
+# String key on a loop variable
 - |
   def send_all(rows):
       for row in rows:
           send(row["email"])
+# String key on a call result
 - |
   events = requests.get(url).json()["events"]
+# String key on a parsed document
 - |
   steps = yaml.safe_load(text)["steps"]
+# String key on a local name
 - |
   def latest():
       data = load()
       return data["events"]
+# Membership of a string key
+- |
+  pipelines = sum(1 for doc in documents if "steps" in doc)
+# Negated membership of a string key
+- |
+  if "urgent" not in alert:
+      pass

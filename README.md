@@ -4,7 +4,8 @@ Rulesets for [codeguard](https://github.com/betterwithranch/codeguard). Each rul
 directory a project opts into from its `.codeguard/config.yaml`. The rules supplement a
 linter; they don't repeat one. A Python project should run
 [ruff](https://docs.astral.sh/ruff/) for what it covers, such as `print` (T201), imports
-inside functions (PLC0415), `getattr` with a literal (B009) and `TYPE_CHECKING` (TID251),
+inside functions (PLC0415), `getattr` with a literal (B009), `TYPE_CHECKING` (TID251),
+untyped parameters (ANN001, ANN003) and unused arguments (ARG001),
 and [basedpyright](https://docs.basedpyright.com) with these rules on:
 
 - `reportExplicitAny`: no `Any`.
@@ -56,10 +57,12 @@ against the rule's skill):
 |---|---|
 | `parse-boundary-data-once` | Outside data is read only through the part of the program that declares and checks its shape |
 
-The other judge rules are drafts in `drafts/python/`, which codeguard doesn't load. A
-draft moves back into `python/` one rule at a time, highest value first, once it passes
-every eval case 20 of 20 runs on the model its binding names and a judged review of
-codeguard finds nothing wrong. codeguard's `writing-rules` skill has the steps.
+The other judge rules, and some pattern rules, are drafts in `drafts/python/`, which
+codeguard doesn't load. A draft moves back into `python/` one rule at a time, highest
+value first: a judge rule once it passes every eval case 20 of 20 runs on the model its
+binding names and a judged review of codeguard finds nothing wrong, a pattern rule once
+it flags nothing in codeguard it shouldn't. codeguard's `writing-rules` skill has the
+steps, and [drafts/README.md](drafts/README.md) the conditions.
 
 Reviews and evals both judge a rule with its binding's `provider` and `model`, and a
 project can't override them, so a rule is only ever judged by the model its evals pass

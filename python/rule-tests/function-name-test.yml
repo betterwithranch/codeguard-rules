@@ -1,0 +1,29 @@
+id: function-name
+valid:
+# Function body
+- |
+  total = order.total
+# Parameter name
+- |
+  order
+# Call of a function
+- |
+  submit(order)
+# Class name
+- |
+  class Order:
+      pass
+invalid:
+# Module function name
+- |
+  def submit(order):
+      return order
+# Method name
+- |
+  class Order:
+      def submit(self):
+          pass
+# Async function name
+- |
+  async def submit(order):
+      return order

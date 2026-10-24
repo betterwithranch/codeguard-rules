@@ -1,0 +1,4 @@
+skill: python/skills/import-packages-from-root
+paths: ["**/*.py"]
+exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
+triggers: [import]

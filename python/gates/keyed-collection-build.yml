@@ -7,9 +7,36 @@ rule:
       field: left
       kind: subscript
     inside:
-      kind: for_statement
       stopBy: end
+      any:
+      - kind: for_statement
+      - kind: while_statement
+  - kind: dictionary_comprehension
+  - kind: call
+    all:
+    - has:
+        field: function
+        regex: ^(dict|OrderedDict|collections\.OrderedDict)$
+    - has:
+        field: arguments
+        any:
+        - kind: generator_expression
+        - has:
+            any:
+            - kind: generator_expression
+            - kind: call
+            - kind: identifier
+            - kind: list_comprehension
   - kind: call
     has:
       field: function
       regex: \.setdefault$
+  - kind: call
+    has:
+      field: function
+      regex: \.update$
+    inside:
+      stopBy: end
+      any:
+      - kind: for_statement
+      - kind: while_statement

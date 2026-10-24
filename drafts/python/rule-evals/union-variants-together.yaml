@@ -1,0 +1,346 @@
+cases:
+  - name: defines an unrelated model between payment variants
+    inputs:
+      file: payments/methods.py
+      after: |
+        from typing import Annotated, Literal
+
+        from pydantic import BaseModel, Field
+
+
+        class CardPayment(BaseModel):
+            kind: Literal["card"] = "card"
+            card_token: str
+
+
+        class Receipt(BaseModel):
+            order_id: str
+            emailed_to: str
+
+
+        class BankTransfer(BaseModel):
+            kind: Literal["bank_transfer"] = "bank_transfer"
+            iban: str
+
+
+        PaymentMethod = Annotated[CardPayment | BankTransfer, Field(discriminator="kind")]
+    expected_output:
+      outcome: invalid
+  - name: defines payment variants directly before their alias
+    inputs:
+      file: payments/methods.py
+      after: |
+        from typing import Annotated, Literal
+
+        from pydantic import BaseModel, Field
+
+
+        class Receipt(BaseModel):
+            order_id: str
+            emailed_to: str
+
+
+        class CardPayment(BaseModel):
+            kind: Literal["card"] = "card"
+            card_token: str
+
+
+        class BankTransfer(BaseModel):
+            kind: Literal["bank_transfer"] = "bank_transfer"
+            iban: str
+
+
+        PaymentMethod = Annotated[CardPayment | BankTransfer, Field(discriminator="kind")]
+    expected_output:
+      outcome: valid
+  - name: adds a helper function between a variant and the alias
+    inputs:
+      file: pricing/adjustments.py
+      before: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class PercentOff:
+            percent: int
+
+
+        @dataclass(frozen=True)
+        class FixedOff:
+            cents: int
+
+
+        type Adjustment = PercentOff | FixedOff
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class PercentOff:
+            percent: int
+
+
+        @dataclass(frozen=True)
+        class FixedOff:
+            cents: int
+
+
+        def clamp(cents: int) -> int:
+            return max(cents, 0)
+
+
+        type Adjustment = PercentOff | FixedOff
+    expected_output:
+      outcome: invalid
+  - name: adds a helper function after the alias
+    inputs:
+      file: pricing/adjustments.py
+      before: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class PercentOff:
+            percent: int
+
+
+        @dataclass(frozen=True)
+        class FixedOff:
+            cents: int
+
+
+        type Adjustment = PercentOff | FixedOff
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class PercentOff:
+            percent: int
+
+
+        @dataclass(frozen=True)
+        class FixedOff:
+            cents: int
+
+
+        type Adjustment = PercentOff | FixedOff
+
+
+        def clamp(cents: int) -> int:
+            return max(cents, 0)
+    expected_output:
+      outcome: valid
+  - name: imports one variant of the alias from another module
+    inputs:
+      file: shipping/legs.py
+      after: |
+        from dataclasses import dataclass
+
+        from shipping.air import AirLeg
+
+
+        @dataclass(frozen=True)
+        class TruckLeg:
+            plate: str
+            hours: float
+
+
+        type Leg = AirLeg | TruckLeg
+      unchanged:
+        shipping/air.py: |
+          from dataclasses import dataclass
+
+
+          @dataclass(frozen=True)
+          class AirLeg:
+              flight_number: str
+              hours: float
+    expected_output:
+      outcome: invalid
+  - name: declares the alias above its attrs variants
+    inputs:
+      file: alerts/channels.py
+      after: |
+        import attrs
+
+        type Channel = EmailChannel | SmsChannel
+
+
+        @attrs.frozen
+        class EmailChannel:
+            address: str
+
+
+        @attrs.frozen
+        class SmsChannel:
+            phone: str
+    expected_output:
+      outcome: invalid
+  - name: puts a constant between the last TypedDict variant and the alias
+    inputs:
+      file: webhooks/events.py
+      after: |
+        from typing import Literal, TypedDict
+
+
+        class ItemCreated(TypedDict):
+            type: Literal["item.created"]
+            item_id: str
+
+
+        class ItemDeleted(TypedDict):
+            type: Literal["item.deleted"]
+            item_id: str
+
+
+        WEBHOOK_VERSION = "2024-06"
+
+        type ItemEvent = ItemCreated | ItemDeleted
+    expected_output:
+      outcome: invalid
+  - name: shares a base class and uses the union after the alias
+    inputs:
+      file: pricing/adjustments.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class AdjustmentBase:
+            reason: str
+
+
+        @dataclass(frozen=True)
+        class PercentOff(AdjustmentBase):
+            percent: int
+
+
+        @dataclass(frozen=True)
+        class FixedOff(AdjustmentBase):
+            cents: int
+
+
+        type Adjustment = PercentOff | FixedOff
+
+
+        def apply(adjustment: Adjustment, total_cents: int) -> int:
+            match adjustment:
+                case PercentOff(percent=percent):
+                    return total_cents * (100 - percent) // 100
+                case FixedOff(cents=cents):
+                    return max(total_cents - cents, 0)
+    expected_output:
+      outcome: valid
+  - name: nests an inner union run inside the outer run
+    inputs:
+      file: orders/events.py
+      after: |
+        from typing import NamedTuple
+
+
+        class OrderPlaced(NamedTuple):
+            order_id: str
+
+
+        class OrderShipped(NamedTuple):
+            order_id: str
+            carrier: str
+
+
+        type OrderEvent = OrderPlaced | OrderShipped
+
+
+        class RefundIssued(NamedTuple):
+            order_id: str
+            cents: int
+
+
+        type StoreEvent = OrderEvent | RefundIssued
+    expected_output:
+      outcome: valid
+  - name: declares the inner union after the outer alias
+    inputs:
+      file: orders/events.py
+      after: |
+        from typing import NamedTuple
+
+
+        class RefundIssued(NamedTuple):
+            order_id: str
+            cents: int
+
+
+        type StoreEvent = OrderEvent | RefundIssued
+
+
+        class OrderPlaced(NamedTuple):
+            order_id: str
+
+
+        class OrderShipped(NamedTuple):
+            order_id: str
+            carrier: str
+
+
+        type OrderEvent = OrderPlaced | OrderShipped
+    expected_output:
+      outcome: invalid
+  - name: defines msgspec variants together before the alias
+    inputs:
+      file: telemetry/samples.py
+      after: |
+        import msgspec
+
+
+        class CpuSample(msgspec.Struct, tag="cpu"):
+            percent: float
+
+
+        class MemorySample(msgspec.Struct, tag="memory"):
+            used_bytes: int
+
+
+        Sample = CpuSample | MemorySample
+
+
+        class SampleBatch(msgspec.Struct):
+            host: str
+            samples: list[Sample]
+    expected_output:
+      outcome: valid
+  - name: adds a field to a model that annotates an inline union
+    inputs:
+      file: checkout/request.py
+      before: |
+        from pydantic import BaseModel
+
+        from payments.methods import BankTransfer, CardPayment
+
+
+        class CheckoutRequest(BaseModel):
+            payment: CardPayment | BankTransfer
+      after: |
+        from pydantic import BaseModel
+
+        from payments.methods import BankTransfer, CardPayment
+
+
+        class CheckoutRequest(BaseModel):
+            payment: CardPayment | BankTransfer
+            coupon: str | None = None
+    expected_output:
+      outcome: skipped
+  - name: edits a method body in a module with no union alias
+    inputs:
+      file: pricing/totals.py
+      before: |
+        class Totals:
+            def gross(self, cents: int) -> int:
+                return cents
+      after: |
+        class Totals:
+            def gross(self, cents: int) -> int:
+                return cents * 2
+    expected_output:
+      outcome: skipped

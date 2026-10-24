@@ -1,0 +1,18 @@
+id: subclass-override
+language: python
+rule:
+  kind: function_definition
+  inside:
+    kind: class_definition
+    stopBy: end
+    all:
+    - has:
+        field: superclasses
+        kind: argument_list
+        has:
+          kind: identifier
+          stopBy: end
+    - not:
+        has:
+          field: name
+          regex: ^Test|Tests?$

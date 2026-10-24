@@ -1,4 +1,0 @@
-skill: python/skills/map-models-field-by-field
-paths: ["**/*.py"]
-exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
-triggers: [model-mapping]

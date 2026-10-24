@@ -69,6 +69,272 @@ cases:
 
             def with_error(self, error: str) -> "CheckoutState":
                 return replace(self, errors=(*self.errors, error))
+      unchanged:
+        checkout/workflow.py: |
+          from checkout.checkout_state import CheckoutState
+
+
+          def run_checkout(steps) -> CheckoutState:
+              state = CheckoutState()
+              for step in steps:
+                  state = state.with_step(step.run())
+              return state
+    expected_output:
+      outcome: valid
+  - name: adds a step to a workflow that imports its state
+    inputs:
+      file: checkout/workflow.py
+      before: |
+        from checkout.checkout_state import CheckoutState
+
+
+        def run_checkout(steps) -> CheckoutState:
+            state = CheckoutState()
+            for step in steps:
+                state = state.with_step(step.run())
+            return state
+      after: |
+        from checkout.checkout_state import CheckoutState
+
+
+        def charge_card(state: CheckoutState, gateway) -> CheckoutState:
+            return state.with_step(gateway.charge())
+
+
+        def run_checkout(steps) -> CheckoutState:
+            state = CheckoutState()
+            for step in steps:
+                state = state.with_step(step.run())
+            return state
+      unchanged:
+        checkout/checkout_state.py: |
+          from dataclasses import dataclass, replace
+
+
+          @dataclass(frozen=True)
+          class CheckoutState:
+              completed_steps: tuple[str, ...] = ()
+
+              def with_step(self, step: str) -> "CheckoutState":
+                  return replace(self, completed_steps=(*self.completed_steps, step))
+    expected_output:
+      outcome: valid
+  - name: adds a step function to the state's own module
+    inputs:
+      file: checkout/checkout_state.py
+      before: |
+        from dataclasses import dataclass, replace
+
+
+        @dataclass(frozen=True)
+        class CheckoutState:
+            completed_steps: tuple[str, ...] = ()
+
+            def with_step(self, step: str) -> "CheckoutState":
+                return replace(self, completed_steps=(*self.completed_steps, step))
+      after: |
+        from dataclasses import dataclass, replace
+
+
+        @dataclass(frozen=True)
+        class CheckoutState:
+            completed_steps: tuple[str, ...] = ()
+
+            def with_step(self, step: str) -> "CheckoutState":
+                return replace(self, completed_steps=(*self.completed_steps, step))
+
+
+        def run_checkout(steps) -> CheckoutState:
+            state = CheckoutState()
+            for step in steps:
+                state = state.with_step(step.run())
+            return state
+    expected_output:
+      outcome: invalid
+  - name: defines a LangGraph state beside the graph's nodes
+    inputs:
+      file: review/graph.py
+      after: |
+        import operator
+        from typing import Annotated, TypedDict
+
+        from langgraph.graph import END, StateGraph
+
+
+        class ReviewState(TypedDict):
+            document: str
+            findings: Annotated[list[str], operator.add]
+
+
+        def lint(state: ReviewState) -> dict[str, list[str]]:
+            return {"findings": [line for line in state["document"].splitlines() if "TODO" in line]}
+
+
+        def summarize(state: ReviewState) -> dict[str, list[str]]:
+            return {"findings": [f"{len(state['findings'])} findings"]}
+
+
+        def build_graph():
+            graph = StateGraph(ReviewState)
+            graph.add_node("lint", lint)
+            graph.add_node("summarize", summarize)
+            graph.set_entry_point("lint")
+            graph.add_edge("lint", "summarize")
+            graph.add_edge("summarize", END)
+            return graph.compile()
+    expected_output:
+      outcome: invalid
+  - name: gives a LangGraph state and its reducer their own module
+    inputs:
+      file: review/review_state.py
+      after: |
+        from typing import Annotated, TypedDict
+
+
+        def keep_unique(current: list[str], update: list[str]) -> list[str]:
+            return current + [item for item in update if item not in current]
+
+
+        class ReviewState(TypedDict):
+            document: str
+            findings: Annotated[list[str], keep_unique]
+      unchanged:
+        review/graph.py: |
+          from langgraph.graph import END, StateGraph
+
+          from review.review_state import ReviewState
+
+
+          def lint(state: ReviewState) -> dict[str, list[str]]:
+              return {"findings": [line for line in state["document"].splitlines() if "TODO" in line]}
+
+
+          def build_graph():
+              graph = StateGraph(ReviewState)
+              graph.add_node("lint", lint)
+              graph.set_entry_point("lint")
+              graph.add_edge("lint", END)
+              return graph.compile()
+    expected_output:
+      outcome: valid
+  - name: adds a threaded state to a module of other models
+    inputs:
+      file: orders/models.py
+      before: |
+        from pydantic import BaseModel
+
+
+        class Customer(BaseModel):
+            customer_id: str
+            email: str
+
+
+        class Product(BaseModel):
+            sku: str
+            cents: int
+      after: |
+        from pydantic import BaseModel
+
+
+        class Customer(BaseModel):
+            customer_id: str
+            email: str
+
+
+        class Product(BaseModel):
+            sku: str
+            cents: int
+
+
+        class FulfillmentState(BaseModel):
+            picked_skus: list[str] = []
+            packed: bool = False
+            label_id: str | None = None
+      unchanged:
+        orders/fulfillment.py: |
+          from orders.models import FulfillmentState
+
+
+          def pick(state: FulfillmentState, sku: str) -> FulfillmentState:
+              return state.model_copy(update={"picked_skus": [*state.picked_skus, sku]})
+
+
+          def pack(state: FulfillmentState) -> FulfillmentState:
+              return state.model_copy(update={"packed": True})
+
+
+          def fulfill(skus: list[str]) -> FulfillmentState:
+              state = FulfillmentState()
+              for sku in skus:
+                  state = pick(state, sku)
+              return pack(state)
+    expected_output:
+      outcome: invalid
+  - name: mutates an attrs state inside the pipeline runner's module
+    inputs:
+      file: imports/pipeline.py
+      after: |
+        import attrs
+
+
+        @attrs.define
+        class ImportState:
+            rows_read: int = 0
+            rows_rejected: int = 0
+
+
+        class ImportPipeline:
+            def __init__(self, stages) -> None:
+                self._stages = stages
+
+            def run(self, rows) -> ImportState:
+                state = ImportState()
+                for stage in self._stages:
+                    stage.process(rows, state)
+                return state
+    expected_output:
+      outcome: invalid
+  - name: keeps a state module named state inside its package
+    inputs:
+      file: checkout/state.py
+      after: |
+        from dataclasses import dataclass, replace
+
+
+        @dataclass(frozen=True)
+        class CheckoutState:
+            completed_steps: tuple[str, ...] = ()
+
+            def with_step(self, step: str) -> "CheckoutState":
+                return replace(self, completed_steps=(*self.completed_steps, step))
+      unchanged:
+        checkout/workflow.py: |
+          from checkout.state import CheckoutState
+
+
+          def run_checkout(steps) -> CheckoutState:
+              state = CheckoutState()
+              for step in steps:
+                  state = state.with_step(step.run())
+              return state
+    expected_output:
+      outcome: valid
+  - name: defines a request shape beside the client that sends it once
+    inputs:
+      file: carriers/label_client.py
+      after: |
+        from dataclasses import asdict, dataclass
+
+
+        @dataclass(frozen=True)
+        class LabelRequest:
+            order_id: str
+            weight_grams: int
+
+
+        def request_label(http, order_id: str, weight_grams: int) -> str:
+            request = LabelRequest(order_id=order_id, weight_grams=weight_grams)
+            return http.post("/labels", json=asdict(request)).json()["label_id"]
     expected_output:
       outcome: valid
   - name: makes last_step handle no steps
@@ -94,5 +360,25 @@ cases:
 
             def last_step(self) -> str | None:
                 return self.completed_steps[-1] if self.completed_steps else None
+    expected_output:
+      outcome: skipped
+  - name: adds an errors field to the state
+    inputs:
+      file: checkout/workflow.py
+      before: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class CheckoutState:
+            completed_steps: tuple[str, ...] = ()
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class CheckoutState:
+            completed_steps: tuple[str, ...] = ()
+            errors: tuple[str, ...] = ()
     expected_output:
       outcome: skipped

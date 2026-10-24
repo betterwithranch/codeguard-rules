@@ -1,52 +1,114 @@
 id: multi-method-class
 snapshots:
   ? |
-    class Order:
-        def tax(self):
+    class ExampleService:
+        async def place(self):
             return 1
 
-        def total(self):
+        async def cancel(self):
             return 2
   : labels:
     - source: |-
-        class Order:
-            def tax(self):
+        class ExampleService:
+            async def place(self):
                 return 1
 
-            def total(self):
+            async def cancel(self):
                 return 2
       style: primary
       start: 0
-      end: 87
+      end: 111
     - source: |-
-        def tax(self):
+        async def place(self):
                 return 1
       style: secondary
-      start: 17
-      end: 48
+      start: 26
+      end: 65
     - source: |-
-        def total(self):
+        async def cancel(self):
                 return 2
       style: secondary
-      start: 54
-      end: 87
+      start: 71
+      end: 111
     - source: |-
-        def total(self):
+        async def cancel(self):
                 return 2
       style: secondary
-      start: 54
-      end: 87
+      start: 71
+      end: 111
   ? |
-    def fetch_and_validate(order):
-        return order
+    class ExampleService:
+        def place(self):
+            return 1
+
+        @property
+        def name(self):
+            return "x"
   : labels:
     - source: |-
-        def fetch_and_validate(order):
-            return order
+        class ExampleService:
+            def place(self):
+                return 1
+
+            @property
+            def name(self):
+                return "x"
       style: primary
       start: 0
-      end: 47
-    - source: fetch_and_validate
+      end: 113
+    - source: |-
+        def place(self):
+                return 1
       style: secondary
-      start: 4
-      end: 22
+      start: 26
+      end: 59
+    - source: |-
+        @property
+            def name(self):
+                return "x"
+      style: secondary
+      start: 65
+      end: 113
+    - source: |-
+        @property
+            def name(self):
+                return "x"
+      style: secondary
+      start: 65
+      end: 113
+  ? |
+    class ExampleService:
+        def place(self):
+            return 1
+
+        def cancel(self):
+            return 2
+  : labels:
+    - source: |-
+        class ExampleService:
+            def place(self):
+                return 1
+
+            def cancel(self):
+                return 2
+      style: primary
+      start: 0
+      end: 99
+    - source: |-
+        def place(self):
+                return 1
+      style: secondary
+      start: 26
+      end: 59
+    - source: |-
+        def cancel(self):
+                return 2
+      style: secondary
+      start: 65
+      end: 99
+    - source: |-
+        def cancel(self):
+                return 2
+      style: secondary
+      start: 65
+      end: 99

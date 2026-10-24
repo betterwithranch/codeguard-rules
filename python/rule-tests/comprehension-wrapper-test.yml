@@ -1,0 +1,52 @@
+id: comprehension-wrapper
+valid:
+# Comprehension after another statement
+- |
+  def labels(shipments):
+      active = shipments.active()
+      return [label(shipment) for shipment in active]
+# Comprehension assigned, not returned
+- |
+  def ship(shipments):
+      labels = [label(shipment) for shipment in shipments]
+# Returns a call of the mapped function
+- |
+  def labels(shipments):
+      return label_all(shipments)
+# Comprehension at module level
+- |
+  LABELS = [label(shipment) for shipment in SHIPMENTS]
+# sorted over a generator
+- |
+  def labels(shipments):
+      return sorted(label(shipment) for shipment in shipments)
+invalid:
+# List comprehension
+- |
+  def labels(shipments):
+      return [label(shipment) for shipment in shipments]
+# Set comprehension
+- |
+  def carriers(shipments):
+      return {carrier_of(shipment) for shipment in shipments}
+# Dict comprehension
+- |
+  def labels_by_id(shipments):
+      return {shipment.id: label(shipment) for shipment in shipments}
+# Generator expression
+- |
+  def labels(shipments):
+      return (label(shipment) for shipment in shipments)
+# tuple over a generator
+- |
+  def labels(shipments):
+      return tuple(label(shipment) for shipment in shipments)
+# list over map
+- |
+  def labels(shipments):
+      return list(map(label, shipments))
+# Method
+- |
+  class Labeler:
+      def labels(self, shipments):
+          return [self.label(shipment) for shipment in shipments]

@@ -1,0 +1,257 @@
+cases:
+  - name: copies the customer email into the mailer
+    inputs:
+      file: billing/invoice_mailer.py
+      before: |
+        class InvoiceMailer:
+            def __init__(self, customer, smtp) -> None:
+                self.customer = customer
+                self.smtp = smtp
+
+            def send(self, invoice) -> None:
+                self.smtp.send(to=self.customer.email, body=invoice.render())
+      after: |
+        class InvoiceMailer:
+            def __init__(self, customer, smtp) -> None:
+                self.customer = customer
+                self.smtp = smtp
+                self.email = customer.email
+
+            def send(self, invoice) -> None:
+                self.smtp.send(to=self.email, body=invoice.render())
+    expected_output:
+      outcome: invalid
+  - name: reads the email from the customer
+    inputs:
+      file: billing/invoice_mailer.py
+      after: |
+        class InvoiceMailer:
+            def __init__(self, customer, smtp) -> None:
+                self.customer = customer
+                self.smtp = smtp
+
+            def send(self, invoice) -> None:
+                self.smtp.send(to=self.customer.email, body=invoice.render())
+    expected_output:
+      outcome: valid
+  - name: stores the registry key as a kind
+    inputs:
+      file: shipping/strategies.py
+      before: |
+        class ExpressShippingStrategy:
+            def quote(self, weight_grams: int) -> int:
+                return 1500 + weight_grams // 100
+
+
+        SHIPPING_STRATEGIES = {"express": ExpressShippingStrategy()}
+      after: |
+        class ExpressShippingStrategy:
+            kind = "express"
+
+            def quote(self, weight_grams: int) -> int:
+                return 1500 + weight_grams // 100
+
+
+        SHIPPING_STRATEGIES = {"express": ExpressShippingStrategy()}
+    expected_output:
+      outcome: invalid
+  - name: stores a rate that is not the registry key
+    inputs:
+      file: shipping/strategies.py
+      before: |
+        class ExpressShippingStrategy:
+            def quote(self, weight_grams: int) -> int:
+                return 1500 + weight_grams // 100
+
+
+        SHIPPING_STRATEGIES = {"express": ExpressShippingStrategy()}
+      after: |
+        class ExpressShippingStrategy:
+            base_cents = 1500
+
+            def quote(self, weight_grams: int) -> int:
+                return self.base_cents + weight_grams // 100
+
+
+        SHIPPING_STRATEGIES = {"express": ExpressShippingStrategy()}
+    expected_output:
+      outcome: valid
+  - name: declares a customer and the customer's email as dataclass fields
+    inputs:
+      file: loyalty/statement.py
+      unchanged:
+        customers/customer.py: |
+          from dataclasses import dataclass
+
+
+          @dataclass(frozen=True)
+          class Customer:
+              id: int
+              email: str
+              name: str
+      after: |
+        from dataclasses import dataclass
+
+        from customers.customer import Customer
+
+
+        @dataclass(frozen=True)
+        class LoyaltyStatement:
+            customer: Customer
+            customer_email: str
+            points: int
+
+            def subject(self) -> str:
+                return f"Your points, {self.customer.name}"
+    expected_output:
+      outcome: invalid
+  - name: keeps the email a receipt was sent to without the customer
+    inputs:
+      file: billing/receipt.py
+      after: |
+        from datetime import datetime
+
+
+        class SentReceipt:
+            def __init__(self, sent_to: str, sent_at: datetime, total_cents: int) -> None:
+                self.sent_to = sent_to
+                self.sent_at = sent_at
+                self.total_cents = total_cents
+    expected_output:
+      outcome: valid
+  - name: copies the warehouse code in post init
+    inputs:
+      file: inventory/stock_check.py
+      after: |
+        from dataclasses import dataclass, field
+
+        from .warehouse import Warehouse
+
+
+        @dataclass
+        class StockCheck:
+            warehouse: Warehouse
+            warehouse_code: str = field(init=False)
+
+            def __post_init__(self) -> None:
+                self.warehouse_code = self.warehouse.code
+
+            def label(self, sku: str) -> str:
+                return f"{self.warehouse_code}/{sku}"
+    expected_output:
+      outcome: invalid
+  - name: keeps the customer id to look the customer up later
+    inputs:
+      file: billing/dunning.py
+      after: |
+        from .customers import CustomerRepository
+
+
+        class DunningReminder:
+            def __init__(self, customer_id: int, customers: CustomerRepository) -> None:
+                self.customer_id = customer_id
+                self._customers = customers
+
+            def recipient(self) -> str:
+                return self._customers.get(self.customer_id).email
+    expected_output:
+      outcome: valid
+  - name: names a decorator-registered exporter with its registry key
+    inputs:
+      file: exports/csv_export.py
+      unchanged:
+        exports/registry.py: |
+          from typing import Callable
+
+          EXPORTERS: dict[str, type] = {}
+
+
+          def register(name: str) -> Callable[[type], type]:
+              def add(cls: type) -> type:
+                  EXPORTERS[name] = cls
+                  return cls
+
+              return add
+      after: |
+        import csv
+        import io
+
+        from .registry import register
+
+
+        @register("csv")
+        class CsvExporter:
+            format_name = "csv"
+
+            def export(self, rows: list[list[str]]) -> str:
+                buffer = io.StringIO()
+                csv.writer(buffer).writerows(rows)
+                return buffer.getvalue()
+    expected_output:
+      outcome: invalid
+  - name: computes the order total from its lines
+    inputs:
+      file: orders/order_summary.py
+      after: |
+        from .order import OrderLine
+
+
+        class OrderSummary:
+            def __init__(self, lines: list[OrderLine]) -> None:
+                self.lines = lines
+                self.total_cents = sum(line.unit_cents * line.quantity for line in lines)
+    expected_output:
+      outcome: valid
+  - name: copies the account currency into a pydantic statement
+    inputs:
+      file: banking/statement.py
+      unchanged:
+        banking/account.py: |
+          from pydantic import BaseModel
+
+
+          class Account(BaseModel):
+              number: str
+              currency: str
+              holder_name: str
+      after: |
+        from pydantic import BaseModel
+
+        from .account import Account
+
+
+        class Statement(BaseModel):
+            account: Account
+            currency: str
+            closing_balance_cents: int
+
+            @classmethod
+            def for_account(cls, account: Account, closing_balance_cents: int) -> "Statement":
+                return cls(
+                    account=account,
+                    currency=account.currency,
+                    closing_balance_cents=closing_balance_cents,
+                )
+    expected_output:
+      outcome: invalid
+  - name: changes the mailer's send body
+    inputs:
+      file: billing/invoice_mailer.py
+      before: |
+        class InvoiceMailer:
+            def __init__(self, customer, smtp) -> None:
+                self.customer = customer
+                self.smtp = smtp
+
+            def send(self, invoice) -> None:
+                self.smtp.send(to=self.customer.email, body=invoice.render())
+      after: |
+        class InvoiceMailer:
+            def __init__(self, customer, smtp) -> None:
+                self.customer = customer
+                self.smtp = smtp
+
+            def send(self, invoice) -> None:
+                self.smtp.send(to=self.customer.email, body=invoice.render_html())
+    expected_output:
+      outcome: skipped

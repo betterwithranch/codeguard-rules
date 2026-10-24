@@ -1,0 +1,56 @@
+id: class-construction
+valid:
+# Construction at module level, outside any function
+- |
+  DEFAULT = Settings(page_size=50)
+# Construction whose result is discarded
+- |
+  def warn(message):
+      Warning(text=message.strip())
+# Arguments passed through unchanged
+- |
+  def handler_for(name):
+      return Handler(name)
+# Lowercase call
+- |
+  def mark_shipped(order):
+      return replace(order, status=shipped_status())
+invalid:
+# Returned construction with keyword arguments
+- |
+  def make_shipment(order):
+      return Shipment(order_id=order.id)
+# Assigned construction with an attribute argument
+- |
+  def ship(self, order):
+      shipment = Shipment(order.id)
+      self.repo.add(shipment)
+# Construction with a subscript argument
+- |
+  def to_line(row):
+      return ReportLine(row["sku"])
+# Alternative constructor with a call argument
+- |
+  def quote(self, response):
+      return Quote.model_validate(response.json())
+# Yielded construction
+- |
+  def lines(rows):
+      for row in rows:
+          yield ReportLine(sku=row.sku)
+# Construction in a list comprehension
+- |
+  def parcels(order):
+      return [Parcel(sku=line.sku) for line in order.lines]
+# Construction in a returned list
+- |
+  def pair(order):
+      return [Parcel(sku=order.sku), Parcel(sku=order.spare)]
+# Private class name
+- |
+  def build(order):
+      return _Draft(order_id=order.id)
+# Assignment to a subscript target
+- |
+  def handler_for(name):
+      _handlers[name] = Handler(name=name, level=level_for(name))

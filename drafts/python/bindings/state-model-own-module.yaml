@@ -1,4 +1,4 @@
 skill: python/skills/state-model-own-module
 paths: ["**/*.py"]
 exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
-triggers: [class-header, class-attribute]
+triggers: [definition-added-or-removed]

@@ -1,0 +1,76 @@
+id: unpacked-argument-group
+valid:
+# Fields of a parameter passed on
+- |
+  def ship_order(order):
+      return ship(order.id, order.address)
+# Constructed object handed whole to the callee
+- |
+  def quote(cart):
+      params = QuoteParams(cart=cart)
+      return QuoteFactory().create(params)
+# Field of a local built by a lowercase call
+- |
+  def total(cart):
+      lines = load_lines(cart)
+      return sum_lines(lines.items)
+# Variable key read from a local built by a class
+- |
+  def lookup(key):
+      table = RateTable()
+      return price(table[key])
+# Splat of a local built by a lowercase call
+- |
+  def send(payload):
+      headers = headers_for(payload)
+      return post(**headers)
+# Splat of a call that isn't a dump
+- |
+  def send(payload):
+      return post(**headers_for(payload))
+invalid:
+# Positional arguments read back from a local built by a class
+- |
+  def quote(cart, region):
+      args = QuoteArgs(cart=cart, region=region)
+      return build_quote(args.cart, args.region)
+# Keyword argument read back from a local built by a qualified class
+- |
+  def quote(cart, region):
+      args = quoting.QuoteArgs(cart, region)
+      return build_quote(cart=args.cart)
+# Field read nested inside another argument
+- |
+  def quote(cart, region):
+      args = QuoteArgs(cart, region)
+      return build_quote(normalize(args.cart))
+# String key read back from a local built by a class
+- |
+  def quote(cart, region):
+      args = QuoteArgs(cart=cart, region=region)
+      return build_quote(args["cart"], args["region"])
+# Double splat of a local built by a class
+- |
+  def quote(cart, region):
+      args = QuoteArgs(cart=cart, region=region)
+      return build_quote(**args)
+# Double splat of asdict
+- |
+  def quote(cart, region):
+      return build_quote(**asdict(QuoteArgs(cart=cart, region=region)))
+# Single splat of astuple
+- |
+  def quote(cart, region):
+      return build_quote(*astuple(QuoteArgs(cart, region)))
+# Double splat of model_dump
+- |
+  def quote(args):
+      return build_quote(**args.model_dump())
+# Double splat of vars
+- |
+  def quote(args):
+      return build_quote(**vars(args))
+# Single splat of _asdict
+- |
+  def quote(args):
+      return build_quote(**args._asdict())

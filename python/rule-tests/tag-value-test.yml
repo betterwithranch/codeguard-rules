@@ -1,14 +1,55 @@
 id: tag-value
 valid:
+# Comparison with a number
 - |
   if count > 1:
       pass
+# Comparison with an enum member
+- |
+  if status == OrderStatus.SHIPPED:
+      pass
+# case on an enum member
+- |
+  match status:
+      case OrderStatus.SHIPPED:
+          pass
+# Dict keyed by enum members
+- |
+  steps = {OrderStatus.PENDING: pack}
+# Literal annotation with no branch
+- |
+  kind: Literal['card', 'bank']
 invalid:
+# Equality with a string
 - |
   if status == 'shipped':
       pass
+# Inequality with a string on the left
 - |
-  class Status(StrEnum):
-      SHIPPED = 'shipped'
+  if 'shipped' != status:
+      pass
+# in a tuple of strings
 - |
-  kind: Literal['card']
+  if mode in ('fast', 'safe'):
+      pass
+# not in a list of strings
+- |
+  if mode not in ['fast', 'safe']:
+      pass
+# in a set of strings
+- |
+  if mode in {'fast', 'safe'}:
+      pass
+# case on a string
+- |
+  match status:
+      case 'shipped':
+          pass
+# case on an or-pattern of strings
+- |
+  match status:
+      case 'pending' | 'shipped':
+          pass
+# Dict keyed by strings
+- |
+  HANDLERS = {'created': on_created, 'deleted': on_deleted}

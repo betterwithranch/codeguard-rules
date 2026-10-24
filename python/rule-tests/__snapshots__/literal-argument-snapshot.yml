@@ -1,0 +1,200 @@
+id: literal-argument
+snapshots:
+  ? |
+    make_example_model(active=False)
+  : labels:
+    - source: active=False
+      style: primary
+      start: 19
+      end: 31
+    - source: 'False'
+      style: secondary
+      start: 26
+      end: 31
+  ? |
+    make_example_model(active=True)
+  : labels:
+    - source: active=True
+      style: primary
+      start: 19
+      end: 30
+    - source: 'True'
+      style: secondary
+      start: 26
+      end: 30
+  ? |
+    make_example_model(count=0)
+  : labels:
+    - source: count=0
+      style: primary
+      start: 19
+      end: 26
+    - source: '0'
+      style: secondary
+      start: 25
+      end: 26
+  ? |
+    make_example_model(meta={})
+  : labels:
+    - source: meta={}
+      style: primary
+      start: 19
+      end: 26
+    - source: '{}'
+      style: secondary
+      start: 24
+      end: 26
+  ? |
+    make_example_model(name="a")
+  : labels:
+    - source: name="a"
+      style: primary
+      start: 19
+      end: 27
+    - source: '"a"'
+      style: secondary
+      start: 24
+      end: 27
+  ? |
+    make_example_model(offset=-1)
+  : labels:
+    - source: offset=-1
+      style: primary
+      start: 19
+      end: 28
+    - source: '-1'
+      style: secondary
+      start: 26
+      end: 28
+  ? |
+    make_example_model(parent=None)
+  : labels:
+    - source: parent=None
+      style: primary
+      start: 19
+      end: 30
+    - source: None
+      style: secondary
+      start: 26
+      end: 30
+  ? |
+    make_example_model(rate=0.5)
+  : labels:
+    - source: rate=0.5
+      style: primary
+      start: 19
+      end: 27
+    - source: '0.5'
+      style: secondary
+      start: 24
+      end: 27
+  ? |
+    make_example_model(session, "a")
+  : labels:
+    - source: (session, "a")
+      style: primary
+      start: 18
+      end: 32
+    - source: '"a"'
+      style: secondary
+      start: 28
+      end: 31
+  ? |
+    make_example_model(session, -1)
+  : labels:
+    - source: (session, -1)
+      style: primary
+      start: 18
+      end: 31
+    - source: '-1'
+      style: secondary
+      start: 28
+      end: 30
+  ? |
+    make_example_model(session, 0.5)
+  : labels:
+    - source: (session, 0.5)
+      style: primary
+      start: 18
+      end: 32
+    - source: '0.5'
+      style: secondary
+      start: 28
+      end: 31
+  ? |
+    make_example_model(session, 1)
+  : labels:
+    - source: (session, 1)
+      style: primary
+      start: 18
+      end: 30
+    - source: '1'
+      style: secondary
+      start: 28
+      end: 29
+  ? |
+    make_example_model(session, False)
+  : labels:
+    - source: (session, False)
+      style: primary
+      start: 18
+      end: 34
+    - source: 'False'
+      style: secondary
+      start: 28
+      end: 33
+  ? |
+    make_example_model(session, None)
+  : labels:
+    - source: (session, None)
+      style: primary
+      start: 18
+      end: 33
+    - source: None
+      style: secondary
+      start: 28
+      end: 32
+  ? |
+    make_example_model(session, True)
+  : labels:
+    - source: (session, True)
+      style: primary
+      start: 18
+      end: 33
+    - source: 'True'
+      style: secondary
+      start: 28
+      end: 32
+  ? |
+    make_example_model(sizes=(1, 2))
+  : labels:
+    - source: sizes=(1, 2)
+      style: primary
+      start: 19
+      end: 31
+    - source: (1, 2)
+      style: secondary
+      start: 25
+      end: 31
+  ? |
+    make_example_model(status=ExampleStatus.DRAFT)
+  : labels:
+    - source: status=ExampleStatus.DRAFT
+      style: primary
+      start: 19
+      end: 45
+    - source: ExampleStatus.DRAFT
+      style: secondary
+      start: 26
+      end: 45
+  ? |
+    make_example_model(tags=[])
+  : labels:
+    - source: tags=[]
+      style: primary
+      start: 19
+      end: 26
+    - source: '[]'
+      style: secondary
+      start: 24
+      end: 26

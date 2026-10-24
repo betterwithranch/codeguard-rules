@@ -1,10 +1,53 @@
 id: chained-calls
 valid:
+# Call with plain arguments
 - |
-  def run(self):
-      return self.total
+  example_packer.pack(example_plan)
+# Assignment from a name inside a function
+- |
+  def example_flow(example_plan):
+      plan = example_plan
+      return plan
+# Module-level assignment from a call
+- |
+  EXAMPLE_PLAN = make_example_plan()
+# Function that only calls with plain arguments
+- |
+  def example_flow(example_plan):
+      example_packer.pack(example_plan)
+      return example_plan
+# Loop over a name inside a function
+- |
+  def example_flow(example_plans):
+      for plan in example_plans:
+          example_packer.pack(plan)
 invalid:
+# Local assigned from a call
 - |
-  def run(self):
-      plan = self.planner.plan()
-      return self.applier.apply(plan)
+  def example_flow(example_id):
+      plan = example_planner.plan(example_id)
+      return example_packer.pack(plan)
+# Local assigned from an awaited call
+- |
+  async def example_flow(example_id):
+      plan = await example_planner.plan(example_id)
+      return plan
+# Loop over a call's result
+- |
+  def example_flow(example_id):
+      for plan in example_planner.plans(example_id):
+          example_packer.pack(plan)
+# Call nested as a positional argument at module level
+- |
+  example_packer.pack(example_planner.plan(example_id))
+# Call nested as an argument inside a function
+- |
+  def example_flow(example_id):
+      return example_packer.pack(example_planner.plan(example_id))
+# Call nested as a keyword argument
+- |
+  example_packer.pack(plan=example_planner.plan(example_id))
+# Awaited call nested as an argument
+- |
+  async def example_flow(example_id):
+      return await example_packer.pack(await example_planner.plan(example_id))

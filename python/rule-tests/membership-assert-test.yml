@@ -1,0 +1,25 @@
+id: membership-assert
+valid:
+# Membership test outside an assert
+- |
+  if sku in reserved:
+      skip(sku)
+# Equality assert
+- |
+  assert title == 'Invoice 42'
+invalid:
+# in inside an assert
+- |
+  assert '42' in title
+# not in inside an assert
+- |
+  assert 'draft' not in title
+# in inside a generator in an assert
+- |
+  assert any('42' in line for line in lines)
+# unittest assertIn
+- |
+  self.assertIn('42', title)
+# unittest assertNotIn
+- |
+  self.assertNotIn('draft', title)

@@ -1,0 +1,198 @@
+cases:
+  - name: rewords a method name in its docstring
+    inputs:
+      file: invoices/totals.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            subtotal_cents: int
+            tax_cents: int
+
+            def total_cents(self) -> int:
+                """Return the total in cents."""
+                return self.subtotal_cents + self.tax_cents
+    expected_output:
+      outcome: invalid
+  - name: documents the error a method raises
+    inputs:
+      file: invoices/totals.py
+      after: |
+        from dataclasses import dataclass
+
+
+        class NegativeTotal(ValueError):
+            pass
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            subtotal_cents: int
+            discount_cents: int
+
+            def total_cents(self) -> int:
+                """Raises NegativeTotal when the discount exceeds the subtotal, which a
+                credit note must cover instead."""
+                total = self.subtotal_cents - self.discount_cents
+                if total < 0:
+                    raise NegativeTotal(total)
+                return total
+    expected_output:
+      outcome: valid
+  - name: repeats parameter names in an Args section
+    inputs:
+      file: shipments/fees.py
+      after: |
+        def domestic_fee(order_total_cents: int, weight_grams: int) -> int:
+            """Compute the domestic fee.
+
+            Args:
+                order_total_cents: the order total in cents.
+                weight_grams: the weight in grams.
+
+            Returns:
+                The domestic fee.
+            """
+            if order_total_cents >= 5000:
+                return 0
+            return 500 + weight_grams // 100
+    expected_output:
+      outcome: invalid
+  - name: documents the free shipping rule and rounding
+    inputs:
+      file: shipments/fees.py
+      after: |
+        def domestic_fee(order_total_cents: int, weight_grams: int) -> int:
+            """Orders of 50 EUR or more ship free; below that, each started 100 g adds a cent
+            on top of the 5 EUR base, as the carrier contract bills it."""
+            if order_total_cents >= 5000:
+                return 0
+            return 500 + -(-weight_grams // 100)
+    expected_output:
+      outcome: valid
+  - name: props up a vague method name with a docstring
+    inputs:
+      file: orders/workflow.py
+      after: |
+        from dataclasses import dataclass
+        from typing import Protocol
+
+
+        class Mailer(Protocol):
+            def send(self, to: str, text: str) -> None: ...
+
+
+        @dataclass
+        class Order:
+            number: str
+            customer_email: str
+            status: str
+
+            def handle(self, mailer: Mailer) -> None:
+                """Set the order to submitted and email the customer."""
+                self.status = "submitted"
+                mailer.send(self.customer_email, f"Order {self.number} submitted")
+    expected_output:
+      outcome: invalid
+  - name: names a model class in its docstring
+    inputs:
+      file: catalog/models.py
+      after: |
+        from django.db import models
+
+
+        class Product(models.Model):
+            """Product model."""
+
+            name = models.CharField(max_length=200)
+            price_cents = models.PositiveIntegerField()
+    expected_output:
+      outcome: invalid
+  - name: documents what a model's price excludes
+    inputs:
+      file: catalog/models.py
+      after: |
+        from django.db import models
+
+
+        class Product(models.Model):
+            """A sellable item. Prices are net of VAT, which checkout adds per the buyer's country."""
+
+            name = models.CharField(max_length=200)
+            price_cents = models.PositiveIntegerField()
+    expected_output:
+      outcome: valid
+  - name: notes in a docstring what a function no longer does
+    inputs:
+      file: carriers/sync.py
+      after: |
+        from typing import Protocol
+
+
+        class CarrierApi(Protocol):
+            def statuses(self) -> dict[str, str]: ...
+
+
+        def sync_statuses(api: CarrierApi) -> dict[str, str]:
+            """No longer retries failed requests."""
+            return api.statuses()
+    expected_output:
+      outcome: invalid
+  - name: documents a module's side effect on import
+    inputs:
+      file: telemetry/setup.py
+      after: |
+        """Importing this module installs the process-wide tracer; import it once, before
+        any request handler starts."""
+
+        from telemetry.tracer import install_tracer
+
+        install_tracer()
+    expected_output:
+      outcome: valid
+  - name: gives a Typer command its help text
+    inputs:
+      file: cli/export.py
+      after: |
+        from pathlib import Path
+
+        import typer
+
+        from orders.export import export_orders
+
+        app = typer.Typer()
+
+
+        @app.command()
+        def export(target: Path) -> None:
+            """Write every paid order to TARGET as CSV, overwriting the file."""
+            export_orders(target)
+    expected_output:
+      outcome: valid
+  - name: adds a comment above a function
+    inputs:
+      file: shipments/fees.py
+      before: |
+        def domestic_fee(order_total_cents: int, weight_grams: int) -> int:
+            return 500 + weight_grams // 100
+      after: |
+        # The carrier bills per started 100 g.
+        def domestic_fee(order_total_cents: int, weight_grams: int) -> int:
+            return 500 + weight_grams // 100
+    expected_output:
+      outcome: skipped
+  - name: changes the base fee
+    inputs:
+      file: shipments/fees.py
+      before: |
+        def domestic_fee(order_total_cents: int, weight_grams: int) -> int:
+            """Each started 100 g adds a cent, as the carrier contract bills it."""
+            return 500 + weight_grams // 100
+      after: |
+        def domestic_fee(order_total_cents: int, weight_grams: int) -> int:
+            """Each started 100 g adds a cent, as the carrier contract bills it."""
+            return 550 + weight_grams // 100
+    expected_output:
+      outcome: skipped

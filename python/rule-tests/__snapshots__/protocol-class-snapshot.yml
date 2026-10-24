@@ -1,0 +1,44 @@
+id: protocol-class
+snapshots:
+  ? |
+    class ExampleSettings(Protocol):
+        timeout: int
+  : labels:
+    - source: |-
+        class ExampleSettings(Protocol):
+            timeout: int
+      style: primary
+      start: 0
+      end: 49
+    - source: (Protocol)
+      style: secondary
+      start: 21
+      end: 31
+  ? |
+    class ExampleSettings(typing.Protocol):
+        timeout: int
+  : labels:
+    - source: |-
+        class ExampleSettings(typing.Protocol):
+            timeout: int
+      style: primary
+      start: 0
+      end: 56
+    - source: (typing.Protocol)
+      style: secondary
+      start: 21
+      end: 38
+  ? |
+    class ExampleSource(Protocol[T]):
+        def read(self) -> T: ...
+  : labels:
+    - source: |-
+        class ExampleSource(Protocol[T]):
+            def read(self) -> T: ...
+      style: primary
+      start: 0
+      end: 62
+    - source: (Protocol[T])
+      style: secondary
+      start: 19
+      end: 32

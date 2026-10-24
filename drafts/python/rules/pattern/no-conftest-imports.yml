@@ -1,0 +1,20 @@
+id: no-conftest-imports
+language: python
+severity: error
+message: Don't import from a conftest.py.
+note: |
+  pytest loads conftest.py itself and hands its fixtures to tests by name, so importing
+  it loads the module a second time and hides where a type is defined. Import a type
+  from the module that defines it, and request a fixture by naming it as a parameter.
+rule:
+  any:
+  - kind: import_from_statement
+    has:
+      field: module_name
+      regex: (^|\.)conftest$
+  - kind: import_from_statement
+    has:
+      field: name
+      regex: ^conftest\b
+  - kind: import_statement
+    regex: \bconftest\b

@@ -1,0 +1,280 @@
+cases:
+  - name: accepts an account or an account id
+    inputs:
+      file: tests/test_invoices.py
+      before: |
+        from decimal import Decimal
+
+        from sqlalchemy.orm import Session
+
+        from billing.accounts import Account
+        from billing.invoices import Invoice, InvoiceService
+
+
+        def make_invoice(db_session: Session, account: Account, amount: Decimal) -> Invoice:
+            return InvoiceService(db_session).create(account_id=account.id, amount=amount)
+
+
+        def test_invoice_is_open_after_issue(db_session, account):
+            invoice = make_invoice(db_session, account, Decimal("120.00"))
+
+            assert invoice.status == "open"
+      after: |
+        from decimal import Decimal
+        from uuid import UUID
+
+        from sqlalchemy.orm import Session
+
+        from billing.accounts import Account
+        from billing.invoices import Invoice, InvoiceService
+
+
+        def make_invoice(
+            db_session: Session,
+            amount: Decimal,
+            account: Account | None = None,
+            account_id: UUID | None = None,
+        ) -> Invoice:
+            resolved_account_id = account.id if account is not None else account_id
+            return InvoiceService(db_session).create(account_id=resolved_account_id, amount=amount)
+
+
+        def test_invoice_is_open_after_issue(db_session, account):
+            invoice = make_invoice(db_session, Decimal("120.00"), account=account)
+
+            assert invoice.status == "open"
+    expected_output:
+      outcome: invalid
+  - name: takes the account and a defaulted amount
+    inputs:
+      file: tests/test_invoices.py
+      after: |
+        from decimal import Decimal
+
+        from sqlalchemy.orm import Session
+
+        from billing.accounts import Account
+        from billing.invoices import Invoice, InvoiceService
+
+
+        def make_invoice(db_session: Session, account: Account, amount: Decimal = Decimal("120.00")) -> Invoice:
+            return InvoiceService(db_session).create(account_id=account.id, amount=amount)
+
+
+        def test_invoice_is_open_after_issue(db_session, account):
+            invoice = make_invoice(db_session, account)
+
+            assert invoice.status == "open"
+    expected_output:
+      outcome: valid
+  - name: falls back from the account id to the account with or
+    inputs:
+      file: tests/test_invoices.py
+      after: |
+        from decimal import Decimal
+
+        from billing.invoices import Invoice, InvoiceService
+
+
+        def make_invoice(db_session, amount, account=None, account_id=None) -> Invoice:
+            account_id = account_id or account.id
+            return InvoiceService(db_session).create(account_id=account_id, amount=amount)
+
+
+        def test_invoice_is_open_after_issue(db_session, account):
+            invoice = make_invoice(db_session, Decimal("120.00"), account_id=account.id)
+
+            assert invoice.status == "open"
+    expected_output:
+      outcome: invalid
+  - name: builds a default account when none is passed
+    inputs:
+      file: tests/test_invoices.py
+      after: |
+        from decimal import Decimal
+
+        from billing.accounts import Account, AccountService
+        from billing.invoices import Invoice, InvoiceService
+
+
+        def make_invoice(db_session, amount, account: Account | None = None) -> Invoice:
+            account = account or AccountService(db_session).open(email="billing@example.com")
+            return InvoiceService(db_session).create(account_id=account.id, amount=amount)
+
+
+        def test_invoice_is_open_after_issue(db_session):
+            invoice = make_invoice(db_session, Decimal("120.00"))
+
+            assert invoice.status == "open"
+    expected_output:
+      outcome: valid
+  - name: branches on an amount or an amount in cents
+    inputs:
+      file: tests/test_payments.py
+      after: |
+        from decimal import Decimal
+
+        from billing.payments import Payment
+
+
+        def make_payment(amount: Decimal | None = None, amount_cents: int | None = None) -> Payment:
+            if amount is not None:
+                return Payment(amount=amount)
+            elif amount_cents is not None:
+                return Payment(amount=Decimal(amount_cents) / 100)
+            raise ValueError("pass amount or amount_cents")
+
+
+        def test_payment_rounds_to_cents():
+            assert make_payment(amount_cents=1999).amount == Decimal("19.99")
+    expected_output:
+      outcome: invalid
+  - name: takes an amount with a default
+    inputs:
+      file: tests/test_payments.py
+      after: |
+        from decimal import Decimal
+
+        from billing.payments import Payment
+
+
+        def make_payment(amount: Decimal = Decimal("19.99")) -> Payment:
+            return Payment(amount=amount)
+
+
+        def test_payment_keeps_cents():
+            assert make_payment().amount == Decimal("19.99")
+    expected_output:
+      outcome: valid
+  - name: takes an author or the username to look the author up by
+    inputs:
+      file: blog/tests/conftest.py
+      after: |
+        from blog.models import Article, Author
+
+
+        def make_article(title: str, author: Author | None = None, author_username: str | None = None) -> Article:
+            author = author or Author.objects.get(username=author_username)
+            return Article.objects.create(title=title, author=author)
+    expected_output:
+      outcome: invalid
+  - name: takes a billing account and a shipping account
+    inputs:
+      file: tests/test_orders.py
+      after: |
+        from shop.orders import Order, OrderService
+
+
+        def make_order(db_session, customer, billing_account=None, shipping_account=None) -> Order:
+            return OrderService(db_session).place_order(
+                customer_id=customer.id,
+                billing_account_id=billing_account.id if billing_account else None,
+                shipping_account_id=shipping_account.id if shipping_account else None,
+                sku="BOOK-1",
+            )
+
+
+        def test_order_without_shipping_account_is_pickup(db_session, customer, account):
+            order = make_order(db_session, customer, billing_account=account)
+
+            assert order.delivery == "pickup"
+    expected_output:
+      outcome: valid
+  - name: returns a factory that takes a customer or a customer email
+    inputs:
+      file: tests/conftest.py
+      after: |
+        import pytest
+
+        from shop.customers import Customer, CustomerService
+        from shop.orders import OrderService
+
+
+        @pytest.fixture
+        def place_order(db_session):
+            def place(sku: str, customer: Customer | None = None, customer_email: str | None = None):
+                if customer is None:
+                    customer = CustomerService(db_session).find_by_email(customer_email)
+                return OrderService(db_session).place_order(customer_id=customer.id, sku=sku)
+
+            return place
+    expected_output:
+      outcome: invalid
+  - name: takes a path or the text it holds in a test helper class
+    inputs:
+      file: tests/test_imports.py
+      after: |
+        from pathlib import Path
+
+        from imports.parsers import CsvParser
+
+
+        class CsvInput:
+            def rows(self, path: Path | None = None, text: str | None = None):
+                content = text if text is not None else path.read_text()
+                return CsvParser().parse(content)
+
+
+        def test_parse_reads_quantity():
+            assert CsvInput().rows(text="sku,qty\nA1,2\n")[0].quantity == 2
+    expected_output:
+      outcome: invalid
+  - name: takes a due date with a default
+    inputs:
+      file: tests/test_reminders.py
+      after: |
+        from datetime import date
+
+        from billing.invoices import Invoice
+
+
+        def make_invoice(number: str, due: date | None = None) -> Invoice:
+            return Invoice(number=number, due=due or date(2026, 1, 31))
+
+
+        def test_invoice_due_defaults_to_month_end():
+            assert make_invoice("inv-1").due == date(2026, 1, 31)
+    expected_output:
+      outcome: valid
+  - name: changes an amount in a test
+    inputs:
+      file: tests/test_payments.py
+      before: |
+        from decimal import Decimal
+
+        from billing.payments import Payment
+
+
+        def test_payment_keeps_cents():
+            assert Payment(amount=Decimal("19.99")).amount == Decimal("19.99")
+      after: |
+        from decimal import Decimal
+
+        from billing.payments import Payment
+
+
+        def test_payment_keeps_cents():
+            assert Payment(amount=Decimal("5.01")).amount == Decimal("5.01")
+    expected_output:
+      outcome: skipped
+  - name: changes a helper without defaults
+    inputs:
+      file: tests/test_payments.py
+      before: |
+        from decimal import Decimal
+
+        from billing.payments import Payment
+
+
+        def make_payment(amount: Decimal) -> Payment:
+            return Payment(amount=amount)
+      after: |
+        from decimal import Decimal
+
+        from billing.payments import Payment
+
+
+        def make_payment(amount: Decimal) -> Payment:
+            return Payment(amount=amount, currency="EUR")
+    expected_output:
+      outcome: skipped

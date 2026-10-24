@@ -1,0 +1,3 @@
+skill: python/skills/no-alternative-helper-inputs
+paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
+triggers: [helper-with-default]

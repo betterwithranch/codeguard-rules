@@ -1,0 +1,29 @@
+id: small-class-body
+valid:
+# Class with four statements
+- |
+  class ExampleOrder:
+      number: str
+      total: int
+      currency: str
+      status: str
+invalid:
+# One annotated field
+- |
+  class ExampleId:
+      value: str
+# Docstring, config and one field
+- |
+  class ExampleKey(BaseModel):
+      """A key."""
+      model_config = ConfigDict(frozen=True)
+      key: str
+# Only an __init__
+- |
+  class ExampleId:
+      def __init__(self, value):
+          self.value = value
+# Subclass of a builtin with pass
+- |
+  class ExampleId(str):
+      pass

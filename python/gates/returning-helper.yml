@@ -1,0 +1,16 @@
+id: returning-helper
+language: python
+rule:
+  kind: function_definition
+  not:
+    has:
+      field: name
+      regex: ^test
+  has:
+    field: body
+    has:
+      stopBy: end
+      any:
+      - kind: return_statement
+        regex: ^return\s+\S
+      - kind: yield

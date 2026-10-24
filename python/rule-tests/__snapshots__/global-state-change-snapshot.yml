@@ -1,0 +1,172 @@
+id: global-state-change
+snapshots:
+  ? |
+    Order.max_items = 2
+  : labels:
+    - source: Order.max_items = 2
+      style: primary
+      start: 0
+      end: 19
+    - source: Order
+      style: secondary
+      start: 0
+      end: 5
+    - source: Order.max_items
+      style: secondary
+      start: 0
+      end: 15
+  ? |
+    billing.tax.rate = 0
+  : labels:
+    - source: billing.tax.rate = 0
+      style: primary
+      start: 0
+      end: 20
+    - source: billing.tax
+      style: secondary
+      start: 0
+      end: 11
+    - source: billing.tax.rate
+      style: secondary
+      start: 0
+      end: 16
+  ? |
+    connection = sqlite3.connect("orders.db")
+  : labels:
+    - source: sqlite3.connect("orders.db")
+      style: primary
+      start: 13
+      end: 41
+    - source: sqlite3.connect
+      style: secondary
+      start: 13
+      end: 28
+  ? |
+    def test_counts():
+        global CALLS
+        CALLS = 0
+  : labels:
+    - source: global CALLS
+      style: primary
+      start: 23
+      end: 35
+  ? |
+    handle = open("orders.csv")
+  : labels:
+    - source: open("orders.csv")
+      style: primary
+      start: 9
+      end: 27
+    - source: open
+      style: secondary
+      start: 9
+      end: 13
+  ? |
+    logging.getLogger("billing").setLevel(logging.DEBUG)
+  : labels:
+    - source: logging.getLogger("billing").setLevel(logging.DEBUG)
+      style: primary
+      start: 0
+      end: 52
+    - source: logging.getLogger("billing").setLevel
+      style: secondary
+      start: 0
+      end: 37
+  ? |
+    monkeypatch.setenv("PAYMENTS_MODE", "live")
+  : labels:
+    - source: monkeypatch.setenv("PAYMENTS_MODE", "live")
+      style: primary
+      start: 0
+      end: 43
+    - source: monkeypatch.setenv
+      style: secondary
+      start: 0
+      end: 18
+  ? |
+    os.chdir(tmp_path)
+  : labels:
+    - source: os.chdir(tmp_path)
+      style: primary
+      start: 0
+      end: 18
+    - source: os.chdir
+      style: secondary
+      start: 0
+      end: 8
+  ? |
+    os.environ.update({"PAYMENTS_MODE": "live"})
+  : labels:
+    - source: os.environ
+      style: primary
+      start: 0
+      end: 10
+  ? |
+    os.environ["PAYMENTS_MODE"] = "live"
+  : labels:
+    - source: os.environ
+      style: primary
+      start: 0
+      end: 10
+  ? |
+    patcher.start()
+  : labels:
+    - source: patcher.start()
+      style: primary
+      start: 0
+      end: 15
+    - source: patcher.start
+      style: secondary
+      start: 0
+      end: 13
+  ? |
+    plugins.register(CsvExporter)
+  : labels:
+    - source: plugins.register(CsvExporter)
+      style: primary
+      start: 0
+      end: 29
+    - source: plugins.register
+      style: secondary
+      start: 0
+      end: 16
+  ? |
+    setattr(billing.tax, "RATE", 0)
+  : labels:
+    - source: setattr(billing.tax, "RATE", 0)
+      style: primary
+      start: 0
+      end: 31
+    - source: setattr
+      style: secondary
+      start: 0
+      end: 7
+  ? |
+    settings.PAYMENTS_MODE = "live"
+  : labels:
+    - source: settings.PAYMENTS_MODE = "live"
+      style: primary
+      start: 0
+      end: 31
+    - source: PAYMENTS_MODE
+      style: secondary
+      start: 9
+      end: 22
+    - source: settings.PAYMENTS_MODE
+      style: secondary
+      start: 0
+      end: 22
+  ? |
+    sys.modules["billing.tax"] = fake_tax
+  : labels:
+    - source: sys.modules
+      style: primary
+      start: 0
+      end: 11
+  ? |
+    sys.path.insert(0, "plugins")
+  : labels:
+    - source: sys.path
+      style: primary
+      start: 0
+      end: 8

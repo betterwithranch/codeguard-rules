@@ -1,25 +1,50 @@
 ---
 name: configure-shared-fakes
-description: Extend shared fakes by configuration
+description: A subclass of a shared fake only configures it; its overrides never assert, reach another subsystem, or record that they ran
 ---
 
 # Extend shared fakes by configuration
 
-A shared fake stands in for one layer. Configure it and assert on its in-layer state in the test body. Do not subclass a shared fake to override a method so that the override asserts, or queries a different subsystem. Signs: an overridden method containing `assert`, a database query, or a list that exists only to record that the override ran. A subclass that only configures the fake (canned responses, queue setup) is fine.
+A test changes a shared fake only by configuring what it returns or holds, never by
+overriding its behavior to check or record things.
 
-Bad:
+A shared fake is a hand-written stand-in class defined in another test module (a
+`tests/fakes.py`, a `conftest.py`, a test-support package) and imported by the file
+under review. A subclass of it in the file under review overrides a method when it
+defines a method the fake defines or inherits, including `__init__`.
 
-```python
-class CheckingFakeQueue(FakeQueue):
-    def enqueue(self, queue_name, message):
-        assert self._db.count_orders(message["order_id"]) == 1
-        return super().enqueue(queue_name, message)
-```
+Configuring sets what the fake returns, raises or holds: canned responses, seeded
+records, a fixed rate, an error to raise, a value passed to `super().__init__`.
 
-Good:
+## The test
 
-```python
-queue = FakeQueue()
-OrderSubmitter(queue).submit(order)
-assert [m.body for m in queue.drain("orders")] == [{"order_id": order.id}]
-```
+For each method a subclass of a shared fake defines, ask: does it only configure the
+fake, or does it also do one of these?
+
+- assert (`assert`, `pytest.fail`, a `self.assert...` call);
+- read or query another subsystem: the database (`Order.objects.filter(...)`,
+  `session.query(...)`, `self._db.count_orders(...)`), another fake, the filesystem;
+- record that it ran: append to a list, bump a counter, or set a flag the shared fake
+  doesn't have, so the test can check the call happened.
+
+Not a violation:
+
+- `__init__` that calls `super().__init__()` and seeds `self.rates = {"EUR": 1.1}`;
+- `def fetch_rate(self, currency): raise RateUnavailable(currency)`;
+- `def fetch_rate(self, currency): return Decimal("1.10")`;
+- a subclass that sets only class attributes (`delay_seconds = 0`);
+- a subclass of a class that is not a shared fake (one of the program's classes, a
+  `TestCase`).
+
+A violation:
+
+- `def enqueue(self, name, message): assert message["order_id"]` then `super()`;
+- `def send(self, message): self.sent_calls.append(message); return super().send(message)`
+  where the shared fake has no `sent_calls`;
+- `def charge(self, amount): self.charged = True; ...`;
+- `def save(self, invoice): assert Invoice.objects.filter(number=invoice.number).exists()`.
+
+## Violation
+
+A method of a subclass of a shared fake, in the file under review, that asserts,
+reads another subsystem, or records that it ran.

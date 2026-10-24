@@ -1,0 +1,292 @@
+id: no-literal-lookup-branches
+snapshots:
+  ? |
+    class ExampleRules:
+        def is_taxed(self, country):
+            if country == "DE":
+                return True
+            elif country == "US":
+                return False
+            else:
+                return None
+  : labels:
+    - source: |-
+        if country == "DE":
+                    return True
+                elif country == "US":
+                    return False
+                else:
+                    return None
+      style: primary
+      start: 61
+      end: 197
+    - source: country
+      style: secondary
+      start: 64
+      end: 71
+    - source: '"DE"'
+      style: secondary
+      start: 75
+      end: 79
+    - source: country == "DE"
+      style: secondary
+      start: 64
+      end: 79
+    - source: 'True'
+      style: secondary
+      start: 100
+      end: 104
+    - source: return True
+      style: secondary
+      start: 93
+      end: 104
+    - source: return True
+      style: secondary
+      start: 93
+      end: 104
+    - source: |-
+        elif country == "US":
+                    return False
+      style: secondary
+      start: 113
+      end: 159
+  ? |
+    def carrier_example(country):
+        if country == "DE":
+            return "DHL"
+        elif country == "FR":
+            return "Colissimo"
+        else:
+            return "FedEx"
+  : labels:
+    - source: |-
+        if country == "DE":
+                return "DHL"
+            elif country == "FR":
+                return "Colissimo"
+            else:
+                return "FedEx"
+      style: primary
+      start: 34
+      end: 160
+    - source: country
+      style: secondary
+      start: 37
+      end: 44
+    - source: '"DE"'
+      style: secondary
+      start: 48
+      end: 52
+    - source: country == "DE"
+      style: secondary
+      start: 37
+      end: 52
+    - source: '"DHL"'
+      style: secondary
+      start: 69
+      end: 74
+    - source: return "DHL"
+      style: secondary
+      start: 62
+      end: 74
+    - source: return "DHL"
+      style: secondary
+      start: 62
+      end: 74
+    - source: |-
+        elif country == "FR":
+                return "Colissimo"
+      style: secondary
+      start: 79
+      end: 127
+  ? |
+    def carrier_example(country):
+        if country == "DE":
+            return "DHL"
+        if country == "FR":
+            return "Colissimo"
+        return "FedEx"
+  : labels:
+    - source: |-
+        if country == "DE":
+                return "DHL"
+      style: primary
+      start: 34
+      end: 74
+    - source: country
+      style: secondary
+      start: 37
+      end: 44
+    - source: '"DE"'
+      style: secondary
+      start: 48
+      end: 52
+    - source: country == "DE"
+      style: secondary
+      start: 37
+      end: 52
+    - source: '"DHL"'
+      style: secondary
+      start: 69
+      end: 74
+    - source: return "DHL"
+      style: secondary
+      start: 62
+      end: 74
+    - source: return "DHL"
+      style: secondary
+      start: 62
+      end: 74
+    - source: country
+      style: secondary
+      start: 82
+      end: 89
+    - source: '"FR"'
+      style: secondary
+      start: 93
+      end: 97
+    - source: country == "FR"
+      style: secondary
+      start: 82
+      end: 97
+    - source: '"Colissimo"'
+      style: secondary
+      start: 114
+      end: 125
+    - source: return "Colissimo"
+      style: secondary
+      start: 107
+      end: 125
+    - source: return "Colissimo"
+      style: secondary
+      start: 107
+      end: 125
+    - source: |-
+        if country == "FR":
+                return "Colissimo"
+      style: secondary
+      start: 79
+      end: 125
+  ? |
+    def carrier_example(country):
+        match country:
+            case "DE":
+                return "DHL"
+            case "FR":
+                return "Colissimo"
+            case _:
+                return "FedEx"
+  : labels:
+    - source: |-
+        match country:
+                case "DE":
+                    return "DHL"
+                case "FR":
+                    return "Colissimo"
+                case _:
+                    return "FedEx"
+      style: primary
+      start: 34
+      end: 185
+    - source: |-
+        case "FR":
+                    return "Colissimo"
+      style: secondary
+      start: 101
+      end: 142
+    - source: |-
+        case "FR":
+                    return "Colissimo"
+      style: secondary
+      start: 101
+      end: 142
+  ? |
+    def label_example(status):
+        if status == ExampleStatus.PAID:
+            return ExampleLabel.PAID
+        elif status == ExampleStatus.DUE:
+            return ExampleLabel.DUE
+  : labels:
+    - source: |-
+        if status == ExampleStatus.PAID:
+                return ExampleLabel.PAID
+            elif status == ExampleStatus.DUE:
+                return ExampleLabel.DUE
+      style: primary
+      start: 31
+      end: 166
+    - source: status
+      style: secondary
+      start: 34
+      end: 40
+    - source: ExampleStatus.PAID
+      style: secondary
+      start: 44
+      end: 62
+    - source: status == ExampleStatus.PAID
+      style: secondary
+      start: 34
+      end: 62
+    - source: ExampleLabel.PAID
+      style: secondary
+      start: 79
+      end: 96
+    - source: return ExampleLabel.PAID
+      style: secondary
+      start: 72
+      end: 96
+    - source: return ExampleLabel.PAID
+      style: secondary
+      start: 72
+      end: 96
+    - source: |-
+        elif status == ExampleStatus.DUE:
+                return ExampleLabel.DUE
+      style: secondary
+      start: 101
+      end: 166
+  ? |
+    def zone_example(country):
+        if country == "DE":
+            return 1
+        elif country == "FR":
+            return 2
+  : labels:
+    - source: |-
+        if country == "DE":
+                return 1
+            elif country == "FR":
+                return 2
+      style: primary
+      start: 31
+      end: 110
+    - source: country
+      style: secondary
+      start: 34
+      end: 41
+    - source: '"DE"'
+      style: secondary
+      start: 45
+      end: 49
+    - source: country == "DE"
+      style: secondary
+      start: 34
+      end: 49
+    - source: '1'
+      style: secondary
+      start: 66
+      end: 67
+    - source: return 1
+      style: secondary
+      start: 59
+      end: 67
+    - source: return 1
+      style: secondary
+      start: 59
+      end: 67
+    - source: |-
+        elif country == "FR":
+                return 2
+      style: secondary
+      start: 72
+      end: 110

@@ -1,0 +1,4 @@
+skill: python/skills/domain-in-data-structures
+paths: ["**/*.py"]
+exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
+triggers: [type-switch, tag-value, return-collection, keyed-collection-build, sibling-private-function, boolean-state-field]

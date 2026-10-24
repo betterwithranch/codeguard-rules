@@ -1,14 +1,77 @@
 id: defaulted-value
 valid:
+# Parameter without a default
 - |
-  def total(order):
-      return order.amount
+  def example_book(example_id):
+      return ExampleShipment(example_id=example_id)
+# Comparison with a value other than None
+- |
+  if example_carrier == "fast":
+      pass
+# and operator
+- |
+  ok = example_paid and example_shipped
+# get with one argument
+- |
+  example_carrier = example_data.get("carrier")
+# Keyword argument from a plain value
+- |
+  ExampleShipment(example_id=example_id, carrier=example_carrier)
+# if on a positive condition
+- |
+  if example_carrier:
+      example_label = example_carrier
 invalid:
+# Parameter default
 - |
-  def total(order=None):
-      return order
+  def example_book(example_id, carrier="fast"):
+      return carrier
+# Typed parameter default
 - |
-  key = key or uuid4()
+  def example_book(example_id: str, carrier: str | None = None):
+      return carrier
+# is None check
 - |
-  if key is None:
-      key = derive(name)
+  if carrier is None:
+      carrier = "fast"
+# if is None, then assign, matched as a whole
+- |
+  if carrier is None:
+      carrier = DEFAULT_CARRIER
+# is not None check
+- |
+  ok = carrier is not None
+# or fallback
+- |
+  example_id = example_id or new_example_id()
+# Conditional expression
+- |
+  carrier = carrier if carrier else "fast"
+# if not, then assign
+- |
+  if not carrier:
+      carrier = "fast"
+# get with a default
+- |
+  currency = example_data.get("currency", "EUR")
+# setdefault
+- |
+  example_data.setdefault("currency", "EUR")
+# pop with a default
+- |
+  currency = example_data.pop("currency", "EUR")
+# getattr with a default
+- |
+  currency = getattr(example_settings, "currency", "EUR")
+# Generated id passed as a keyword argument
+- |
+  ExampleInvoice(invoice_id=str(uuid.uuid4()), total=example_total)
+# Generated timestamp passed as a keyword argument
+- |
+  ExampleInvoice(created_at=datetime.now(UTC), total=example_total)
+# Generated id passed as a positional argument
+- |
+  ExampleInvoice(uuid4(), example_total)
+# Generated token passed as a keyword argument
+- |
+  ExampleSession(token=secrets.token_hex(16))

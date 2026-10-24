@@ -1,0 +1,321 @@
+cases:
+  - name: calls dependency resolution injection
+    inputs:
+      file: tests/test_dependencies.py
+      unchanged:
+        plugins/dependencies.py: |
+          def resolve_dependencies(plugins: list[str], requires: dict[str, list[str]]) -> list[str]:
+              ordered: list[str] = []
+              for plugin in plugins:
+                  for required in requires.get(plugin, []):
+                      if required not in ordered:
+                          ordered.append(required)
+                  if plugin not in ordered:
+                      ordered.append(plugin)
+              return ordered
+      after: |
+        from plugins.dependencies import resolve_dependencies
+
+
+        def test_inject_dependencies_lists_fonts_before_pdf():
+            assert resolve_dependencies(["pdf"], {"pdf": ["fonts"]}) == ["fonts", "pdf"]
+    expected_output:
+      outcome: invalid
+  - name: names dependency resolution by its function's term
+    inputs:
+      file: tests/test_dependencies.py
+      unchanged:
+        plugins/dependencies.py: |
+          def resolve_dependencies(plugins: list[str], requires: dict[str, list[str]]) -> list[str]:
+              ordered: list[str] = []
+              for plugin in plugins:
+                  for required in requires.get(plugin, []):
+                      if required not in ordered:
+                          ordered.append(required)
+                  if plugin not in ordered:
+                      ordered.append(plugin)
+              return ordered
+      after: |
+        from plugins.dependencies import resolve_dependencies
+
+
+        def test_resolve_dependencies_lists_fonts_before_pdf():
+            assert resolve_dependencies(["pdf"], {"pdf": ["fonts"]}) == ["fonts", "pdf"]
+    expected_output:
+      outcome: valid
+  - name: calls building a report assembling it
+    inputs:
+      file: tests/test_reports.py
+      unchanged:
+        reports/monthly.py: |
+          from dataclasses import dataclass
+
+
+          @dataclass(frozen=True)
+          class MonthlyReport:
+              month: str
+              order_count: int
+
+
+          def build_report(month: str, order_ids: list[str]) -> MonthlyReport:
+              return MonthlyReport(month=month, order_count=len(order_ids))
+      after: |
+        from reports.monthly import MonthlyReport, build_report
+
+
+        def test_assemble_report_counts_the_orders():
+            assert build_report("2026-03", ["ord-1", "ord-2"]) == MonthlyReport(month="2026-03", order_count=2)
+    expected_output:
+      outcome: invalid
+  - name: names building a report by its function's term
+    inputs:
+      file: tests/test_reports.py
+      unchanged:
+        reports/monthly.py: |
+          from dataclasses import dataclass
+
+
+          @dataclass(frozen=True)
+          class MonthlyReport:
+              month: str
+              order_count: int
+
+
+          def build_report(month: str, order_ids: list[str]) -> MonthlyReport:
+              return MonthlyReport(month=month, order_count=len(order_ids))
+      after: |
+        from reports.monthly import MonthlyReport, build_report
+
+
+        def test_build_report_counts_the_orders():
+            assert build_report("2026-03", ["ord-1", "ord-2"]) == MonthlyReport(month="2026-03", order_count=2)
+    expected_output:
+      outcome: valid
+  - name: coins no reaction for the empty result
+    inputs:
+      file: tests/test_search.py
+      unchanged:
+        shop/search.py: |
+          from dataclasses import dataclass
+
+
+          @dataclass(frozen=True)
+          class EmptyResult:
+              query: str
+
+
+          @dataclass(frozen=True)
+          class Matches:
+              skus: list[str]
+
+
+          def search(catalog: dict[str, str], query: str) -> EmptyResult | Matches:
+              skus = [sku for sku, name in catalog.items() if query in name]
+              return Matches(skus=skus) if skus else EmptyResult(query=query)
+      after: |
+        from shop.search import EmptyResult, search
+
+
+        def test_search_gives_no_reaction_when_no_name_matches_the_query():
+            assert search({"BOOK-1": "Atlas"}, "Globe") == EmptyResult(query="Globe")
+    expected_output:
+      outcome: invalid
+  - name: names the empty result by its class's term
+    inputs:
+      file: tests/test_search.py
+      unchanged:
+        shop/search.py: |
+          from dataclasses import dataclass
+
+
+          @dataclass(frozen=True)
+          class EmptyResult:
+              query: str
+
+
+          @dataclass(frozen=True)
+          class Matches:
+              skus: list[str]
+
+
+          def search(catalog: dict[str, str], query: str) -> EmptyResult | Matches:
+              skus = [sku for sku, name in catalog.items() if query in name]
+              return Matches(skus=skus) if skus else EmptyResult(query=query)
+      after: |
+        from shop.search import EmptyResult, search
+
+
+        def test_search_returns_an_empty_result_when_no_name_matches_the_query():
+            assert search({"BOOK-1": "Atlas"}, "Globe") == EmptyResult(query="Globe")
+    expected_output:
+      outcome: valid
+  - name: calls a cancelled order voided
+    inputs:
+      file: tests/test_orders.py
+      unchanged:
+        shop/orders.py: |
+          from enum import StrEnum
+
+
+          class OrderStatus(StrEnum):
+              PENDING = "pending"
+              CANCELLED = "cancelled"
+
+
+          class Order:
+              def __init__(self, status: OrderStatus = OrderStatus.PENDING) -> None:
+                  self.status = status
+
+              def refundable(self) -> bool:
+                  return self.status is not OrderStatus.CANCELLED
+      after: |
+        from shop.orders import Order, OrderStatus
+
+
+        def test_voided_order_is_not_refundable():
+            assert not Order(status=OrderStatus.CANCELLED).refundable()
+    expected_output:
+      outcome: invalid
+  - name: names a cancelled order by its status member
+    inputs:
+      file: tests/test_orders.py
+      unchanged:
+        shop/orders.py: |
+          from enum import StrEnum
+
+
+          class OrderStatus(StrEnum):
+              PENDING = "pending"
+              CANCELLED = "cancelled"
+
+
+          class Order:
+              def __init__(self, status: OrderStatus = OrderStatus.PENDING) -> None:
+                  self.status = status
+
+              def refundable(self) -> bool:
+                  return self.status is not OrderStatus.CANCELLED
+      after: |
+        from shop.orders import Order, OrderStatus
+
+
+        def test_cancelled_order_is_not_refundable():
+            assert not Order(status=OrderStatus.CANCELLED).refundable()
+    expected_output:
+      outcome: valid
+  - name: calls evicting expired sessions purging them
+    inputs:
+      file: tests/test_sessions.py
+      unchanged:
+        accounts/sessions.py: |
+          class SessionStore:
+              def __init__(self) -> None:
+                  self.expiry: dict[str, float] = {}
+
+              def add(self, token: str, expires_at: float) -> None:
+                  self.expiry[token] = expires_at
+
+              def evict_expired(self, now: float) -> None:
+                  self.expiry = {token: at for token, at in self.expiry.items() if at > now}
+
+              def tokens(self) -> list[str]:
+                  return list(self.expiry)
+      after: |
+        from accounts.sessions import SessionStore
+
+
+        class TestSessionStore:
+            def test_purge_stale_sessions_keeps_live_ones(self):
+                store = SessionStore()
+                store.add("old", expires_at=10.0)
+                store.add("live", expires_at=99.0)
+
+                store.evict_expired(now=50.0)
+
+                assert store.tokens() == ["live"]
+    expected_output:
+      outcome: invalid
+  - name: names evicting expired sessions by the method's terms
+    inputs:
+      file: tests/test_sessions.py
+      unchanged:
+        accounts/sessions.py: |
+          class SessionStore:
+              def __init__(self) -> None:
+                  self.expiry: dict[str, float] = {}
+
+              def add(self, token: str, expires_at: float) -> None:
+                  self.expiry[token] = expires_at
+
+              def evict_expired(self, now: float) -> None:
+                  self.expiry = {token: at for token, at in self.expiry.items() if at > now}
+
+              def tokens(self) -> list[str]:
+                  return list(self.expiry)
+      after: |
+        from accounts.sessions import SessionStore
+
+
+        class TestSessionStore:
+            def test_evict_expired_keeps_live_sessions(self):
+                store = SessionStore()
+                store.add("old", expires_at=10.0)
+                store.add("live", expires_at=99.0)
+
+                store.evict_expired(now=50.0)
+
+                assert store.tokens() == ["live"]
+    expected_output:
+      outcome: valid
+  - name: describes the scenario in words the code doesn't name
+    inputs:
+      file: tests/test_reports.py
+      unchanged:
+        reports/monthly.py: |
+          from dataclasses import dataclass
+
+
+          @dataclass(frozen=True)
+          class MonthlyReport:
+              month: str
+              order_count: int
+
+
+          def build_report(month: str, order_ids: list[str]) -> MonthlyReport:
+              return MonthlyReport(month=month, order_count=len(order_ids))
+      after: |
+        from reports.monthly import MonthlyReport, build_report
+
+
+        def test_build_report_for_a_month_without_orders():
+            assert build_report("2026-02", []) == MonthlyReport(month="2026-02", order_count=0)
+    expected_output:
+      outcome: valid
+  - name: changes the expected order count
+    inputs:
+      file: tests/test_reports.py
+      before: |
+        from reports.monthly import MonthlyReport, build_report
+
+
+        def test_build_report_counts_the_orders():
+            assert build_report("2026-03", ["ord-1"]) == MonthlyReport(month="2026-03", order_count=1)
+      after: |
+        from reports.monthly import MonthlyReport, build_report
+
+
+        def test_build_report_counts_the_orders():
+            assert build_report("2026-03", ["ord-1", "ord-2"]) == MonthlyReport(month="2026-03", order_count=2)
+    expected_output:
+      outcome: skipped
+  - name: renames a helper function
+    inputs:
+      file: tests/test_reports.py
+      before: |
+        def order_ids(count):
+            return [f"ord-{n}" for n in range(count)]
+      after: |
+        def make_order_ids(count):
+            return [f"ord-{n}" for n in range(count)]
+    expected_output:
+      outcome: skipped

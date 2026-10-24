@@ -1,0 +1,74 @@
+id: no-packing-helpers
+language: python
+severity: error
+message: Don't write a function whose only statement returns its parameters packed into a dict or tuple.
+note: |
+  A helper whose whole body is `return {"carrier": carrier, "number": number}`,
+  `return dict(carrier=carrier, number=number)` or `return carrier, number` names no
+  concept: it only repeats its arguments in another shape, and readers still learn the
+  shape by its keys or positions. Write the literal where it is used, or, if the shape
+  recurs and means something, define a named type for it.
+utils:
+  only-return:
+    kind: return_statement
+    nthChild: 1
+    all:
+      - nthChild:
+          position: 1
+          reverse: true
+      - inside:
+          kind: block
+          inside: {kind: function_definition, field: body}
+  same-name-pair:
+    kind: pair
+    all:
+      - has: {field: key, kind: string, has: {kind: string_content, pattern: $KEY}}
+      - has: {field: value, kind: identifier, pattern: $KEY}
+  same-name-keyword:
+    kind: keyword_argument
+    all:
+      - has: {field: name, pattern: $KEY}
+      - has: {field: value, kind: identifier, pattern: $KEY}
+  punctuation:
+    regex: ^[(){},]$
+  two-or-more:
+    has:
+      nthChild: 2
+rule:
+  all:
+    - any:
+        - inside: {matches: only-return}
+        - inside:
+            kind: parenthesized_expression
+            inside: {matches: only-return}
+    - any:
+        - kind: dictionary
+          matches: two-or-more
+          not:
+            has:
+              not:
+                any:
+                  - matches: same-name-pair
+                  - matches: punctuation
+        - kind: call
+          all:
+            - has: {field: function, kind: identifier, regex: ^dict$}
+            - has:
+                field: arguments
+                matches: two-or-more
+                not:
+                  has:
+                    not:
+                      any:
+                        - matches: same-name-keyword
+                        - matches: punctuation
+        - any:
+            - kind: tuple
+            - kind: expression_list
+          matches: two-or-more
+          not:
+            has:
+              not:
+                any:
+                  - kind: identifier
+                  - matches: punctuation

@@ -22,3 +22,44 @@ snapshots:
       style: secondary
       start: 14
       end: 19
+  ? |
+    codes = [kind.value for kind in DocumentKind]
+  : labels:
+    - source: kind.value
+      style: primary
+      start: 9
+      end: 19
+    - source: value
+      style: secondary
+      start: 14
+      end: 19
+  ? |
+    get_code = operator.attrgetter("value")
+  : labels:
+    - source: operator.attrgetter("value")
+      style: primary
+      start: 11
+      end: 39
+    - source: operator.attrgetter
+      style: secondary
+      start: 11
+      end: 30
+    - source: '"value"'
+      style: secondary
+      start: 31
+      end: 38
+    - source: '"value"'
+      style: secondary
+      start: 31
+      end: 38
+  ? |
+    text = f"{order.status.value}"
+  : labels:
+    - source: order.status.value
+      style: primary
+      start: 10
+      end: 28
+    - source: value
+      style: secondary
+      start: 23
+      end: 28

@@ -8,3 +8,18 @@ rule:
       regex: ^(typing\.)?Literal$
   - kind: generic_type
     regex: ^(typing\.)?Literal\[
+  - kind: assignment
+    inside:
+      kind: expression_statement
+      inside:
+        kind: block
+        inside:
+          kind: class_definition
+          field: body
+    all:
+    - has:
+        field: type
+        regex: ^str$
+    - has:
+        field: right
+        kind: string

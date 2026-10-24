@@ -10,6 +10,17 @@ cases:
             assert "42" in invoice_title(number=42)
     expected_output:
       outcome: invalid
+  - name: compares the whole title
+    inputs:
+      file: tests/test_invoice_titles.py
+      after: |
+        from billing.invoices import invoice_title
+
+
+        def test_invoice_title_includes_number():
+            assert invoice_title(number=42) == "Invoice 42"
+    expected_output:
+      outcome: skipped
   - name: checks an amount appears in a line
     inputs:
       file: tests/test_receipts.py
@@ -33,6 +44,108 @@ cases:
             assert "120" in receipt_total_line(Order(id="ord-1", total=120))
     expected_output:
       outcome: invalid
+  - name: checks a word is absent from a title
+    inputs:
+      file: tests/test_invoice_titles.py
+      after: |
+        from billing.invoices import invoice_title
+
+
+        def test_paid_invoice_title_drops_draft_marker():
+            title = invoice_title(number=42, paid=True)
+
+            assert "DRAFT" not in title
+    expected_output:
+      outcome: invalid
+  - name: checks a word in a raised error message
+    inputs:
+      file: tests/test_refunds.py
+      after: |
+        import pytest
+
+        from billing.refunds import RefundError, refund
+
+
+        def test_refund_rejects_amount_above_charge():
+            with pytest.raises(RefundError) as exc:
+                refund(charge_cents=500, amount_cents=900)
+
+            assert "exceeds" in str(exc.value)
+    expected_output:
+      outcome: invalid
+  - name: compares the whole raised error message
+    inputs:
+      file: tests/test_refunds.py
+      after: |
+        import pytest
+
+        from billing.refunds import RefundError, refund
+
+
+        def test_refund_rejects_amount_above_charge():
+            with pytest.raises(RefundError) as exc:
+                refund(charge_cents=500, amount_cents=900)
+
+            assert str(exc.value) == "Refund of 900 cents exceeds the 500 cent charge"
+    expected_output:
+      outcome: skipped
+  - name: checks a heading in a rendered page with assertIn
+    inputs:
+      file: tests/test_order_views.py
+      after: |
+        from django.test import TestCase
+
+        from orders.models import Order
+
+
+        class OrderDetailViewTests(TestCase):
+            def test_shows_order_number(self):
+                order = Order.objects.create(number="ord-9", total_cents=1200)
+
+                response = self.client.get(f"/orders/{order.pk}/")
+
+                self.assertIn("Order ord-9", response.content.decode())
+    expected_output:
+      outcome: invalid
+  - name: checks a word in captured command output
+    inputs:
+      file: tests/test_export_command.py
+      after: |
+        from orders.export import export_orders
+
+
+        def test_export_reports_count(capsys, tmp_path):
+            export_orders(destination=tmp_path / "orders.csv", order_ids=["a", "b", "c"])
+
+            assert "3 orders" in capsys.readouterr().out
+    expected_output:
+      outcome: invalid
+  - name: compares the whole captured command output
+    inputs:
+      file: tests/test_export_command.py
+      after: |
+        from orders.export import export_orders
+
+
+        def test_export_reports_count(capsys, tmp_path):
+            export_orders(destination=tmp_path / "orders.csv", order_ids=["a", "b", "c"])
+
+            assert capsys.readouterr().out == "Exported 3 orders\n"
+    expected_output:
+      outcome: skipped
+  - name: checks any warning line mentions a sku
+    inputs:
+      file: tests/test_stock_warnings.py
+      after: |
+        from inventory.warnings import low_stock_warnings
+
+
+        def test_low_stock_warnings_name_the_sku():
+            lines = low_stock_warnings({"A1": 2, "B2": 40})
+
+            assert any("A1" in line for line in lines)
+    expected_output:
+      outcome: invalid
   - name: checks an inserted line in a template
     inputs:
       file: tests/test_confirmation_email.py
@@ -48,6 +161,55 @@ cases:
             body = email.render(Order(id="ord-42", total=120))
 
             assert "Order number: ord-42\n" in body
+    expected_output:
+      outcome: valid
+  - name: checks an order id inside a rendered template
+    inputs:
+      file: tests/test_confirmation_email.py
+      after: |
+        from notifications.confirmation import OrderConfirmationEmail
+        from notifications.templates import load_template
+        from orders.models import Order
+
+
+        def test_render_mentions_order_id():
+            email = OrderConfirmationEmail(template=load_template("order_confirmation.txt"))
+
+            body = email.render(Order(id="ord-42", total=120))
+
+            assert "ord-42" in body
+    expected_output:
+      outcome: invalid
+  - name: checks an inserted line in a config file the test reads
+    inputs:
+      file: tests/test_config_writer.py
+      after: |
+        from pathlib import Path
+
+        from deploy.config_writer import add_setting
+
+        FIXTURES = Path(__file__).parent / "fixtures"
+
+
+        def test_add_setting_appends_timeout_line():
+            base = (FIXTURES / "service.cfg").read_text()
+
+            updated = add_setting(base, name="timeout", value=30)
+
+            assert "timeout = 30\n" in updated
+    expected_output:
+      outcome: valid
+  - name: checks a line is in a list of lines
+    inputs:
+      file: tests/test_invoice_lines.py
+      after: |
+        from billing.invoices import InvoiceLine, build_invoice
+
+
+        def test_build_invoice_adds_shipping_line():
+            invoice = build_invoice(skus=["A1"], ship=True)
+
+            assert InvoiceLine(sku="SHIP", amount_cents=500) in invoice.lines
     expected_output:
       outcome: valid
   - name: changes the order id
@@ -67,5 +229,16 @@ cases:
 
         def test_receipt_heading_names_order():
             assert receipt_heading(Order(id="ord-7", total=120)) == "Receipt for ord-7"
+    expected_output:
+      outcome: skipped
+  - name: adds a membership check to a test helper
+    inputs:
+      file: tests/sku_filters.py
+      before: |
+        def reserved_skus(skus):
+            return [sku for sku in skus]
+      after: |
+        def reserved_skus(skus):
+            return [sku for sku in skus if sku in {"SHIP", "GIFT"}]
     expected_output:
       outcome: skipped

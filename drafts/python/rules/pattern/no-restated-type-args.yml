@@ -1,0 +1,39 @@
+id: no-restated-type-args
+language: python
+severity: error
+message: Don't restate a base class's type argument as an attribute.
+note: |
+  The subclass already names the type in its base (`class OrderRepository(Repository[Order])`),
+  so a second copy (`record_type = Order`) can drift from it. Read the argument once in
+  the generic base's `__init_subclass__`, from `get_origin` and `get_args` over
+  `cls.__orig_bases__`, and store it on the class there.
+rule:
+  kind: assignment
+  all:
+    - has:
+        field: right
+        pattern: $T
+    - any:
+        - inside:
+            kind: expression_statement
+            inside:
+              kind: block
+              inside:
+                kind: class_definition
+                field: body
+        - has:
+            field: left
+            kind: attribute
+            regex: ^self\.
+    - inside:
+        stopBy: end
+        kind: class_definition
+        has:
+          field: superclasses
+          has:
+            kind: subscript
+            any:
+              - has: {nthChild: 2, pattern: $T}
+              - has: {nthChild: 3, pattern: $T}
+              - has: {nthChild: 4, pattern: $T}
+              - has: {nthChild: 5, pattern: $T}

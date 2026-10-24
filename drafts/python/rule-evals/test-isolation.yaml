@@ -1,30 +1,4 @@
 cases:
-  - name: shares a mutable class attribute across tests
-    inputs:
-      file: tests/test_carts.py
-      after: |
-        from shop.carts import Cart
-
-
-        class TestCart:
-            added_skus = []
-
-            def test_add_records_the_sku(self):
-                cart = Cart()
-                cart.add(sku="BOOK-1", quantity=1)
-                self.added_skus.append("BOOK-1")
-
-                assert cart.skus() == self.added_skus
-
-            def test_add_second_sku_keeps_both(self):
-                cart = Cart()
-                cart.add(sku="BOOK-1", quantity=1)
-                cart.add(sku="PEN-2", quantity=1)
-                self.added_skus.append("PEN-2")
-
-                assert cart.skus() == self.added_skus
-    expected_output:
-      outcome: invalid
   - name: sets an env var without reverting it
     inputs:
       file: tests/test_payments.py
@@ -80,6 +54,243 @@ cases:
             assert gateway.name == "sandbox"
     expected_output:
       outcome: valid
+  - name: assigns a module tax rate in a test body
+    inputs:
+      file: tests/test_tax.py
+      after: |
+        from decimal import Decimal
+
+        from billing import tax
+        from billing.invoices import invoice_total
+
+
+        def test_invoice_total_is_the_amount_when_tax_is_zero():
+            tax.RATE = Decimal("0")
+
+            assert invoice_total(Decimal("100.00")) == Decimal("100.00")
+    expected_output:
+      outcome: invalid
+  - name: sets the module tax rate through monkeypatch
+    inputs:
+      file: tests/test_tax.py
+      after: |
+        from decimal import Decimal
+
+        from billing import tax
+        from billing.invoices import invoice_total
+
+
+        def test_invoice_total_is_the_amount_when_tax_is_zero(monkeypatch):
+            monkeypatch.setattr(tax, "RATE", Decimal("0"))
+
+            assert invoice_total(Decimal("100.00")) == Decimal("100.00")
+    expected_output:
+      outcome: valid
+  - name: registers an exporter in a fixture with no teardown
+    inputs:
+      file: tests/test_exporters.py
+      after: |
+        import pytest
+
+        from reports import exporters
+        from reports.exporters import CsvExporter, export
+
+
+        @pytest.fixture
+        def csv_exporter():
+            exporters.register(CsvExporter)
+            return CsvExporter
+
+
+        def test_export_writes_csv(csv_exporter, monthly_report):
+            assert export(monthly_report, fmt="csv").startswith("id,total")
+    expected_output:
+      outcome: invalid
+  - name: unregisters the exporter after the fixture yields
+    inputs:
+      file: tests/test_exporters.py
+      after: |
+        import pytest
+
+        from reports import exporters
+        from reports.exporters import CsvExporter, export
+
+
+        @pytest.fixture
+        def csv_exporter():
+            exporters.register(CsvExporter)
+            yield CsvExporter
+            exporters.unregister(CsvExporter)
+
+
+        def test_export_writes_csv(csv_exporter, monthly_report):
+            assert export(monthly_report, fmt="csv").startswith("id,total")
+    expected_output:
+      outcome: valid
+  - name: opens a database connection it never closes
+    inputs:
+      file: tests/test_order_store.py
+      after: |
+        import sqlite3
+
+        from orders.store import OrderStore
+
+
+        def test_store_saves_an_order(tmp_path):
+            connection = sqlite3.connect(tmp_path / "orders.db")
+            store = OrderStore(connection)
+
+            store.save(order_id="ord-1", total=120)
+
+            assert store.get("ord-1").total == 120
+    expected_output:
+      outcome: invalid
+  - name: closes the database connection in a yield fixture
+    inputs:
+      file: tests/test_order_store.py
+      after: |
+        import sqlite3
+
+        import pytest
+
+        from orders.store import OrderStore
+
+
+        @pytest.fixture
+        def store(tmp_path):
+            connection = sqlite3.connect(tmp_path / "orders.db")
+            yield OrderStore(connection)
+            connection.close()
+
+
+        def test_store_saves_an_order(store):
+            store.save(order_id="ord-1", total=120)
+
+            assert store.get("ord-1").total == 120
+    expected_output:
+      outcome: valid
+  - name: starts a patcher it never stops
+    inputs:
+      file: tests/test_rates.py
+      after: |
+        import unittest
+        from decimal import Decimal
+        from unittest.mock import patch
+
+        from billing.rates import fetch_rate
+
+
+        class FetchRateTests(unittest.TestCase):
+            def setUp(self):
+                patcher = patch("billing.rates.requests.get")
+                self.get = patcher.start()
+                self.get.return_value.json.return_value = {"rates": {"EUR": "1.10"}}
+
+            def test_fetch_rate_reads_the_eur_rate(self):
+                self.assertEqual(fetch_rate("EUR"), Decimal("1.10"))
+    expected_output:
+      outcome: invalid
+  - name: stops the patcher through addCleanup
+    inputs:
+      file: tests/test_rates.py
+      after: |
+        import unittest
+        from decimal import Decimal
+        from unittest.mock import patch
+
+        from billing.rates import fetch_rate
+
+
+        class FetchRateTests(unittest.TestCase):
+            def setUp(self):
+                patcher = patch("billing.rates.requests.get")
+                self.get = patcher.start()
+                self.addCleanup(patcher.stop)
+                self.get.return_value.json.return_value = {"rates": {"EUR": "1.10"}}
+
+            def test_fetch_rate_reads_the_eur_rate(self):
+                self.assertEqual(fetch_rate("EUR"), Decimal("1.10"))
+    expected_output:
+      outcome: valid
+  - name: changes the working directory without changing back
+    inputs:
+      file: tests/test_report_paths.py
+      after: |
+        import os
+        from pathlib import Path
+
+        from reports.paths import output_path
+
+
+        def test_output_path_is_relative_to_the_working_directory(tmp_path):
+            os.chdir(tmp_path)
+
+            assert output_path("march.csv") == Path("out/march.csv")
+    expected_output:
+      outcome: invalid
+  - name: changes the working directory through monkeypatch
+    inputs:
+      file: tests/test_report_paths.py
+      after: |
+        from pathlib import Path
+
+        from reports.paths import output_path
+
+
+        def test_output_path_is_relative_to_the_working_directory(tmp_path, monkeypatch):
+            monkeypatch.chdir(tmp_path)
+
+            assert output_path("march.csv") == Path("out/march.csv")
+    expected_output:
+      outcome: valid
+  - name: raises a logger's level and leaves it raised
+    inputs:
+      file: tests/test_billing_logs.py
+      after: |
+        import logging
+
+        from billing.invoices import issue_invoice
+
+
+        def test_issue_invoice_logs_the_number(caplog, draft_invoice):
+            logging.getLogger("billing").setLevel(logging.DEBUG)
+
+            issue_invoice(draft_invoice)
+
+            assert "issued invoice 42" in caplog.text
+    expected_output:
+      outcome: invalid
+  - name: prepends a plugin folder to sys.path for good
+    inputs:
+      file: tests/test_plugins.py
+      after: |
+        import sys
+
+        from reports.plugins import load_plugin
+
+
+        def test_load_plugin_finds_a_module_on_the_path(tmp_path):
+            (tmp_path / "pdf_export.py").write_text("NAME = 'pdf'\n")
+            sys.path.insert(0, str(tmp_path))
+
+            assert load_plugin("pdf_export").NAME == "pdf"
+    expected_output:
+      outcome: invalid
+  - name: writes a file through a with block under tmp_path
+    inputs:
+      file: tests/test_imports.py
+      after: |
+        from orders.imports import import_orders
+
+
+        def test_import_orders_reads_each_row(tmp_path):
+            path = tmp_path / "orders.csv"
+            with open(path, "w") as handle:
+                handle.write("id,total\nord-1,120\n")
+
+            assert [order.id for order in import_orders(path)] == ["ord-1"]
+    expected_output:
+      outcome: valid
   - name: changes a cart item quantity
     inputs:
       file: tests/test_carts.py
@@ -103,5 +314,27 @@ cases:
                 cart.add(sku="BOOK-1", quantity=3)
 
                 assert cart.skus() == ["BOOK-1"]
+    expected_output:
+      outcome: skipped
+  - name: sets a field on a local order
+    inputs:
+      file: tests/test_orders.py
+      before: |
+        from shop.orders import Order, ship
+
+
+        def test_ship_sets_shipped_status():
+            order = Order(id="ord-1")
+
+            assert ship(order).status == "shipped"
+      after: |
+        from shop.orders import Order, ship
+
+
+        def test_ship_sets_shipped_status():
+            order = Order(id="ord-1")
+            order.status = "paid"
+
+            assert ship(order).status == "shipped"
     expected_output:
       outcome: skipped

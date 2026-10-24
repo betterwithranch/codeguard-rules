@@ -1,0 +1,42 @@
+id: no-conftest-imports
+valid:
+  # Import from a test support module
+  - |
+    from tests.fakes import ExampleFake
+
+  # Import from a module whose name only contains conftest
+  - |
+    from tests.conftest_helpers import ExampleHelper
+
+  # Import of a name that only contains conftest
+  - |
+    from tests import conftest_data
+
+invalid:
+  # Absolute from-import of conftest
+  - |
+    from tests.conftest import ExampleModel
+
+  # Relative from-import of conftest
+  - |
+    from .conftest import ExampleModel
+
+  # Top-level conftest from-import
+  - |
+    from conftest import example_fixture
+
+  # conftest imported as a name from its package
+  - |
+    from tests import conftest
+
+  # conftest imported as an aliased name from a relative package
+  - |
+    from . import conftest as shared
+
+  # Plain import of conftest
+  - |
+    import tests.conftest
+
+  # Plain aliased import of conftest
+  - |
+    import conftest as shared

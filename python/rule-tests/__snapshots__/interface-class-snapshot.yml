@@ -1,30 +1,72 @@
 id: interface-class
 snapshots:
   ? |
-    class Pricer(ABC):
+    class ExamplePricer(ABC):
         pass
   : labels:
     - source: |-
-        class Pricer(ABC):
+        class ExamplePricer(ABC):
             pass
       style: primary
       start: 0
-      end: 27
+      end: 34
     - source: (ABC)
       style: secondary
-      start: 12
-      end: 17
+      start: 19
+      end: 24
   ? |
-    class Pricer(Protocol):
+    class ExamplePricer(Protocol):
         def price(self): ...
   : labels:
     - source: |-
-        class Pricer(Protocol):
+        class ExamplePricer(Protocol):
             def price(self): ...
       style: primary
       start: 0
-      end: 48
+      end: 55
     - source: (Protocol)
       style: secondary
-      start: 12
-      end: 22
+      start: 19
+      end: 29
+  ? |
+    class ExamplePricer(abc.ABC):
+        pass
+  : labels:
+    - source: |-
+        class ExamplePricer(abc.ABC):
+            pass
+      style: primary
+      start: 0
+      end: 38
+    - source: (abc.ABC)
+      style: secondary
+      start: 19
+      end: 28
+  ? |
+    class ExamplePricer(metaclass=ABCMeta):
+        pass
+  : labels:
+    - source: |-
+        class ExamplePricer(metaclass=ABCMeta):
+            pass
+      style: primary
+      start: 0
+      end: 48
+    - source: (metaclass=ABCMeta)
+      style: secondary
+      start: 19
+      end: 38
+  ? |
+    class ExampleSource(Protocol[T]):
+        def read(self) -> T: ...
+  : labels:
+    - source: |-
+        class ExampleSource(Protocol[T]):
+            def read(self) -> T: ...
+      style: primary
+      start: 0
+      end: 62
+    - source: (Protocol[T])
+      style: secondary
+      start: 19
+      end: 32

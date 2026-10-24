@@ -1,0 +1,25 @@
+id: type-switch
+language: python
+rule:
+  any:
+  - kind: call
+    has:
+      field: function
+      regex: ^(isinstance|issubclass)$
+  - kind: match_statement
+    has:
+      stopBy: end
+      kind: class_pattern
+  - kind: comparison_operator
+    has:
+      kind: call
+      has:
+        field: function
+        regex: ^type$
+  - kind: subscript
+    has:
+      field: subscript
+      kind: call
+      has:
+        field: function
+        regex: ^type$

@@ -1,6 +1,15 @@
 id: mock-use
 snapshots:
   ? |
+    @mock.patch.object(OrderService, "_validate")
+    def test_x(validate):
+        pass
+  : labels:
+    - source: '@mock.patch.object(OrderService, "_validate")'
+      style: primary
+      start: 0
+      end: 45
+  ? |
     @patch('a.b')
     def test_x(b):
         pass
@@ -9,6 +18,32 @@ snapshots:
       style: primary
       start: 0
       end: 13
+  ? |
+    billing.invoices.calculate_tax = lambda amount: 0
+  : labels:
+    - source: 'billing.invoices.calculate_tax = lambda amount: 0'
+      style: primary
+      start: 0
+      end: 49
+    - source: billing.invoices.calculate_tax
+      style: secondary
+      start: 0
+      end: 30
+    - source: 'lambda amount: 0'
+      style: secondary
+      start: 33
+      end: 49
+  ? |
+    client = AsyncMock()
+  : labels:
+    - source: AsyncMock()
+      style: primary
+      start: 9
+      end: 20
+    - source: AsyncMock
+      style: secondary
+      start: 9
+      end: 18
   ? |
     client = MagicMock()
   : labels:
@@ -21,6 +56,17 @@ snapshots:
       start: 9
       end: 18
   ? |
+    mocker.patch("billing.invoices.calculate_tax")
+  : labels:
+    - source: mocker.patch("billing.invoices.calculate_tax")
+      style: primary
+      start: 0
+      end: 46
+    - source: mocker.patch
+      style: secondary
+      start: 0
+      end: 12
+  ? |
     monkeypatch.setattr(module, 'load', fake)
   : labels:
     - source: monkeypatch.setattr(module, 'load', fake)
@@ -31,3 +77,83 @@ snapshots:
       style: secondary
       start: 0
       end: 19
+  ? |
+    monkeypatch.setitem(registry, "orders", fake)
+  : labels:
+    - source: monkeypatch.setitem(registry, "orders", fake)
+      style: primary
+      start: 0
+      end: 45
+    - source: monkeypatch.setitem
+      style: secondary
+      start: 0
+      end: 19
+  ? |
+    repository = create_autospec(OrderRepository)
+  : labels:
+    - source: create_autospec(OrderRepository)
+      style: primary
+      start: 13
+      end: 45
+    - source: create_autospec
+      style: secondary
+      start: 13
+      end: 28
+  ? |
+    repository = mock.Mock()
+  : labels:
+    - source: mock.Mock()
+      style: primary
+      start: 13
+      end: 24
+    - source: mock.Mock
+      style: secondary
+      start: 13
+      end: 22
+  ? |
+    setattr(billing.invoices, "calculate_tax", fake)
+  : labels:
+    - source: setattr(billing.invoices, "calculate_tax", fake)
+      style: primary
+      start: 0
+      end: 48
+    - source: setattr
+      style: secondary
+      start: 0
+      end: 7
+  ? |
+    with patch("billing.invoices.calculate_tax", return_value=1):
+        pass
+  : labels:
+    - source: patch("billing.invoices.calculate_tax", return_value=1)
+      style: primary
+      start: 5
+      end: 60
+    - source: patch
+      style: secondary
+      start: 5
+      end: 10
+  ? |
+    with patch.dict(os.environ, {"MODE": "live"}):
+        pass
+  : labels:
+    - source: 'patch.dict(os.environ, {"MODE": "live"})'
+      style: primary
+      start: 5
+      end: 45
+    - source: patch.dict
+      style: secondary
+      start: 5
+      end: 15
+  ? |
+    with patch.object(OrderService, "_validate"):
+        pass
+  : labels:
+    - source: patch.object(OrderService, "_validate")
+      style: primary
+      start: 5
+      end: 44
+    - source: patch.object
+      style: secondary
+      start: 5
+      end: 17

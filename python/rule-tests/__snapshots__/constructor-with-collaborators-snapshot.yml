@@ -1,0 +1,174 @@
+id: constructor-with-collaborators
+snapshots:
+  ? |
+    invoice = ExampleInvoice(lines=[ExampleLine(sku="a")])
+  : labels:
+    - source: ExampleInvoice(lines=[ExampleLine(sku="a")])
+      style: primary
+      start: 10
+      end: 54
+    - source: ExampleInvoice
+      style: secondary
+      start: 10
+      end: 24
+    - source: '[ExampleLine(sku="a")]'
+      style: secondary
+      start: 31
+      end: 53
+    - source: lines=[ExampleLine(sku="a")]
+      style: secondary
+      start: 25
+      end: 53
+    - source: lines=[ExampleLine(sku="a")]
+      style: secondary
+      start: 25
+      end: 53
+  ? |
+    invoice = ExampleInvoice(lines=[line for line in order.lines])
+  : labels:
+    - source: ExampleInvoice(lines=[line for line in order.lines])
+      style: primary
+      start: 10
+      end: 62
+    - source: ExampleInvoice
+      style: secondary
+      start: 10
+      end: 24
+    - source: '[line for line in order.lines]'
+      style: secondary
+      start: 31
+      end: 61
+    - source: lines=[line for line in order.lines]
+      style: secondary
+      start: 25
+      end: 61
+    - source: lines=[line for line in order.lines]
+      style: secondary
+      start: 25
+      end: 61
+  ? |
+    invoice = ExampleInvoice(order_id=order.id)
+  : labels:
+    - source: ExampleInvoice(order_id=order.id)
+      style: primary
+      start: 10
+      end: 43
+    - source: ExampleInvoice
+      style: secondary
+      start: 10
+      end: 24
+    - source: order.id
+      style: secondary
+      start: 34
+      end: 42
+    - source: order_id=order.id
+      style: secondary
+      start: 25
+      end: 42
+    - source: order_id=order.id
+      style: secondary
+      start: 25
+      end: 42
+  ? |
+    invoice = ExampleInvoice(total=price * quantity)
+  : labels:
+    - source: ExampleInvoice(total=price * quantity)
+      style: primary
+      start: 10
+      end: 48
+    - source: ExampleInvoice
+      style: secondary
+      start: 10
+      end: 24
+    - source: price * quantity
+      style: secondary
+      start: 31
+      end: 47
+    - source: total=price * quantity
+      style: secondary
+      start: 25
+      end: 47
+    - source: total=price * quantity
+      style: secondary
+      start: 25
+      end: 47
+  ? |
+    service = ExampleService(ExampleRules.default(), ExamplePrinter(gateway))
+  : labels:
+    - source: ExampleService(ExampleRules.default(), ExamplePrinter(gateway))
+      style: primary
+      start: 10
+      end: 73
+    - source: ExampleService
+      style: secondary
+      start: 10
+      end: 24
+    - source: ExampleRules.default()
+      style: secondary
+      start: 25
+      end: 47
+    - source: ExampleRules.default()
+      style: secondary
+      start: 25
+      end: 47
+  ? |
+    service = ExampleService(gateway)
+  : labels:
+    - source: ExampleService(gateway)
+      style: primary
+      start: 10
+      end: 33
+    - source: ExampleService
+      style: secondary
+      start: 10
+      end: 24
+    - source: gateway
+      style: secondary
+      start: 25
+      end: 32
+    - source: gateway
+      style: secondary
+      start: 25
+      end: 32
+  ? |
+    service = ExampleService(gateway=gateway)
+  : labels:
+    - source: ExampleService(gateway=gateway)
+      style: primary
+      start: 10
+      end: 41
+    - source: ExampleService
+      style: secondary
+      start: 10
+      end: 24
+    - source: gateway
+      style: secondary
+      start: 33
+      end: 40
+    - source: gateway=gateway
+      style: secondary
+      start: 25
+      end: 40
+    - source: gateway=gateway
+      style: secondary
+      start: 25
+      end: 40
+  ? |
+    service = examples.ExampleService(gateway)
+  : labels:
+    - source: examples.ExampleService(gateway)
+      style: primary
+      start: 10
+      end: 42
+    - source: examples.ExampleService
+      style: secondary
+      start: 10
+      end: 33
+    - source: gateway
+      style: secondary
+      start: 34
+      end: 41
+    - source: gateway
+      style: secondary
+      start: 34
+      end: 41

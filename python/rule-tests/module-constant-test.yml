@@ -1,9 +1,27 @@
 id: module-constant
 valid:
-- |
-  order = make_order()
+  # Lowercase module assignment
+  - |
+    example_model = make_example_model()
+
+  # Uppercase assignment inside a function
+  - |
+    def make_example_model():
+        EXAMPLE_ID = "ex-1"
+        return ExampleModel(id=EXAMPLE_ID)
+
+  # Import of lowercase names
+  - |
+    from tests.examples import make_example_model
 invalid:
-- |
-  ORDER = Order(id=7)
-- |
-  from tests.data import ORDER_ID
+  # Module constant built by a call
+  - |
+    EXAMPLE = ExampleModel(id=7)
+
+  # Module constant holding a scalar
+  - |
+    EXAMPLE_ID = "ex-1"
+
+  # Import of an uppercase name
+  - |
+    from tests.data import EXAMPLE_ID

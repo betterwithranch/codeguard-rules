@@ -1,0 +1,4 @@
+skill: python/skills/trust-the-boundary
+paths: ["**/*.py"]
+exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
+triggers: [guard-check, union-alias, literal-annotation, validator]

@@ -1,0 +1,41 @@
+id: class-construction
+language: python
+rule:
+  kind: call
+  all:
+  - has:
+      field: function
+      any:
+      - kind: identifier
+        regex: ^_?[A-Z]
+      - kind: attribute
+        has:
+          field: object
+          kind: identifier
+          regex: ^_?[A-Z]
+  - has:
+      field: arguments
+      has:
+        any:
+        - kind: keyword_argument
+        - kind: subscript
+        - kind: attribute
+        - kind: call
+  - any:
+    - inside:
+        kind: return_statement
+    - inside:
+        kind: yield
+    - inside:
+        kind: assignment
+        field: right
+    - inside:
+        kind: list
+        inside:
+          stopBy: end
+          kind: return_statement
+    - inside:
+        kind: list_comprehension
+  - inside:
+      stopBy: end
+      kind: function_definition

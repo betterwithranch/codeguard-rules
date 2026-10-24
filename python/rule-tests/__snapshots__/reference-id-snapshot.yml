@@ -1,0 +1,215 @@
+id: reference-id
+snapshots:
+  ? |
+    batch = ExampleBatch(order_ids=[order.id])
+  : labels:
+    - source: order_ids=[order.id]
+      style: primary
+      start: 21
+      end: 41
+    - source: order_ids
+      style: secondary
+      start: 21
+      end: 30
+  ? |
+    example = ExampleModel(ULID())
+  : labels:
+    - source: ULID()
+      style: primary
+      start: 23
+      end: 29
+    - source: ULID
+      style: secondary
+      start: 23
+      end: 27
+  ? |
+    example = ExampleModel(UUID("8f14e45f-ceea-4672-9c3d-1b2a5f7e6d10"))
+  : labels:
+    - source: UUID("8f14e45f-ceea-4672-9c3d-1b2a5f7e6d10")
+      style: primary
+      start: 23
+      end: 67
+    - source: UUID
+      style: secondary
+      start: 23
+      end: 27
+  ? |
+    example = ExampleModel(kind=random.choice(["a", "b"]))
+  : labels:
+    - source: random.choice(["a", "b"])
+      style: primary
+      start: 28
+      end: 53
+    - source: random.choice
+      style: secondary
+      start: 28
+      end: 41
+  ? |
+    example = ExampleModel(random.getrandbits(32))
+  : labels:
+    - source: random.getrandbits(32)
+      style: primary
+      start: 23
+      end: 45
+    - source: random.getrandbits
+      style: secondary
+      start: 23
+      end: 41
+  ? |
+    example = ExampleModel(random.randint(1, 9))
+  : labels:
+    - source: random.randint(1, 9)
+      style: primary
+      start: 23
+      end: 43
+    - source: random.randint
+      style: secondary
+      start: 23
+      end: 37
+  ? |
+    example = ExampleModel(secrets.token_hex(8))
+  : labels:
+    - source: secrets.token_hex(8)
+      style: primary
+      start: 23
+      end: 43
+    - source: secrets.token_hex
+      style: secondary
+      start: 23
+      end: 40
+  ? |
+    example = ExampleModel(secrets.token_urlsafe())
+  : labels:
+    - source: secrets.token_urlsafe()
+      style: primary
+      start: 23
+      end: 46
+    - source: secrets.token_urlsafe
+      style: secondary
+      start: 23
+      end: 44
+  ? |
+    example = ExampleModel(ulid())
+  : labels:
+    - source: ulid()
+      style: primary
+      start: 23
+      end: 29
+    - source: ulid
+      style: secondary
+      start: 23
+      end: 27
+  ? |
+    example = ExampleModel(uuid.uuid4())
+  : labels:
+    - source: uuid.uuid4()
+      style: primary
+      start: 23
+      end: 35
+    - source: uuid.uuid4
+      style: secondary
+      start: 23
+      end: 33
+  ? |
+    example = ExampleModel(uuid1())
+  : labels:
+    - source: uuid1()
+      style: primary
+      start: 23
+      end: 30
+    - source: uuid1
+      style: secondary
+      start: 23
+      end: 28
+  ? |
+    example = ExampleModel(uuid4())
+  : labels:
+    - source: uuid4()
+      style: primary
+      start: 23
+      end: 30
+    - source: uuid4
+      style: secondary
+      start: 23
+      end: 28
+  ? |
+    example = ExampleModel(uuid7())
+  : labels:
+    - source: uuid7()
+      style: primary
+      start: 23
+      end: 30
+    - source: uuid7
+      style: secondary
+      start: 23
+      end: 28
+  ? |
+    line = ExampleLine(invoice_pk=invoice.pk)
+  : labels:
+    - source: invoice_pk=invoice.pk
+      style: primary
+      start: 19
+      end: 40
+    - source: invoice_pk
+      style: secondary
+      start: 19
+      end: 29
+  ? |
+    line = ExampleLine(invoice_uuid=invoice.uuid)
+  : labels:
+    - source: invoice_uuid=invoice.uuid
+      style: primary
+      start: 19
+      end: 44
+    - source: invoice_uuid
+      style: secondary
+      start: 19
+      end: 31
+  ? |
+    node = ExampleNode(parent=root)
+  : labels:
+    - source: parent=root
+      style: primary
+      start: 19
+      end: 30
+    - source: parent
+      style: secondary
+      start: 19
+      end: 25
+  ? |
+    payload = {"order_id": order.id}
+  : labels:
+    - source: '"order_id": order.id'
+      style: primary
+      start: 11
+      end: 31
+    - source: '"order_id"'
+      style: secondary
+      start: 11
+      end: 21
+  ? |
+    shipment = ExampleShipment(order_id=order.id)
+  : labels:
+    - source: order_id=order.id
+      style: primary
+      start: 27
+      end: 44
+    - source: order_id
+      style: secondary
+      start: 27
+      end: 35
+  ? |
+    shipment.order_id = order.id
+  : labels:
+    - source: shipment.order_id = order.id
+      style: primary
+      start: 0
+      end: 28
+    - source: order_id
+      style: secondary
+      start: 9
+      end: 17
+    - source: shipment.order_id
+      style: secondary
+      start: 0
+      end: 17

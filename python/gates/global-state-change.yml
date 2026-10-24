@@ -1,0 +1,27 @@
+id: global-state-change
+language: python
+rule:
+  any:
+  - kind: attribute
+    regex: ^(os\.environ|sys\.(path|modules|argv|stdout|stderr|stdin))$
+  - kind: global_statement
+  - kind: call
+    has:
+      field: function
+      regex: (^|\.)(setattr|delattr|setenv|delenv|putenv|unsetenv|chdir|setLevel|basicConfig|addHandler|setlocale|setdefaulttimeout|set_event_loop|setrecursionlimit|register|start|open|connect|Popen|mkdtemp|mkstemp|NamedTemporaryFile|TemporaryDirectory|socket|create_engine)$
+  - kind: assignment
+    has:
+      field: left
+      kind: attribute
+      any:
+      - has:
+          field: attribute
+          regex: ^_?[A-Z][A-Z0-9_]*$
+      - has:
+          field: object
+          regex: ^[A-Z]\w*$
+      - has:
+          field: object
+          kind: attribute
+          not:
+            regex: ^self\.

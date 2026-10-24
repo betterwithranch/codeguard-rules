@@ -1,25 +1,311 @@
 id: derived-argument
 snapshots:
   ? |
-    quote(lines=select(cart, ctx), context=ctx)
+    def example_flow(example_cart, example_region):
+        example_lines = example_select(example_cart, example_region)
+        return example_quote(example_lines, example_region)
   : labels:
-    - source: (lines=select(cart, ctx), context=ctx)
+    - source: (example_lines, example_region)
       style: primary
-      start: 5
+      start: 137
+      end: 168
+    - source: example_lines
+      style: secondary
+      start: 52
+      end: 65
+    - source: example_region
+      style: secondary
+      start: 97
+      end: 111
+    - source: example_region
+      style: secondary
+      start: 97
+      end: 111
+    - source: example_select(example_cart, example_region)
+      style: secondary
+      start: 68
+      end: 112
+    - source: example_lines = example_select(example_cart, example_region)
+      style: secondary
+      start: 52
+      end: 112
+    - source: |-
+        def example_flow(example_cart, example_region):
+            example_lines = example_select(example_cart, example_region)
+            return example_quote(example_lines, example_region)
+      style: secondary
+      start: 0
+      end: 168
+    - source: example_region
+      style: secondary
+      start: 153
+      end: 167
+    - source: example_lines
+      style: secondary
+      start: 138
+      end: 151
+  ? |
+    def example_flow(example_cart, example_region):
+        example_lines = example_select(example_cart, example_region)
+        return example_quote(example_region, example_lines)
+  : labels:
+    - source: (example_region, example_lines)
+      style: primary
+      start: 137
+      end: 168
+    - source: example_lines
+      style: secondary
+      start: 52
+      end: 65
+    - source: example_region
+      style: secondary
+      start: 97
+      end: 111
+    - source: example_region
+      style: secondary
+      start: 97
+      end: 111
+    - source: example_select(example_cart, example_region)
+      style: secondary
+      start: 68
+      end: 112
+    - source: example_lines = example_select(example_cart, example_region)
+      style: secondary
+      start: 52
+      end: 112
+    - source: |-
+        def example_flow(example_cart, example_region):
+            example_lines = example_select(example_cart, example_region)
+            return example_quote(example_region, example_lines)
+      style: secondary
+      start: 0
+      end: 168
+    - source: example_region
+      style: secondary
+      start: 138
+      end: 152
+    - source: example_lines
+      style: secondary
+      start: 154
+      end: 167
+  ? |
+    def example_flow(example_order):
+        example_email = example_order.email
+        example_notify(order=example_order, email=example_email)
+  : labels:
+    - source: (order=example_order, email=example_email)
+      style: primary
+      start: 91
+      end: 133
+    - source: example_email
+      style: secondary
+      start: 119
+      end: 132
+    - source: example_order
+      style: secondary
+      start: 98
+      end: 111
+    - source: example_email
+      style: secondary
+      start: 37
+      end: 50
+    - source: example_order
+      style: secondary
+      start: 53
+      end: 66
+    - source: example_order.email
+      style: secondary
+      start: 53
+      end: 72
+    - source: example_email = example_order.email
+      style: secondary
+      start: 37
+      end: 72
+    - source: |-
+        def example_flow(example_order):
+            example_email = example_order.email
+            example_notify(order=example_order, email=example_email)
+      style: secondary
+      start: 0
+      end: 133
+    - source: order=example_order
+      style: secondary
+      start: 92
+      end: 111
+    - source: email=example_email
+      style: secondary
+      start: 113
+      end: 132
+  ? |
+    example_notify(email=example_order["email"], order=example_order)
+  : labels:
+    - source: (email=example_order["email"], order=example_order)
+      style: primary
+      start: 14
+      end: 65
+    - source: example_order
+      style: secondary
+      start: 51
+      end: 64
+    - source: example_order
+      style: secondary
+      start: 21
+      end: 34
+    - source: example_order["email"]
+      style: secondary
+      start: 21
       end: 43
-    - source: select(cart, ctx)
+    - source: email=example_order["email"]
       style: secondary
-      start: 12
-      end: 29
-    - source: lines=select(cart, ctx)
+      start: 15
+      end: 43
+    - source: order=example_order
       style: secondary
-      start: 6
-      end: 29
-    - source: ctx
+      start: 45
+      end: 64
+  ? |
+    example_notify(example_order.email, example_order)
+  : labels:
+    - source: (example_order.email, example_order)
+      style: primary
+      start: 14
+      end: 50
+    - source: example_order
       style: secondary
-      start: 39
-      end: 42
-    - source: context=ctx
+      start: 15
+      end: 28
+    - source: example_order.email
       style: secondary
-      start: 31
-      end: 42
+      start: 15
+      end: 34
+    - source: example_order
+      style: secondary
+      start: 36
+      end: 49
+  ? |
+    example_quote(example_region, example_select(example_cart, example_region))
+  : labels:
+    - source: (example_region, example_select(example_cart, example_region))
+      style: primary
+      start: 13
+      end: 75
+    - source: example_region
+      style: secondary
+      start: 59
+      end: 73
+    - source: example_region
+      style: secondary
+      start: 59
+      end: 73
+    - source: example_select(example_cart, example_region)
+      style: secondary
+      start: 30
+      end: 74
+    - source: example_region
+      style: secondary
+      start: 14
+      end: 28
+  ? |
+    example_quote(example_select(example_cart, example_region), example_region)
+  : labels:
+    - source: (example_select(example_cart, example_region), example_region)
+      style: primary
+      start: 13
+      end: 75
+    - source: example_region
+      style: secondary
+      start: 43
+      end: 57
+    - source: example_region
+      style: secondary
+      start: 43
+      end: 57
+    - source: example_select(example_cart, example_region)
+      style: secondary
+      start: 14
+      end: 58
+    - source: example_region
+      style: secondary
+      start: 60
+      end: 74
+  ? |
+    example_quote(example_select(example_cart, region=example_region), example_region)
+  : labels:
+    - source: (example_select(example_cart, region=example_region), example_region)
+      style: primary
+      start: 13
+      end: 82
+    - source: example_region
+      style: secondary
+      start: 50
+      end: 64
+    - source: region=example_region
+      style: secondary
+      start: 43
+      end: 64
+    - source: region=example_region
+      style: secondary
+      start: 43
+      end: 64
+    - source: example_select(example_cart, region=example_region)
+      style: secondary
+      start: 14
+      end: 65
+    - source: example_region
+      style: secondary
+      start: 67
+      end: 81
+  ? |
+    example_quote(lines=example_select(example_cart, example_region), region=example_region)
+  : labels:
+    - source: (lines=example_select(example_cart, example_region), region=example_region)
+      style: primary
+      start: 13
+      end: 88
+    - source: example_region
+      style: secondary
+      start: 73
+      end: 87
+    - source: example_region
+      style: secondary
+      start: 49
+      end: 63
+    - source: example_region
+      style: secondary
+      start: 49
+      end: 63
+    - source: example_select(example_cart, example_region)
+      style: secondary
+      start: 20
+      end: 64
+    - source: lines=example_select(example_cart, example_region)
+      style: secondary
+      start: 14
+      end: 64
+    - source: region=example_region
+      style: secondary
+      start: 66
+      end: 87
+  ? |
+    example_render(self.example_totals(example_invoice), example_invoice)
+  : labels:
+    - source: (self.example_totals(example_invoice), example_invoice)
+      style: primary
+      start: 14
+      end: 69
+    - source: example_invoice
+      style: secondary
+      start: 35
+      end: 50
+    - source: example_invoice
+      style: secondary
+      start: 35
+      end: 50
+    - source: self.example_totals(example_invoice)
+      style: secondary
+      start: 15
+      end: 51
+    - source: example_invoice
+      style: secondary
+      start: 53
+      end: 68

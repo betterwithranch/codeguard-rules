@@ -86,6 +86,237 @@ cases:
                 return f"{self.cents / 100:.2f} {self.currency}"
     expected_output:
       outcome: valid
+  - name: adds a password reset action to the invoice viewset
+    inputs:
+      file: billing/invoice_views.py
+      after: |
+        from django.contrib.auth import get_user_model
+        from rest_framework import viewsets
+        from rest_framework.decorators import action
+        from rest_framework.response import Response
+
+        from .models import Invoice
+        from .serializers import InvoiceSerializer
+
+
+        class InvoiceViewSet(viewsets.ModelViewSet):
+            queryset = Invoice.objects.all()
+            serializer_class = InvoiceSerializer
+
+            @action(detail=True, methods=["post"])
+            def mark_paid(self, request, pk=None):
+                invoice = self.get_object()
+                invoice.mark_paid()
+                return Response(InvoiceSerializer(invoice).data)
+
+            @action(detail=False, methods=["post"])
+            def reset_user_password(self, request):
+                user = get_user_model().objects.get(email=request.data["email"])
+                user.set_password(request.data["new_password"])
+                user.save()
+                return Response(status=204)
+    expected_output:
+      outcome: invalid
+  - name: adds invoice actions to the invoice viewset
+    inputs:
+      file: billing/invoice_views.py
+      after: |
+        from rest_framework import viewsets
+        from rest_framework.decorators import action
+        from rest_framework.response import Response
+
+        from .models import Invoice
+        from .serializers import InvoiceSerializer
+
+
+        class InvoiceViewSet(viewsets.ModelViewSet):
+            queryset = Invoice.objects.all()
+            serializer_class = InvoiceSerializer
+
+            @action(detail=True, methods=["post"])
+            def mark_paid(self, request, pk=None):
+                invoice = self.get_object()
+                invoice.mark_paid()
+                return Response(InvoiceSerializer(invoice).data)
+
+            @action(detail=True, methods=["post"])
+            def void(self, request, pk=None):
+                invoice = self.get_object()
+                invoice.void()
+                return Response(InvoiceSerializer(invoice).data)
+    expected_output:
+      outcome: valid
+  - name: schedules reports and converts currency in one small class
+    inputs:
+      file: reports/report_scheduler.py
+      after: |
+        from datetime import datetime, timedelta
+
+        from fx import ExchangeRates
+
+
+        class ReportScheduler:
+            def __init__(self, interval: timedelta, rates: ExchangeRates) -> None:
+                self._interval = interval
+                self._rates = rates
+
+            def next_run(self, last_run: datetime) -> datetime:
+                return last_run + self._interval
+
+            def to_euro_cents(self, cents: int, currency: str) -> int:
+                return round(cents * self._rates.rate(currency, "EUR"))
+    expected_output:
+      outcome: invalid
+  - name: records logins in the order repository
+    inputs:
+      file: orders/order_repository.py
+      after: |
+        from datetime import datetime
+
+        from sqlalchemy import select
+        from sqlalchemy.orm import Session
+
+        from accounts.models import LoginEvent
+
+        from .models import Order
+
+
+        class OrderRepository:
+            def __init__(self, session: Session) -> None:
+                self._session = session
+
+            def find(self, order_id: int) -> Order | None:
+                return self._session.get(Order, order_id)
+
+            def open_orders(self, customer_id: int) -> list[Order]:
+                query = select(Order).where(
+                    Order.customer_id == customer_id, Order.status == "open"
+                )
+                return list(self._session.scalars(query))
+
+            def record_login(self, user_id: int, at: datetime) -> None:
+                self._session.add(LoginEvent(user_id=user_id, logged_in_at=at))
+    expected_output:
+      outcome: invalid
+  - name: queries orders several ways in the order repository
+    inputs:
+      file: orders/order_repository.py
+      after: |
+        from sqlalchemy import func, select
+        from sqlalchemy.orm import Session
+
+        from .models import Order
+
+
+        class OrderRepository:
+            def __init__(self, session: Session) -> None:
+                self._session = session
+
+            def find(self, order_id: int) -> Order | None:
+                return self._session.get(Order, order_id)
+
+            def open_orders(self, customer_id: int) -> list[Order]:
+                query = select(Order).where(
+                    Order.customer_id == customer_id, Order.status == "open"
+                )
+                return list(self._session.scalars(query))
+
+            def count_for_customer(self, customer_id: int) -> int:
+                query = select(func.count()).where(Order.customer_id == customer_id)
+                return self._session.scalar(query) or 0
+
+            def add(self, order: Order) -> None:
+                self._session.add(order)
+    expected_output:
+      outcome: valid
+  - name: runs checkout steps through several collaborators
+    inputs:
+      file: checkout/checkout_service.py
+      after: |
+        from inventory import StockReservations
+        from notifications import ReceiptMailer
+        from payments import PaymentGateway
+
+        from .cart import Cart, Receipt
+
+
+        class CheckoutService:
+            def __init__(
+                self,
+                stock: StockReservations,
+                payments: PaymentGateway,
+                mailer: ReceiptMailer,
+            ) -> None:
+                self._stock = stock
+                self._payments = payments
+                self._mailer = mailer
+
+            def checkout(self, cart: Cart) -> Receipt:
+                self._reserve(cart)
+                receipt = self._charge(cart)
+                self._mailer.send(cart.customer_email, receipt)
+                return receipt
+
+            def _reserve(self, cart: Cart) -> None:
+                for line in cart.lines:
+                    self._stock.reserve(line.sku, line.quantity)
+
+            def _charge(self, cart: Cart) -> Receipt:
+                charge_id = self._payments.charge(cart.payment_token, cart.total_cents)
+                return Receipt(charge_id=charge_id, total_cents=cart.total_cents)
+    expected_output:
+      outcome: valid
+  - name: adds display and pricing methods to a product model
+    inputs:
+      file: catalog/models.py
+      after: |
+        from decimal import Decimal
+
+        from django.db import models
+
+
+        class Product(models.Model):
+            name = models.CharField(max_length=200)
+            price = models.DecimalField(max_digits=10, decimal_places=2)
+            discount_percent = models.PositiveIntegerField(default=0)
+
+            def __str__(self) -> str:
+                return self.name
+
+            def sale_price(self) -> Decimal:
+                return self.price * (100 - self.discount_percent) / 100
+
+            def is_discounted(self) -> bool:
+                return self.discount_percent > 0
+    expected_output:
+      outcome: valid
+  - name: adds a shipping label printer to a product model
+    inputs:
+      file: catalog/models.py
+      after: |
+        from decimal import Decimal
+
+        from django.db import models
+
+        from shipping.labels import LabelPrinter, ShipmentAddress
+
+
+        class Product(models.Model):
+            name = models.CharField(max_length=200)
+            price = models.DecimalField(max_digits=10, decimal_places=2)
+            discount_percent = models.PositiveIntegerField(default=0)
+
+            def sale_price(self) -> Decimal:
+                return self.price * (100 - self.discount_percent) / 100
+
+            def is_discounted(self) -> bool:
+                return self.discount_percent > 0
+
+            @staticmethod
+            def print_shipping_label(printer: LabelPrinter, address: ShipmentAddress) -> None:
+                printer.print_label(address.street, address.city, address.postcode)
+    expected_output:
+      outcome: invalid
   - name: widens the order number padding
     inputs:
       file: orders/order_number.py
@@ -95,5 +326,22 @@ cases:
       after: |
         def format_order_number(sequence: int) -> str:
             return f"ORD-{sequence:08d}"
+    expected_output:
+      outcome: skipped
+  - name: changes the only method of a formatter
+    inputs:
+      file: orders/order_formatter.py
+      before: |
+        class OrderFormatter:
+            prefix = "ORD"
+
+            def format(self, sequence: int) -> str:
+                return f"{self.prefix}-{sequence:06d}"
+      after: |
+        class OrderFormatter:
+            prefix = "ORD"
+
+            def format(self, sequence: int) -> str:
+                return f"{self.prefix}-{sequence:08d}"
     expected_output:
       outcome: skipped

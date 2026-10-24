@@ -1,0 +1,214 @@
+id: no-restated-type-args
+snapshots:
+  ? |
+    class ExampleRepository(Repository[ExampleRecord]):
+        def __init__(self):
+            self.record_type = ExampleRecord
+  : labels:
+    - source: self.record_type = ExampleRecord
+      style: primary
+      start: 84
+      end: 116
+    - source: ExampleRecord
+      style: secondary
+      start: 103
+      end: 116
+    - source: self.record_type
+      style: secondary
+      start: 84
+      end: 100
+    - source: ExampleRecord
+      style: secondary
+      start: 35
+      end: 48
+    - source: Repository[ExampleRecord]
+      style: secondary
+      start: 24
+      end: 49
+    - source: Repository[ExampleRecord]
+      style: secondary
+      start: 24
+      end: 49
+    - source: |-
+        class ExampleRepository(Repository[ExampleRecord]):
+            def __init__(self):
+                self.record_type = ExampleRecord
+      style: secondary
+      start: 0
+      end: 116
+  ? |
+    class ExampleRepository(Repository[ExampleRecord]):
+        record_type = ExampleRecord
+  : labels:
+    - source: record_type = ExampleRecord
+      style: primary
+      start: 56
+      end: 83
+    - source: ExampleRecord
+      style: secondary
+      start: 70
+      end: 83
+    - source: |-
+        class ExampleRepository(Repository[ExampleRecord]):
+            record_type = ExampleRecord
+      style: secondary
+      start: 0
+      end: 83
+    - source: record_type = ExampleRecord
+      style: secondary
+      start: 56
+      end: 83
+    - source: record_type = ExampleRecord
+      style: secondary
+      start: 56
+      end: 83
+    - source: ExampleRecord
+      style: secondary
+      start: 35
+      end: 48
+    - source: Repository[ExampleRecord]
+      style: secondary
+      start: 24
+      end: 49
+    - source: Repository[ExampleRecord]
+      style: secondary
+      start: 24
+      end: 49
+    - source: |-
+        class ExampleRepository(Repository[ExampleRecord]):
+            record_type = ExampleRecord
+      style: secondary
+      start: 0
+      end: 83
+  ? |
+    class ExampleRepository(Repository[ExampleRecord]):
+        record_type: type[ExampleRecord] = ExampleRecord
+  : labels:
+    - source: 'record_type: type[ExampleRecord] = ExampleRecord'
+      style: primary
+      start: 56
+      end: 104
+    - source: ExampleRecord
+      style: secondary
+      start: 91
+      end: 104
+    - source: |-
+        class ExampleRepository(Repository[ExampleRecord]):
+            record_type: type[ExampleRecord] = ExampleRecord
+      style: secondary
+      start: 0
+      end: 104
+    - source: 'record_type: type[ExampleRecord] = ExampleRecord'
+      style: secondary
+      start: 56
+      end: 104
+    - source: 'record_type: type[ExampleRecord] = ExampleRecord'
+      style: secondary
+      start: 56
+      end: 104
+    - source: ExampleRecord
+      style: secondary
+      start: 35
+      end: 48
+    - source: Repository[ExampleRecord]
+      style: secondary
+      start: 24
+      end: 49
+    - source: Repository[ExampleRecord]
+      style: secondary
+      start: 24
+      end: 49
+    - source: |-
+        class ExampleRepository(Repository[ExampleRecord]):
+            record_type: type[ExampleRecord] = ExampleRecord
+      style: secondary
+      start: 0
+      end: 104
+  ? |
+    class ExampleRepository(Repository[records.ExampleRecord]):
+        record_type = records.ExampleRecord
+  : labels:
+    - source: record_type = records.ExampleRecord
+      style: primary
+      start: 64
+      end: 99
+    - source: records.ExampleRecord
+      style: secondary
+      start: 78
+      end: 99
+    - source: |-
+        class ExampleRepository(Repository[records.ExampleRecord]):
+            record_type = records.ExampleRecord
+      style: secondary
+      start: 0
+      end: 99
+    - source: record_type = records.ExampleRecord
+      style: secondary
+      start: 64
+      end: 99
+    - source: record_type = records.ExampleRecord
+      style: secondary
+      start: 64
+      end: 99
+    - source: records.ExampleRecord
+      style: secondary
+      start: 35
+      end: 56
+    - source: Repository[records.ExampleRecord]
+      style: secondary
+      start: 24
+      end: 57
+    - source: Repository[records.ExampleRecord]
+      style: secondary
+      start: 24
+      end: 57
+    - source: |-
+        class ExampleRepository(Repository[records.ExampleRecord]):
+            record_type = records.ExampleRecord
+      style: secondary
+      start: 0
+      end: 99
+  ? |
+    class ExampleStore(Store[str, ExampleRecord]):
+        value_type = ExampleRecord
+  : labels:
+    - source: value_type = ExampleRecord
+      style: primary
+      start: 51
+      end: 77
+    - source: ExampleRecord
+      style: secondary
+      start: 64
+      end: 77
+    - source: |-
+        class ExampleStore(Store[str, ExampleRecord]):
+            value_type = ExampleRecord
+      style: secondary
+      start: 0
+      end: 77
+    - source: value_type = ExampleRecord
+      style: secondary
+      start: 51
+      end: 77
+    - source: value_type = ExampleRecord
+      style: secondary
+      start: 51
+      end: 77
+    - source: ExampleRecord
+      style: secondary
+      start: 30
+      end: 43
+    - source: Store[str, ExampleRecord]
+      style: secondary
+      start: 19
+      end: 44
+    - source: Store[str, ExampleRecord]
+      style: secondary
+      start: 19
+      end: 44
+    - source: |-
+        class ExampleStore(Store[str, ExampleRecord]):
+            value_type = ExampleRecord
+      style: secondary
+      start: 0
+      end: 77

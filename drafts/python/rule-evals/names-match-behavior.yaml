@@ -21,6 +21,28 @@ cases:
                 self.status = OrderStatus.SUBMITTED
     expected_output:
       outcome: invalid
+  - name: names the submit method submit
+    inputs:
+      file: orders/workflow.py
+      after: |
+        from dataclasses import dataclass
+        from enum import StrEnum
+
+
+        class OrderStatus(StrEnum):
+            DRAFT = "draft"
+            SUBMITTED = "submitted"
+
+
+        @dataclass
+        class Order:
+            number: str
+            status: OrderStatus
+
+            def submit(self) -> None:
+                self.status = OrderStatus.SUBMITTED
+    expected_output:
+      outcome: valid
   - name: renames mark_delivered to process_data
     inputs:
       file: shipments/tracking.py
@@ -66,26 +88,283 @@ cases:
                     shipment.status = ShipmentStatus.DELIVERED
     expected_output:
       outcome: invalid
-  - name: names the submit method submit
+  - name: renames process_data to mark_delivered
     inputs:
-      file: orders/workflow.py
+      file: shipments/tracking.py
+      before: |
+        from dataclasses import dataclass
+        from enum import StrEnum
+
+
+        class ShipmentStatus(StrEnum):
+            IN_TRANSIT = "in_transit"
+            DELIVERED = "delivered"
+
+
+        @dataclass
+        class Shipment:
+            tracking_number: str
+            status: ShipmentStatus
+
+
+        class DeliveryTracker:
+            def process_data(self, shipments: list[Shipment]) -> None:
+                for shipment in shipments:
+                    shipment.status = ShipmentStatus.DELIVERED
       after: |
         from dataclasses import dataclass
         from enum import StrEnum
 
 
-        class OrderStatus(StrEnum):
-            DRAFT = "draft"
-            SUBMITTED = "submitted"
+        class ShipmentStatus(StrEnum):
+            IN_TRANSIT = "in_transit"
+            DELIVERED = "delivered"
 
 
         @dataclass
-        class Order:
-            number: str
-            status: OrderStatus
+        class Shipment:
+            tracking_number: str
+            status: ShipmentStatus
 
-            def submit(self) -> None:
-                self.status = OrderStatus.SUBMITTED
+
+        class DeliveryTracker:
+            def mark_delivered(self, shipments: list[Shipment]) -> None:
+                for shipment in shipments:
+                    shipment.status = ShipmentStatus.DELIVERED
+    expected_output:
+      outcome: valid
+  - name: names a quarterly report builder a preparer
+    inputs:
+      file: reports/quarterly.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class QuarterlyReport:
+            quarter: int
+            revenue_cents: int
+
+
+        class ReportPreparer:
+            def __init__(self, monthly_revenue_cents: list[int]) -> None:
+                self.monthly_revenue_cents = monthly_revenue_cents
+
+            def run(self, quarter: int) -> QuarterlyReport:
+                months = self.monthly_revenue_cents[(quarter - 1) * 3 : quarter * 3]
+                return QuarterlyReport(quarter=quarter, revenue_cents=sum(months))
+    expected_output:
+      outcome: invalid
+  - name: names the quarterly report builder for its report
+    inputs:
+      file: reports/quarterly.py
+      after: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class QuarterlyReport:
+            quarter: int
+            revenue_cents: int
+
+
+        class QuarterlyReportBuilder:
+            def __init__(self, monthly_revenue_cents: list[int]) -> None:
+                self.monthly_revenue_cents = monthly_revenue_cents
+
+            def build(self, quarter: int) -> QuarterlyReport:
+                months = self.monthly_revenue_cents[(quarter - 1) * 3 : quarter * 3]
+                return QuarterlyReport(quarter=quarter, revenue_cents=sum(months))
+    expected_output:
+      outcome: valid
+  - name: names an email check normalize_email
+    inputs:
+      file: accounts/emails.py
+      after: |
+        class InvalidEmail(ValueError):
+            pass
+
+
+        class EmailPolicy:
+            @staticmethod
+            def normalize_email(email: str) -> str:
+                if "@" not in email:
+                    raise InvalidEmail(email)
+                return email
+    expected_output:
+      outcome: invalid
+  - name: names the email check require_valid_email
+    inputs:
+      file: accounts/emails.py
+      after: |
+        class InvalidEmail(ValueError):
+            pass
+
+
+        class EmailPolicy:
+            @staticmethod
+            def require_valid_email(email: str) -> str:
+                if "@" not in email:
+                    raise InvalidEmail(email)
+                return email
+    expected_output:
+      outcome: valid
+  - name: names an overdue count send_reminders
+    inputs:
+      file: billing/reminders.py
+      after: |
+        from dataclasses import dataclass
+        from datetime import date
+        from typing import Protocol
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            number: str
+            due_on: date
+            paid: bool
+
+
+        class InvoiceStore(Protocol):
+            async def open_invoices(self) -> list[Invoice]: ...
+
+
+        async def send_reminders(store: InvoiceStore, today: date) -> int:
+            invoices = await store.open_invoices()
+            return sum(1 for invoice in invoices if not invoice.paid and invoice.due_on < today)
+    expected_output:
+      outcome: invalid
+  - name: names the overdue count count_overdue_invoices
+    inputs:
+      file: billing/reminders.py
+      after: |
+        from dataclasses import dataclass
+        from datetime import date
+        from typing import Protocol
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            number: str
+            due_on: date
+            paid: bool
+
+
+        class InvoiceStore(Protocol):
+            async def open_invoices(self) -> list[Invoice]: ...
+
+
+        async def count_overdue_invoices(store: InvoiceStore, today: date) -> int:
+            invoices = await store.open_invoices()
+            return sum(1 for invoice in invoices if not invoice.paid and invoice.due_on < today)
+    expected_output:
+      outcome: valid
+  - name: names a nested tax function helper
+    inputs:
+      file: invoices/tax.py
+      after: |
+        from dataclasses import dataclass
+
+        TAX_RATE = 0.2
+
+
+        @dataclass(frozen=True)
+        class InvoiceLine:
+            amount_cents: int
+            taxable: bool
+
+
+        def invoice_tax_cents(lines: list[InvoiceLine]) -> int:
+            def helper(line: InvoiceLine) -> int:
+                return round(line.amount_cents * TAX_RATE) if line.taxable else 0
+
+            return sum(helper(line) for line in lines)
+    expected_output:
+      outcome: invalid
+  - name: names the nested tax function line_tax_cents
+    inputs:
+      file: invoices/tax.py
+      after: |
+        from dataclasses import dataclass
+
+        TAX_RATE = 0.2
+
+
+        @dataclass(frozen=True)
+        class InvoiceLine:
+            amount_cents: int
+            taxable: bool
+
+
+        def invoice_tax_cents(lines: list[InvoiceLine]) -> int:
+            def line_tax_cents(line: InvoiceLine) -> int:
+                return round(line.amount_cents * TAX_RATE) if line.taxable else 0
+
+            return sum(line_tax_cents(line) for line in lines)
+    expected_output:
+      outcome: valid
+  - name: renames a refund method retry_payment
+    inputs:
+      file: payments/service.py
+      before: |
+        from typing import Protocol
+
+
+        class PaymentGateway(Protocol):
+            def refund(self, payment_id: str, amount_cents: int) -> None: ...
+
+
+        class PaymentService:
+            def __init__(self, gateway: PaymentGateway) -> None:
+                self.gateway = gateway
+
+            def refund_payment(self, payment_id: str, amount_cents: int) -> None:
+                self.gateway.refund(payment_id, amount_cents)
+      after: |
+        from typing import Protocol
+
+
+        class PaymentGateway(Protocol):
+            def refund(self, payment_id: str, amount_cents: int) -> None: ...
+
+
+        class PaymentService:
+            def __init__(self, gateway: PaymentGateway) -> None:
+                self.gateway = gateway
+
+            def retry_payment(self, payment_id: str, amount_cents: int) -> None:
+                self.gateway.refund(payment_id, amount_cents)
+    expected_output:
+      outcome: invalid
+  - name: overrides a Django model's save to stamp the edit time
+    inputs:
+      file: catalog/models.py
+      after: |
+        from django.db import models
+        from django.utils import timezone
+
+
+        class Product(models.Model):
+            name = models.CharField(max_length=200)
+            edited_at = models.DateTimeField(null=True)
+
+            def save(self, *args, **kwargs):
+                self.edited_at = timezone.now()
+                super().save(*args, **kwargs)
+    expected_output:
+      outcome: valid
+  - name: adds a DRF field validator to a serializer
+    inputs:
+      file: accounts/serializers.py
+      after: |
+        from rest_framework import serializers
+
+
+        class SignupSerializer(serializers.Serializer):
+            email = serializers.EmailField()
+
+            def validate_email(self, value: str) -> str:
+                return value.lower()
     expected_output:
       outcome: valid
   - name: extends the submission grace period
@@ -109,5 +388,43 @@ cases:
         class OrderStatus(StrEnum):
             DRAFT = "draft"
             SUBMITTED = "submitted"
+    expected_output:
+      outcome: skipped
+  - name: rounds the tax inside an existing function
+    inputs:
+      file: invoices/tax.py
+      before: |
+        TAX_RATE = 0.2
+
+
+        def tax_due_cents(subtotal_cents: int) -> int:
+            return int(subtotal_cents * TAX_RATE)
+      after: |
+        TAX_RATE = 0.2
+
+
+        def tax_due_cents(subtotal_cents: int) -> int:
+            return round(subtotal_cents * TAX_RATE)
+    expected_output:
+      outcome: skipped
+  - name: renames a parameter
+    inputs:
+      file: invoices/tax.py
+      before: |
+        TAX_RATE = 0.2
+
+
+        def tax_due_cents(
+            amount: int,
+        ) -> int:
+            return round(amount * TAX_RATE)
+      after: |
+        TAX_RATE = 0.2
+
+
+        def tax_due_cents(
+            subtotal_cents: int,
+        ) -> int:
+            return round(subtotal_cents * TAX_RATE)
     expected_output:
       outcome: skipped

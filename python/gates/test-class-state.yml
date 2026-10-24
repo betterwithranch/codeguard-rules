@@ -1,0 +1,43 @@
+id: test-class-state
+language: python
+rule:
+  any:
+  - kind: expression_statement
+    inside:
+      kind: block
+      inside:
+        kind: class_definition
+        field: body
+        has:
+          field: name
+          regex: ^Test|Tests?$
+  - kind: call
+    has:
+      field: function
+      kind: attribute
+      all:
+      - has:
+          field: object
+          regex: ^(self|cls|type\(self\)|[A-Z]\w*)\.\w+$
+      - has:
+          field: attribute
+          regex: ^(append|extend|insert|add|update|setdefault|pop|popitem|remove|discard|clear)$
+  - kind: assignment
+    has:
+      field: left
+      any:
+      - kind: subscript
+        has:
+          field: value
+          regex: ^(self|cls|type\(self\)|[A-Z]\w*)\.\w+$
+      - kind: attribute
+        has:
+          field: object
+          regex: ^(cls|type\(self\)|[A-Z]\w*)$
+  - kind: augmented_assignment
+    has:
+      field: left
+      kind: attribute
+      has:
+        field: object
+        regex: ^(cls|type\(self\)|[A-Z]\w*)$

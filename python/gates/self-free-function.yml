@@ -1,0 +1,20 @@
+id: self-free-function
+language: python
+rule:
+  kind: function_definition
+  has:
+    field: parameters
+    has:
+      any:
+      - kind: identifier
+      - kind: typed_parameter
+      - kind: default_parameter
+      - kind: typed_default_parameter
+      not:
+        regex: ^(self|cls)$
+  not:
+    has:
+      field: body
+      stopBy: end
+      kind: identifier
+      regex: ^self$

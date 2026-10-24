@@ -1,13 +1,29 @@
 id: partial-assert
 language: python
 rule:
-  kind: assert_statement
-  has:
-    kind: comparison_operator
+  any:
+  - kind: assert_statement
     has:
       nthChild: 1
       any:
       - kind: attribute
       - kind: subscript
-      - kind: call
-        regex: ^len\(
+      - kind: not_operator
+        has: {field: argument, any: [{kind: attribute}, {kind: subscript}]}
+      - kind: comparison_operator
+        has:
+          any:
+          - kind: attribute
+          - kind: subscript
+  - kind: call
+    all:
+    - has:
+        field: function
+        kind: attribute
+        has: {field: attribute, regex: "^assert[A-Z]\\w*$"}
+    - has:
+        field: arguments
+        has:
+          any:
+          - kind: attribute
+          - kind: subscript

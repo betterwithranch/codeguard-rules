@@ -1,9 +1,56 @@
 id: derived-argument
 valid:
+# Two independent arguments
 - |
-  quote(lines, ctx)
+  example_quote(example_lines, example_region)
+# Derived value without its input
 - |
-  quote(select(cart))
+  example_quote(example_select(example_cart))
+# Derived from a different name than the one passed
+- |
+  example_quote(example_select(example_cart, other_region), example_region)
+# Local derived from a different name than the one passed
+- |
+  def example_flow(example_cart, example_region):
+      example_lines = example_select(example_cart, other_region)
+      return example_quote(example_lines, example_region)
+# Field of one object passed with another object
+- |
+  example_notify(example_order.email, example_customer)
 invalid:
+# Keyword arguments, derived call first
 - |
-  quote(lines=select(cart, ctx), context=ctx)
+  example_quote(lines=example_select(example_cart, example_region), region=example_region)
+# Positional arguments, derived call first
+- |
+  example_quote(example_select(example_cart, example_region), example_region)
+# Positional arguments, input first
+- |
+  example_quote(example_region, example_select(example_cart, example_region))
+# Derived call takes the input as a keyword
+- |
+  example_quote(example_select(example_cart, region=example_region), example_region)
+# Field of the input passed with the input
+- |
+  example_notify(example_order.email, example_order)
+# Key of the input passed with the input, as keywords
+- |
+  example_notify(email=example_order["email"], order=example_order)
+# Method call on self deriving from the input
+- |
+  example_render(self.example_totals(example_invoice), example_invoice)
+# Local derived earlier, passed after the input
+- |
+  def example_flow(example_cart, example_region):
+      example_lines = example_select(example_cart, example_region)
+      return example_quote(example_region, example_lines)
+# Local derived earlier, passed before the input
+- |
+  def example_flow(example_cart, example_region):
+      example_lines = example_select(example_cart, example_region)
+      return example_quote(example_lines, example_region)
+# Local copied from a field, passed with the input as keywords
+- |
+  def example_flow(example_order):
+      example_email = example_order.email
+      example_notify(order=example_order, email=example_email)

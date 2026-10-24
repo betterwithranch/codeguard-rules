@@ -1,0 +1,296 @@
+cases:
+  - name: unpacks a dataclass it just built into positional arguments
+    inputs:
+      file: quoting/quotes.py
+      after: |
+        from dataclasses import dataclass
+
+        from quoting.carts import Cart, Region
+        from quoting.pricing import Quote, build_quote
+
+
+        @dataclass(frozen=True)
+        class QuoteArgs:
+            cart: Cart
+            region: Region
+
+
+        def quote(cart: Cart, region: Region) -> Quote:
+            args = QuoteArgs(cart=cart, region=region)
+            return build_quote(args.cart, args.region)
+    expected_output:
+      outcome: invalid
+  - name: hands a dataclass it just built to the factory whole
+    inputs:
+      file: quoting/quotes.py
+      after: |
+        import logging
+        from dataclasses import dataclass
+
+        from quoting.carts import Cart, Region
+        from quoting.pricing import Quote
+
+        logger = logging.getLogger(__name__)
+
+
+        @dataclass(frozen=True)
+        class QuoteParams:
+            cart: Cart
+            region: Region
+
+
+        class QuoteFactory:
+            def create(self, params: QuoteParams) -> Quote:
+                return Quote(lines=params.cart.lines, region=params.region)
+
+
+        def quote(cart: Cart, region: Region) -> Quote:
+            params = QuoteParams(cart=cart, region=region)
+            logger.info("quoting cart %s", params.cart.id)
+            return QuoteFactory().create(params)
+    expected_output:
+      outcome: valid
+  - name: unpacks a NamedTuple it just built into keyword arguments
+    inputs:
+      file: shipping/labels.py
+      after: |
+        from typing import NamedTuple
+
+        from shipping.printing import print_label
+
+
+        class LabelArgs(NamedTuple):
+            name: str
+            street: str
+            postcode: str
+
+
+        def label_for(name: str, street: str, postcode: str) -> bytes:
+            args = LabelArgs(name, street, postcode)
+            return print_label(name=args.name, street=args.street, postcode=args.postcode)
+    expected_output:
+      outcome: invalid
+  - name: passes the fields of an order it was given
+    inputs:
+      file: shipping/dispatch.py
+      after: |
+        from shipping.carriers import ship
+        from shipping.orders import Order, Tracking
+
+
+        def dispatch(order: Order) -> Tracking:
+            return ship(order.id, order.address)
+    expected_output:
+      outcome: skipped
+  - name: splats asdict of a dataclass built inline
+    inputs:
+      file: billing/invoices.py
+      after: |
+        from dataclasses import asdict, dataclass
+
+        from billing.documents import Invoice, render_invoice
+
+
+        @dataclass(frozen=True)
+        class InvoiceArgs:
+            number: str
+            customer_name: str
+            total_cents: int
+
+
+        def invoice(number: str, customer_name: str, total_cents: int) -> Invoice:
+            return render_invoice(
+                **asdict(
+                    InvoiceArgs(
+                        number=number,
+                        customer_name=customer_name,
+                        total_cents=total_cents,
+                    )
+                )
+            )
+    expected_output:
+      outcome: invalid
+  - name: splats headers a helper computes
+    inputs:
+      file: billing/webhooks.py
+      after: |
+        from billing.http import post
+        from billing.signing import headers_for
+
+
+        def notify(url: str, payload: bytes) -> int:
+            return post(url, payload, **headers_for(payload))
+    expected_output:
+      outcome: skipped
+  - name: unpacks an attrs group declared in another module
+    inputs:
+      file: reports/monthly.py
+      after: |
+        from datetime import date
+
+        from reports.args import ReportArgs
+        from reports.rendering import Report, render_report
+
+
+        def monthly_report(account_id: str, start: date, end: date) -> Report:
+            args = ReportArgs(account_id=account_id, start=start, end=end)
+            return render_report(args.account_id, args.start, args.end)
+      unchanged:
+        reports/args.py: |
+          from datetime import date
+
+          import attrs
+
+
+          @attrs.frozen
+          class ReportArgs:
+              account_id: str
+              start: date
+              end: date
+    expected_output:
+      outcome: invalid
+  - name: reads dates a pydantic model parsed from text
+    inputs:
+      file: reports/requests.py
+      after: |
+        from datetime import date
+
+        from pydantic import BaseModel
+
+        from reports.rendering import Report, render_report
+
+
+        class DateWindow(BaseModel):
+            start: date
+            end: date
+
+
+        def report_for(account_id: str, start_text: str, end_text: str) -> Report:
+            window = DateWindow(start=start_text, end=end_text)
+            return render_report(account_id, window.start, window.end)
+    expected_output:
+      outcome: valid
+  - name: unpacks a pydantic model with model_dump
+    inputs:
+      file: reports/requests.py
+      after: |
+        from datetime import date
+
+        from pydantic import BaseModel
+
+        from reports.rendering import Report, render_report
+
+
+        class ReportArgs(BaseModel):
+            account_id: str
+            start: date
+            end: date
+
+
+        def report_for(account_id: str, start: date, end: date) -> Report:
+            args = ReportArgs(account_id=account_id, start=start, end=end)
+            return render_report(**args.model_dump())
+    expected_output:
+      outcome: invalid
+  - name: reads an address a dataclass normalized on construction
+    inputs:
+      file: accounts/emails.py
+      after: |
+        from dataclasses import dataclass
+
+        from accounts.mail import send_welcome
+
+
+        @dataclass(frozen=True)
+        class EmailAddress:
+            value: str
+
+            def __post_init__(self) -> None:
+                object.__setattr__(self, "value", self.value.strip().lower())
+
+
+        def welcome(raw_address: str, name: str) -> None:
+            address = EmailAddress(raw_address)
+            send_welcome(address.value, name)
+    expected_output:
+      outcome: valid
+  - name: splats a TypedDict it just built
+    inputs:
+      file: accounts/signup.py
+      after: |
+        from typing import TypedDict
+
+        from accounts.users import User, create_user
+
+
+        class SignupArgs(TypedDict):
+            email: str
+            name: str
+
+
+        def sign_up(email: str, name: str) -> User:
+            args = SignupArgs(email=email, name=name)
+            return create_user(**args)
+    expected_output:
+      outcome: invalid
+  - name: stores the group it built and passes one field on
+    inputs:
+      file: accounts/signup.py
+      after: |
+        from dataclasses import dataclass
+
+        from accounts.audit import AuditLog
+        from accounts.users import User, create_user
+
+
+        @dataclass(frozen=True)
+        class Signup:
+            email: str
+            name: str
+
+
+        class SignupService:
+            def __init__(self, audit: AuditLog) -> None:
+                self._audit = audit
+
+            def sign_up(self, email: str, name: str) -> User:
+                signup = Signup(email=email, name=name)
+                self._audit.record(signup)
+                return create_user(signup.email)
+    expected_output:
+      outcome: valid
+  - name: reads a session off a client it built
+    inputs:
+      file: carriers/tracking.py
+      after: |
+        from carriers.http import HttpClient, fetch_json
+
+
+        def tracking_events(base_url: str, tracking_number: str) -> list[str]:
+            client = HttpClient(base_url, timeout_seconds=5)
+            return fetch_json(client.session, f"/track/{tracking_number}")
+    expected_output:
+      outcome: valid
+  - name: changes a timeout constant
+    inputs:
+      file: carriers/tracking.py
+      before: |
+        TIMEOUT_SECONDS = 5
+      after: |
+        TIMEOUT_SECONDS = 10
+    expected_output:
+      outcome: skipped
+  - name: adds a function that passes its parameters straight through
+    inputs:
+      file: quoting/quotes.py
+      before: |
+        from quoting.pricing import Quote, build_quote
+      after: |
+        from quoting.carts import Cart, Region
+        from quoting.pricing import Quote, build_quote
+
+
+        def quote(cart: Cart, region: Region) -> Quote:
+            return build_quote(cart, region)
+    expected_output:
+      outcome: skipped

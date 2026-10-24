@@ -1,6 +1,66 @@
 id: nondeterminism
 snapshots:
   ? |
+    await asyncio.sleep(0.1)
+  : labels:
+    - source: asyncio.sleep(0.1)
+      style: primary
+      start: 6
+      end: 24
+    - source: asyncio.sleep
+      style: secondary
+      start: 6
+      end: 19
+  ? |
+    await asyncio.wait_for(task, timeout=1)
+  : labels:
+    - source: asyncio.wait_for(task, timeout=1)
+      style: primary
+      start: 6
+      end: 39
+    - source: asyncio.wait_for
+      style: secondary
+      start: 6
+      end: 22
+  ? |
+    day = date.today()
+  : labels:
+    - source: date.today()
+      style: primary
+      start: 6
+      end: 18
+    - source: date.today
+      style: secondary
+      start: 6
+      end: 16
+  ? |
+    def test_build_lines_makes_one_line_per_sku():
+        lines = build_lines({"PEN-2", "BOOK-1"})
+        assert [line.sku for line in lines] == ["PEN-2", "BOOK-1"]
+  : labels:
+    - source: |-
+        def test_build_lines_makes_one_line_per_sku():
+            lines = build_lines({"PEN-2", "BOOK-1"})
+            assert [line.sku for line in lines] == ["PEN-2", "BOOK-1"]
+      style: primary
+      start: 0
+      end: 154
+    - source: '{"PEN-2", "BOOK-1"}'
+      style: secondary
+      start: 71
+      end: 90
+  ? |
+    fake = Faker()
+  : labels:
+    - source: Faker()
+      style: primary
+      start: 7
+      end: 14
+    - source: Faker
+      style: secondary
+      start: 7
+      end: 12
+  ? |
     key = uuid4()
   : labels:
     - source: uuid4()
@@ -12,6 +72,90 @@ snapshots:
       start: 6
       end: 11
   ? |
+    mode = os.environ["PAYMENTS_MODE"]
+  : labels:
+    - source: os.environ
+      style: primary
+      start: 7
+      end: 17
+  ? |
+    mode = os.getenv("PAYMENTS_MODE")
+  : labels:
+    - source: os.getenv("PAYMENTS_MODE")
+      style: primary
+      start: 7
+      end: 33
+    - source: os.getenv
+      style: secondary
+      start: 7
+      end: 16
+  ? |
+    names = os.listdir(folder)
+  : labels:
+    - source: os.listdir(folder)
+      style: primary
+      start: 8
+      end: 26
+    - source: os.listdir
+      style: secondary
+      start: 8
+      end: 18
+  ? |
+    reports = list(folder.glob("*.csv"))
+  : labels:
+    - source: folder.glob("*.csv")
+      style: primary
+      start: 15
+      end: 35
+    - source: folder.glob
+      style: secondary
+      start: 15
+      end: 26
+  ? |
+    rng = random.Random(42)
+  : labels:
+    - source: random.Random(42)
+      style: primary
+      start: 6
+      end: 23
+    - source: random.Random
+      style: secondary
+      start: 6
+      end: 19
+  ? |
+    root = Path.cwd()
+  : labels:
+    - source: Path.cwd()
+      style: primary
+      start: 7
+      end: 17
+    - source: Path.cwd
+      style: secondary
+      start: 7
+      end: 15
+  ? |
+    root = Path.home()
+  : labels:
+    - source: Path.home()
+      style: primary
+      start: 7
+      end: 18
+    - source: Path.home
+      style: secondary
+      start: 7
+      end: 16
+  ? |
+    sku = random.choice(skus)
+  : labels:
+    - source: random.choice(skus)
+      style: primary
+      start: 6
+      end: 25
+    - source: random.choice
+      style: secondary
+      start: 6
+      end: 19
+  ? |
     stamp = datetime.now()
   : labels:
     - source: datetime.now()
@@ -22,3 +166,83 @@ snapshots:
       style: secondary
       start: 8
       end: 20
+  ? |
+    started = time.monotonic()
+  : labels:
+    - source: time.monotonic()
+      style: primary
+      start: 10
+      end: 26
+    - source: time.monotonic
+      style: secondary
+      start: 10
+      end: 24
+  ? |
+    started = time.time()
+  : labels:
+    - source: time.time()
+      style: primary
+      start: 10
+      end: 21
+    - source: time.time
+      style: secondary
+      start: 10
+      end: 19
+  ? |
+    tags = set(order.tags)
+  : labels:
+    - source: set(order.tags)
+      style: primary
+      start: 7
+      end: 22
+    - source: set
+      style: secondary
+      start: 7
+      end: 10
+  ? |
+    tags = {"gift", "rush"}
+  : labels:
+    - source: '{"gift", "rush"}'
+      style: primary
+      start: 7
+      end: 23
+  ? |
+    tags = {tag.name for tag in order.tags}
+  : labels:
+    - source: '{tag.name for tag in order.tags}'
+      style: primary
+      start: 7
+      end: 39
+  ? |
+    time.sleep(0.1)
+  : labels:
+    - source: time.sleep(0.1)
+      style: primary
+      start: 0
+      end: 15
+    - source: time.sleep
+      style: secondary
+      start: 0
+      end: 10
+  ? |
+    token = secrets.token_hex(8)
+  : labels:
+    - source: secrets.token_hex(8)
+      style: primary
+      start: 8
+      end: 28
+    - source: secrets.token_hex
+      style: secondary
+      start: 8
+      end: 25
+  ? |
+    worker = threading.Thread(target=run)
+  : labels:
+    - source: threading.Thread(target=run)
+      style: primary
+      start: 9
+      end: 37
+    - source: threading.Thread
+      style: secondary
+      start: 9
+      end: 25

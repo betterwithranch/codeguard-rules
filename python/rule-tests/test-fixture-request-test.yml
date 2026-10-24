@@ -1,0 +1,41 @@
+id: test-fixture-request
+valid:
+  # Helper function parameters
+  - |
+    def make_example_model(name):
+        return ExampleModel(name=name)
+
+  # Fixture parameters and a decorator that is not usefixtures
+  - |
+    @pytest.fixture
+    def example_model(example_session):
+        return ExampleModel(example_session)
+invalid:
+  # Empty test function parameter list
+  - |
+    def test_example():
+        assert run()
+
+  # Test function parameter list
+  - |
+    def test_example(example_model):
+        assert example_model.active
+
+  # Test method parameter list
+  - |
+    class TestExample:
+        def test_example(self, example_model):
+            assert example_model.active
+
+  # usefixtures mark on a test
+  - |
+    @pytest.mark.usefixtures("example_flags")
+    def test_example():
+        assert run()
+
+  # usefixtures mark on a test class
+  - |
+    @pytest.mark.usefixtures("example_flags")
+    class TestExample:
+        def test_example(self):
+            assert run()

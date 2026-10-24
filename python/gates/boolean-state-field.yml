@@ -1,0 +1,34 @@
+id: boolean-state-field
+language: python
+rule:
+  any:
+  - kind: assignment
+    inside:
+      kind: expression_statement
+      inside:
+        kind: block
+        inside:
+          kind: class_definition
+          field: body
+    has:
+      field: type
+      regex: \bbool\b
+  - kind: call
+    has:
+      field: function
+      regex: (^|\.)(BooleanField|NullBooleanField)$
+  - kind: call
+    has:
+      field: arguments
+      has:
+        regex: ^(sqlalchemy\.|sa\.)?Boolean(\(\))?$
+  - kind: assignment
+    all:
+    - has:
+        field: left
+        kind: attribute
+    - has:
+        field: right
+        any:
+        - kind: 'true'
+        - kind: 'false'

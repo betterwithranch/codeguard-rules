@@ -1,29 +1,49 @@
 id: module-constant
 snapshots:
   ? |
-    ORDER = Order(id=7)
+    EXAMPLE = ExampleModel(id=7)
   : labels:
-    - source: ORDER = Order(id=7)
+    - source: EXAMPLE = ExampleModel(id=7)
+      style: primary
+      start: 0
+      end: 28
+    - source: |
+        EXAMPLE = ExampleModel(id=7)
+      style: secondary
+      start: 0
+      end: 29
+    - source: EXAMPLE = ExampleModel(id=7)
+      style: secondary
+      start: 0
+      end: 28
+    - source: EXAMPLE
+      style: secondary
+      start: 0
+      end: 7
+  ? |
+    EXAMPLE_ID = "ex-1"
+  : labels:
+    - source: EXAMPLE_ID = "ex-1"
       style: primary
       start: 0
       end: 19
     - source: |
-        ORDER = Order(id=7)
+        EXAMPLE_ID = "ex-1"
       style: secondary
       start: 0
       end: 20
-    - source: ORDER = Order(id=7)
+    - source: EXAMPLE_ID = "ex-1"
       style: secondary
       start: 0
       end: 19
-    - source: ORDER
+    - source: EXAMPLE_ID
       style: secondary
       start: 0
-      end: 5
+      end: 10
   ? |
-    from tests.data import ORDER_ID
+    from tests.data import EXAMPLE_ID
   : labels:
-    - source: from tests.data import ORDER_ID
+    - source: from tests.data import EXAMPLE_ID
       style: primary
       start: 0
-      end: 31
+      end: 33

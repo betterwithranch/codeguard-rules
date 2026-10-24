@@ -1,0 +1,73 @@
+id: type-switch
+snapshots:
+  ? |
+    handler = handlers[type(payment)]
+  : labels:
+    - source: handlers[type(payment)]
+      style: primary
+      start: 10
+      end: 33
+    - source: type
+      style: secondary
+      start: 19
+      end: 23
+    - source: type(payment)
+      style: secondary
+      start: 19
+      end: 32
+  ? |
+    if isinstance(payment, ExampleCard):
+        pass
+  : labels:
+    - source: isinstance(payment, ExampleCard)
+      style: primary
+      start: 3
+      end: 35
+    - source: isinstance
+      style: secondary
+      start: 3
+      end: 13
+  ? |
+    if issubclass(kind, ExampleCard):
+        pass
+  : labels:
+    - source: issubclass(kind, ExampleCard)
+      style: primary
+      start: 3
+      end: 32
+    - source: issubclass
+      style: secondary
+      start: 3
+      end: 13
+  ? |
+    if type(payment) is ExampleCard:
+        pass
+  : labels:
+    - source: type(payment) is ExampleCard
+      style: primary
+      start: 3
+      end: 31
+    - source: type
+      style: secondary
+      start: 3
+      end: 7
+    - source: type(payment)
+      style: secondary
+      start: 3
+      end: 16
+  ? |
+    match payment:
+        case ExampleCard():
+            pass
+  : labels:
+    - source: |-
+        match payment:
+            case ExampleCard():
+                pass
+      style: primary
+      start: 0
+      end: 51
+    - source: ExampleCard()
+      style: secondary
+      start: 24
+      end: 37

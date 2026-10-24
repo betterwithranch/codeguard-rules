@@ -1,0 +1,386 @@
+id: unpacked-argument-group
+snapshots:
+  ? |
+    def quote(args):
+        return build_quote(**args._asdict())
+  : labels:
+    - source: build_quote(**args._asdict())
+      style: primary
+      start: 28
+      end: 57
+    - source: args._asdict
+      style: secondary
+      start: 42
+      end: 54
+    - source: args._asdict()
+      style: secondary
+      start: 42
+      end: 56
+    - source: '**args._asdict()'
+      style: secondary
+      start: 40
+      end: 56
+    - source: '**args._asdict()'
+      style: secondary
+      start: 40
+      end: 56
+  ? |
+    def quote(args):
+        return build_quote(**args.model_dump())
+  : labels:
+    - source: build_quote(**args.model_dump())
+      style: primary
+      start: 28
+      end: 60
+    - source: args.model_dump
+      style: secondary
+      start: 42
+      end: 57
+    - source: args.model_dump()
+      style: secondary
+      start: 42
+      end: 59
+    - source: '**args.model_dump()'
+      style: secondary
+      start: 40
+      end: 59
+    - source: '**args.model_dump()'
+      style: secondary
+      start: 40
+      end: 59
+  ? |
+    def quote(args):
+        return build_quote(**vars(args))
+  : labels:
+    - source: build_quote(**vars(args))
+      style: primary
+      start: 28
+      end: 53
+    - source: vars
+      style: secondary
+      start: 42
+      end: 46
+    - source: vars(args)
+      style: secondary
+      start: 42
+      end: 52
+    - source: '**vars(args)'
+      style: secondary
+      start: 40
+      end: 52
+    - source: '**vars(args)'
+      style: secondary
+      start: 40
+      end: 52
+  ? |
+    def quote(cart, region):
+        args = QuoteArgs(cart, region)
+        return build_quote(normalize(args.cart))
+  : labels:
+    - source: build_quote(normalize(args.cart))
+      style: primary
+      start: 71
+      end: 104
+    - source: args
+      style: secondary
+      start: 93
+      end: 97
+    - source: args.cart
+      style: secondary
+      start: 93
+      end: 102
+    - source: args.cart
+      style: secondary
+      start: 93
+      end: 102
+    - source: args
+      style: secondary
+      start: 29
+      end: 33
+    - source: QuoteArgs
+      style: secondary
+      start: 36
+      end: 45
+    - source: QuoteArgs(cart, region)
+      style: secondary
+      start: 36
+      end: 59
+    - source: args = QuoteArgs(cart, region)
+      style: secondary
+      start: 29
+      end: 59
+    - source: args = QuoteArgs(cart, region)
+      style: secondary
+      start: 29
+      end: 59
+    - source: args = QuoteArgs(cart, region)
+      style: secondary
+      start: 29
+      end: 59
+    - source: |-
+        def quote(cart, region):
+            args = QuoteArgs(cart, region)
+            return build_quote(normalize(args.cart))
+      style: secondary
+      start: 0
+      end: 104
+  ? |
+    def quote(cart, region):
+        args = QuoteArgs(cart=cart, region=region)
+        return build_quote(**args)
+  : labels:
+    - source: build_quote(**args)
+      style: primary
+      start: 83
+      end: 102
+    - source: args
+      style: secondary
+      start: 97
+      end: 101
+    - source: '**args'
+      style: secondary
+      start: 95
+      end: 101
+    - source: '**args'
+      style: secondary
+      start: 95
+      end: 101
+    - source: args
+      style: secondary
+      start: 29
+      end: 33
+    - source: QuoteArgs
+      style: secondary
+      start: 36
+      end: 45
+    - source: QuoteArgs(cart=cart, region=region)
+      style: secondary
+      start: 36
+      end: 71
+    - source: args = QuoteArgs(cart=cart, region=region)
+      style: secondary
+      start: 29
+      end: 71
+    - source: args = QuoteArgs(cart=cart, region=region)
+      style: secondary
+      start: 29
+      end: 71
+    - source: args = QuoteArgs(cart=cart, region=region)
+      style: secondary
+      start: 29
+      end: 71
+    - source: |-
+        def quote(cart, region):
+            args = QuoteArgs(cart=cart, region=region)
+            return build_quote(**args)
+      style: secondary
+      start: 0
+      end: 102
+  ? |
+    def quote(cart, region):
+        args = QuoteArgs(cart=cart, region=region)
+        return build_quote(args.cart, args.region)
+  : labels:
+    - source: build_quote(args.cart, args.region)
+      style: primary
+      start: 83
+      end: 118
+    - source: args
+      style: secondary
+      start: 95
+      end: 99
+    - source: args.cart
+      style: secondary
+      start: 95
+      end: 104
+    - source: args.cart
+      style: secondary
+      start: 95
+      end: 104
+    - source: args
+      style: secondary
+      start: 29
+      end: 33
+    - source: QuoteArgs
+      style: secondary
+      start: 36
+      end: 45
+    - source: QuoteArgs(cart=cart, region=region)
+      style: secondary
+      start: 36
+      end: 71
+    - source: args = QuoteArgs(cart=cart, region=region)
+      style: secondary
+      start: 29
+      end: 71
+    - source: args = QuoteArgs(cart=cart, region=region)
+      style: secondary
+      start: 29
+      end: 71
+    - source: args = QuoteArgs(cart=cart, region=region)
+      style: secondary
+      start: 29
+      end: 71
+    - source: |-
+        def quote(cart, region):
+            args = QuoteArgs(cart=cart, region=region)
+            return build_quote(args.cart, args.region)
+      style: secondary
+      start: 0
+      end: 118
+  ? |
+    def quote(cart, region):
+        args = QuoteArgs(cart=cart, region=region)
+        return build_quote(args["cart"], args["region"])
+  : labels:
+    - source: build_quote(args["cart"], args["region"])
+      style: primary
+      start: 83
+      end: 124
+    - source: args
+      style: secondary
+      start: 95
+      end: 99
+    - source: '"cart"'
+      style: secondary
+      start: 100
+      end: 106
+    - source: args["cart"]
+      style: secondary
+      start: 95
+      end: 107
+    - source: args["cart"]
+      style: secondary
+      start: 95
+      end: 107
+    - source: args
+      style: secondary
+      start: 29
+      end: 33
+    - source: QuoteArgs
+      style: secondary
+      start: 36
+      end: 45
+    - source: QuoteArgs(cart=cart, region=region)
+      style: secondary
+      start: 36
+      end: 71
+    - source: args = QuoteArgs(cart=cart, region=region)
+      style: secondary
+      start: 29
+      end: 71
+    - source: args = QuoteArgs(cart=cart, region=region)
+      style: secondary
+      start: 29
+      end: 71
+    - source: args = QuoteArgs(cart=cart, region=region)
+      style: secondary
+      start: 29
+      end: 71
+    - source: |-
+        def quote(cart, region):
+            args = QuoteArgs(cart=cart, region=region)
+            return build_quote(args["cart"], args["region"])
+      style: secondary
+      start: 0
+      end: 124
+  ? |
+    def quote(cart, region):
+        args = quoting.QuoteArgs(cart, region)
+        return build_quote(cart=args.cart)
+  : labels:
+    - source: build_quote(cart=args.cart)
+      style: primary
+      start: 79
+      end: 106
+    - source: args
+      style: secondary
+      start: 96
+      end: 100
+    - source: args.cart
+      style: secondary
+      start: 96
+      end: 105
+    - source: args.cart
+      style: secondary
+      start: 96
+      end: 105
+    - source: args
+      style: secondary
+      start: 29
+      end: 33
+    - source: quoting.QuoteArgs
+      style: secondary
+      start: 36
+      end: 53
+    - source: quoting.QuoteArgs(cart, region)
+      style: secondary
+      start: 36
+      end: 67
+    - source: args = quoting.QuoteArgs(cart, region)
+      style: secondary
+      start: 29
+      end: 67
+    - source: args = quoting.QuoteArgs(cart, region)
+      style: secondary
+      start: 29
+      end: 67
+    - source: args = quoting.QuoteArgs(cart, region)
+      style: secondary
+      start: 29
+      end: 67
+    - source: |-
+        def quote(cart, region):
+            args = quoting.QuoteArgs(cart, region)
+            return build_quote(cart=args.cart)
+      style: secondary
+      start: 0
+      end: 106
+  ? |
+    def quote(cart, region):
+        return build_quote(**asdict(QuoteArgs(cart=cart, region=region)))
+  : labels:
+    - source: build_quote(**asdict(QuoteArgs(cart=cart, region=region)))
+      style: primary
+      start: 36
+      end: 94
+    - source: asdict
+      style: secondary
+      start: 50
+      end: 56
+    - source: asdict(QuoteArgs(cart=cart, region=region))
+      style: secondary
+      start: 50
+      end: 93
+    - source: '**asdict(QuoteArgs(cart=cart, region=region))'
+      style: secondary
+      start: 48
+      end: 93
+    - source: '**asdict(QuoteArgs(cart=cart, region=region))'
+      style: secondary
+      start: 48
+      end: 93
+  ? |
+    def quote(cart, region):
+        return build_quote(*astuple(QuoteArgs(cart, region)))
+  : labels:
+    - source: build_quote(*astuple(QuoteArgs(cart, region)))
+      style: primary
+      start: 36
+      end: 82
+    - source: astuple
+      style: secondary
+      start: 49
+      end: 56
+    - source: astuple(QuoteArgs(cart, region))
+      style: secondary
+      start: 49
+      end: 81
+    - source: '*astuple(QuoteArgs(cart, region))'
+      style: secondary
+      start: 48
+      end: 81
+    - source: '*astuple(QuoteArgs(cart, region))'
+      style: secondary
+      start: 48
+      end: 81

@@ -1,5 +1,5 @@
 cases:
-  - name: imports params and result from own modules
+  - name: imports params and result from their own modules
     inputs:
       file: retry/retry_attempt_policy.py
       after: |
@@ -11,9 +11,26 @@ cases:
             def next_attempt(self, params: RetryAttemptParams) -> RetryAttempt:
                 delay = min(2**params.attempt, params.max_delay_seconds)
                 return RetryAttempt(number=params.attempt + 1, delay_seconds=delay)
+      unchanged:
+        retry/retry_attempt.py: |
+          from dataclasses import dataclass
+
+
+          @dataclass(frozen=True)
+          class RetryAttempt:
+              number: int
+              delay_seconds: int
+        retry/retry_attempt_params.py: |
+          from dataclasses import dataclass
+
+
+          @dataclass(frozen=True)
+          class RetryAttemptParams:
+              attempt: int
+              max_delay_seconds: int
     expected_output:
       outcome: invalid
-  - name: moves params and result into separate modules
+  - name: moves params and result out to separate modules
     inputs:
       file: retry/retry_attempt_policy.py
       before: |
@@ -45,6 +62,23 @@ cases:
             def next_attempt(self, params: RetryAttemptParams) -> RetryAttempt:
                 delay = min(2**params.attempt, params.max_delay_seconds)
                 return RetryAttempt(number=params.attempt + 1, delay_seconds=delay)
+      unchanged:
+        retry/retry_attempt.py: |
+          from dataclasses import dataclass
+
+
+          @dataclass(frozen=True)
+          class RetryAttempt:
+              number: int
+              delay_seconds: int
+        retry/retry_attempt_params.py: |
+          from dataclasses import dataclass
+
+
+          @dataclass(frozen=True)
+          class RetryAttemptParams:
+              attempt: int
+              max_delay_seconds: int
     expected_output:
       outcome: invalid
   - name: keeps params and result with the policy
@@ -72,6 +106,179 @@ cases:
                 return RetryAttempt(number=params.attempt + 1, delay_seconds=delay)
     expected_output:
       outcome: valid
+  - name: adds a pydantic result module only the quoter uses
+    inputs:
+      file: shipping/quote_result.py
+      after: |
+        from pydantic import BaseModel
+
+
+        class QuoteResult(BaseModel):
+            carrier: str
+            cents: int
+            transit_days: int
+      unchanged:
+        shipping/rate_quoter.py: |
+          from shipping.quote_result import QuoteResult
+
+
+          class RateQuoter:
+              def __init__(self, carriers) -> None:
+                  self._carriers = carriers
+
+              def cheapest(self, weight_grams: int) -> QuoteResult:
+                  quotes = [carrier.quote(weight_grams) for carrier in self._carriers]
+                  best = min(quotes, key=lambda quote: quote.cents)
+                  return QuoteResult(carrier=best.name, cents=best.cents, transit_days=best.days)
+    expected_output:
+      outcome: invalid
+  - name: adds a pydantic result module the quoter and a report use
+    inputs:
+      file: shipping/quote_result.py
+      after: |
+        from pydantic import BaseModel
+
+
+        class QuoteResult(BaseModel):
+            carrier: str
+            cents: int
+            transit_days: int
+      unchanged:
+        shipping/rate_quoter.py: |
+          from shipping.quote_result import QuoteResult
+
+
+          class RateQuoter:
+              def __init__(self, carriers) -> None:
+                  self._carriers = carriers
+
+              def cheapest(self, weight_grams: int) -> QuoteResult:
+                  quotes = [carrier.quote(weight_grams) for carrier in self._carriers]
+                  best = min(quotes, key=lambda quote: quote.cents)
+                  return QuoteResult(carrier=best.name, cents=best.cents, transit_days=best.days)
+        reports/shipping_costs.py: |
+          from shipping.quote_result import QuoteResult
+
+
+          class ShippingCostReport:
+              def line(self, quote: QuoteResult) -> str:
+                  return f"{quote.carrier}: {quote.cents / 100:.2f} in {quote.transit_days} days"
+    expected_output:
+      outcome: valid
+  - name: imports a sync summary TypedDict only the syncer uses
+    inputs:
+      file: inventory/stock_syncer.py
+      before: |
+        class StockSyncer:
+            def __init__(self, warehouse) -> None:
+                self._warehouse = warehouse
+      after: |
+        from inventory.sync_summary import SyncSummary
+
+
+        class StockSyncer:
+            def __init__(self, warehouse) -> None:
+                self._warehouse = warehouse
+
+            def sync(self, skus: list[str]) -> SyncSummary:
+                changed = [sku for sku in skus if self._warehouse.refresh(sku)]
+                return SyncSummary(checked=len(skus), changed=len(changed))
+      unchanged:
+        inventory/sync_summary.py: |
+          from typing import TypedDict
+
+
+          class SyncSummary(TypedDict):
+              checked: int
+              changed: int
+    expected_output:
+      outcome: invalid
+  - name: imports a sync summary TypedDict a command also prints
+    inputs:
+      file: inventory/stock_syncer.py
+      before: |
+        class StockSyncer:
+            def __init__(self, warehouse) -> None:
+                self._warehouse = warehouse
+      after: |
+        from inventory.sync_summary import SyncSummary
+
+
+        class StockSyncer:
+            def __init__(self, warehouse) -> None:
+                self._warehouse = warehouse
+
+            def sync(self, skus: list[str]) -> SyncSummary:
+                changed = [sku for sku in skus if self._warehouse.refresh(sku)]
+                return SyncSummary(checked=len(skus), changed=len(changed))
+      unchanged:
+        inventory/sync_summary.py: |
+          from typing import TypedDict
+
+
+          class SyncSummary(TypedDict):
+              checked: int
+              changed: int
+        inventory/commands/print_sync.py: |
+          from inventory.sync_summary import SyncSummary
+
+
+          def print_summary(summary: SyncSummary) -> None:
+              print(f"checked {summary['checked']}, changed {summary['changed']}")
+    expected_output:
+      outcome: valid
+  - name: imports an attrs window shape only the limiter uses
+    inputs:
+      file: throttling/rate_limiter.py
+      after: |
+        from throttling.window import Window
+
+
+        class RateLimiter:
+            def __init__(self, limit: int) -> None:
+                self._limit = limit
+
+            def allows(self, window: Window) -> bool:
+                return window.count < self._limit
+      unchanged:
+        throttling/window.py: |
+          import attrs
+
+
+          @attrs.frozen
+          class Window:
+              started_at: float
+              count: int
+    expected_output:
+      outcome: invalid
+  - name: imports a clock class with behavior that only the limiter uses
+    inputs:
+      file: throttling/rate_limiter.py
+      after: |
+        from throttling.window_clock import WindowClock
+
+
+        class RateLimiter:
+            def __init__(self, limit: int, clock: WindowClock) -> None:
+                self._limit = limit
+                self._clock = clock
+
+            def allows(self, count: int) -> bool:
+                return self._clock.window_open() and count < self._limit
+      unchanged:
+        throttling/window_clock.py: |
+          import time
+
+
+          class WindowClock:
+              def __init__(self, seconds: float) -> None:
+                  self._seconds = seconds
+                  self._started_at = time.monotonic()
+
+              def window_open(self) -> bool:
+                  return time.monotonic() - self._started_at < self._seconds
+    expected_output:
+      outcome: valid
   - name: reads max delay from params
     inputs:
       file: retry/retry_attempt_policy.py
@@ -83,5 +290,25 @@ cases:
         class RetryAttemptPolicy:
             def next_attempt(self, params):
                 return min(2**params.attempt, params.max_delay_seconds)
+    expected_output:
+      outcome: skipped
+  - name: adds a field to a result shape
+    inputs:
+      file: shipping/quote_result.py
+      before: |
+        from pydantic import BaseModel
+
+
+        class QuoteResult(BaseModel):
+            carrier: str
+            cents: int
+      after: |
+        from pydantic import BaseModel
+
+
+        class QuoteResult(BaseModel):
+            carrier: str
+            cents: int
+            transit_days: int
     expected_output:
       outcome: skipped

@@ -13,10 +13,13 @@ rule:
         kind: block
         inside:
           kind: class_definition
+  not:
+    has:
+      field: name
+      regex: ^__init__$
   has:
     field: parameters
     has:
-      nthChild: 2
       any:
       - kind: identifier
       - kind: typed_parameter
@@ -24,3 +27,5 @@ rule:
       - kind: typed_default_parameter
       - kind: list_splat_pattern
       - kind: dictionary_splat_pattern
+      not:
+        regex: ^(self|cls)$

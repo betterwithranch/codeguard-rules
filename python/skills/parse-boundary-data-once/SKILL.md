@@ -16,8 +16,13 @@ parse returns.
 
 ## The test
 
-For each read of data by a key, an index, a position, or by splitting text, ask which
-code states the shape being read.
+A shape read picks out a part of the data by something the outside source's format
+defines: a key (`error["carrier"]`), an index or position (`events[-1]`), or a
+delimiter-separated field (`line.split(":")[0]` on grep output). Treating text only as
+text is not a shape read: splitting it into lines to number, window, count or show
+them, hashing it, storing or passing it on.
+
+For each shape read, ask which code states the shape being read.
 
 Declared, so reading it by attribute or by its declared keys is not a violation, whether
 it is an object or a dict:
@@ -36,26 +41,48 @@ Undeclared:
   command or file returns;
 - a value annotated `dict[str, Any]`, `Any`, or a bare `dict` that holds one of these.
 
-## Violation
-
-Undeclared data read outside the parse:
-
-- used to compute a result, format output or decide what to do
-  (`f"{error['carrier']}: {error['reason']}"`, `if alert["urgent"]`, hours computed from
-  `payload["events"][-1]["timestamp"]`);
-- passed on to code that reads it that way;
-- read where a parsed value for the same data already exists.
-
 ## The parse
 
-Code whose job is to turn undeclared data into declared values. It reads the raw keys,
-positions and text and returns declared values: an object, typed values such as a path,
-a number, a datetime or an enum member, or a declared dict. It may span any number of
-functions, constructors and helpers. Handing undeclared data straight to a declaration
-that checks it is the parse: `Model.model_validate(raw)`, `Serializer(data=raw)`, a
-dispatcher that binds it to a typed function's parameters (`handler(**raw)`).
+The parse is the code that turns undeclared data into declared values: an object, a
+model, a declared dict, a typed value such as a path, a number, a datetime or an enum
+member, or a collection of these (`list[Path]`, `Iterator[TrackingEvent]`). It may span
+several functions, constructors and helpers, including one that receives the raw data
+from another and yields part of the result. Handing undeclared data straight to a
+declaration that checks it is the parse: `Model.model_validate(raw)`,
+`Serializer(data=raw)`, `Diagnostic.from_json(item)` for each item of a raw list, a
+dispatcher that binds it to a typed function's parameters (`handler(**raw)`). So is
+choosing which declaration parses it (routing on a document's `kind` key), and checking
+it to accept or reject it: a validator, including a pydantic `mode="before"` validator
+that reads raw keys, or a check that raises an error about the data's format before
+the parse proceeds.
+
+"Once" is about where, not when: one piece of code reads each raw field, however many
+times it runs.
+
+For each shape read of undeclared data, follow the value it produces: does it go into
+building a declared value, as a field of it, an argument to its constructor or
+validator, the choice of which one parses the data, or the decision to reject it? Yes
+is the parse, unless another
+function in the file also reads the same raw field.
+
+## Violation
+
+A shape read of undeclared data whose value goes somewhere other than building a
+declared value, reported on the line of the read:
+
+- into a formatted message, a count or a computed result, or a decision about what the
+  program does next, other than rejecting the data (`f"{error['carrier']}: {error['reason']}"`, `len(lines)` of grep matches,
+  `if alert["urgent"]: page(on_call)`, hours computed from
+  `payload["events"][-1]["timestamp"]`);
+- a second read of a raw field another function in the file also reads
+  (`payload["events"][-1]` in three functions, each picking a different key);
+- a read where a parsed value for the same data already exists;
+- undeclared data passed on to code outside the parse that reads it in one of these
+  ways.
 
 Data the program builds itself is not outside data, whatever its shape: a
 `model_dump()` of its own model, a `tuple[SyntaxNode, bytes]` passed between its own
 methods, a union of its own types. A third-party object's typed methods and attributes
-are declared; calling them is not reading a raw shape.
+are declared; calling them is not reading a raw shape. What such a method returns is
+undeclared when its type is a raw dict, a list of raw dicts, or text
+(`failure.errors() -> list[dict[str, Any]]`).

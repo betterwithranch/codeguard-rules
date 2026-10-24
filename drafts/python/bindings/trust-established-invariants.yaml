@@ -1,4 +1,0 @@
-skill: python/skills/trust-established-invariants
-paths: ["**/*.py"]
-exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
-triggers: [guard-check]

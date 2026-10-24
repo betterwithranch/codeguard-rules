@@ -1,0 +1,3 @@
+skill: python/skills/no-internal-call-assertions
+paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
+triggers: [call-assertion]

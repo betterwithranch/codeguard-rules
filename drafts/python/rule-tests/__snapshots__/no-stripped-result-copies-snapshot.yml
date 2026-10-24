@@ -1,0 +1,301 @@
+id: no-stripped-result-copies
+snapshots:
+  ? |
+    def test_order():
+        actual = attrs.evolve(order, id=None)
+        assert ExampleOrder(id=None, total=1) == actual
+  : labels:
+    - source: actual = attrs.evolve(order, id=None)
+      style: primary
+      start: 22
+      end: 59
+    - source: actual
+      style: secondary
+      start: 22
+      end: 28
+    - source: attrs.evolve
+      style: secondary
+      start: 31
+      end: 43
+    - source: None
+      style: secondary
+      start: 54
+      end: 58
+    - source: id=None
+      style: secondary
+      start: 51
+      end: 58
+    - source: id=None
+      style: secondary
+      start: 51
+      end: 58
+    - source: attrs.evolve(order, id=None)
+      style: secondary
+      start: 31
+      end: 59
+    - source: actual = attrs.evolve(order, id=None)
+      style: secondary
+      start: 22
+      end: 59
+    - source: assert ExampleOrder(id=None, total=1) == actual
+      style: secondary
+      start: 64
+      end: 111
+  ? |
+    def test_order():
+        actual = dataclasses.replace(order, id=None)
+        assert actual == ExampleOrder(id=None, total=1)
+  : labels:
+    - source: actual = dataclasses.replace(order, id=None)
+      style: primary
+      start: 22
+      end: 66
+    - source: actual
+      style: secondary
+      start: 22
+      end: 28
+    - source: dataclasses.replace
+      style: secondary
+      start: 31
+      end: 50
+    - source: None
+      style: secondary
+      start: 61
+      end: 65
+    - source: id=None
+      style: secondary
+      start: 58
+      end: 65
+    - source: id=None
+      style: secondary
+      start: 58
+      end: 65
+    - source: dataclasses.replace(order, id=None)
+      style: secondary
+      start: 31
+      end: 66
+    - source: actual = dataclasses.replace(order, id=None)
+      style: secondary
+      start: 22
+      end: 66
+    - source: assert actual == ExampleOrder(id=None, total=1)
+      style: secondary
+      start: 71
+      end: 118
+  ? |
+    def test_order():
+        actual = order.model_copy(update={"id": None})
+        assert actual == expected
+  : labels:
+    - source: 'actual = order.model_copy(update={"id": None})'
+      style: primary
+      start: 22
+      end: 68
+    - source: actual
+      style: secondary
+      start: 22
+      end: 28
+    - source: order.model_copy
+      style: secondary
+      start: 31
+      end: 47
+    - source: update
+      style: secondary
+      start: 48
+      end: 54
+    - source: None
+      style: secondary
+      start: 62
+      end: 66
+    - source: '"id": None'
+      style: secondary
+      start: 56
+      end: 66
+    - source: '"id": None'
+      style: secondary
+      start: 56
+      end: 66
+    - source: 'update={"id": None}'
+      style: secondary
+      start: 48
+      end: 67
+    - source: 'update={"id": None}'
+      style: secondary
+      start: 48
+      end: 67
+    - source: 'order.model_copy(update={"id": None})'
+      style: secondary
+      start: 31
+      end: 68
+    - source: 'actual = order.model_copy(update={"id": None})'
+      style: secondary
+      start: 22
+      end: 68
+    - source: assert actual == expected
+      style: secondary
+      start: 73
+      end: 98
+  ? |
+    def test_order():
+        actual = order.model_dump(exclude={"id"})
+        assert actual == {"total": 1}
+  : labels:
+    - source: actual = order.model_dump(exclude={"id"})
+      style: primary
+      start: 22
+      end: 63
+    - source: actual
+      style: secondary
+      start: 22
+      end: 28
+    - source: order.model_dump
+      style: secondary
+      start: 31
+      end: 47
+    - source: exclude
+      style: secondary
+      start: 48
+      end: 55
+    - source: exclude={"id"}
+      style: secondary
+      start: 48
+      end: 62
+    - source: exclude={"id"}
+      style: secondary
+      start: 48
+      end: 62
+    - source: order.model_dump(exclude={"id"})
+      style: secondary
+      start: 31
+      end: 63
+    - source: actual = order.model_dump(exclude={"id"})
+      style: secondary
+      start: 22
+      end: 63
+    - source: 'assert actual == {"total": 1}'
+      style: secondary
+      start: 68
+      end: 97
+  ? |
+    def test_order():
+        order = place_order()
+        order.created_at = None
+        assert order == ExampleOrder(created_at=None, total=1)
+  : labels:
+    - source: order.created_at = None
+      style: primary
+      start: 48
+      end: 71
+    - source: order
+      style: secondary
+      start: 48
+      end: 53
+    - source: order.created_at
+      style: secondary
+      start: 48
+      end: 64
+    - source: None
+      style: secondary
+      start: 67
+      end: 71
+    - source: order.created_at = None
+      style: secondary
+      start: 48
+      end: 71
+    - source: assert order == ExampleOrder(created_at=None, total=1)
+      style: secondary
+      start: 76
+      end: 130
+  ? |
+    def test_row():
+        actual = {key: value for key, value in row.items() if key != "id"}
+        assert actual == {"total": 1}
+  : labels:
+    - source: 'actual = {key: value for key, value in row.items() if key != "id"}'
+      style: primary
+      start: 20
+      end: 86
+    - source: actual
+      style: secondary
+      start: 20
+      end: 26
+    - source: if key != "id"
+      style: secondary
+      start: 71
+      end: 85
+    - source: '{key: value for key, value in row.items() if key != "id"}'
+      style: secondary
+      start: 29
+      end: 86
+    - source: 'actual = {key: value for key, value in row.items() if key != "id"}'
+      style: secondary
+      start: 20
+      end: 86
+    - source: 'assert actual == {"total": 1}'
+      style: secondary
+      start: 91
+      end: 120
+  ? |
+    def test_row():
+        row = load_row()
+        del row["id"]
+        assert row == {"total": 1}
+  : labels:
+    - source: del row["id"]
+      style: primary
+      start: 41
+      end: 54
+    - source: row
+      style: secondary
+      start: 45
+      end: 48
+    - source: '"id"'
+      style: secondary
+      start: 49
+      end: 53
+    - source: row["id"]
+      style: secondary
+      start: 45
+      end: 54
+    - source: 'assert row == {"total": 1}'
+      style: secondary
+      start: 59
+      end: 85
+  ? |
+    def test_row():
+        row = load_row()
+        row.pop("id")
+        assert row == {"total": 1}
+  : labels:
+    - source: row.pop("id")
+      style: primary
+      start: 41
+      end: 54
+    - source: row
+      style: secondary
+      start: 41
+      end: 44
+    - source: pop
+      style: secondary
+      start: 45
+      end: 48
+    - source: row.pop
+      style: secondary
+      start: 41
+      end: 48
+    - source: '"id"'
+      style: secondary
+      start: 49
+      end: 53
+    - source: '"id"'
+      style: secondary
+      start: 49
+      end: 53
+    - source: row.pop("id")
+      style: secondary
+      start: 41
+      end: 54
+    - source: 'assert row == {"total": 1}'
+      style: secondary
+      start: 59
+      end: 85

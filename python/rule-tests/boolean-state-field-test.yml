@@ -1,0 +1,53 @@
+id: boolean-state-field
+valid:
+# A bool local in a method, not a field
+- |
+  class Order:
+      def ship(self):
+          done: bool = False
+          return done
+# A bool parameter
+- |
+  def ship(order, notify: bool = False):
+      return order
+# A non-bool field
+- |
+  @dataclass
+  class Order:
+      status: OrderStatus
+# An attribute set to a non-bool value
+- |
+  order.shipped_at = now
+# A bool local set to True
+- |
+  shipped = True
+invalid:
+# Dataclass bool field
+- |
+  @dataclass
+  class Order:
+      is_shipped: bool = False
+# Optional bool field
+- |
+  class Order(BaseModel):
+      is_paid: bool | None = None
+# SQLAlchemy Mapped[bool] field
+- |
+  class Order(Base):
+      is_paid: Mapped[bool] = mapped_column(default=False)
+# Django BooleanField
+- |
+  class Order(models.Model):
+      is_paid = models.BooleanField(default=False)
+# SQLAlchemy Column(Boolean)
+- |
+  class Order(Base):
+      is_paid = Column(Boolean, default=False)
+# Attribute set to True
+- |
+  order.is_shipped = True
+# Attribute set to False on self
+- |
+  class Order:
+      def cancel(self):
+          self.is_active = False

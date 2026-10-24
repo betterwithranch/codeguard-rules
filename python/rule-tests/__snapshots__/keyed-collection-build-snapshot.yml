@@ -1,31 +1,110 @@
 id: keyed-collection-build
 snapshots:
   ? |
-    for line in lines:
-        index[line.sku] = line
+    for order in orders:
+        index.update({order.customer_id: order})
   : labels:
-    - source: index[line.sku] = line
+    - source: 'index.update({order.customer_id: order})'
       style: primary
-      start: 23
-      end: 45
+      start: 25
+      end: 65
     - source: |-
-        for line in lines:
-            index[line.sku] = line
+        for order in orders:
+            index.update({order.customer_id: order})
       style: secondary
       start: 0
-      end: 45
-    - source: index[line.sku]
+      end: 65
+    - source: index.update
       style: secondary
-      start: 23
-      end: 38
+      start: 25
+      end: 37
   ? |
-    groups.setdefault(key, [])
+    for order in orders:
+        index[order.customer_id] = order
   : labels:
-    - source: groups.setdefault(key, [])
+    - source: index[order.customer_id] = order
+      style: primary
+      start: 25
+      end: 57
+    - source: |-
+        for order in orders:
+            index[order.customer_id] = order
+      style: secondary
+      start: 0
+      end: 57
+    - source: index[order.customer_id]
+      style: secondary
+      start: 25
+      end: 49
+  ? |
+    index = dict((order.customer_id, order) for order in orders)
+  : labels:
+    - source: dict((order.customer_id, order) for order in orders)
+      style: primary
+      start: 8
+      end: 60
+    - source: dict
+      style: secondary
+      start: 8
+      end: 12
+    - source: ((order.customer_id, order) for order in orders)
+      style: secondary
+      start: 12
+      end: 60
+  ? |
+    index = dict(zip(keys, orders))
+  : labels:
+    - source: dict(zip(keys, orders))
+      style: primary
+      start: 8
+      end: 31
+    - source: dict
+      style: secondary
+      start: 8
+      end: 12
+    - source: zip(keys, orders)
+      style: secondary
+      start: 13
+      end: 30
+    - source: (zip(keys, orders))
+      style: secondary
+      start: 12
+      end: 31
+  ? |
+    index = {order.customer_id: order for order in orders}
+  : labels:
+    - source: '{order.customer_id: order for order in orders}'
+      style: primary
+      start: 8
+      end: 54
+  ? |
+    index.setdefault(order.customer_id, order)
+  : labels:
+    - source: index.setdefault(order.customer_id, order)
       style: primary
       start: 0
-      end: 26
-    - source: groups.setdefault
+      end: 42
+    - source: index.setdefault
       style: secondary
       start: 0
-      end: 17
+      end: 16
+  ? |
+    while pending:
+        order = pending.pop()
+        index[order.customer_id] = order
+  : labels:
+    - source: index[order.customer_id] = order
+      style: primary
+      start: 45
+      end: 77
+    - source: |-
+        while pending:
+            order = pending.pop()
+            index[order.customer_id] = order
+      style: secondary
+      start: 0
+      end: 77
+    - source: index[order.customer_id]
+      style: secondary
+      start: 45
+      end: 69

@@ -2,13 +2,45 @@ id: guard-check
 language: python
 rule:
   any:
+  - kind: assert_statement
   - kind: call
     has:
       field: function
-      regex: ^(isinstance|cast|typing\.cast)$
+      regex: ^(isinstance|issubclass|cast|typing\.cast)$
   - kind: if_statement
     has:
       field: consequence
       has:
         kind: raise_statement
-  - kind: assert_statement
+  - kind: if_statement
+    has:
+      field: consequence
+      all:
+      - has:
+          nthChild: 1
+          any:
+          - kind: return_statement
+          - kind: continue_statement
+          - kind: break_statement
+      - not:
+          has:
+            nthChild: 2
+  - kind: elif_clause
+    has:
+      field: consequence
+      has:
+        kind: raise_statement
+  - kind: else_clause
+    has:
+      field: body
+      has:
+        kind: raise_statement
+  - kind: case_clause
+    has:
+      field: consequence
+      has:
+        kind: raise_statement
+  - kind: conditional_expression
+    has:
+      kind: comparison_operator
+      regex: \bis (not )?None\b

@@ -1,0 +1,148 @@
+id: no-literal-lookup-branches
+valid:
+  # Dict lookup
+  - |
+    def carrier_example(country):
+        return CARRIERS_EXAMPLE.get(country, "FedEx")
+
+  # One comparison, then a fallback return
+  - |
+    def carrier_example(country):
+        if country == "DE":
+            return "DHL"
+        return "FedEx"
+
+  # elif compares a different value
+  - |
+    def carrier_example(country, region):
+        if country == "DE":
+            return "DHL"
+        elif region == "EU":
+            return "Colissimo"
+
+  # A branch returns a call
+  - |
+    def carrier_example(country):
+        if country == "DE":
+            return "DHL"
+        elif country == "FR":
+            return build_example("Colissimo")
+
+  # A branch does more than return
+  - |
+    def carrier_example(country):
+        if country == "DE":
+            return "DHL"
+        elif country == "FR":
+            log_example(country)
+            return "Colissimo"
+
+  # Ordering comparisons, not equality
+  - |
+    def band_example(weight):
+        if weight < 10:
+            return "small"
+        elif weight < 50:
+            return "medium"
+
+  # else does more than return a constant
+  - |
+    def carrier_example(country):
+        if country == "DE":
+            return "DHL"
+        elif country == "FR":
+            return "Colissimo"
+        else:
+            raise ExampleError(country)
+
+  # Consecutive ifs compare different values
+  - |
+    def carrier_example(country, region):
+        if country == "DE":
+            return "DHL"
+        if region == "EU":
+            return "Colissimo"
+        return "FedEx"
+
+  # match with a class pattern
+  - |
+    def describe_example(shape):
+        match shape:
+            case ExamplePoint(x=0):
+                return "origin"
+            case "a":
+                return "b"
+
+  # match with a guard
+  - |
+    def carrier_example(country, express):
+        match country:
+            case "DE" if express:
+                return "DHL Express"
+            case "DE":
+                return "DHL"
+
+  # match with one case
+  - |
+    def carrier_example(country):
+        match country:
+            case "DE":
+                return "DHL"
+
+invalid:
+  # if/elif/else returning strings
+  - |
+    def carrier_example(country):
+        if country == "DE":
+            return "DHL"
+        elif country == "FR":
+            return "Colissimo"
+        else:
+            return "FedEx"
+
+  # if/elif without else, returning integers
+  - |
+    def zone_example(country):
+        if country == "DE":
+            return 1
+        elif country == "FR":
+            return 2
+
+  # Enum members on both sides
+  - |
+    def label_example(status):
+        if status == ExampleStatus.PAID:
+            return ExampleLabel.PAID
+        elif status == ExampleStatus.DUE:
+            return ExampleLabel.DUE
+
+  # Consecutive ifs on the same value
+  - |
+    def carrier_example(country):
+        if country == "DE":
+            return "DHL"
+        if country == "FR":
+            return "Colissimo"
+        return "FedEx"
+
+  # match of constants returning constants
+  - |
+    def carrier_example(country):
+        match country:
+            case "DE":
+                return "DHL"
+            case "FR":
+                return "Colissimo"
+            case _:
+                return "FedEx"
+
+  # Method with booleans and None
+  - |
+    class ExampleRules:
+        def is_taxed(self, country):
+            if country == "DE":
+                return True
+            elif country == "US":
+                return False
+            else:
+                return None

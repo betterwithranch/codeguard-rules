@@ -1,0 +1,40 @@
+id: parameter-field-read
+language: python
+rule:
+  kind: function_definition
+  has:
+    field: parameters
+    has:
+      kind: identifier
+      not:
+        regex: ^(self|cls)$
+      any:
+      - inside:
+          kind: parameters
+      - inside:
+          kind: typed_parameter
+          inside:
+            kind: parameters
+      - inside:
+          kind: default_parameter
+          field: name
+          inside:
+            kind: parameters
+      - inside:
+          kind: typed_default_parameter
+          field: name
+          inside:
+            kind: parameters
+      stopBy: end
+      pattern: $P
+      inside:
+        kind: function_definition
+        stopBy: end
+        has:
+          field: body
+          stopBy: end
+          kind: attribute
+          has:
+            field: object
+            kind: identifier
+            pattern: $P

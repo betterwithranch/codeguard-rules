@@ -1,0 +1,37 @@
+id: request-or-action-type-name
+valid:
+# Params-named class
+- |
+  class ExampleQuoteParams:
+      weight: int
+# Word ending in Update without a lowercase letter before it
+- |
+  class Update:
+      pass
+# Function named create
+- |
+  def CreateExample():
+      pass
+invalid:
+# Class ending in Request
+- |
+  class ExampleQuoteRequest:
+      weight: int
+# Class ending in Create
+- |
+  class ExampleOrderCreate(BaseModel):
+      total: int
+# Class ending in Update
+- |
+  class ExampleOrderUpdate:
+      total: int
+# Class starting with Create
+- |
+  class CreateExampleOrder:
+      total: int
+# Functional TypedDict
+- |
+  ExampleQuoteRequest = TypedDict("ExampleQuoteRequest", {"weight": int})
+# Functional namedtuple
+- |
+  ExampleOrderCreate = namedtuple("ExampleOrderCreate", ["total"])

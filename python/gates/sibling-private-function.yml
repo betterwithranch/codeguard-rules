@@ -1,0 +1,27 @@
+id: sibling-private-function
+language: python
+rule:
+  all:
+  - any:
+    - kind: function_definition
+      has:
+        field: name
+        regex: ^_[^_]
+    - kind: decorated_definition
+      has:
+        field: definition
+        kind: function_definition
+        has:
+          field: name
+          regex: ^_[^_]
+  - any:
+    - follows:
+        stopBy: end
+        any:
+        - kind: function_definition
+        - kind: decorated_definition
+    - precedes:
+        stopBy: end
+        any:
+        - kind: function_definition
+        - kind: decorated_definition

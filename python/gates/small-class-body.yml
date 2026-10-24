@@ -1,0 +1,10 @@
+id: small-class-body
+language: python
+rule:
+  kind: class_definition
+  has:
+    field: body
+    kind: block
+    not:
+      has:
+        nthChild: 4

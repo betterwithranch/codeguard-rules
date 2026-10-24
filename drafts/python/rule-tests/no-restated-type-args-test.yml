@@ -1,0 +1,55 @@
+id: no-restated-type-args
+valid:
+  # Base reads the type argument in __init_subclass__; subclass restates nothing
+  - |
+    class ExampleRepository(Repository[ExampleRecord]):
+        pass
+
+  # Class attribute names a different type than the base's argument
+  - |
+    class ExampleRepository(Repository[ExampleRecord]):
+        error_type = ExampleError
+
+  # Attribute equals the base class itself, not its type argument
+  - |
+    class ExampleRepository(Repository[ExampleRecord]):
+        base = Repository
+
+  # Local variable in a method, not stored on the class or instance
+  - |
+    class ExampleRepository(Repository[ExampleRecord]):
+        def build(self):
+            record = ExampleRecord
+            return record()
+
+  # Base without a type argument
+  - |
+    class ExampleRepository(Repository):
+        record_type = ExampleRecord
+
+invalid:
+  # Class attribute equals the only type argument
+  - |
+    class ExampleRepository(Repository[ExampleRecord]):
+        record_type = ExampleRecord
+
+  # Annotated class attribute equals the type argument
+  - |
+    class ExampleRepository(Repository[ExampleRecord]):
+        record_type: type[ExampleRecord] = ExampleRecord
+
+  # Class attribute equals a later type argument
+  - |
+    class ExampleStore(Store[str, ExampleRecord]):
+        value_type = ExampleRecord
+
+  # Dotted type argument
+  - |
+    class ExampleRepository(Repository[records.ExampleRecord]):
+        record_type = records.ExampleRecord
+
+  # Instance attribute set to the type argument in a method
+  - |
+    class ExampleRepository(Repository[ExampleRecord]):
+        def __init__(self):
+            self.record_type = ExampleRecord
