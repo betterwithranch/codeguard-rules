@@ -8,11 +8,11 @@ rule:
       - kind: tuple
       - kind: expression_list
       - kind: dictionary
-      - kind: list_comprehension
-      - kind: set_comprehension
-      - kind: dictionary_comprehension
-  - kind: type
-    inside:
-      kind: function_definition
+      - kind: call
+        has:
+          field: function
+          regex: ^dict$
+  - kind: function_definition
+    has:
       field: return_type
-    regex: ^(tuple|dict)\[
+      regex: ^(tuple|dict|Tuple|Dict)\[

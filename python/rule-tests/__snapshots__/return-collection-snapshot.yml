@@ -2,6 +2,22 @@ id: return-collection
 snapshots:
   ? |
     def pack(a):
+        return dict(a=a)
+  : labels:
+    - source: return dict(a=a)
+      style: primary
+      start: 17
+      end: 33
+    - source: dict
+      style: secondary
+      start: 24
+      end: 28
+    - source: dict(a=a)
+      style: secondary
+      start: 24
+      end: 33
+  ? |
+    def pack(a):
         return {'a': a}
   : labels:
     - source: 'return {''a'': a}'
@@ -16,30 +32,72 @@ snapshots:
     def payload() -> dict[str, str]:
         return result
   : labels:
-    - source: dict[str, str]
-      style: primary
-      start: 17
-      end: 31
     - source: |-
         def payload() -> dict[str, str]:
             return result
-      style: secondary
+      style: primary
       start: 0
       end: 50
+    - source: dict[str, str]
+      style: secondary
+      start: 17
+      end: 31
+  ? |
+    def review() -> Tuple[str, bool]:
+        return result
+  : labels:
+    - source: |-
+        def review() -> Tuple[str, bool]:
+            return result
+      style: primary
+      start: 0
+      end: 51
+    - source: Tuple[str, bool]
+      style: secondary
+      start: 16
+      end: 32
+  ? |
+    def review() -> tuple[str, bool]:
+        result = (reason, held)
+        return result
+  : labels:
+    - source: |-
+        def review() -> tuple[str, bool]:
+            result = (reason, held)
+            return result
+      style: primary
+      start: 0
+      end: 79
+    - source: tuple[str, bool]
+      style: secondary
+      start: 16
+      end: 32
   ? |
     def review() -> tuple[str, bool]:
         return result
   : labels:
-    - source: tuple[str, bool]
-      style: primary
-      start: 16
-      end: 32
     - source: |-
         def review() -> tuple[str, bool]:
             return result
-      style: secondary
+      style: primary
       start: 0
       end: 51
+    - source: tuple[str, bool]
+      style: secondary
+      start: 16
+      end: 32
+  ? |
+    def review():
+        return (reason, held)
+  : labels:
+    - source: return (reason, held)
+      style: primary
+      start: 18
+      end: 39
+    - source: (reason, held)
+      style: secondary
+      start: 25
+      end: 39
   ? |
     def review():
         return reason, held

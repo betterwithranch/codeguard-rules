@@ -1,0 +1,27 @@
+id: module-collection
+language: python
+rule:
+  kind: assignment
+  inside:
+    kind: expression_statement
+    inside:
+      kind: module
+  has:
+    field: right
+    any:
+    - kind: tuple
+    - kind: list
+    - kind: set
+    - kind: dictionary
+    - kind: expression_list
+    - kind: call
+      has:
+        field: arguments
+        has:
+          any:
+          - kind: tuple
+          - kind: list
+          - kind: set
+          - kind: dictionary
+    not:
+      regex: ^[\[\(\{]\s*[\]\)\}]$

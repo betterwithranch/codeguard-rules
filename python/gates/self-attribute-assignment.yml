@@ -1,0 +1,14 @@
+id: self-attribute-assignment
+language: python
+rule:
+  kind: assignment
+  has:
+    field: left
+    kind: attribute
+    regex: ^self\.
+  inside:
+    kind: function_definition
+    stopBy: end
+    inside:
+      kind: class_definition
+      stopBy: end

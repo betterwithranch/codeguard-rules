@@ -1,0 +1,1876 @@
+cases:
+- name: names a submit method validate
+  inputs:
+    file: orders/workflow.py
+    after: |
+      from dataclasses import dataclass
+      from enum import StrEnum
+
+
+      class OrderStatus(StrEnum):
+          DRAFT = "draft"
+          SUBMITTED = "submitted"
+
+
+      @dataclass
+      class Order:
+          number: str
+          status: OrderStatus
+
+          def validate(self) -> None:
+              self.status = OrderStatus.SUBMITTED
+  expected_output:
+    outcome: invalid
+- name: names the submit method submit
+  inputs:
+    file: orders/workflow.py
+    after: |
+      from dataclasses import dataclass
+      from enum import StrEnum
+
+
+      class OrderStatus(StrEnum):
+          DRAFT = "draft"
+          SUBMITTED = "submitted"
+
+
+      @dataclass
+      class Order:
+          number: str
+          status: OrderStatus
+
+          def submit(self) -> None:
+              self.status = OrderStatus.SUBMITTED
+  expected_output:
+    outcome: valid
+- name: renames mark_delivered to process_data
+  inputs:
+    file: shipments/tracking.py
+    before: |
+      from dataclasses import dataclass
+      from enum import StrEnum
+
+
+      class ShipmentStatus(StrEnum):
+          IN_TRANSIT = "in_transit"
+          DELIVERED = "delivered"
+
+
+      @dataclass
+      class Shipment:
+          tracking_number: str
+          status: ShipmentStatus
+
+
+      class DeliveryTracker:
+          def mark_delivered(self, shipments: list[Shipment]) -> None:
+              for shipment in shipments:
+                  shipment.status = ShipmentStatus.DELIVERED
+    after: |
+      from dataclasses import dataclass
+      from enum import StrEnum
+
+
+      class ShipmentStatus(StrEnum):
+          IN_TRANSIT = "in_transit"
+          DELIVERED = "delivered"
+
+
+      @dataclass
+      class Shipment:
+          tracking_number: str
+          status: ShipmentStatus
+
+
+      class DeliveryTracker:
+          def process_data(self, shipments: list[Shipment]) -> None:
+              for shipment in shipments:
+                  shipment.status = ShipmentStatus.DELIVERED
+  expected_output:
+    outcome: invalid
+- name: renames process_data to mark_delivered
+  inputs:
+    file: shipments/tracking.py
+    before: |
+      from dataclasses import dataclass
+      from enum import StrEnum
+
+
+      class ShipmentStatus(StrEnum):
+          IN_TRANSIT = "in_transit"
+          DELIVERED = "delivered"
+
+
+      @dataclass
+      class Shipment:
+          tracking_number: str
+          status: ShipmentStatus
+
+
+      class DeliveryTracker:
+          def process_data(self, shipments: list[Shipment]) -> None:
+              for shipment in shipments:
+                  shipment.status = ShipmentStatus.DELIVERED
+    after: |
+      from dataclasses import dataclass
+      from enum import StrEnum
+
+
+      class ShipmentStatus(StrEnum):
+          IN_TRANSIT = "in_transit"
+          DELIVERED = "delivered"
+
+
+      @dataclass
+      class Shipment:
+          tracking_number: str
+          status: ShipmentStatus
+
+
+      class DeliveryTracker:
+          def mark_delivered(self, shipments: list[Shipment]) -> None:
+              for shipment in shipments:
+                  shipment.status = ShipmentStatus.DELIVERED
+  expected_output:
+    outcome: valid
+- name: names a quarterly report builder a preparer
+  inputs:
+    file: reports/quarterly.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class QuarterlyReport:
+          quarter: int
+          revenue_cents: int
+
+
+      class ReportPreparer:
+          def __init__(self, monthly_revenue_cents: list[int]) -> None:
+              self.monthly_revenue_cents = monthly_revenue_cents
+
+          def run(self, quarter: int) -> QuarterlyReport:
+              months = self.monthly_revenue_cents[(quarter - 1) * 3 : quarter * 3]
+              return QuarterlyReport(quarter=quarter, revenue_cents=sum(months))
+  expected_output:
+    outcome: invalid
+- name: names the quarterly report factory for its report
+  inputs:
+    file: reports/quarterly.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class QuarterlyReport:
+          quarter: int
+          revenue_cents: int
+
+
+      class QuarterlyReportFactory:
+          def __init__(self, monthly_revenue_cents: list[int]) -> None:
+              self.monthly_revenue_cents = monthly_revenue_cents
+
+          def build(self, quarter: int) -> QuarterlyReport:
+              months = self.monthly_revenue_cents[(quarter - 1) * 3 : quarter * 3]
+              return QuarterlyReport(quarter=quarter, revenue_cents=sum(months))
+  expected_output:
+    outcome: valid
+- name: names an email check normalize_email
+  inputs:
+    file: accounts/emails.py
+    after: |
+      class InvalidEmail(ValueError):
+          pass
+
+
+      class EmailPolicy:
+          @staticmethod
+          def normalize_email(email: str) -> str:
+              if "@" not in email:
+                  raise InvalidEmail(email)
+              return email
+  expected_output:
+    outcome: invalid
+- name: names the email check require_valid_email
+  inputs:
+    file: accounts/emails.py
+    after: |
+      class InvalidEmail(ValueError):
+          pass
+
+
+      class EmailPolicy:
+          @staticmethod
+          def require_valid_email(email: str) -> str:
+              if "@" not in email:
+                  raise InvalidEmail(email)
+              return email
+  expected_output:
+    outcome: valid
+- name: names an overdue count send_reminders
+  inputs:
+    file: billing/reminders.py
+    after: |
+      from dataclasses import dataclass
+      from datetime import date
+      from typing import Protocol
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          number: str
+          due_on: date
+          paid: bool
+
+
+      class InvoiceStore(Protocol):
+          async def open_invoices(self) -> list[Invoice]: ...
+
+
+      async def send_reminders(store: InvoiceStore, today: date) -> int:
+          invoices = await store.open_invoices()
+          return sum(1 for invoice in invoices if not invoice.paid and invoice.due_on < today)
+  expected_output:
+    outcome: invalid
+- name: names the overdue count count_overdue_invoices
+  inputs:
+    file: billing/reminders.py
+    after: |
+      from dataclasses import dataclass
+      from datetime import date
+      from typing import Protocol
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          number: str
+          due_on: date
+          paid: bool
+
+
+      class InvoiceStore(Protocol):
+          async def open_invoices(self) -> list[Invoice]: ...
+
+
+      async def count_overdue_invoices(store: InvoiceStore, today: date) -> int:
+          invoices = await store.open_invoices()
+          return sum(1 for invoice in invoices if not invoice.paid and invoice.due_on < today)
+  expected_output:
+    outcome: valid
+- name: names a nested tax function helper
+  inputs:
+    file: invoices/tax.py
+    after: |
+      from dataclasses import dataclass
+
+      TAX_RATE = 0.2
+
+
+      @dataclass(frozen=True)
+      class InvoiceLine:
+          amount_cents: int
+          taxable: bool
+
+
+      def invoice_tax_cents(lines: list[InvoiceLine]) -> int:
+          def helper(line: InvoiceLine) -> int:
+              return round(line.amount_cents * TAX_RATE) if line.taxable else 0
+
+          return sum(helper(line) for line in lines)
+  expected_output:
+    outcome: invalid
+- name: names the nested tax function line_tax_cents
+  inputs:
+    file: invoices/tax.py
+    after: |
+      from dataclasses import dataclass
+
+      TAX_RATE = 0.2
+
+
+      @dataclass(frozen=True)
+      class InvoiceLine:
+          amount_cents: int
+          taxable: bool
+
+
+      def invoice_tax_cents(lines: list[InvoiceLine]) -> int:
+          def line_tax_cents(line: InvoiceLine) -> int:
+              return round(line.amount_cents * TAX_RATE) if line.taxable else 0
+
+          return sum(line_tax_cents(line) for line in lines)
+  expected_output:
+    outcome: valid
+- name: renames a refund method retry_payment
+  inputs:
+    file: payments/service.py
+    before: |
+      from typing import Protocol
+
+
+      class PaymentGateway(Protocol):
+          def refund(self, payment_id: str, amount_cents: int) -> None: ...
+
+
+      class PaymentService:
+          def __init__(self, gateway: PaymentGateway) -> None:
+              self.gateway = gateway
+
+          def refund_payment(self, payment_id: str, amount_cents: int) -> None:
+              self.gateway.refund(payment_id, amount_cents)
+    after: |
+      from typing import Protocol
+
+
+      class PaymentGateway(Protocol):
+          def refund(self, payment_id: str, amount_cents: int) -> None: ...
+
+
+      class PaymentService:
+          def __init__(self, gateway: PaymentGateway) -> None:
+              self.gateway = gateway
+
+          def retry_payment(self, payment_id: str, amount_cents: int) -> None:
+              self.gateway.refund(payment_id, amount_cents)
+  expected_output:
+    outcome: invalid
+- name: overrides a Django model's save to stamp the edit time
+  inputs:
+    file: catalog/models.py
+    after: |
+      from django.db import models
+      from django.utils import timezone
+
+
+      class Product(models.Model):
+          name = models.CharField(max_length=200)
+          edited_at = models.DateTimeField(null=True)
+
+          def save(self, *args, **kwargs):
+              self.edited_at = timezone.now()
+              super().save(*args, **kwargs)
+  expected_output:
+    outcome: valid
+- name: adds a DRF field validator to a serializer
+  inputs:
+    file: accounts/serializers.py
+    after: |
+      from rest_framework import serializers
+
+
+      class SignupSerializer(serializers.Serializer):
+          email = serializers.EmailField()
+
+          def validate_email(self, value: str) -> str:
+              return value.lower()
+  expected_output:
+    outcome: valid
+- name: extends the submission grace period
+  inputs:
+    file: orders/workflow.py
+    before: |
+      from enum import StrEnum
+
+      SUBMISSION_GRACE_PERIOD_DAYS = 3
+
+
+      class OrderStatus(StrEnum):
+          DRAFT = "draft"
+          SUBMITTED = "submitted"
+    after: |
+      from enum import StrEnum
+
+      SUBMISSION_GRACE_PERIOD_DAYS = 5
+
+
+      class OrderStatus(StrEnum):
+          DRAFT = "draft"
+          SUBMITTED = "submitted"
+  expected_output:
+    outcome: skipped
+- name: rounds the tax inside an existing function
+  inputs:
+    file: invoices/tax.py
+    before: |
+      TAX_RATE = 0.2
+
+
+      def tax_due_cents(subtotal_cents: int) -> int:
+          return int(subtotal_cents * TAX_RATE)
+    after: |
+      TAX_RATE = 0.2
+
+
+      def tax_due_cents(subtotal_cents: int) -> int:
+          return round(subtotal_cents * TAX_RATE)
+  expected_output:
+    outcome: skipped
+- name: renames a parameter
+  inputs:
+    file: invoices/tax.py
+    before: |
+      TAX_RATE = 0.2
+
+
+      def tax_due_cents(
+          amount: int,
+      ) -> int:
+          return round(amount * TAX_RATE)
+    after: |
+      TAX_RATE = 0.2
+
+
+      def tax_due_cents(
+          subtotal_cents: int,
+      ) -> int:
+          return round(subtotal_cents * TAX_RATE)
+  expected_output:
+    outcome: skipped
+- name: adds a JSON reader that interprets beside a CSV reader that parses
+  inputs:
+    file: orders/readers.py
+    before: |
+      import csv
+      import io
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Order:
+          number: str
+          total_cents: int
+
+
+      class CsvOrderReader:
+          def parse(self, text: str) -> list[Order]:
+              rows = csv.reader(io.StringIO(text))
+              return [Order(number=number, total_cents=int(total)) for number, total in rows]
+    after: |
+      import csv
+      import io
+      import json
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Order:
+          number: str
+          total_cents: int
+
+
+      class CsvOrderReader:
+          def parse(self, text: str) -> list[Order]:
+              rows = csv.reader(io.StringIO(text))
+              return [Order(number=number, total_cents=int(total)) for number, total in rows]
+
+
+      class JsonOrderReader:
+          def interpret(self, text: str) -> list[Order]:
+              return [
+                  Order(number=item["number"], total_cents=item["total_cents"])
+                  for item in json.loads(text)
+              ]
+  expected_output:
+    outcome: invalid
+- name: adds a JSON reader that parses beside a CSV reader that parses
+  inputs:
+    file: orders/readers.py
+    before: |
+      import csv
+      import io
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Order:
+          number: str
+          total_cents: int
+
+
+      class CsvOrderReader:
+          def parse(self, text: str) -> list[Order]:
+              rows = csv.reader(io.StringIO(text))
+              return [Order(number=number, total_cents=int(total)) for number, total in rows]
+    after: |
+      import csv
+      import io
+      import json
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Order:
+          number: str
+          total_cents: int
+
+
+      class CsvOrderReader:
+          def parse(self, text: str) -> list[Order]:
+              rows = csv.reader(io.StringIO(text))
+              return [Order(number=number, total_cents=int(total)) for number, total in rows]
+
+
+      class JsonOrderReader:
+          def parse(self, text: str) -> list[Order]:
+              return [
+                  Order(number=item["number"], total_cents=item["total_cents"])
+                  for item in json.loads(text)
+              ]
+  expected_output:
+    outcome: valid
+- name: assembles receipts next to an imported invoice builder
+  inputs:
+    file: documents/service.py
+    unchanged:
+      documents/invoices.py: |
+        from dataclasses import dataclass
+
+        from orders.models import Order
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            order_number: str
+            total_cents: int
+
+
+        class InvoiceBuilder:
+            def build(self, order: Order) -> Invoice:
+                return Invoice(order_number=order.number, total_cents=order.total_cents)
+      orders/models.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Order:
+            number: str
+            total_cents: int
+            paid: bool
+    after: |
+      from dataclasses import dataclass
+
+      from documents.invoices import Invoice, InvoiceBuilder
+      from orders.models import Order
+
+
+      @dataclass(frozen=True)
+      class Receipt:
+          order_number: str
+          paid_cents: int
+
+
+      class ReceiptComposer:
+          def assemble(self, order: Order) -> Receipt:
+              return Receipt(order_number=order.number, paid_cents=order.total_cents)
+
+
+      class OrderDocuments:
+          def __init__(self, invoices: InvoiceBuilder, receipts: ReceiptComposer) -> None:
+              self.invoices = invoices
+              self.receipts = receipts
+
+          def for_order(self, order: Order) -> tuple[Invoice, Receipt | None]:
+              receipt = self.receipts.assemble(order) if order.paid else None
+              return self.invoices.build(order), receipt
+  expected_output:
+    outcome: invalid
+- name: builds receipts in a factory next to an imported invoice builder
+  inputs:
+    file: documents/service.py
+    unchanged:
+      documents/invoices.py: |
+        from dataclasses import dataclass
+
+        from orders.models import Order
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            order_number: str
+            total_cents: int
+
+
+        class InvoiceBuilder:
+            def build(self, order: Order) -> Invoice:
+                return Invoice(order_number=order.number, total_cents=order.total_cents)
+      orders/models.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Order:
+            number: str
+            total_cents: int
+            paid: bool
+    after: |
+      from dataclasses import dataclass
+
+      from documents.invoices import Invoice, InvoiceBuilder
+      from orders.models import Order
+
+
+      @dataclass(frozen=True)
+      class Receipt:
+          order_number: str
+          paid_cents: int
+
+
+      class ReceiptFactory:
+          def build(self, order: Order) -> Receipt:
+              return Receipt(order_number=order.number, paid_cents=order.total_cents)
+
+
+      class OrderDocuments:
+          def __init__(self, invoices: InvoiceBuilder, receipts: ReceiptFactory) -> None:
+              self.invoices = invoices
+              self.receipts = receipts
+
+          def for_order(self, order: Order) -> tuple[Invoice, Receipt | None]:
+              receipt = self.receipts.build(order) if order.paid else None
+              return self.invoices.build(order), receipt
+  expected_output:
+    outcome: valid
+- name: adds a warehouse lookup named interpret beside a carrier lookup named resolve
+  inputs:
+    file: logistics/codes.py
+    before: |
+      from enum import StrEnum
+
+
+      class Carrier(StrEnum):
+          DHL = "dhl"
+          UPS = "ups"
+
+
+      CARRIERS_BY_CODE = {"D": Carrier.DHL, "U": Carrier.UPS}
+
+
+      def resolve_carrier(code: str) -> Carrier:
+          return CARRIERS_BY_CODE[code]
+    after: |
+      from enum import StrEnum
+
+
+      class Carrier(StrEnum):
+          DHL = "dhl"
+          UPS = "ups"
+
+
+      class Warehouse(StrEnum):
+          BERLIN = "berlin"
+          LYON = "lyon"
+
+
+      CARRIERS_BY_CODE = {"D": Carrier.DHL, "U": Carrier.UPS}
+      WAREHOUSES_BY_CODE = {"B": Warehouse.BERLIN, "L": Warehouse.LYON}
+
+
+      def resolve_carrier(code: str) -> Carrier:
+          return CARRIERS_BY_CODE[code]
+
+
+      def interpret_warehouse(code: str) -> Warehouse:
+          return WAREHOUSES_BY_CODE[code]
+  expected_output:
+    outcome: invalid
+- name: adds a warehouse lookup named resolve beside a carrier lookup named resolve
+  inputs:
+    file: logistics/codes.py
+    before: |
+      from enum import StrEnum
+
+
+      class Carrier(StrEnum):
+          DHL = "dhl"
+          UPS = "ups"
+
+
+      CARRIERS_BY_CODE = {"D": Carrier.DHL, "U": Carrier.UPS}
+
+
+      def resolve_carrier(code: str) -> Carrier:
+          return CARRIERS_BY_CODE[code]
+    after: |
+      from enum import StrEnum
+
+
+      class Carrier(StrEnum):
+          DHL = "dhl"
+          UPS = "ups"
+
+
+      class Warehouse(StrEnum):
+          BERLIN = "berlin"
+          LYON = "lyon"
+
+
+      CARRIERS_BY_CODE = {"D": Carrier.DHL, "U": Carrier.UPS}
+      WAREHOUSES_BY_CODE = {"B": Warehouse.BERLIN, "L": Warehouse.LYON}
+
+
+      def resolve_carrier(code: str) -> Carrier:
+          return CARRIERS_BY_CODE[code]
+
+
+      def resolve_warehouse(code: str) -> Warehouse:
+          return WAREHOUSES_BY_CODE[code]
+  expected_output:
+    outcome: valid
+- name: renames a DHL quote method to retrieve beside a UPS one that fetches
+  inputs:
+    file: rates/quotes.py
+    unchanged:
+      rates/ups.py: |
+        from typing import Protocol
+
+
+        class UpsClient(Protocol):
+            def rate(self, weight_grams: int) -> int: ...
+
+
+        class UpsRates:
+            def __init__(self, client: UpsClient) -> None:
+                self.client = client
+
+            def fetch_quote(self, weight_grams: int) -> int:
+                return self.client.rate(weight_grams)
+    before: |
+      from typing import Protocol
+
+      from rates.ups import UpsRates
+
+
+      class DhlClient(Protocol):
+          def price(self, weight_grams: int) -> int: ...
+
+
+      class DhlRates:
+          def __init__(self, client: DhlClient) -> None:
+              self.client = client
+
+          def fetch_quote(self, weight_grams: int) -> int:
+              return self.client.price(weight_grams)
+
+
+      def cheapest_quote(ups: UpsRates, dhl: DhlRates, weight_grams: int) -> int:
+          return min(ups.fetch_quote(weight_grams), dhl.fetch_quote(weight_grams))
+    after: |
+      from typing import Protocol
+
+      from rates.ups import UpsRates
+
+
+      class DhlClient(Protocol):
+          def price(self, weight_grams: int) -> int: ...
+
+
+      class DhlRates:
+          def __init__(self, client: DhlClient) -> None:
+              self.client = client
+
+          def retrieve_quote(self, weight_grams: int) -> int:
+              return self.client.price(weight_grams)
+
+
+      def cheapest_quote(ups: UpsRates, dhl: DhlRates, weight_grams: int) -> int:
+          return min(ups.fetch_quote(weight_grams), dhl.retrieve_quote(weight_grams))
+  expected_output:
+    outcome: invalid
+- name: adds a renderer beside a parser
+  inputs:
+    file: orders/formats.py
+    before: |
+      import json
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Order:
+          number: str
+          total_cents: int
+
+
+      def parse_orders(text: str) -> list[Order]:
+          return [Order(number=item["number"], total_cents=item["total_cents"]) for item in json.loads(text)]
+    after: |
+      import json
+      from dataclasses import asdict, dataclass
+
+
+      @dataclass(frozen=True)
+      class Order:
+          number: str
+          total_cents: int
+
+
+      def parse_orders(text: str) -> list[Order]:
+          return [Order(number=item["number"], total_cents=item["total_cents"]) for item in json.loads(text)]
+
+
+      def render_orders(orders: list[Order]) -> str:
+          return json.dumps([asdict(order) for order in orders])
+  expected_output:
+    outcome: valid
+- name: implements an imported notifier protocol under its declared name
+  inputs:
+    file: notifications/sms.py
+    unchanged:
+      notifications/ports.py: |
+        from typing import Protocol
+
+
+        class Notifier(Protocol):
+            def notify(self, customer_id: str, text: str) -> None: ...
+    after: |
+      from typing import Protocol
+
+      from notifications.ports import Notifier
+
+
+      class SmsGateway(Protocol):
+          def send_sms(self, phone_number: str, text: str) -> None: ...
+
+
+      class SmsNotifier(Notifier):
+          def __init__(self, gateway: SmsGateway, phone_numbers: dict[str, str]) -> None:
+              self.gateway = gateway
+              self.phone_numbers = phone_numbers
+
+          def notify(self, customer_id: str, text: str) -> None:
+              self.gateway.send_sms(self.phone_numbers[customer_id], text)
+  expected_output:
+    outcome: valid
+- name: changes how the CSV reader converts totals
+  inputs:
+    file: orders/readers.py
+    before: |
+      import csv
+      import io
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Order:
+          number: str
+          total_cents: int
+
+
+      class CsvOrderReader:
+          def parse(self, text: str) -> list[Order]:
+              rows = csv.reader(io.StringIO(text))
+              return [Order(number=number, total_cents=int(total)) for number, total in rows]
+    after: |
+      import csv
+      import io
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Order:
+          number: str
+          total_cents: int
+
+
+      class CsvOrderReader:
+          def parse(self, text: str) -> list[Order]:
+              rows = csv.reader(io.StringIO(text))
+              return [Order(number=number, total_cents=round(float(total) * 100)) for number, total in rows]
+  expected_output:
+    outcome: skipped
+- name: adds a warehouse to the code table
+  inputs:
+    file: logistics/codes.py
+    before: |
+      WAREHOUSES_BY_CODE = {"B": "berlin"}
+
+
+      def resolve_warehouse(code: str) -> str:
+          return WAREHOUSES_BY_CODE[code]
+    after: |
+      WAREHOUSES_BY_CODE = {"B": "berlin", "L": "lyon"}
+
+
+      def resolve_warehouse(code: str) -> str:
+          return WAREHOUSES_BY_CODE[code]
+  expected_output:
+    outcome: skipped
+- name: names an argument group a request
+  inputs:
+    file: pricing/price_calculator.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class PriceCalculationRequest:
+          base_cents: int
+          quantity: int
+          discount_percent: int
+
+
+      class PriceCalculator:
+          def calculate(self, request: PriceCalculationRequest) -> int:
+              subtotal = request.base_cents * request.quantity
+              return subtotal * (100 - request.discount_percent) // 100
+  expected_output:
+    outcome: invalid
+- name: takes an order create model as a FastAPI request body
+  inputs:
+    file: orders/routes.py
+    after: |
+      from fastapi import APIRouter
+      from pydantic import BaseModel
+
+      from .service import OrderService
+
+      router = APIRouter()
+
+
+      class OrderCreate(BaseModel):
+          customer_id: int
+          sku: str
+          quantity: int
+
+
+      @router.post("/orders")
+      def create_order(body: OrderCreate, service: OrderService) -> dict[str, int]:
+          order = service.place(body.customer_id, body.sku, body.quantity)
+          return {"id": order.id}
+  expected_output:
+    outcome: valid
+- name: passes an order create dataclass between services
+  inputs:
+    file: orders/service.py
+    after: |
+      from dataclasses import dataclass
+
+      from .models import Order
+      from .repository import OrderRepository
+
+
+      @dataclass(frozen=True)
+      class OrderCreate:
+          customer_id: int
+          sku: str
+          quantity: int
+
+
+      class OrderService:
+          def __init__(self, orders: OrderRepository) -> None:
+              self._orders = orders
+
+          def place(self, data: OrderCreate) -> Order:
+              order = Order(customer_id=data.customer_id, sku=data.sku, quantity=data.quantity)
+              return self._orders.save(order)
+
+          def reorder(self, previous: Order) -> Order:
+              return self.place(
+                  OrderCreate(previous.customer_id, previous.sku, previous.quantity)
+              )
+  expected_output:
+    outcome: invalid
+- name: sends a quote request payload to the carrier API
+  inputs:
+    file: carriers/quotes.py
+    after: |
+      import httpx
+      from pydantic import BaseModel
+
+
+      class ShipmentQuoteRequest(BaseModel):
+          origin_postcode: str
+          destination_postcode: str
+          weight_grams: int
+
+
+      class CarrierQuotes:
+          def __init__(self, http: httpx.Client) -> None:
+              self._http = http
+
+          def quote_cents(self, request: ShipmentQuoteRequest) -> int:
+              response = self._http.post("/v2/quotes", json=request.model_dump())
+              response.raise_for_status()
+              return int(response.json()["price_cents"])
+  expected_output:
+    outcome: valid
+- name: adds a create invoice command handled in process
+  inputs:
+    file: invoices/commands.py
+    before: |
+      from .invoice import Invoice
+
+
+      def issue_invoice(order_id: int, total_cents: int) -> Invoice:
+          return Invoice(order_id=order_id, total_cents=total_cents)
+    after: |
+      from dataclasses import dataclass
+
+      from .invoice import Invoice
+
+
+      @dataclass(frozen=True)
+      class CreateInvoice:
+          order_id: int
+          total_cents: int
+
+
+      def issue_invoice(command: CreateInvoice) -> Invoice:
+          return Invoice(order_id=command.order_id, total_cents=command.total_cents)
+  expected_output:
+    outcome: invalid
+- name: validates an address update with a DRF serializer
+  inputs:
+    file: accounts/serializers.py
+    after: |
+      from rest_framework import serializers
+
+
+      class AddressUpdate(serializers.Serializer):
+          street = serializers.CharField(max_length=200)
+          city = serializers.CharField(max_length=100)
+          postcode = serializers.CharField(max_length=10)
+  expected_output:
+    outcome: valid
+- name: builds a report request typed dict for a local renderer
+  inputs:
+    file: reports/render.py
+    unchanged:
+      reports/renderer.py: |
+        from reports.render import ReportRequest
+
+
+        def render(request: ReportRequest) -> str:
+            return f"{request['title']} ({request['month']})"
+    after: |
+      from typing import TypedDict
+
+
+      class ReportRequest(TypedDict):
+          title: str
+          month: str
+  expected_output:
+    outcome: invalid
+- name: publishes a stock update message to the broker
+  inputs:
+    file: inventory/events.py
+    after: |
+      from dataclasses import asdict, dataclass
+
+      from .broker import Broker
+
+
+      @dataclass(frozen=True)
+      class StockUpdate:
+          sku: str
+          on_hand: int
+
+
+      def publish_stock_update(broker: Broker, sku: str, on_hand: int) -> None:
+          broker.publish("inventory.stock", asdict(StockUpdate(sku=sku, on_hand=on_hand)))
+  expected_output:
+    outcome: valid
+- name: builds a refund request with namedtuple for a local function
+  inputs:
+    file: payments/refunds.py
+    after: |
+      from collections import namedtuple
+
+      RefundRequest = namedtuple("RefundRequest", ["charge_id", "amount_cents"])
+
+
+      def refund_total(requests: list[RefundRequest]) -> int:
+          return sum(request.amount_cents for request in requests)
+
+
+      def refund_all(charges: dict[str, int]) -> int:
+          return refund_total([RefundRequest(charge_id, cents) for charge_id, cents in charges.items()])
+  expected_output:
+    outcome: invalid
+- name: names an argument group params
+  inputs:
+    file: pricing/price_calculator.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class PriceCalculationParams:
+          base_cents: int
+          quantity: int
+          discount_percent: int
+
+
+      class PriceCalculator:
+          def calculate(self, params: PriceCalculationParams) -> int:
+              subtotal = params.base_cents * params.quantity
+              return subtotal * (100 - params.discount_percent) // 100
+  expected_output:
+    outcome: valid
+- name: adds a per-caller factory method
+  inputs:
+    file: invoicing/invoice_factory.py
+    before: |
+      from invoicing.invoice import Invoice, InvoiceParams
+
+
+      class InvoiceFactory:
+          def create(self, params: InvoiceParams) -> Invoice:
+              return Invoice(order_id=params.order_id, total_cents=params.total_cents)
+    after: |
+      from invoicing.invoice import Invoice, InvoiceParams
+
+
+      class InvoiceFactory:
+          def create(self, params: InvoiceParams) -> Invoice:
+              return Invoice(order_id=params.order_id, total_cents=params.total_cents)
+
+          def create_for_admin_dashboard(self, params: InvoiceParams) -> Invoice:
+              return Invoice(order_id=params.order_id, total_cents=params.total_cents)
+  expected_output:
+    outcome: invalid
+- name: exposes a single create method
+  inputs:
+    file: invoicing/invoice_factory.py
+    after: |
+      from invoicing.invoice import Invoice, InvoiceParams
+
+
+      class InvoiceFactory:
+          def create(self, params: InvoiceParams) -> Invoice:
+              return Invoice(order_id=params.order_id, total_cents=params.total_cents)
+  expected_output:
+    outcome: valid
+- name: adds draft and final creation methods
+  inputs:
+    file: invoicing/invoice_factory.py
+    after: |
+      from invoicing.invoice import Invoice, InvoiceParams, InvoiceStatus
+
+
+      class InvoiceFactory:
+          def create_draft(self, params: InvoiceParams) -> Invoice:
+              return Invoice(order_id=params.order_id, total_cents=params.total_cents, status=InvoiceStatus.DRAFT)
+
+          def create_issued(self, params: InvoiceParams) -> Invoice:
+              return Invoice(order_id=params.order_id, total_cents=params.total_cents, status=InvoiceStatus.ISSUED)
+  expected_output:
+    outcome: valid
+- name: adds a checkout class method on the order model
+  inputs:
+    file: orders/order.py
+    after: |
+      from dataclasses import dataclass
+
+      from .cart import Cart
+
+
+      @dataclass(frozen=True)
+      class Order:
+          customer_id: int
+          total_cents: int
+
+          @classmethod
+          def for_checkout(cls, cart: Cart) -> "Order":
+              return cls(customer_id=cart.customer_id, total_cents=cart.total_cents)
+  expected_output:
+    outcome: invalid
+- name: adds a class method that builds the order from a cart
+  inputs:
+    file: orders/order.py
+    after: |
+      from dataclasses import dataclass
+
+      from .cart import Cart
+
+
+      @dataclass(frozen=True)
+      class Order:
+          customer_id: int
+          total_cents: int
+
+          @classmethod
+          def from_cart(cls, cart: Cart) -> "Order":
+              return cls(customer_id=cart.customer_id, total_cents=cart.total_cents)
+  expected_output:
+    outcome: valid
+- name: adds a mobile app method to a user creator
+  inputs:
+    file: accounts/user_creator.py
+    after: |
+      from accounts.models import User
+
+
+      class UserCreator:
+          def create(self, email: str, name: str) -> User:
+              return User(email=email.lower(), name=name)
+
+          def mobile_app_user(self, email: str, name: str, device_id: str) -> User:
+              return User(email=email.lower(), name=name, device_id=device_id)
+  expected_output:
+    outcome: invalid
+- name: adds a factory method that parses a csv row
+  inputs:
+    file: catalog/product_factory.py
+    after: |
+      from catalog.product import Product
+
+
+      class ProductFactory:
+          def create(self, sku: str, name: str, price_cents: int) -> Product:
+              return Product(sku=sku, name=name, price_cents=price_cents)
+
+          def from_csv_row(self, row: list[str]) -> Product:
+              return self.create(row[0], row[1], int(row[2]))
+  expected_output:
+    outcome: valid
+- name: adds a nightly import method to a product factory
+  inputs:
+    file: catalog/product_factory.py
+    after: |
+      from catalog.product import Product
+
+
+      class ProductFactory:
+          def create(self, sku: str, name: str, price_cents: int) -> Product:
+              return Product(sku=sku, name=name, price_cents=price_cents)
+
+          def create_for_nightly_import(self, sku: str, name: str, price_cents: int) -> Product:
+              return Product(sku=sku.strip(), name=name.strip(), price_cents=price_cents)
+  expected_output:
+    outcome: invalid
+- name: adds a recurring subscription method on a service
+  inputs:
+    file: billing/subscriptions.py
+    after: |
+      from billing.models import Subscription
+
+
+      class SubscriptionService:
+          def create_monthly(self, customer_id: int, plan: str) -> Subscription:
+              return Subscription(customer_id=customer_id, plan=plan, interval_months=1)
+
+          def create_yearly(self, customer_id: int, plan: str) -> Subscription:
+              return Subscription(customer_id=customer_id, plan=plan, interval_months=12)
+  expected_output:
+    outcome: valid
+- name: adds a support team method to a refund service
+  inputs:
+    file: billing/refunds.py
+    after: |
+      from billing.models import Refund
+
+
+      class RefundService:
+          def create_for_support_team(self, charge_id: str, cents: int) -> Refund:
+              return Refund(charge_id=charge_id, cents=cents, reason="support")
+  expected_output:
+    outcome: invalid
+- name: changes a total method on an invoice service
+  inputs:
+    file: invoicing/invoice_service.py
+    before: |
+      class InvoiceService:
+          def total(self, cents: list[int]) -> int:
+              return sum(cents)
+    after: |
+      class InvoiceService:
+          def total(self, cents: list[int]) -> int:
+              return max(sum(cents), 0)
+  expected_output:
+    outcome: skipped
+- name: narrates a loop with inline comments
+  inputs:
+    file: invoices/totals.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class InvoiceLine:
+          quantity: int
+          unit_price_cents: int
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          lines: list[InvoiceLine]
+
+          def total_cents(self) -> int:
+              total = 0
+              # loop over every line and add quantity times unit price to the total
+              for line in self.lines:
+                  total += line.quantity * line.unit_price_cents
+              # return the total
+              return total
+  expected_output:
+    outcome: invalid
+- name: explains an external API limit
+  inputs:
+    file: payments/metadata.py
+    after: |
+      from dataclasses import dataclass
+
+      # Stripe rejects metadata values longer than 500 characters.
+      STRIPE_METADATA_VALUE_LIMIT = 500
+
+
+      @dataclass(frozen=True)
+      class PaymentNote:
+          text: str
+
+          def stripe_metadata_value(self) -> str:
+              return self.text[:STRIPE_METADATA_VALUE_LIMIT]
+  expected_output:
+    outcome: valid
+- name: notes what the rate used to do
+  inputs:
+    file: shipments/rates.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          weight_kg: float
+
+          def rate_cents(self) -> int:
+              return round(self.weight_kg * 450)
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          weight_kg: float
+
+          def rate_cents(self) -> int:
+              # This used to look up the rate in the legacy carrier table.
+              return round(self.weight_kg * 450)
+  expected_output:
+    outcome: invalid
+- name: explains why the rate is rounded up
+  inputs:
+    file: shipments/rates.py
+    before: |
+      import math
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          weight_kg: float
+
+          def rate_cents(self) -> int:
+              return math.ceil(self.weight_kg * 450)
+    after: |
+      import math
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          weight_kg: float
+
+          def rate_cents(self) -> int:
+              # The carrier bills every started cent, so rounding down under-charges.
+              return math.ceil(self.weight_kg * 450)
+  expected_output:
+    outcome: valid
+- name: notes what the parser does not handle
+  inputs:
+    file: imports/rows.py
+    after: |
+      def parse_quantity(text: str) -> int:
+          # Doesn't handle negative quantities.
+          return int(text.strip())
+  expected_output:
+    outcome: invalid
+- name: leaves commented-out code in a function
+  inputs:
+    file: orders/cancel.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass
+      class Order:
+          status: str
+
+          def cancel(self) -> None:
+              self.status = "cancelled"
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass
+      class Order:
+          status: str
+
+          def cancel(self) -> None:
+              self.status = "cancelled"
+              # self.notify_customer()
+  expected_output:
+    outcome: invalid
+- name: adds a TODO with a tracker link and outside reason
+  inputs:
+    file: carriers/client.py
+    after: |
+      CARRIER_API_VERSION = "v1"
+      # TODO(#412): move to v2 once the carrier retires v1 in March.
+      CARRIER_BASE_URL = f"https://api.carrier.example/{CARRIER_API_VERSION}"
+  expected_output:
+    outcome: valid
+- name: adds a bare TODO
+  inputs:
+    file: carriers/client.py
+    after: |
+      CARRIER_API_VERSION = "v1"
+      # TODO: clean this up
+      CARRIER_BASE_URL = f"https://api.carrier.example/{CARRIER_API_VERSION}"
+  expected_output:
+    outcome: invalid
+- name: labels a timeout with the unit its name already says
+  inputs:
+    file: carriers/settings.py
+    after: |
+      CARRIER_TIMEOUT_SECONDS = 30  # seconds
+  expected_output:
+    outcome: invalid
+- name: notes the gateway idle limit behind a timeout
+  inputs:
+    file: carriers/settings.py
+    after: |
+      CARRIER_TIMEOUT_SECONDS = 30  # the carrier gateway drops idle sockets after 35 seconds
+  expected_output:
+    outcome: valid
+- name: heads each step of a Django view with a comment
+  inputs:
+    file: shop/views.py
+    after: |
+      from django.http import HttpRequest, HttpResponse
+      from django.shortcuts import get_object_or_404, render
+
+      from shop.models import Order
+
+
+      def order_detail(request: HttpRequest, number: str) -> HttpResponse:
+          # get the order
+          order = get_object_or_404(Order, number=number, customer=request.user)
+          # render the template
+          return render(request, "shop/order.html", {"order": order})
+  expected_output:
+    outcome: invalid
+- name: adds a noqa directive
+  inputs:
+    file: shipments/rates.py
+    before: |
+      RATES_URL = "https://rates.example.com/v1/rates/parcels/domestic/standard/by-weight"
+    after: |
+      RATES_URL = "https://rates.example.com/v1/rates/parcels/domestic/standard/by-weight"  # noqa: E501
+  expected_output:
+    outcome: skipped
+- name: changes the shipping rate multiplier
+  inputs:
+    file: shipments/rates.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          weight_kg: float
+
+          def rate_cents(self) -> int:
+              return round(self.weight_kg * 450)
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          weight_kg: float
+
+          def rate_cents(self) -> int:
+              return round(self.weight_kg * 475)
+  expected_output:
+    outcome: skipped
+- name: rewords a method name in its docstring
+  inputs:
+    file: invoices/totals.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          subtotal_cents: int
+          tax_cents: int
+
+          def total_cents(self) -> int:
+              """Return the total in cents."""
+              return self.subtotal_cents + self.tax_cents
+  expected_output:
+    outcome: invalid
+- name: documents the error a method raises
+  inputs:
+    file: invoices/totals.py
+    after: |
+      from dataclasses import dataclass
+
+
+      class NegativeTotal(ValueError):
+          pass
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          subtotal_cents: int
+          discount_cents: int
+
+          def total_cents(self) -> int:
+              """Raises NegativeTotal when the discount exceeds the subtotal, which a
+              credit note must cover instead."""
+              total = self.subtotal_cents - self.discount_cents
+              if total < 0:
+                  raise NegativeTotal(total)
+              return total
+  expected_output:
+    outcome: valid
+- name: repeats parameter names in an Args section
+  inputs:
+    file: shipments/fees.py
+    after: |
+      def domestic_fee(order_total_cents: int, weight_grams: int) -> int:
+          """Compute the domestic fee.
+
+          Args:
+              order_total_cents: the order total in cents.
+              weight_grams: the weight in grams.
+
+          Returns:
+              The domestic fee.
+          """
+          if order_total_cents >= 5000:
+              return 0
+          return 500 + weight_grams // 100
+  expected_output:
+    outcome: invalid
+- name: documents the free shipping rule and rounding
+  inputs:
+    file: shipments/fees.py
+    after: |
+      def domestic_fee(order_total_cents: int, weight_grams: int) -> int:
+          """Orders of 50 EUR or more ship free; below that, each started 100 g adds a cent
+          on top of the 5 EUR base, as the carrier contract bills it."""
+          if order_total_cents >= 5000:
+              return 0
+          return 500 + -(-weight_grams // 100)
+  expected_output:
+    outcome: valid
+- name: props up a vague method name with a docstring
+  inputs:
+    file: orders/workflow.py
+    after: |
+      from dataclasses import dataclass
+      from typing import Protocol
+
+
+      class Mailer(Protocol):
+          def send(self, to: str, text: str) -> None: ...
+
+
+      @dataclass
+      class Order:
+          number: str
+          customer_email: str
+          status: str
+
+          def handle(self, mailer: Mailer) -> None:
+              """Set the order to submitted and email the customer."""
+              self.status = "submitted"
+              mailer.send(self.customer_email, f"Order {self.number} submitted")
+  expected_output:
+    outcome: invalid
+- name: names a model class in its docstring
+  inputs:
+    file: catalog/models.py
+    after: |
+      from django.db import models
+
+
+      class Product(models.Model):
+          """Product model."""
+
+          name = models.CharField(max_length=200)
+          price_cents = models.PositiveIntegerField()
+  expected_output:
+    outcome: invalid
+- name: documents what a model's price excludes
+  inputs:
+    file: catalog/models.py
+    after: |
+      from django.db import models
+
+
+      class Product(models.Model):
+          """A sellable item. Prices are net of VAT, which checkout adds per the buyer's country."""
+
+          name = models.CharField(max_length=200)
+          price_cents = models.PositiveIntegerField()
+  expected_output:
+    outcome: valid
+- name: notes in a docstring what a function no longer does
+  inputs:
+    file: carriers/sync.py
+    after: |
+      from typing import Protocol
+
+
+      class CarrierApi(Protocol):
+          def statuses(self) -> dict[str, str]: ...
+
+
+      def sync_statuses(api: CarrierApi) -> dict[str, str]:
+          """No longer retries failed requests."""
+          return api.statuses()
+  expected_output:
+    outcome: invalid
+- name: documents a module's side effect on import
+  inputs:
+    file: telemetry/setup.py
+    after: |
+      """Importing this module installs the process-wide tracer; import it once, before
+      any request handler starts."""
+
+      from telemetry.tracer import install_tracer
+
+      install_tracer()
+  expected_output:
+    outcome: valid
+- name: gives a Typer command its help text
+  inputs:
+    file: cli/export.py
+    after: |
+      from pathlib import Path
+
+      import typer
+
+      from orders.export import export_orders
+
+      app = typer.Typer()
+
+
+      @app.command()
+      def export(target: Path) -> None:
+          """Write every paid order to TARGET as CSV, overwriting the file."""
+          export_orders(target)
+  expected_output:
+    outcome: valid
+- name: explains the carrier's per-100 g billing in a comment
+  inputs:
+    file: shipments/fees.py
+    before: |
+      def domestic_fee(order_total_cents: int, weight_grams: int) -> int:
+          return 500 + weight_grams // 100
+    after: |
+      # The carrier bills per started 100 g.
+      def domestic_fee(order_total_cents: int, weight_grams: int) -> int:
+          return 500 + weight_grams // 100
+  expected_output:
+    outcome: valid
+- name: changes the base fee
+  inputs:
+    file: shipments/fees.py
+    before: |
+      def domestic_fee(order_total_cents: int, weight_grams: int) -> int:
+          """Each started 100 g adds a cent, as the carrier contract bills it."""
+          return 500 + weight_grams // 100
+    after: |
+      def domestic_fee(order_total_cents: int, weight_grams: int) -> int:
+          """Each started 100 g adds a cent, as the carrier contract bills it."""
+          return 550 + weight_grams // 100
+  expected_output:
+    outcome: skipped
+- name: names a property that returns days overdue is_overdue
+  inputs:
+    file: billing/invoices.py
+    after: |
+      from dataclasses import dataclass
+      from datetime import date
+
+
+      @dataclass
+      class Invoice:
+          number: str
+          due_on: date
+          paid_on: date | None = None
+
+          @property
+          def is_overdue(self) -> int:
+              if self.paid_on is not None:
+                  return 0
+              return max((date.today() - self.due_on).days, 0)
+  expected_output:
+    outcome: invalid
+- name: names a property that returns days overdue days_overdue
+  inputs:
+    file: billing/invoices.py
+    after: |
+      from dataclasses import dataclass
+      from datetime import date
+
+
+      @dataclass
+      class Invoice:
+          number: str
+          due_on: date
+          paid_on: date | None = None
+
+          @property
+          def days_overdue(self) -> int:
+              if self.paid_on is not None:
+                  return 0
+              return max((date.today() - self.due_on).days, 0)
+  expected_output:
+    outcome: valid
+- name: names a plain factory a builder
+  inputs:
+    file: invoicing/invoice_builder.py
+    after: |
+      from invoicing.invoice import Invoice
+
+
+      class InvoiceBuilder:
+          def build(self, order_id: str, total_cents: int) -> Invoice:
+              return Invoice(order_id=order_id, total_cents=total_cents)
+  expected_output:
+    outcome: invalid
+- name: adds invoice lines step by step before building
+  inputs:
+    file: invoicing/invoice_builder.py
+    after: |
+      from typing import Self
+
+      from invoicing.invoice import Invoice, InvoiceLine
+
+
+      class InvoiceBuilder:
+          def __init__(self, order_id: str) -> None:
+              self._order_id = order_id
+              self._lines: list[InvoiceLine] = []
+              self._note = ""
+
+          def add_line(self, sku: str, cents: int) -> Self:
+              self._lines.append(InvoiceLine(sku=sku, cents=cents))
+              return self
+
+          def with_note(self, note: str) -> Self:
+              self._note = note
+              return self
+
+          def build(self) -> Invoice:
+              return Invoice(order_id=self._order_id, lines=tuple(self._lines), note=self._note)
+  expected_output:
+    outcome: valid
+- name: builds a query from constructor arguments only
+  inputs:
+    file: search/query_builder.py
+    after: |
+      from search.query import SearchQuery
+
+
+      class SearchQueryBuilder:
+          def __init__(self, text: str, limit: int) -> None:
+              self._text = text
+              self._limit = limit
+
+          def build(self) -> SearchQuery:
+              return SearchQuery(terms=self._text.split(), limit=self._limit)
+  expected_output:
+    outcome: invalid
+- name: adds query filters without returning self before building
+  inputs:
+    file: search/query_builder.py
+    after: |
+      from search.query import Filter, SearchQuery
+
+
+      class SearchQueryBuilder:
+          def __init__(self, text: str) -> None:
+              self._text = text
+              self._filters: list[Filter] = []
+
+          def filter_by(self, field: str, value: str) -> None:
+              self._filters.append(Filter(field=field, value=value))
+
+          def build(self) -> SearchQuery:
+              return SearchQuery(terms=self._text.split(), filters=tuple(self._filters))
+  expected_output:
+    outcome: valid
+- name: names a static report maker a builder
+  inputs:
+    file: reports/report_builder.py
+    after: |
+      from reports.report import MonthlyReport
+
+
+      class MonthlyReportBuilder:
+          @staticmethod
+          def create(month: str, totals: dict[str, int]) -> MonthlyReport:
+              return MonthlyReport(month=month, rows=sorted(totals.items()))
+  expected_output:
+    outcome: invalid
+- name: sets email parts on a dataclass builder before building
+  inputs:
+    file: notifications/email_builder.py
+    after: |
+      from dataclasses import dataclass, field
+
+      from notifications.email import Email
+
+
+      @dataclass
+      class EmailBuilder:
+          recipients: list[str] = field(default_factory=list)
+          subject: str = ""
+          body: str = ""
+
+          def to(self, address: str) -> "EmailBuilder":
+              self.recipients.append(address)
+              return self
+
+          def build(self) -> Email:
+              return Email(recipients=tuple(self.recipients), subject=self.subject, body=self.body)
+  expected_output:
+    outcome: valid
+- name: names a callable label maker a builder
+  inputs:
+    file: shipping/label_builder.py
+    after: |
+      from shipping.label import Label
+      from shipping.shipment import Shipment
+
+
+      class LabelBuilder:
+          def __init__(self, sender_name: str) -> None:
+              self._sender_name = sender_name
+
+          def __call__(self, shipment: Shipment) -> Label:
+              return Label(sender=self._sender_name, recipient=shipment.recipient_name)
+  expected_output:
+    outcome: invalid
+- name: changes a method on a composer
+  inputs:
+    file: invoicing/invoice_composer.py
+    before: |
+      class InvoiceComposer:
+          def compose(self, order_id: str) -> str:
+              return f"Invoice for {order_id}"
+    after: |
+      class InvoiceComposer:
+          def compose(self, order_id: str) -> str:
+              return f"Invoice for order {order_id}"
+  expected_output:
+    outcome: skipped

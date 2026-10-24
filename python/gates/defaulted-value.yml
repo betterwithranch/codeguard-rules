@@ -9,3 +9,26 @@ rule:
   - kind: boolean_operator
     regex: ' or '
   - kind: conditional_expression
+  - kind: if_statement
+    has:
+      field: condition
+      any:
+      - kind: not_operator
+      - kind: comparison_operator
+        regex: \bis None\b
+  - kind: call
+    all:
+    - has:
+        field: function
+        regex: (^getattr|\.get|\.setdefault|\.pop)$
+    - has:
+        field: arguments
+        has:
+          nthChild: 2
+  - kind: argument_list
+    has:
+      stopBy: end
+      kind: call
+      has:
+        field: function
+        regex: (^|\.)(uuid[1-8]|now|utcnow|today|token_hex|token_urlsafe|urandom)$

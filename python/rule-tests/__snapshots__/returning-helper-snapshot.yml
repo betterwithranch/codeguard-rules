@@ -1,0 +1,119 @@
+id: returning-helper
+snapshots:
+  ? |
+    @pytest.fixture
+    def example_result(example_service):
+        return example_service.run()
+  : labels:
+    - source: |-
+        def example_result(example_service):
+            return example_service.run()
+      style: primary
+      start: 16
+      end: 85
+    - source: return example_service.run()
+      style: secondary
+      start: 57
+      end: 85
+    - source: return example_service.run()
+      style: secondary
+      start: 57
+      end: 85
+  ? |
+    @pytest.fixture
+    def example_service():
+        service = ExampleService()
+        yield service
+        service.close()
+  : labels:
+    - source: |-
+        def example_service():
+            service = ExampleService()
+            yield service
+            service.close()
+      style: primary
+      start: 16
+      end: 107
+    - source: yield service
+      style: secondary
+      start: 74
+      end: 87
+    - source: yield service
+      style: secondary
+      start: 74
+      end: 87
+  ? |
+    class ExampleDriver:
+        def context(self):
+            return self.runtime.context
+  : labels:
+    - source: |-
+        def context(self):
+                return self.runtime.context
+      style: primary
+      start: 25
+      end: 79
+    - source: return self.runtime.context
+      style: secondary
+      start: 52
+      end: 79
+    - source: return self.runtime.context
+      style: secondary
+      start: 52
+      end: 79
+  ? |
+    def make_example_key(example_model):
+        key = example_key(example_model)
+        return key
+  : labels:
+    - source: |-
+        def make_example_key(example_model):
+            key = example_key(example_model)
+            return key
+      style: primary
+      start: 0
+      end: 88
+    - source: return key
+      style: secondary
+      start: 78
+      end: 88
+    - source: return key
+      style: secondary
+      start: 78
+      end: 88
+  ? |
+    def make_example_service():
+        return ExampleService(ExampleRules())
+  : labels:
+    - source: |-
+        def make_example_service():
+            return ExampleService(ExampleRules())
+      style: primary
+      start: 0
+      end: 69
+    - source: return ExampleService(ExampleRules())
+      style: secondary
+      start: 32
+      end: 69
+    - source: return ExampleService(ExampleRules())
+      style: secondary
+      start: 32
+      end: 69
+  ? |
+    def overdue_example_models(ledger):
+        return [model for model in ledger.models if model.overdue]
+  : labels:
+    - source: |-
+        def overdue_example_models(ledger):
+            return [model for model in ledger.models if model.overdue]
+      style: primary
+      start: 0
+      end: 98
+    - source: return [model for model in ledger.models if model.overdue]
+      style: secondary
+      start: 40
+      end: 98
+    - source: return [model for model in ledger.models if model.overdue]
+      style: secondary
+      start: 40
+      end: 98

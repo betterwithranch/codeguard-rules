@@ -1,0 +1,3 @@
+skill: python/skills/tests-earn-their-place
+paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py", "**/integration/**/*.py", "**/e2e/**/*.py", "**/test_*integration*.py", "**/test_*e2e*.py"]
+triggers: [test-function]

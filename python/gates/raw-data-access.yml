@@ -32,3 +32,9 @@ rule:
         has:
           nthChild: 1
           kind: string
+  - kind: comparison_operator
+    all:
+    - has:
+        nthChild: 1
+        kind: string
+    - regex: '^\S.*\s(not\s+)?in\s'

@@ -1,0 +1,38 @@
+id: class-module-import
+valid:
+# Import in a module with only functions
+- |
+  from billing.totals import total
+
+
+  def invoice_total(lines):
+      return total(lines)
+# Import inside a function of a module with a class
+- |
+  class Invoice:
+      def render(self):
+          import json
+          return json.dumps({})
+invalid:
+# from-import in a module that defines a class
+- |
+  from billing.totals import total
+
+
+  class Invoice:
+      pass
+# Plain import in a module that defines a class
+- |
+  import shipping.carriers
+
+
+  class Invoice:
+      pass
+# Import in a module that defines a decorated class
+- |
+  from dataclasses import dataclass
+
+
+  @dataclass
+  class Invoice:
+      number: str

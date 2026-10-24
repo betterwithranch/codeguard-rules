@@ -1,0 +1,73 @@
+id: record-insert
+valid:
+  # Query call
+  - |
+    rows = session.query(ExampleModel).all()
+
+  # Plain function call
+  - |
+    example = make_example_model(name="a")
+invalid:
+  # Session add
+  - |
+    session.add(ExampleModel(name="a"))
+
+  # Session add_all
+  - |
+    session.add_all([ExampleModel(name="a")])
+
+  # Session merge
+  - |
+    session.merge(ExampleModel(name="a"))
+
+  # Django manager create
+  - |
+    ExampleModel.objects.create(name="a")
+
+  # Django bulk_create
+  - |
+    ExampleModel.objects.bulk_create([ExampleModel(name="a")])
+
+  # Django get_or_create
+  - |
+    ExampleModel.objects.get_or_create(name="a")
+
+  # Repository or service create
+  - |
+    ExampleService(session).create(name="a")
+
+  # SQLAlchemy core insert function
+  - |
+    session.execute(insert(example_table).values(name="a"))
+
+  # Table insert method
+  - |
+    connection.execute(example_table.insert().values(name="a"))
+
+  # Raw SQL executemany
+  - |
+    cursor.executemany("INSERT INTO examples VALUES (?)", rows)
+
+  # Model save
+  - |
+    example.save()
+
+  # Mongo insert_one
+  - |
+    collection.insert_one({"name": "a"})
+
+  # Mongo insert_many
+  - |
+    collection.insert_many([{"name": "a"}])
+
+  # SQLAlchemy bulk_save_objects
+  - |
+    session.bulk_save_objects([ExampleModel(name="a")])
+
+  # Django update_or_create
+  - |
+    ExampleModel.objects.update_or_create(name="a")
+
+  # DynamoDB put_item
+  - |
+    table.put_item(Item={"name": "a"})

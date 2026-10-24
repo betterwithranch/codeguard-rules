@@ -1,0 +1,449 @@
+id: no-forwarding-wrappers
+language: python
+severity: error
+message: Don't write a function whose only statement passes all its parameters, unchanged, to another call.
+note: |
+  A wrapper that forwards every parameter unchanged adds a name and a hop without adding
+  behavior, so readers learn two APIs for one. Call the wrapped function directly, or give
+  the wrapper real work: a default, a conversion, a check. A method that delegates to a
+  collaborator and a decorated function are not wrappers in this sense.
+utils:
+  only-statement:
+    all:
+      - nthChild: 1
+      - nthChild:
+          position: 1
+          reverse: true
+      - inside:
+          kind: block
+          inside: {kind: function_definition, field: body}
+  forwarded-call:
+    kind: call
+    any:
+      - inside: {kind: return_statement, matches: only-statement}
+      - inside: {kind: expression_statement, matches: only-statement}
+      - inside:
+          kind: await
+          any:
+            - inside: {kind: return_statement, matches: only-statement}
+            - inside: {kind: expression_statement, matches: only-statement}
+  last:
+    nthChild:
+      position: 1
+      reverse: true
+rule:
+  kind: function_definition
+  not:
+    any:
+      - inside: {kind: decorated_definition}
+      - has:
+          field: parameters
+          has:
+            nthChild: 1
+            regex: ^(self|cls)($|:|\s)
+  any:
+    - all:
+        - has:
+            field: parameters
+            has:
+              nthChild: 1
+              all:
+                - any:
+                    - {kind: identifier, pattern: $P1}
+                    - {kind: typed_parameter, has: {kind: identifier, pattern: $P1}}
+                    - {kind: default_parameter, has: {field: name, pattern: $P1}}
+                    - {kind: typed_default_parameter, has: {field: name, pattern: $P1}}
+                    - {kind: list_splat_pattern, has: {kind: identifier, pattern: $P1}}
+                    - {kind: dictionary_splat_pattern, has: {kind: identifier, pattern: $P1}}
+                - matches: last
+        - has:
+            field: body
+            has:
+              stopBy: end
+              kind: argument_list
+              inside: {kind: call, field: arguments, matches: forwarded-call}
+              has:
+                nthChild: 1
+                all:
+                  - any:
+                      - {kind: identifier, pattern: $P1}
+                      - {kind: keyword_argument, has: {field: value, kind: identifier, pattern: $P1}}
+                      - {kind: list_splat, has: {kind: identifier, pattern: $P1}}
+                      - {kind: dictionary_splat, has: {kind: identifier, pattern: $P1}}
+                  - matches: last
+    - all:
+        - has:
+            field: parameters
+            has:
+              nthChild: 1
+              all:
+                - any:
+                    - {kind: identifier, pattern: $P1}
+                    - {kind: typed_parameter, has: {kind: identifier, pattern: $P1}}
+                    - {kind: default_parameter, has: {field: name, pattern: $P1}}
+                    - {kind: typed_default_parameter, has: {field: name, pattern: $P1}}
+                    - {kind: list_splat_pattern, has: {kind: identifier, pattern: $P1}}
+                    - {kind: dictionary_splat_pattern, has: {kind: identifier, pattern: $P1}}
+        - has:
+            field: body
+            has:
+              stopBy: end
+              kind: argument_list
+              inside: {kind: call, field: arguments, matches: forwarded-call}
+              has:
+                nthChild: 1
+                all:
+                  - any:
+                      - {kind: identifier, pattern: $P1}
+                      - {kind: keyword_argument, has: {field: value, kind: identifier, pattern: $P1}}
+                      - {kind: list_splat, has: {kind: identifier, pattern: $P1}}
+                      - {kind: dictionary_splat, has: {kind: identifier, pattern: $P1}}
+        - has:
+            field: parameters
+            has:
+              nthChild: 2
+              all:
+                - any:
+                    - {kind: identifier, pattern: $P2}
+                    - {kind: typed_parameter, has: {kind: identifier, pattern: $P2}}
+                    - {kind: default_parameter, has: {field: name, pattern: $P2}}
+                    - {kind: typed_default_parameter, has: {field: name, pattern: $P2}}
+                    - {kind: list_splat_pattern, has: {kind: identifier, pattern: $P2}}
+                    - {kind: dictionary_splat_pattern, has: {kind: identifier, pattern: $P2}}
+                - matches: last
+        - has:
+            field: body
+            has:
+              stopBy: end
+              kind: argument_list
+              inside: {kind: call, field: arguments, matches: forwarded-call}
+              has:
+                nthChild: 2
+                all:
+                  - any:
+                      - {kind: identifier, pattern: $P2}
+                      - {kind: keyword_argument, has: {field: value, kind: identifier, pattern: $P2}}
+                      - {kind: list_splat, has: {kind: identifier, pattern: $P2}}
+                      - {kind: dictionary_splat, has: {kind: identifier, pattern: $P2}}
+                  - matches: last
+    - all:
+        - has:
+            field: parameters
+            has:
+              nthChild: 1
+              all:
+                - any:
+                    - {kind: identifier, pattern: $P1}
+                    - {kind: typed_parameter, has: {kind: identifier, pattern: $P1}}
+                    - {kind: default_parameter, has: {field: name, pattern: $P1}}
+                    - {kind: typed_default_parameter, has: {field: name, pattern: $P1}}
+                    - {kind: list_splat_pattern, has: {kind: identifier, pattern: $P1}}
+                    - {kind: dictionary_splat_pattern, has: {kind: identifier, pattern: $P1}}
+        - has:
+            field: body
+            has:
+              stopBy: end
+              kind: argument_list
+              inside: {kind: call, field: arguments, matches: forwarded-call}
+              has:
+                nthChild: 1
+                all:
+                  - any:
+                      - {kind: identifier, pattern: $P1}
+                      - {kind: keyword_argument, has: {field: value, kind: identifier, pattern: $P1}}
+                      - {kind: list_splat, has: {kind: identifier, pattern: $P1}}
+                      - {kind: dictionary_splat, has: {kind: identifier, pattern: $P1}}
+        - has:
+            field: parameters
+            has:
+              nthChild: 2
+              all:
+                - any:
+                    - {kind: identifier, pattern: $P2}
+                    - {kind: typed_parameter, has: {kind: identifier, pattern: $P2}}
+                    - {kind: default_parameter, has: {field: name, pattern: $P2}}
+                    - {kind: typed_default_parameter, has: {field: name, pattern: $P2}}
+                    - {kind: list_splat_pattern, has: {kind: identifier, pattern: $P2}}
+                    - {kind: dictionary_splat_pattern, has: {kind: identifier, pattern: $P2}}
+        - has:
+            field: body
+            has:
+              stopBy: end
+              kind: argument_list
+              inside: {kind: call, field: arguments, matches: forwarded-call}
+              has:
+                nthChild: 2
+                all:
+                  - any:
+                      - {kind: identifier, pattern: $P2}
+                      - {kind: keyword_argument, has: {field: value, kind: identifier, pattern: $P2}}
+                      - {kind: list_splat, has: {kind: identifier, pattern: $P2}}
+                      - {kind: dictionary_splat, has: {kind: identifier, pattern: $P2}}
+        - has:
+            field: parameters
+            has:
+              nthChild: 3
+              all:
+                - any:
+                    - {kind: identifier, pattern: $P3}
+                    - {kind: typed_parameter, has: {kind: identifier, pattern: $P3}}
+                    - {kind: default_parameter, has: {field: name, pattern: $P3}}
+                    - {kind: typed_default_parameter, has: {field: name, pattern: $P3}}
+                    - {kind: list_splat_pattern, has: {kind: identifier, pattern: $P3}}
+                    - {kind: dictionary_splat_pattern, has: {kind: identifier, pattern: $P3}}
+                - matches: last
+        - has:
+            field: body
+            has:
+              stopBy: end
+              kind: argument_list
+              inside: {kind: call, field: arguments, matches: forwarded-call}
+              has:
+                nthChild: 3
+                all:
+                  - any:
+                      - {kind: identifier, pattern: $P3}
+                      - {kind: keyword_argument, has: {field: value, kind: identifier, pattern: $P3}}
+                      - {kind: list_splat, has: {kind: identifier, pattern: $P3}}
+                      - {kind: dictionary_splat, has: {kind: identifier, pattern: $P3}}
+                  - matches: last
+    - all:
+        - has:
+            field: parameters
+            has:
+              nthChild: 1
+              all:
+                - any:
+                    - {kind: identifier, pattern: $P1}
+                    - {kind: typed_parameter, has: {kind: identifier, pattern: $P1}}
+                    - {kind: default_parameter, has: {field: name, pattern: $P1}}
+                    - {kind: typed_default_parameter, has: {field: name, pattern: $P1}}
+                    - {kind: list_splat_pattern, has: {kind: identifier, pattern: $P1}}
+                    - {kind: dictionary_splat_pattern, has: {kind: identifier, pattern: $P1}}
+        - has:
+            field: body
+            has:
+              stopBy: end
+              kind: argument_list
+              inside: {kind: call, field: arguments, matches: forwarded-call}
+              has:
+                nthChild: 1
+                all:
+                  - any:
+                      - {kind: identifier, pattern: $P1}
+                      - {kind: keyword_argument, has: {field: value, kind: identifier, pattern: $P1}}
+                      - {kind: list_splat, has: {kind: identifier, pattern: $P1}}
+                      - {kind: dictionary_splat, has: {kind: identifier, pattern: $P1}}
+        - has:
+            field: parameters
+            has:
+              nthChild: 2
+              all:
+                - any:
+                    - {kind: identifier, pattern: $P2}
+                    - {kind: typed_parameter, has: {kind: identifier, pattern: $P2}}
+                    - {kind: default_parameter, has: {field: name, pattern: $P2}}
+                    - {kind: typed_default_parameter, has: {field: name, pattern: $P2}}
+                    - {kind: list_splat_pattern, has: {kind: identifier, pattern: $P2}}
+                    - {kind: dictionary_splat_pattern, has: {kind: identifier, pattern: $P2}}
+        - has:
+            field: body
+            has:
+              stopBy: end
+              kind: argument_list
+              inside: {kind: call, field: arguments, matches: forwarded-call}
+              has:
+                nthChild: 2
+                all:
+                  - any:
+                      - {kind: identifier, pattern: $P2}
+                      - {kind: keyword_argument, has: {field: value, kind: identifier, pattern: $P2}}
+                      - {kind: list_splat, has: {kind: identifier, pattern: $P2}}
+                      - {kind: dictionary_splat, has: {kind: identifier, pattern: $P2}}
+        - has:
+            field: parameters
+            has:
+              nthChild: 3
+              all:
+                - any:
+                    - {kind: identifier, pattern: $P3}
+                    - {kind: typed_parameter, has: {kind: identifier, pattern: $P3}}
+                    - {kind: default_parameter, has: {field: name, pattern: $P3}}
+                    - {kind: typed_default_parameter, has: {field: name, pattern: $P3}}
+                    - {kind: list_splat_pattern, has: {kind: identifier, pattern: $P3}}
+                    - {kind: dictionary_splat_pattern, has: {kind: identifier, pattern: $P3}}
+        - has:
+            field: body
+            has:
+              stopBy: end
+              kind: argument_list
+              inside: {kind: call, field: arguments, matches: forwarded-call}
+              has:
+                nthChild: 3
+                all:
+                  - any:
+                      - {kind: identifier, pattern: $P3}
+                      - {kind: keyword_argument, has: {field: value, kind: identifier, pattern: $P3}}
+                      - {kind: list_splat, has: {kind: identifier, pattern: $P3}}
+                      - {kind: dictionary_splat, has: {kind: identifier, pattern: $P3}}
+        - has:
+            field: parameters
+            has:
+              nthChild: 4
+              all:
+                - any:
+                    - {kind: identifier, pattern: $P4}
+                    - {kind: typed_parameter, has: {kind: identifier, pattern: $P4}}
+                    - {kind: default_parameter, has: {field: name, pattern: $P4}}
+                    - {kind: typed_default_parameter, has: {field: name, pattern: $P4}}
+                    - {kind: list_splat_pattern, has: {kind: identifier, pattern: $P4}}
+                    - {kind: dictionary_splat_pattern, has: {kind: identifier, pattern: $P4}}
+                - matches: last
+        - has:
+            field: body
+            has:
+              stopBy: end
+              kind: argument_list
+              inside: {kind: call, field: arguments, matches: forwarded-call}
+              has:
+                nthChild: 4
+                all:
+                  - any:
+                      - {kind: identifier, pattern: $P4}
+                      - {kind: keyword_argument, has: {field: value, kind: identifier, pattern: $P4}}
+                      - {kind: list_splat, has: {kind: identifier, pattern: $P4}}
+                      - {kind: dictionary_splat, has: {kind: identifier, pattern: $P4}}
+                  - matches: last
+    - all:
+        - has:
+            field: parameters
+            has:
+              nthChild: 1
+              all:
+                - any:
+                    - {kind: identifier, pattern: $P1}
+                    - {kind: typed_parameter, has: {kind: identifier, pattern: $P1}}
+                    - {kind: default_parameter, has: {field: name, pattern: $P1}}
+                    - {kind: typed_default_parameter, has: {field: name, pattern: $P1}}
+                    - {kind: list_splat_pattern, has: {kind: identifier, pattern: $P1}}
+                    - {kind: dictionary_splat_pattern, has: {kind: identifier, pattern: $P1}}
+        - has:
+            field: body
+            has:
+              stopBy: end
+              kind: argument_list
+              inside: {kind: call, field: arguments, matches: forwarded-call}
+              has:
+                nthChild: 1
+                all:
+                  - any:
+                      - {kind: identifier, pattern: $P1}
+                      - {kind: keyword_argument, has: {field: value, kind: identifier, pattern: $P1}}
+                      - {kind: list_splat, has: {kind: identifier, pattern: $P1}}
+                      - {kind: dictionary_splat, has: {kind: identifier, pattern: $P1}}
+        - has:
+            field: parameters
+            has:
+              nthChild: 2
+              all:
+                - any:
+                    - {kind: identifier, pattern: $P2}
+                    - {kind: typed_parameter, has: {kind: identifier, pattern: $P2}}
+                    - {kind: default_parameter, has: {field: name, pattern: $P2}}
+                    - {kind: typed_default_parameter, has: {field: name, pattern: $P2}}
+                    - {kind: list_splat_pattern, has: {kind: identifier, pattern: $P2}}
+                    - {kind: dictionary_splat_pattern, has: {kind: identifier, pattern: $P2}}
+        - has:
+            field: body
+            has:
+              stopBy: end
+              kind: argument_list
+              inside: {kind: call, field: arguments, matches: forwarded-call}
+              has:
+                nthChild: 2
+                all:
+                  - any:
+                      - {kind: identifier, pattern: $P2}
+                      - {kind: keyword_argument, has: {field: value, kind: identifier, pattern: $P2}}
+                      - {kind: list_splat, has: {kind: identifier, pattern: $P2}}
+                      - {kind: dictionary_splat, has: {kind: identifier, pattern: $P2}}
+        - has:
+            field: parameters
+            has:
+              nthChild: 3
+              all:
+                - any:
+                    - {kind: identifier, pattern: $P3}
+                    - {kind: typed_parameter, has: {kind: identifier, pattern: $P3}}
+                    - {kind: default_parameter, has: {field: name, pattern: $P3}}
+                    - {kind: typed_default_parameter, has: {field: name, pattern: $P3}}
+                    - {kind: list_splat_pattern, has: {kind: identifier, pattern: $P3}}
+                    - {kind: dictionary_splat_pattern, has: {kind: identifier, pattern: $P3}}
+        - has:
+            field: body
+            has:
+              stopBy: end
+              kind: argument_list
+              inside: {kind: call, field: arguments, matches: forwarded-call}
+              has:
+                nthChild: 3
+                all:
+                  - any:
+                      - {kind: identifier, pattern: $P3}
+                      - {kind: keyword_argument, has: {field: value, kind: identifier, pattern: $P3}}
+                      - {kind: list_splat, has: {kind: identifier, pattern: $P3}}
+                      - {kind: dictionary_splat, has: {kind: identifier, pattern: $P3}}
+        - has:
+            field: parameters
+            has:
+              nthChild: 4
+              all:
+                - any:
+                    - {kind: identifier, pattern: $P4}
+                    - {kind: typed_parameter, has: {kind: identifier, pattern: $P4}}
+                    - {kind: default_parameter, has: {field: name, pattern: $P4}}
+                    - {kind: typed_default_parameter, has: {field: name, pattern: $P4}}
+                    - {kind: list_splat_pattern, has: {kind: identifier, pattern: $P4}}
+                    - {kind: dictionary_splat_pattern, has: {kind: identifier, pattern: $P4}}
+        - has:
+            field: body
+            has:
+              stopBy: end
+              kind: argument_list
+              inside: {kind: call, field: arguments, matches: forwarded-call}
+              has:
+                nthChild: 4
+                all:
+                  - any:
+                      - {kind: identifier, pattern: $P4}
+                      - {kind: keyword_argument, has: {field: value, kind: identifier, pattern: $P4}}
+                      - {kind: list_splat, has: {kind: identifier, pattern: $P4}}
+                      - {kind: dictionary_splat, has: {kind: identifier, pattern: $P4}}
+        - has:
+            field: parameters
+            has:
+              nthChild: 5
+              all:
+                - any:
+                    - {kind: identifier, pattern: $P5}
+                    - {kind: typed_parameter, has: {kind: identifier, pattern: $P5}}
+                    - {kind: default_parameter, has: {field: name, pattern: $P5}}
+                    - {kind: typed_default_parameter, has: {field: name, pattern: $P5}}
+                    - {kind: list_splat_pattern, has: {kind: identifier, pattern: $P5}}
+                    - {kind: dictionary_splat_pattern, has: {kind: identifier, pattern: $P5}}
+                - matches: last
+        - has:
+            field: body
+            has:
+              stopBy: end
+              kind: argument_list
+              inside: {kind: call, field: arguments, matches: forwarded-call}
+              has:
+                nthChild: 5
+                all:
+                  - any:
+                      - {kind: identifier, pattern: $P5}
+                      - {kind: keyword_argument, has: {field: value, kind: identifier, pattern: $P5}}
+                      - {kind: list_splat, has: {kind: identifier, pattern: $P5}}
+                      - {kind: dictionary_splat, has: {kind: identifier, pattern: $P5}}
+                  - matches: last

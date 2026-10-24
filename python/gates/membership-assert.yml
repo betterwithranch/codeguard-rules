@@ -1,0 +1,12 @@
+id: membership-assert
+language: python
+rule:
+  any:
+  - kind: comparison_operator
+    has: {field: operators, regex: "^(not\\s+)?in$"}
+    inside: {kind: assert_statement, stopBy: end}
+  - kind: call
+    has:
+      field: function
+      kind: attribute
+      has: {field: attribute, regex: "^assert(Not)?In$"}

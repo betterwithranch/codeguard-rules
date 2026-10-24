@@ -1,0 +1,3 @@
+skill: python/skills/tests-dont-affect-each-other
+paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
+triggers: [global-state-change, test-class-state, wide-scope-fixture]

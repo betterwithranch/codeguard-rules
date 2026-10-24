@@ -1,0 +1,80 @@
+id: self-attribute-assignment
+snapshots:
+  ? |
+    class ExampleMailer:
+        def __init__(self, customer):
+            self.email = customer.email
+  : labels:
+    - source: self.email = customer.email
+      style: primary
+      start: 63
+      end: 90
+    - source: |-
+        class ExampleMailer:
+            def __init__(self, customer):
+                self.email = customer.email
+      style: secondary
+      start: 0
+      end: 90
+    - source: |-
+        def __init__(self, customer):
+                self.email = customer.email
+      style: secondary
+      start: 25
+      end: 90
+    - source: self.email
+      style: secondary
+      start: 63
+      end: 73
+  ? |
+    class ExampleMailer:
+        def __post_init__(self):
+            self.email = self.customer.email
+  : labels:
+    - source: self.email = self.customer.email
+      style: primary
+      start: 58
+      end: 90
+    - source: |-
+        class ExampleMailer:
+            def __post_init__(self):
+                self.email = self.customer.email
+      style: secondary
+      start: 0
+      end: 90
+    - source: |-
+        def __post_init__(self):
+                self.email = self.customer.email
+      style: secondary
+      start: 25
+      end: 90
+    - source: self.email
+      style: secondary
+      start: 58
+      end: 68
+  ? |
+    class ExampleMailer:
+        def bind(self, customer):
+            self.email: str = customer.email
+  : labels:
+    - source: 'self.email: str = customer.email'
+      style: primary
+      start: 59
+      end: 91
+    - source: |-
+        class ExampleMailer:
+            def bind(self, customer):
+                self.email: str = customer.email
+      style: secondary
+      start: 0
+      end: 91
+    - source: |-
+        def bind(self, customer):
+                self.email: str = customer.email
+      style: secondary
+      start: 25
+      end: 91
+    - source: self.email
+      style: secondary
+      start: 59
+      end: 69

@@ -1,11 +1,54 @@
 id: normalizing-call
 valid:
+# Comprehension without a filter
+- |
+  skus = [line.sku for line in lines]
+# Filtered generator in an assert, not assigned
+- |
+  assert all(line.paid for line in lines if line.due)
+# Dict comprehension not over items()
+- |
+  totals = {sku: total for sku, total in rows}
+# Plain comparison
 - |
   assert result == expected
+# Field set on a value never copied or asserted
+- |
+  fake.status = 'down'
+# Field set on a value the assert doesn't compare
+- |
+  fake.status = 'down'
+  assert result == expected
 invalid:
+# Filtered list assigned
+- |
+  errors = [d for d in review.diagnostics if d.is_error]
+# Dict comprehension filtering keys out
+- |
+  actual = {key: value for key, value in vars(order).items() if key != 'id'}
+# replace call
 - |
   assert replace(result, id=None) == expected
+# model_copy call
+- |
+  assert expected == result.model_copy(update={'id': None})
+# del of a key
 - |
   del actual['id']
+# exclude keyword
 - |
   actual = result.model_dump(exclude={'id'})
+# include keyword
+- |
+  actual = result.model_dump(include={'total'})
+# exclude_none keyword
+- |
+  actual = result.model_dump(exclude_none=True)
+# Field set on a copy
+- |
+  actual = copy.copy(order)
+  actual.id = None
+# Field set in place before the assert
+- |
+  order.id = None
+  assert order == Order(id=None, total=1)

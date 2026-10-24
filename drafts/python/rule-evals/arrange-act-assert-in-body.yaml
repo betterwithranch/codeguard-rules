@@ -1,0 +1,2499 @@
+cases:
+- name: acts on a service a fixture builds
+  inputs:
+    file: tests/test_invoices.py
+    after: |
+      import pytest
+
+      from billing.invoices import InvoiceService
+      from tests.fakes import FakeLedger
+
+
+      @pytest.fixture
+      def ledger():
+          return FakeLedger(currency="EUR")
+
+
+      @pytest.fixture
+      def invoice_service(ledger):
+          return InvoiceService(ledger)
+
+
+      def test_pay_records_ledger_entry(invoice_service, ledger):
+          invoice_service.issue("inv-42", amount=120)
+
+          invoice_service.pay("inv-42")
+
+          assert ledger.entries == [("inv-42", 120)]
+  expected_output:
+    outcome: invalid
+- name: builds the service in the test from a ledger fixture
+  inputs:
+    file: tests/test_invoices.py
+    after: |
+      import pytest
+
+      from billing.invoices import InvoiceService
+      from tests.fakes import FakeLedger
+
+
+      @pytest.fixture
+      def ledger():
+          return FakeLedger(currency="EUR")
+
+
+      def test_pay_records_ledger_entry(ledger):
+          service = InvoiceService(ledger)
+          service.issue("inv-42", amount=120)
+
+          service.pay("inv-42")
+
+          assert ledger.entries == [("inv-42", 120)]
+
+
+      def test_issue_records_nothing_until_paid(ledger):
+          service = InvoiceService(ledger)
+
+          service.issue("inv-42", amount=120)
+
+          assert ledger.entries == []
+  expected_output:
+    outcome: valid
+- name: acts on a service that setUp builds
+  inputs:
+    file: tests/test_invoices.py
+    after: |
+      import unittest
+
+      from billing.invoices import InvoiceService
+      from tests.fakes import FakeLedger
+
+
+      class InvoicePaymentTest(unittest.TestCase):
+          def setUp(self):
+              self.ledger = FakeLedger(currency="EUR")
+              self.service = InvoiceService(self.ledger)
+
+          def test_pay_records_ledger_entry(self):
+              self.service.issue("inv-42", amount=120)
+
+              self.service.pay("inv-42")
+
+              self.assertEqual(self.ledger.entries_for("inv-42"), [120])
+  expected_output:
+    outcome: invalid
+- name: builds the service in a unittest method from a setUp ledger
+  inputs:
+    file: tests/test_invoices.py
+    after: |
+      import unittest
+
+      from billing.invoices import InvoiceService
+      from tests.fakes import FakeLedger
+
+
+      class InvoicePaymentTest(unittest.TestCase):
+          def setUp(self):
+              self.ledger = FakeLedger(currency="EUR")
+
+          def test_pay_records_ledger_entry(self):
+              service = InvoiceService(self.ledger)
+              service.issue("inv-42", amount=120)
+
+              service.pay("inv-42")
+
+              self.assertEqual(self.ledger.entries_for("inv-42"), [120])
+  expected_output:
+    outcome: valid
+- name: saves through a repository a fixture builds
+  inputs:
+    file: tests/test_order_repository.py
+    after: |
+      import pytest
+      from sqlalchemy.orm import Session
+
+      from shop.orders import Order, OrderRepository
+
+
+      @pytest.fixture
+      def order_repository(db_session: Session) -> OrderRepository:
+          return OrderRepository(db_session)
+
+
+      def test_get_returns_saved_order(order_repository):
+          order_repository.save(Order(id="ord-1", total=120))
+
+          found = order_repository.get("ord-1")
+
+          assert found == Order(id="ord-1", total=120)
+  expected_output:
+    outcome: invalid
+- name: builds the repository in the test from the session fixture
+  inputs:
+    file: tests/test_order_repository.py
+    after: |
+      from shop.orders import Order, OrderRepository
+
+
+      def test_get_returns_saved_order(db_session):
+          repository = OrderRepository(db_session)
+          repository.save(Order(id="ord-1", total=120))
+
+          found = repository.get("ord-1")
+
+          assert found == Order(id="ord-1", total=120)
+  expected_output:
+    outcome: valid
+- name: maps with a mapper fixture in a test class
+  inputs:
+    file: tests/test_invoice_mapper.py
+    after: |
+      import pytest
+
+      from billing.invoices import Invoice
+      from billing.mapper import InvoiceMapper, MappingRules
+
+
+      @pytest.fixture
+      def mapper():
+          return InvoiceMapper(MappingRules(currency="EUR"))
+
+
+      class TestInvoiceMapper:
+          def test_map_reads_number_and_total(self, mapper):
+              invoice = mapper.map({"no": "42", "sum": "120.00"})
+
+              assert invoice == Invoice(number="42", total=120, currency="EUR")
+  expected_output:
+    outcome: invalid
+- name: builds the mapper through a helper in a test class
+  inputs:
+    file: tests/test_invoice_mapper.py
+    after: |
+      import pytest
+
+      from billing.invoices import Invoice
+      from billing.mapper import InvoiceMapper, MappingRules
+
+
+      @pytest.fixture
+      def rules():
+          return MappingRules(currency="EUR")
+
+
+      def make_mapper(rules):
+          return InvoiceMapper(rules)
+
+
+      class TestInvoiceMapper:
+          def test_map_reads_number_and_total(self, rules):
+              mapper = make_mapper(rules)
+
+              invoice = mapper.map({"no": "42", "sum": "120.00"})
+
+              assert invoice == Invoice(number="42", total=120, currency="EUR")
+
+          def test_map_rejects_missing_number(self, rules):
+              mapper = make_mapper(rules)
+
+              with pytest.raises(KeyError):
+                  mapper.map({"sum": "120.00"})
+  expected_output:
+    outcome: valid
+- name: submits through a workflow fixture in an async test
+  inputs:
+    file: tests/test_checkout.py
+    after: |
+      import pytest
+
+      from orders.checkout import CheckoutWorkflow, Status
+      from tests.fakes import FakePaymentGateway
+
+
+      @pytest.fixture
+      def workflow():
+          return CheckoutWorkflow(FakePaymentGateway())
+
+
+      async def test_submit_waits_for_payment(workflow):
+          result = await workflow.submit(order_id="ord-1")
+
+          assert result.status == Status.WAITING
+  expected_output:
+    outcome: invalid
+- name: builds the workflow in an async test from a gateway fixture
+  inputs:
+    file: tests/test_checkout.py
+    after: |
+      import pytest
+
+      from orders.checkout import CheckoutWorkflow, Status
+      from tests.fakes import FakePaymentGateway
+
+
+      @pytest.fixture
+      def gateway():
+          return FakePaymentGateway()
+
+
+      async def test_submit_waits_for_payment(gateway):
+          workflow = CheckoutWorkflow(gateway)
+
+          result = await workflow.submit(order_id="ord-1")
+
+          assert result.status == Status.WAITING
+
+
+      async def test_submit_requests_one_charge(gateway):
+          workflow = CheckoutWorkflow(gateway)
+
+          await workflow.submit(order_id="ord-1")
+
+          assert gateway.charges == ["ord-1"]
+  expected_output:
+    outcome: valid
+- name: cancels a Django order a fixture creates
+  inputs:
+    file: shop/tests/test_order_cancel.py
+    after: |
+      import pytest
+
+      from shop.models import Order
+
+
+      @pytest.fixture
+      def order(db):
+          return Order.objects.create(number="A-1", status=Order.Status.PLACED)
+
+
+      def test_cancel_marks_order_cancelled(order):
+          order.cancel(reason="customer request")
+
+          order.refresh_from_db()
+          assert order.status == Order.Status.CANCELLED
+  expected_output:
+    outcome: invalid
+- name: posts a cancel request through the Django test client
+  inputs:
+    file: shop/tests/test_order_cancel.py
+    after: |
+      import pytest
+
+      from shop.models import Order
+
+
+      @pytest.mark.django_db
+      def test_cancel_view_marks_order_cancelled(client):
+          order = Order.objects.create(number="A-1", status=Order.Status.PLACED)
+
+          client.post(f"/orders/{order.pk}/cancel/", {"reason": "customer request"})
+
+          order.refresh_from_db()
+          assert order.status == Order.Status.CANCELLED
+  expected_output:
+    outcome: valid
+- name: parses with each parser from the parametrize list
+  inputs:
+    file: tests/test_parsers.py
+    after: |
+      import pytest
+
+      from imports.parsers import CsvParser, JsonParser
+
+
+      @pytest.mark.parametrize(
+          ("parser", "text"),
+          [(CsvParser(), "sku,qty\nA1,2\n"), (JsonParser(), '[{"sku": "A1", "qty": 2}]')],
+      )
+      def test_parse_reads_quantity(parser, text):
+          rows = parser.parse(text)
+
+          assert rows[0].quantity == 2
+  expected_output:
+    outcome: valid
+- name: changes the issued amount in a test without parameters
+  inputs:
+    file: tests/test_invoices.py
+    before: |
+      from billing.invoices import InvoiceService
+      from tests.fakes import FakeLedger
+
+
+      def test_pay_records_ledger_entry():
+          ledger = FakeLedger()
+          service = InvoiceService(ledger)
+          service.issue("inv-42", amount=120)
+
+          service.pay("inv-42")
+
+          assert ledger.entries == [("inv-42", 120)]
+    after: |
+      from billing.invoices import InvoiceService
+      from tests.fakes import FakeLedger
+
+
+      def test_pay_records_ledger_entry():
+          ledger = FakeLedger()
+          service = InvoiceService(ledger)
+          service.issue("inv-42", amount=150)
+
+          service.pay("inv-42")
+
+          assert ledger.entries == [("inv-42", 150)]
+  expected_output:
+    outcome: skipped
+- name: changes the currency inside a fixture
+  inputs:
+    file: tests/test_invoices.py
+    before: |
+      import pytest
+
+      from tests.fakes import FakeLedger
+
+
+      @pytest.fixture
+      def ledger():
+          return FakeLedger(currency="EUR")
+    after: |
+      import pytest
+
+      from tests.fakes import FakeLedger
+
+
+      @pytest.fixture
+      def ledger():
+          return FakeLedger(currency="USD")
+  expected_output:
+    outcome: valid
+- name: checks out the cart in a fixture
+  inputs:
+    file: tests/test_checkout.py
+    after: |
+      import pytest
+
+      from shop.carts import Cart, CartLine
+      from shop.checkout import checkout
+
+
+      @pytest.fixture
+      def cart():
+          return Cart(lines=[CartLine(sku="BOOK-1", price=60, quantity=2)])
+
+
+      @pytest.fixture
+      def receipt(cart):
+          return checkout(cart)
+
+
+      def test_receipt_total_sums_lines(receipt):
+          assert receipt.total == 120
+  expected_output:
+    outcome: invalid
+- name: checks out the cart in the test
+  inputs:
+    file: tests/test_checkout.py
+    after: |
+      import pytest
+
+      from shop.carts import Cart, CartLine
+      from shop.checkout import checkout
+
+
+      @pytest.fixture
+      def cart():
+          return Cart(lines=[CartLine(sku="BOOK-1", price=60, quantity=2)])
+
+
+      def test_receipt_total_sums_lines(cart):
+          receipt = checkout(cart)
+
+          assert receipt.total == 120
+
+
+      def test_receipt_lists_each_line(cart):
+          receipt = checkout(cart)
+
+          assert receipt.skus == ["BOOK-1"]
+  expected_output:
+    outcome: valid
+- name: pays the invoice in a fixture and asserts the ledger
+  inputs:
+    file: tests/test_invoices.py
+    after: |
+      import pytest
+
+      from billing.invoices import InvoiceService
+      from tests.fakes import FakeLedger
+
+
+      @pytest.fixture
+      def ledger():
+          return FakeLedger(currency="EUR")
+
+
+      @pytest.fixture
+      def paid_invoice(ledger):
+          service = InvoiceService(ledger)
+          service.issue("inv-42", amount=120)
+          service.pay("inv-42")
+          return "inv-42"
+
+
+      def test_pay_records_ledger_entry(paid_invoice, ledger):
+          assert ledger.entries == [(paid_invoice, 120)]
+  expected_output:
+    outcome: invalid
+- name: returns the checkout response from a fixture
+  inputs:
+    file: shop/tests/test_checkout_view.py
+    after: |
+      import pytest
+
+      from shop.models import Cart
+
+
+      @pytest.fixture
+      def cart(db, customer):
+          return Cart.objects.create(owner=customer)
+
+
+      @pytest.fixture
+      def checkout_response(client, cart):
+          return client.post(f"/carts/{cart.pk}/checkout/")
+
+
+      def test_checkout_redirects_to_receipt(checkout_response, cart):
+          assert checkout_response.status_code == 302
+          assert checkout_response.url == f"/receipts/{cart.pk}/"
+  expected_output:
+    outcome: invalid
+- name: posts the checkout in the test with a cart fixture
+  inputs:
+    file: shop/tests/test_checkout_view.py
+    after: |
+      import pytest
+
+      from shop.models import Cart
+
+
+      @pytest.fixture
+      def cart(db, customer):
+          return Cart.objects.create(owner=customer)
+
+
+      def test_checkout_redirects_to_receipt(client, cart):
+          response = client.post(f"/carts/{cart.pk}/checkout/")
+
+          assert response.status_code == 302
+          assert response.url == f"/receipts/{cart.pk}/"
+
+
+      def test_checkout_page_shows_the_cart(client, cart):
+          response = client.get(f"/carts/{cart.pk}/checkout/")
+
+          assert response.status_code == 200
+  expected_output:
+    outcome: valid
+- name: runs the management command in a fixture
+  inputs:
+    file: billing/tests/test_close_month.py
+    after: |
+      import pytest
+      from django.core.management import call_command
+
+      from billing.models import Period
+
+
+      @pytest.fixture
+      def closed_month(db):
+          Period.objects.create(month="2026-09", status=Period.Status.OPEN)
+          call_command("close_month", "2026-09")
+
+
+      def test_close_month_closes_the_period(closed_month):
+          assert Period.objects.get(month="2026-09").status == Period.Status.CLOSED
+  expected_output:
+    outcome: invalid
+- name: runs the management command in the test
+  inputs:
+    file: billing/tests/test_close_month.py
+    after: |
+      import pytest
+      from django.core.management import call_command
+
+      from billing.models import Period
+
+
+      @pytest.fixture
+      def open_period(db):
+          return Period.objects.create(month="2026-09", status=Period.Status.OPEN)
+
+
+      def test_close_month_closes_the_period(open_period):
+          call_command("close_month", "2026-09")
+
+          open_period.refresh_from_db()
+          assert open_period.status == Period.Status.CLOSED
+
+
+      def test_close_month_leaves_other_months_open(open_period):
+          call_command("close_month", "2026-10")
+
+          open_period.refresh_from_db()
+          assert open_period.status == Period.Status.OPEN
+  expected_output:
+    outcome: valid
+- name: sends reminders in a yield fixture
+  inputs:
+    file: tests/test_reminders.py
+    after: |
+      import pytest
+
+      from billing.reminders import ReminderSender
+      from tests.fakes import FakeMailbox
+
+
+      @pytest.fixture
+      def mailbox():
+          return FakeMailbox()
+
+
+      @pytest.fixture
+      def sent_reminders(mailbox, overdue_invoice):
+          ReminderSender(mailbox).send_overdue(today="2026-02-01")
+          yield mailbox.sent
+          mailbox.clear()
+
+
+      def test_reminder_goes_to_the_account_email(sent_reminders):
+          assert sent_reminders == [("billing@example.com", "Invoice inv-42 is overdue")]
+  expected_output:
+    outcome: invalid
+- name: maps the payload in an async fixture
+  inputs:
+    file: tests/test_invoice_mapper.py
+    after: |
+      import pytest_asyncio
+
+      from billing.invoices import Invoice
+      from billing.mapper import AsyncInvoiceMapper, MappingRules
+
+
+      @pytest_asyncio.fixture
+      async def mapped_invoice():
+          mapper = AsyncInvoiceMapper(MappingRules(currency="EUR"))
+          return await mapper.map({"no": "42", "sum": "120.00"})
+
+
+      async def test_map_reads_number_and_total(mapped_invoice):
+          assert mapped_invoice == Invoice(number="42", total=120, currency="EUR")
+  expected_output:
+    outcome: invalid
+- name: changes the expected total in a test
+  inputs:
+    file: tests/test_checkout.py
+    before: |
+      from shop.carts import Cart, CartLine
+      from shop.checkout import checkout
+
+
+      def test_receipt_total_sums_lines():
+          receipt = checkout(Cart(lines=[CartLine(sku="BOOK-1", price=60, quantity=2)]))
+
+          assert receipt.total == 120
+    after: |
+      from shop.carts import Cart, CartLine
+      from shop.checkout import checkout
+
+
+      def test_receipt_total_sums_lines():
+          receipt = checkout(Cart(lines=[CartLine(sku="BOOK-1", price=60, quantity=3)]))
+
+          assert receipt.total == 180
+  expected_output:
+    outcome: skipped
+- name: renames a test that requests a fixture
+  inputs:
+    file: tests/test_checkout.py
+    before: |
+      import pytest
+
+      from shop.carts import Cart
+      from shop.checkout import checkout
+
+
+      @pytest.fixture
+      def cart():
+          return Cart(lines=[])
+
+
+      def test_empty(cart):
+          assert checkout(cart).total == 0
+
+
+      def test_empty_cart_has_no_lines(cart):
+          assert checkout(cart).skus == []
+    after: |
+      import pytest
+
+      from shop.carts import Cart
+      from shop.checkout import checkout
+
+
+      @pytest.fixture
+      def cart():
+          return Cart(lines=[])
+
+
+      def test_empty_cart_totals_zero(cart):
+          assert checkout(cart).total == 0
+
+
+      def test_empty_cart_has_no_lines(cart):
+          assert checkout(cart).skus == []
+  expected_output:
+    outcome: valid
+- name: starts the workflow in a fixture
+  inputs:
+    file: tests/test_fulfillment.py
+    after: |
+      import pytest
+
+      from orders.fulfillment import FulfillmentWorkflow
+      from orders.models import Order
+
+
+      @pytest.fixture
+      def started_workflow():
+          workflow = FulfillmentWorkflow()
+          workflow.start(Order(id="ord-1", total=120))
+          return workflow
+
+
+      def test_ship_marks_order_shipped(started_workflow):
+          started_workflow.ship("ord-1")
+
+          assert started_workflow.status("ord-1") == "shipped"
+  expected_output:
+    outcome: invalid
+- name: acts on a workflow a fixture builds without starting it
+  inputs:
+    file: tests/test_fulfillment.py
+    after: |
+      import pytest
+
+      from orders.fulfillment import FulfillmentWorkflow
+      from orders.models import Order
+
+
+      @pytest.fixture
+      def workflow():
+          return FulfillmentWorkflow()
+
+
+      def test_ship_marks_order_shipped(workflow):
+          workflow.start(Order(id="ord-1", total=120))
+
+          workflow.ship("ord-1")
+
+          assert workflow.status("ord-1") == "shipped"
+  expected_output:
+    outcome: invalid
+- name: issues the invoice in a fixture
+  inputs:
+    file: tests/test_invoices.py
+    before: |
+      import pytest
+
+      from billing.invoices import InvoiceService
+      from tests.fakes import FakeLedger
+
+
+      @pytest.fixture
+      def ledger():
+          return FakeLedger(currency="EUR")
+    after: |
+      import pytest
+
+      from billing.invoices import InvoiceService
+      from tests.fakes import FakeLedger
+
+
+      @pytest.fixture
+      def ledger():
+          return FakeLedger(currency="EUR")
+
+
+      @pytest.fixture
+      def invoice_service(ledger):
+          service = InvoiceService(ledger)
+          service.issue("inv-42", amount=120)
+          return service
+
+
+      def test_pay_records_ledger_entry(invoice_service, ledger):
+          invoice_service.pay("inv-42")
+
+          assert ledger.entries == [("inv-42", 120)]
+  expected_output:
+    outcome: invalid
+- name: submits a created order in a conftest fixture
+  inputs:
+    file: tests/conftest.py
+    after: |
+      import pytest
+      from sqlalchemy.orm import Session
+
+      from shop.customers import CustomerService
+      from shop.orders import Order, OrderService
+
+
+      @pytest.fixture
+      def customer(db_session: Session):
+          return CustomerService(db_session).register(email="ana@example.com")
+
+
+      @pytest.fixture
+      def submitted_order(db_session: Session, customer) -> Order:
+          orders = OrderService(db_session)
+          order = orders.place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+          orders.submit(order.id)
+          return order
+  expected_output:
+    outcome: invalid
+- name: places an order through its creator in a conftest fixture
+  inputs:
+    file: tests/conftest.py
+    after: |
+      import pytest
+      from sqlalchemy.orm import Session
+
+      from shop.customers import CustomerService
+      from shop.orders import Order, OrderService
+
+
+      @pytest.fixture
+      def customer(db_session: Session):
+          return CustomerService(db_session).register(email="ana@example.com")
+
+
+      @pytest.fixture
+      def order(db_session: Session, customer) -> Order:
+          return OrderService(db_session).place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+  expected_output:
+    outcome: valid
+- name: approves a Django expense report in a fixture
+  inputs:
+    file: expenses/tests/test_reimbursement.py
+    after: |
+      import pytest
+
+      from expenses.models import ExpenseReport
+
+
+      @pytest.fixture
+      def approved_report(db, employee):
+          report = ExpenseReport.objects.create(owner=employee, total_cents=4200)
+          report.approve(by="manager@example.com")
+          return report
+
+
+      def test_reimburse_marks_report_paid(approved_report):
+          approved_report.reimburse()
+
+          approved_report.refresh_from_db()
+          assert approved_report.status == ExpenseReport.Status.PAID
+  expected_output:
+    outcome: invalid
+- name: enables a feature flag and starts a worker in fixtures
+  inputs:
+    file: expenses/tests/test_reimbursement.py
+    after: |
+      import pytest
+
+      from expenses.models import ExpenseReport
+      from expenses.worker import ReimbursementWorker
+
+
+      @pytest.fixture(autouse=True)
+      def instant_payouts(settings):
+          settings.FEATURES = {"instant_payouts": True}
+
+
+      @pytest.fixture
+      def worker():
+          worker = ReimbursementWorker(queue="test")
+          worker.start()
+          yield worker
+          worker.stop()
+
+
+      def test_reimburse_marks_report_paid(db, employee, worker):
+          report = ExpenseReport.objects.create(owner=employee, total_cents=4200)
+          report.approve(by="manager@example.com")
+
+          report.reimburse()
+
+          worker.drain()
+          report.refresh_from_db()
+          assert report.status == ExpenseReport.Status.PAID
+
+
+      def test_reimburse_skips_unapproved_report(db, employee, worker):
+          report = ExpenseReport.objects.create(owner=employee, total_cents=4200)
+
+          report.reimburse()
+
+          worker.drain()
+          report.refresh_from_db()
+          assert report.status == ExpenseReport.Status.SUBMITTED
+  expected_output:
+    outcome: valid
+- name: adds an item through the test client in a fixture
+  inputs:
+    file: shop/tests/test_checkout_view.py
+    after: |
+      import pytest
+
+      from shop.models import Cart
+
+
+      @pytest.fixture
+      def cart_with_book(client, customer):
+          cart = Cart.objects.create(owner=customer)
+          client.post(f"/carts/{cart.pk}/items/", {"sku": "BOOK-1", "quantity": 1})
+          return cart
+
+
+      def test_checkout_empties_the_cart(client, cart_with_book):
+          client.post(f"/carts/{cart_with_book.pk}/checkout/")
+
+          assert cart_with_book.items.count() == 0
+  expected_output:
+    outcome: invalid
+- name: logs the test client in within a fixture
+  inputs:
+    file: shop/tests/test_checkout_view.py
+    after: |
+      import pytest
+
+      from shop.models import Cart
+
+
+      @pytest.fixture
+      def signed_in_client(client, customer):
+          client.force_login(customer.user)
+          return client
+
+
+      def test_checkout_empties_the_cart(signed_in_client, customer):
+          cart = Cart.objects.create(owner=customer)
+          signed_in_client.post(f"/carts/{cart.pk}/items/", {"sku": "BOOK-1", "quantity": 1})
+
+          signed_in_client.post(f"/carts/{cart.pk}/checkout/")
+
+          assert cart.items.count() == 0
+
+
+      def test_cart_page_lists_added_item(signed_in_client, customer):
+          cart = Cart.objects.create(owner=customer)
+          signed_in_client.post(f"/carts/{cart.pk}/items/", {"sku": "BOOK-1", "quantity": 1})
+
+          response = signed_in_client.get(f"/carts/{cart.pk}/")
+
+          assert "BOOK-1" in response.content.decode()
+  expected_output:
+    outcome: valid
+- name: runs an export job in an async fixture
+  inputs:
+    file: tests/test_exports.py
+    after: |
+      import pytest_asyncio
+
+      from reports.exports import ExportJob
+
+
+      @pytest_asyncio.fixture
+      async def running_export(tmp_path):
+          job = ExportJob(target=tmp_path / "out.csv")
+          await job.begin()
+          return job
+
+
+      async def test_cancel_removes_partial_file(running_export, tmp_path):
+          await running_export.cancel()
+
+          assert not (tmp_path / "out.csv").exists()
+  expected_output:
+    outcome: invalid
+- name: changes an asserted status in a test
+  inputs:
+    file: tests/test_fulfillment.py
+    before: |
+      from orders.fulfillment import FulfillmentWorkflow
+      from orders.models import Order
+
+
+      def test_ship_marks_order_shipped():
+          workflow = FulfillmentWorkflow()
+          workflow.start(Order(id="ord-1", total=120))
+
+          workflow.ship("ord-1")
+
+          assert workflow.status("ord-1") == "shipped"
+    after: |
+      from orders.fulfillment import FulfillmentWorkflow
+      from orders.models import Order
+
+
+      def test_ship_marks_order_shipped():
+          workflow = FulfillmentWorkflow()
+          workflow.start(Order(id="ord-1", total=120))
+
+          workflow.ship("ord-1")
+
+          assert workflow.status("ord-1") == "in_transit"
+  expected_output:
+    outcome: skipped
+- name: returns the mapped invoice from a helper
+  inputs:
+    file: tests/test_invoice_mapper.py
+    after: |
+      from billing.invoices import Invoice
+      from billing.mapper import InvoiceMapper, MappingRules
+
+
+      def map_invoice(raw):
+          return InvoiceMapper(MappingRules(currency="EUR")).map(raw)
+
+
+      def test_map_reads_number_and_total():
+          invoice = map_invoice({"no": "42", "sum": "120.00"})
+
+          assert invoice == Invoice(number="42", total=120, currency="EUR")
+  expected_output:
+    outcome: invalid
+- name: returns the mapper from a helper
+  inputs:
+    file: tests/test_invoice_mapper.py
+    after: |
+      from billing.invoices import Invoice
+      from billing.mapper import InvoiceMapper, MappingRules
+
+
+      def make_mapper():
+          return InvoiceMapper(MappingRules(currency="EUR"))
+
+
+      def test_map_reads_number_and_total():
+          mapper = make_mapper()
+
+          invoice = mapper.map({"no": "42", "sum": "120.00"})
+
+          assert invoice == Invoice(number="42", total=120, currency="EUR")
+  expected_output:
+    outcome: valid
+- name: maps through a local mapper in a helper
+  inputs:
+    file: tests/test_invoice_mapper.py
+    after: |
+      from billing.invoices import Invoice
+      from billing.mapper import InvoiceMapper, MappingRules
+
+
+      def map_invoice(raw):
+          mapper = InvoiceMapper(MappingRules(currency="EUR"))
+          return mapper.map(raw)
+
+
+      def test_map_reads_number_and_total():
+          invoice = map_invoice({"no": "42", "sum": "120.00"})
+
+          assert invoice == Invoice(number="42", total=120, currency="EUR")
+  expected_output:
+    outcome: invalid
+- name: returns overdue invoices from a ledger fixture
+  inputs:
+    file: tests/test_reminders.py
+    after: |
+      from datetime import date
+      from decimal import Decimal
+
+      import pytest
+
+      from billing.ledger import Ledger
+      from billing.reminders import reminder_lines
+
+
+      @pytest.fixture
+      def overdue_invoices(account):
+          ledger = Ledger(account)
+          ledger.issue(amount=Decimal("100.00"), due=date(2026, 1, 15))
+          ledger.issue(amount=Decimal("40.00"), due=date(2026, 3, 15))
+          return ledger.overdue_invoices(today=date(2026, 2, 1))
+
+
+      def test_reminder_lists_each_overdue_amount(overdue_invoices):
+          assert reminder_lines(overdue_invoices) == ["100.00 due 2026-01-15"]
+  expected_output:
+    outcome: invalid
+- name: returns the ledger from a helper
+  inputs:
+    file: tests/test_reminders.py
+    after: |
+      from datetime import date
+      from decimal import Decimal
+
+      from billing.ledger import Ledger
+      from billing.reminders import reminder_lines
+
+
+      def make_ledger(account):
+          ledger = Ledger(account)
+          ledger.issue(amount=Decimal("100.00"), due=date(2026, 1, 15))
+          ledger.issue(amount=Decimal("40.00"), due=date(2026, 3, 15))
+          return ledger
+
+
+      def test_reminder_lists_each_overdue_amount(account):
+          ledger = make_ledger(account)
+
+          overdue = ledger.overdue_invoices(today=date(2026, 2, 1))
+
+          assert reminder_lines(overdue) == ["100.00 due 2026-01-15"]
+  expected_output:
+    outcome: valid
+- name: filters the ledger's invoices in a comprehension in a fixture
+  inputs:
+    file: tests/test_reminders.py
+    after: |
+      from datetime import date
+      from decimal import Decimal
+
+      import pytest
+
+      from billing.ledger import Ledger
+      from billing.reminders import reminder_lines
+
+
+      @pytest.fixture
+      def overdue_invoices(account):
+          ledger = Ledger(account)
+          ledger.issue(amount=Decimal("100.00"), due=date(2026, 1, 15))
+          ledger.issue(amount=Decimal("40.00"), due=date(2026, 3, 15))
+          return [invoice for invoice in ledger.invoices if invoice.due < date(2026, 2, 1)]
+
+
+      def test_reminder_lists_each_overdue_amount(overdue_invoices):
+          assert reminder_lines(overdue_invoices) == ["100.00 due 2026-01-15"]
+  expected_output:
+    outcome: invalid
+- name: returns a runtime's context from a helper
+  inputs:
+    file: tests/test_plugins.py
+    after: |
+      from plugins.runtime import RuntimeConfig, build_runtime
+
+
+      def plugin_context(name):
+          return build_runtime(RuntimeConfig(plugins=[name])).context
+
+
+      def test_loaded_plugin_is_registered():
+          context = plugin_context("audit")
+
+          assert context.plugin_names() == ["audit"]
+  expected_output:
+    outcome: invalid
+- name: returns a runtime built by its factory from a helper
+  inputs:
+    file: tests/test_plugins.py
+    after: |
+      from plugins.runtime import RuntimeConfig, build_runtime
+
+
+      def make_runtime(name):
+          return build_runtime(RuntimeConfig(plugins=[name]))
+
+
+      def test_loaded_plugin_is_registered():
+          runtime = make_runtime("audit")
+
+          assert runtime.context.plugin_names() == ["audit"]
+  expected_output:
+    outcome: valid
+- name: returns an order built with a builder chain
+  inputs:
+    file: tests/test_orders.py
+    after: |
+      from shop.orders import OrderBuilder, ship
+
+
+      def make_paid_order(total):
+          return OrderBuilder().with_total(total).paid().build()
+
+
+      def test_ship_paid_order_sets_shipped():
+          order = make_paid_order(120)
+
+          assert ship(order).status == "shipped"
+  expected_output:
+    outcome: valid
+- name: returns an invoice its service creates in a fixture
+  inputs:
+    file: tests/conftest.py
+    after: |
+      from decimal import Decimal
+
+      import pytest
+
+      from billing.invoices import InvoiceService
+
+
+      @pytest.fixture
+      def invoice(db_session, account):
+          return InvoiceService(db_session).create(account_id=account.id, amount=Decimal("120.00"))
+  expected_output:
+    outcome: valid
+- name: returns the orders API's parsed response from a helper
+  inputs:
+    file: tests/test_orders_api.py
+    after: |
+      def list_orders(client, customer_id):
+          return client.get(f"/customers/{customer_id}/orders/").json()
+
+
+      def test_lists_customer_orders(client, customer):
+          orders = list_orders(client, customer.id)
+
+          assert [order["number"] for order in orders] == ["A-1"]
+  expected_output:
+    outcome: invalid
+- name: yields the result of running a job from a fixture
+  inputs:
+    file: tests/test_exports.py
+    after: |
+      import pytest
+
+      from reports.exports import ExportJob
+
+
+      @pytest.fixture
+      def export_result(tmp_path):
+          job = ExportJob(target=tmp_path / "out.csv")
+          yield job.run()
+          job.cleanup()
+
+
+      def test_export_writes_every_row(export_result):
+          assert export_result.rows_written == 3
+  expected_output:
+    outcome: invalid
+- name: returns several built lines from a helper
+  inputs:
+    file: tests/test_orders.py
+    after: |
+      from shop.orders import Order, OrderLine
+
+
+      def make_lines(*skus):
+          return [OrderLine(sku=sku, price=10, quantity=1) for sku in skus]
+
+
+      def test_total_sums_lines():
+          assert Order(lines=make_lines("A1", "B2")).total == 20
+  expected_output:
+    outcome: valid
+- name: changes the expected order total in a test
+  inputs:
+    file: tests/test_orders.py
+    before: |
+      from shop.orders import Order, OrderLine
+
+
+      def test_total_sums_lines():
+          assert Order(lines=[OrderLine(sku="A1", price=10, quantity=1)]).total == 10
+    after: |
+      from shop.orders import Order, OrderLine
+
+
+      def test_total_sums_lines():
+          assert Order(lines=[OrderLine(sku="A1", price=10, quantity=2)]).total == 20
+  expected_output:
+    outcome: skipped
+- name: changes a seeding helper that returns nothing
+  inputs:
+    file: tests/test_orders.py
+    before: |
+      from shop.orders import Order
+
+
+      def seed_orders(session):
+          session.add(Order(number="A-1"))
+    after: |
+      from shop.orders import Order
+
+
+      def seed_orders(session):
+          session.add(Order(number="A-2"))
+  expected_output:
+    outcome: skipped
+- name: sets the region and returns the service from one fixture
+  inputs:
+    file: tests/test_order_tax.py
+    after: |
+      import pytest
+
+      from shop.orders import OrderService
+
+
+      @pytest.fixture
+      def order_service(monkeypatch):
+          monkeypatch.setenv("SHOP_REGION", "eu")
+          return OrderService()
+
+
+      def test_tax_uses_region_rate(order_service):
+          assert order_service.tax_for(total=100) == 21
+  expected_output:
+    outcome: invalid
+- name: sets the region in an autouse fixture and builds the service in the test
+  inputs:
+    file: tests/test_order_tax.py
+    after: |
+      import pytest
+
+      from shop.orders import OrderService
+
+
+      @pytest.fixture(autouse=True)
+      def eu_region(monkeypatch):
+          monkeypatch.setenv("SHOP_REGION", "eu")
+
+
+      def test_tax_uses_region_rate():
+          service = OrderService(tax_table="standard")
+
+          assert service.tax_for(total=100) == 21
+  expected_output:
+    outcome: valid
+- name: data fixture requests a setup fixture for the region
+  inputs:
+    file: tests/test_order_tax.py
+    after: |
+      import pytest
+
+      from shop.carts import Cart, CartLine
+      from shop.tax import tax_for, tax_label
+
+
+      @pytest.fixture
+      def eu_region(monkeypatch):
+          monkeypatch.setenv("SHOP_REGION", "eu")
+
+
+      @pytest.fixture
+      def cart(eu_region):
+          return Cart(lines=[CartLine(sku="BOOK-1", price=100, quantity=1)])
+
+
+      def test_tax_uses_region_rate(cart):
+          assert tax_for(cart) == 21
+
+
+      def test_tax_label_names_the_rate(cart):
+          assert tax_label(cart) == "VAT 21%"
+
+
+      @pytest.mark.usefixtures("eu_region")
+      def test_tax_for_empty_cart_is_zero():
+          assert tax_for(Cart(lines=[])) == 0
+  expected_output:
+    outcome: valid
+- name: enables a Django feature flag in the employee fixture
+  inputs:
+    file: expenses/tests/conftest.py
+    after: |
+      import pytest
+
+      from expenses.models import Employee
+
+
+      @pytest.fixture
+      def employee(db, settings):
+          settings.FEATURES = {"instant_payouts": True}
+          return Employee.objects.create(email="ana@example.com")
+  expected_output:
+    outcome: invalid
+- name: keeps the Django feature flag and the employee in separate fixtures
+  inputs:
+    file: expenses/tests/conftest.py
+    after: |
+      import pytest
+
+      from expenses.models import Employee
+
+
+      @pytest.fixture
+      def instant_payouts(settings):
+          settings.FEATURES = {"instant_payouts": True}
+
+
+      @pytest.fixture
+      def employee(db):
+          return Employee.objects.create(email="ana@example.com")
+  expected_output:
+    outcome: valid
+- name: freezes the clock and yields a client from one fixture
+  inputs:
+    file: tests/test_session_expiry.py
+    after: |
+      import pytest
+      import time_machine
+
+      from web.app import create_app
+
+
+      @pytest.fixture
+      def client():
+          with time_machine.travel("2026-03-01T09:00:00Z", tick=False):
+              yield create_app().test_client()
+
+
+      def test_session_expires_after_an_hour(client):
+          response = client.get("/session")
+
+          assert response.json["expires_at"] == "2026-03-01T10:00:00Z"
+  expected_output:
+    outcome: invalid
+- name: registers a handler and returns the event bus
+  inputs:
+    file: tests/test_audit.py
+    after: |
+      import pytest
+
+      from audit import handlers
+      from audit.bus import EventBus
+      from audit.handlers import AuditHandler
+
+
+      @pytest.fixture
+      def bus():
+          handlers.register(AuditHandler)
+          yield EventBus()
+          handlers.unregister(AuditHandler)
+
+
+      def test_publish_writes_an_audit_entry(bus):
+          entry = bus.publish("order.paid", order_id="ord-1")
+
+          assert entry.topic == "order.paid"
+  expected_output:
+    outcome: invalid
+- name: sets an environment variable and yields a config in an async fixture
+  inputs:
+    file: tests/test_config.py
+    after: |
+      import os
+
+      import pytest_asyncio
+
+      from service.config import load_config
+
+
+      @pytest_asyncio.fixture
+      async def config():
+          os.environ["QUEUE_URL"] = "memory://"
+          yield await load_config()
+          del os.environ["QUEUE_URL"]
+
+
+      async def test_config_reads_queue_url(config):
+          assert config.queue_url == "memory://"
+  expected_output:
+    outcome: invalid
+- name: yields the patched gateway from a fixture
+  inputs:
+    file: tests/test_payments.py
+    after: |
+      from unittest.mock import patch
+
+      import pytest
+
+      from billing.payments import charge
+
+
+      @pytest.fixture
+      def gateway():
+          with patch("billing.payments.gateway") as gateway:
+              gateway.charge.return_value = "ch_1"
+              yield gateway
+
+
+      def test_charge_returns_gateway_reference(gateway):
+          assert charge(amount=120) == "ch_1"
+
+
+      def test_charge_sends_amount_in_cents(gateway):
+          charge(amount=120)
+
+          gateway.charge.assert_called_once_with(amount_cents=12000)
+  expected_output:
+    outcome: valid
+- name: returns a temporary export directory it creates
+  inputs:
+    file: tests/test_exports.py
+    after: |
+      import pytest
+
+      from reports.exports import export_orders
+
+
+      @pytest.fixture
+      def export_dir(tmp_path):
+          directory = tmp_path / "exports"
+          directory.mkdir()
+          return directory
+
+
+      def test_export_writes_one_file(export_dir):
+          export_orders(target=export_dir)
+
+          assert [path.name for path in export_dir.iterdir()] == ["orders.csv"]
+
+
+      def test_export_writes_a_header_row(export_dir):
+          export_orders(target=export_dir)
+
+          assert (export_dir / "orders.csv").read_text().startswith("number,total")
+  expected_output:
+    outcome: valid
+- name: starts a server, yields it and stops it
+  inputs:
+    file: tests/test_webhooks.py
+    after: |
+      import pytest
+
+      from tests.fakes import FakeWebhookServer
+      from webhooks.sender import send_event
+
+
+      @pytest.fixture
+      def webhook_server():
+          server = FakeWebhookServer(port=0)
+          server.start()
+          yield server
+          server.stop()
+
+
+      def test_send_event_posts_to_server(webhook_server):
+          send_event(url=webhook_server.url, name="order.paid")
+
+          assert webhook_server.received == ["order.paid"]
+
+
+      def test_send_event_signs_the_request(webhook_server):
+          send_event(url=webhook_server.url, name="order.paid")
+
+          assert webhook_server.signatures != []
+  expected_output:
+    outcome: valid
+- name: changes an asserted rate in a test
+  inputs:
+    file: tests/test_order_tax.py
+    before: |
+      from shop.orders import OrderService
+
+
+      def test_tax_uses_region_rate():
+          assert OrderService(tax_table="standard").tax_for(total=100) == 21
+    after: |
+      from shop.orders import OrderService
+
+
+      def test_tax_uses_region_rate():
+          assert OrderService(tax_table="reduced").tax_for(total=100) == 10
+  expected_output:
+    outcome: skipped
+- name: changes a helper's email
+  inputs:
+    file: expenses/tests/conftest.py
+    before: |
+      from expenses.models import Employee
+
+
+      def make_employee(email="ana@example.com"):
+          return Employee.objects.create(email=email)
+    after: |
+      from expenses.models import Employee
+
+
+      def make_employee(email="bo@example.com"):
+          return Employee.objects.create(email=email)
+  expected_output:
+    outcome: valid
+- name: adds a fixture only one of two tests requests
+  inputs:
+    file: tests/test_reminders.py
+    after: |
+      import pytest
+
+      from billing.reminders import ReminderSender
+      from tests.fakes import FakeLedger, FakeMailbox
+
+
+      @pytest.fixture
+      def overdue_ledger():
+          ledger = FakeLedger(currency="EUR")
+          ledger.add_invoice("inv-42", amount=120, due="2026-01-15")
+          return ledger
+
+
+      def test_sends_reminder_for_overdue_invoice(overdue_ledger):
+          mailbox = FakeMailbox()
+
+          ReminderSender(overdue_ledger, mailbox).send_overdue(today="2026-02-01")
+
+          assert mailbox.subjects == ["Invoice inv-42 is overdue"]
+
+
+      def test_sends_nothing_for_empty_ledger():
+          mailbox = FakeMailbox()
+
+          ReminderSender(FakeLedger(currency="EUR"), mailbox).send_overdue(today="2026-02-01")
+
+          assert mailbox.subjects == []
+  expected_output:
+    outcome: invalid
+- name: adds a fixture both tests request
+  inputs:
+    file: tests/test_reminders.py
+    after: |
+      import pytest
+
+      from billing.reminders import ReminderSender
+      from tests.fakes import FakeLedger, FakeMailbox
+
+
+      @pytest.fixture
+      def mailbox():
+          return FakeMailbox()
+
+
+      def test_sends_reminder_for_overdue_invoice(mailbox):
+          ledger = FakeLedger(currency="EUR")
+          ledger.add_invoice("inv-42", amount=120, due="2026-01-15")
+
+          ReminderSender(ledger, mailbox).send_overdue(today="2026-02-01")
+
+          assert mailbox.subjects == ["Invoice inv-42 is overdue"]
+
+
+      def test_sends_nothing_for_empty_ledger(mailbox):
+          ReminderSender(FakeLedger(currency="EUR"), mailbox).send_overdue(today="2026-02-01")
+
+          assert mailbox.subjects == []
+  expected_output:
+    outcome: valid
+- name: marks a single test with usefixtures for a frozen clock
+  inputs:
+    file: tests/test_tokens.py
+    after: |
+      import pytest
+
+      from auth.tokens import issue_token, is_expired
+
+
+      @pytest.fixture
+      def frozen_clock(freezer):
+          freezer.move_to("2026-03-01T09:00:00Z")
+
+
+      @pytest.mark.usefixtures("frozen_clock")
+      def test_new_token_is_not_expired():
+          token = issue_token(user_id="usr-1", ttl_minutes=5)
+
+          assert not is_expired(token)
+
+
+      def test_token_with_zero_ttl_is_expired():
+          token = issue_token(user_id="usr-1", ttl_minutes=0)
+
+          assert is_expired(token)
+  expected_output:
+    outcome: invalid
+- name: marks a test class of two tests with usefixtures
+  inputs:
+    file: tests/test_tokens.py
+    after: |
+      import pytest
+
+      from auth.tokens import issue_token, is_expired
+
+
+      @pytest.fixture
+      def frozen_clock(freezer):
+          freezer.move_to("2026-03-01T09:00:00Z")
+
+
+      @pytest.mark.usefixtures("frozen_clock")
+      class TestTokenExpiry:
+          def test_new_token_is_not_expired(self):
+              token = issue_token(user_id="usr-1", ttl_minutes=5)
+
+              assert not is_expired(token)
+
+          def test_token_with_zero_ttl_is_expired(self):
+              token = issue_token(user_id="usr-1", ttl_minutes=0)
+
+              assert is_expired(token)
+  expected_output:
+    outcome: valid
+- name: adds a rules fixture only the mapper fixture requests
+  inputs:
+    file: tests/test_invoice_mapper.py
+    after: |
+      import pytest
+
+      from billing.invoices import Invoice
+      from billing.mapper import InvoiceMapper, MappingRules
+
+
+      @pytest.fixture
+      def rules():
+          return MappingRules(currency="EUR")
+
+
+      @pytest.fixture
+      def mapper(rules):
+          return InvoiceMapper(rules)
+
+
+      def test_map_reads_number(mapper):
+          assert mapper.map({"no": "42", "sum": "1"}).number == "42"
+
+
+      def test_map_reads_total(mapper):
+          assert mapper.map({"no": "42", "sum": "120.00"}).total == 120
+  expected_output:
+    outcome: invalid
+- name: adds a rules fixture two tests request
+  inputs:
+    file: tests/test_invoice_mapper.py
+    after: |
+      import pytest
+
+      from billing.mapper import InvoiceMapper, MappingRules
+
+
+      @pytest.fixture
+      def rules():
+          return MappingRules(currency="EUR")
+
+
+      def test_map_reads_number(rules):
+          mapper = InvoiceMapper(rules)
+
+          assert mapper.map({"no": "42", "sum": "1"}).number == "42"
+
+
+      def test_map_uses_rules_currency(rules):
+          mapper = InvoiceMapper(rules)
+
+          assert mapper.map({"no": "42", "sum": "1"}).currency == "EUR"
+  expected_output:
+    outcome: valid
+- name: adds an autouse fixture for a module of tests
+  inputs:
+    file: tests/test_tokens.py
+    after: |
+      import pytest
+
+      from auth.tokens import issue_token, is_expired
+
+
+      @pytest.fixture(autouse=True)
+      def frozen_clock(freezer):
+          freezer.move_to("2026-03-01T09:00:00Z")
+
+
+      def test_new_token_is_not_expired():
+          token = issue_token(user_id="usr-1", ttl_minutes=5)
+
+          assert not is_expired(token)
+  expected_output:
+    outcome: valid
+- name: adds a fixture one method of a test class requests
+  inputs:
+    file: tests/test_orders.py
+    after: |
+      import pytest
+
+      from shop.orders import Order, OrderLine
+
+
+      @pytest.fixture
+      def discounted_line():
+          return OrderLine(sku="BOOK-1", price=60, quantity=2, discount=10)
+
+
+      class TestOrderTotal:
+          def test_total_applies_line_discount(self, discounted_line):
+              assert Order(lines=[discounted_line]).total == 110
+
+          def test_empty_order_totals_zero(self):
+              assert Order(lines=[]).total == 0
+  expected_output:
+    outcome: invalid
+- name: drops the fixture from one of the two tests that requested it
+  inputs:
+    file: tests/test_orders.py
+    before: |
+      import pytest
+
+      from shop.orders import Order, OrderLine
+
+
+      @pytest.fixture
+      def book_line():
+          return OrderLine(sku="BOOK-1", price=60, quantity=2)
+
+
+      def test_total_sums_lines(book_line):
+          assert Order(lines=[book_line]).total == 120
+
+
+      def test_line_count(book_line):
+          assert Order(lines=[book_line, book_line]).line_count == 2
+    after: |
+      import pytest
+
+      from shop.orders import Order, OrderLine
+
+
+      @pytest.fixture
+      def book_line():
+          return OrderLine(sku="BOOK-1", price=60, quantity=2)
+
+
+      def test_total_sums_lines(book_line):
+          assert Order(lines=[book_line]).total == 120
+
+
+      def test_line_count():
+          line = OrderLine(sku="PEN-1", price=2, quantity=1)
+
+          assert Order(lines=[line, line]).line_count == 2
+  expected_output:
+    outcome: invalid
+- name: adds a second test that requests an existing fixture
+  inputs:
+    file: tests/test_orders.py
+    before: |
+      import pytest
+
+      from shop.orders import Order, OrderLine
+
+
+      @pytest.fixture
+      def book_line():
+          return OrderLine(sku="BOOK-1", price=60, quantity=2)
+
+
+      def test_total_sums_lines(book_line):
+          assert Order(lines=[book_line]).total == 120
+    after: |
+      import pytest
+
+      from shop.orders import Order, OrderLine
+
+
+      @pytest.fixture
+      def book_line():
+          return OrderLine(sku="BOOK-1", price=60, quantity=2)
+
+
+      def test_total_sums_lines(book_line):
+          assert Order(lines=[book_line]).total == 120
+
+
+      def test_line_count(book_line):
+          assert Order(lines=[book_line, book_line]).line_count == 2
+  expected_output:
+    outcome: valid
+- name: adds a parametrized fixture two tests request
+  inputs:
+    file: tests/test_parsers.py
+    after: |
+      import pytest
+
+      from imports.parsers import CsvParser, JsonParser
+
+
+      @pytest.fixture(params=[CsvParser, JsonParser])
+      def parser_class(request):
+          return request.param
+
+
+      def test_parse_empty_text_returns_no_rows(parser_class):
+          assert parser_class().parse("") == []
+
+
+      def test_parser_names_its_format(parser_class):
+          assert parser_class().format_name in {"csv", "json"}
+  expected_output:
+    outcome: valid
+- name: changes an expected total in a test body
+  inputs:
+    file: tests/test_orders.py
+    before: |
+      from shop.orders import Order, OrderLine
+
+
+      def test_total_sums_lines():
+          assert Order(lines=[OrderLine(sku="BOOK-1", price=60, quantity=2)]).total == 120
+    after: |
+      from shop.orders import Order, OrderLine
+
+
+      def test_total_sums_lines():
+          assert Order(lines=[OrderLine(sku="BOOK-1", price=60, quantity=3)]).total == 180
+  expected_output:
+    outcome: skipped
+- name: changes a helper's default price
+  inputs:
+    file: tests/test_orders.py
+    before: |
+      from shop.orders import OrderLine
+
+
+      def make_line(sku):
+          return OrderLine(sku=sku, price=60, quantity=1)
+    after: |
+      from shop.orders import OrderLine
+
+
+      def make_line(sku):
+          return OrderLine(sku=sku, price=75, quantity=1)
+  expected_output:
+    outcome: valid
+- name: returns a dataclass bundle of customer and cart
+  inputs:
+    file: tests/test_checkout.py
+    after: |
+      from dataclasses import dataclass
+
+      from sqlalchemy.orm import Session
+
+      from shop.carts import Cart, CartService
+      from shop.checkout import checkout
+      from shop.customers import Customer, CustomerService
+
+
+      @dataclass
+      class CheckoutSetup:
+          customer: Customer
+          cart: Cart
+
+
+      def make_checkout_setup(db_session: Session, sku: str) -> CheckoutSetup:
+          customer = CustomerService(db_session).register(email="ana@example.com")
+          cart = CartService(db_session).create(customer_id=customer.id)
+          cart.add(sku=sku, quantity=1)
+          return CheckoutSetup(customer=customer, cart=cart)
+
+
+      def test_checkout_charges_the_customer(db_session):
+          setup = make_checkout_setup(db_session, sku="BOOK-1")
+
+          receipt = checkout(setup.cart)
+
+          assert receipt.customer_id == setup.customer.id
+  expected_output:
+    outcome: invalid
+- name: defines a fake ledger with behavior
+  inputs:
+    file: tests/fakes.py
+    after: |
+      from dataclasses import dataclass, field
+
+
+      @dataclass
+      class FakeLedger:
+          currency: str = "EUR"
+          entries: list[tuple[str, int]] = field(default_factory=list)
+
+          def record(self, invoice_number: str, amount: int) -> None:
+              self.entries.append((invoice_number, amount))
+
+          def balance(self) -> int:
+              return sum(amount for _, amount in self.entries)
+  expected_output:
+    outcome: valid
+- name: bundles an order and its service in a NamedTuple
+  inputs:
+    file: tests/conftest.py
+    after: |
+      from typing import NamedTuple
+
+      import pytest
+
+      from shop.orders import Order, OrderService
+
+
+      class OrderResources(NamedTuple):
+          order: Order
+          service: OrderService
+
+
+      @pytest.fixture
+      def order_resources(db_session, customer) -> OrderResources:
+          service = OrderService(db_session)
+          order = service.place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+          return OrderResources(order=order, service=service)
+  expected_output:
+    outcome: invalid
+- name: defines a parametrize case type of literal inputs
+  inputs:
+    file: tests/test_tax.py
+    after: |
+      from dataclasses import dataclass
+
+      import pytest
+
+      from shop.tax import tax_for
+
+
+      @dataclass(frozen=True)
+      class TaxCase:
+          region: str
+          total: int
+          expected_tax: int
+
+
+      @pytest.mark.parametrize(
+          "case",
+          [TaxCase(region="eu", total=100, expected_tax=21), TaxCase(region="us", total=100, expected_tax=8)],
+      )
+      def test_tax_for_region(case):
+          assert tax_for(region=case.region, total=case.total) == case.expected_tax
+  expected_output:
+    outcome: valid
+- name: returns a SimpleNamespace of built records from a fixture
+  inputs:
+    file: tests/conftest.py
+    after: |
+      from types import SimpleNamespace
+
+      import pytest
+
+      from shop.carts import CartService
+      from shop.customers import CustomerService
+
+
+      @pytest.fixture
+      def checkout_world(db_session):
+          customer = CustomerService(db_session).register(email="ana@example.com")
+          cart = CartService(db_session).create(customer_id=customer.id)
+          return SimpleNamespace(customer=customer, cart=cart)
+  expected_output:
+    outcome: invalid
+- name: defines a checkout driver whose methods act
+  inputs:
+    file: tests/drivers.py
+    after: |
+      from shop.carts import CartService
+      from shop.checkout import checkout
+
+
+      class CheckoutDriver:
+          def __init__(self, db_session, customer):
+              self._carts = CartService(db_session)
+              self._cart = self._carts.create(customer_id=customer.id)
+
+          def add_item(self, sku: str, quantity: int = 1) -> None:
+              self._cart.add(sku=sku, quantity=quantity)
+
+          def pay(self):
+              return checkout(self._cart)
+  expected_output:
+    outcome: valid
+- name: stores built objects in a plain class constructor
+  inputs:
+    file: tests/test_shipping.py
+    after: |
+      from shipping.carriers import CarrierClient
+      from shipping.service import ShipmentService
+      from tests.fakes import FakeCarrierApi
+
+
+      class ShippingContext:
+          def __init__(self, api, client, service):
+              self.api = api
+              self.client = client
+              self.service = service
+
+
+      def make_shipping_context():
+          api = FakeCarrierApi()
+          client = CarrierClient(api)
+          return ShippingContext(api=api, client=client, service=ShipmentService(client))
+
+
+      def test_ship_books_a_pickup():
+          context = make_shipping_context()
+
+          context.service.ship(order_id="ord-1", weight_kg=2)
+
+          assert context.api.pickups == ["ord-1"]
+  expected_output:
+    outcome: invalid
+- name: bundles built objects in an attrs class
+  inputs:
+    file: tests/test_payroll.py
+    after: |
+      import attrs
+
+      from payroll.employees import Employee, EmployeeRepository
+      from payroll.runs import PayrollRun
+
+
+      @attrs.frozen
+      class PayrollFixtures:
+          employee: Employee
+          repository: EmployeeRepository
+          run: PayrollRun
+
+
+      def make_payroll_fixtures(db_session) -> PayrollFixtures:
+          repository = EmployeeRepository(db_session)
+          employee = repository.add(Employee(name="Ana", salary=5000))
+          return PayrollFixtures(employee=employee, repository=repository, run=PayrollRun(month="2026-09"))
+
+
+      def test_run_pays_each_employee(db_session):
+          fixtures = make_payroll_fixtures(db_session)
+
+          payslips = fixtures.run.execute(fixtures.repository)
+
+          assert [slip.employee_id for slip in payslips] == [fixtures.employee.id]
+  expected_output:
+    outcome: invalid
+- name: defines a stub carrier api that records pickups
+  inputs:
+    file: tests/test_shipping.py
+    after: |
+      from shipping.carriers import CarrierClient
+
+
+      class StubCarrierApi:
+          def __init__(self):
+              self.pickups = []
+
+          def book_pickup(self, order_id: str) -> str:
+              self.pickups.append(order_id)
+              return f"pk-{order_id}"
+
+
+      def test_book_pickup_returns_reference():
+          api = StubCarrierApi()
+
+          assert CarrierClient(api).book_pickup("ord-1") == "pk-ord-1"
+  expected_output:
+    outcome: valid
+- name: builds a namedtuple of an invoice and its ledger
+  inputs:
+    file: tests/test_invoices.py
+    after: |
+      from collections import namedtuple
+
+      from billing.invoices import InvoiceService
+      from tests.fakes import FakeLedger
+
+      IssuedInvoice = namedtuple("IssuedInvoice", ["invoice", "ledger"])
+
+
+      def issue_invoice(amount):
+          ledger = FakeLedger()
+          invoice = InvoiceService(ledger).issue("inv-1", amount=amount)
+          return IssuedInvoice(invoice=invoice, ledger=ledger)
+
+
+      def test_issue_records_nothing_until_paid():
+          issued = issue_invoice(120)
+
+          assert issued.ledger.entries == []
+  expected_output:
+    outcome: invalid
+- name: changes a literal in a test function
+  inputs:
+    file: tests/test_tax.py
+    before: |
+      from shop.tax import tax_for
+
+
+      def test_tax_for_eu():
+          assert tax_for(region="eu", total=100) == 21
+    after: |
+      from shop.tax import tax_for
+
+
+      def test_tax_for_eu():
+          assert tax_for(region="eu", total=200) == 42
+  expected_output:
+    outcome: skipped
+- name: adds a test method to a test class
+  inputs:
+    file: tests/test_tax.py
+    before: |
+      from shop.tax import tax_for
+
+
+      class TestTax:
+          def test_tax_for_eu(self):
+              assert tax_for(region="eu", total=100) == 21
+    after: |
+      from shop.tax import tax_for
+
+
+      class TestTax:
+          def test_tax_for_eu(self):
+              assert tax_for(region="eu", total=100) == 21
+
+          def test_tax_for_us(self):
+              assert tax_for(region="us", total=100) == 8
+  expected_output:
+    outcome: valid
+- name: accepts an account or an account id
+  inputs:
+    file: tests/test_invoices.py
+    before: |
+      from decimal import Decimal
+
+      from sqlalchemy.orm import Session
+
+      from billing.accounts import Account
+      from billing.invoices import Invoice, InvoiceService
+
+
+      def make_invoice(db_session: Session, account: Account, amount: Decimal) -> Invoice:
+          return InvoiceService(db_session).create(account_id=account.id, amount=amount)
+
+
+      def test_invoice_is_open_after_issue(db_session, account):
+          invoice = make_invoice(db_session, account, Decimal("120.00"))
+
+          assert invoice.status == "open"
+    after: |
+      from decimal import Decimal
+      from uuid import UUID
+
+      from sqlalchemy.orm import Session
+
+      from billing.accounts import Account
+      from billing.invoices import Invoice, InvoiceService
+
+
+      def make_invoice(
+          db_session: Session,
+          amount: Decimal,
+          account: Account | None = None,
+          account_id: UUID | None = None,
+      ) -> Invoice:
+          resolved_account_id = account.id if account is not None else account_id
+          return InvoiceService(db_session).create(account_id=resolved_account_id, amount=amount)
+
+
+      def test_invoice_is_open_after_issue(db_session, account):
+          invoice = make_invoice(db_session, Decimal("120.00"), account=account)
+
+          assert invoice.status == "open"
+  expected_output:
+    outcome: invalid
+- name: takes the account and a defaulted amount
+  inputs:
+    file: tests/test_invoices.py
+    after: |
+      from decimal import Decimal
+
+      from sqlalchemy.orm import Session
+
+      from billing.accounts import Account
+      from billing.invoices import Invoice, InvoiceService
+
+
+      def make_invoice(db_session: Session, account: Account, amount: Decimal = Decimal("120.00")) -> Invoice:
+          return InvoiceService(db_session).create(account_id=account.id, amount=amount)
+
+
+      def test_invoice_is_open_after_issue(db_session, account):
+          invoice = make_invoice(db_session, account)
+
+          assert invoice.status == "open"
+  expected_output:
+    outcome: valid
+- name: falls back from the account id to the account with or
+  inputs:
+    file: tests/test_invoices.py
+    after: |
+      from decimal import Decimal
+
+      from billing.invoices import Invoice, InvoiceService
+
+
+      def make_invoice(db_session, amount, account=None, account_id=None) -> Invoice:
+          account_id = account_id or account.id
+          return InvoiceService(db_session).create(account_id=account_id, amount=amount)
+
+
+      def test_invoice_is_open_after_issue(db_session, account):
+          invoice = make_invoice(db_session, Decimal("120.00"), account_id=account.id)
+
+          assert invoice.status == "open"
+  expected_output:
+    outcome: invalid
+- name: builds a default account when none is passed
+  inputs:
+    file: tests/test_invoices.py
+    after: |
+      from decimal import Decimal
+
+      from billing.accounts import Account, AccountService
+      from billing.invoices import Invoice, InvoiceService
+
+
+      def make_invoice(db_session, amount, account: Account | None = None) -> Invoice:
+          account = account or AccountService(db_session).open(email="billing@example.com")
+          return InvoiceService(db_session).create(account_id=account.id, amount=amount)
+
+
+      def test_invoice_is_open_after_issue(db_session):
+          invoice = make_invoice(db_session, Decimal("120.00"))
+
+          assert invoice.status == "open"
+  expected_output:
+    outcome: valid
+- name: branches on an amount or an amount in cents
+  inputs:
+    file: tests/test_payments.py
+    after: |
+      from decimal import Decimal
+
+      from billing.payments import Payment
+
+
+      def make_payment(amount: Decimal | None = None, amount_cents: int | None = None) -> Payment:
+          if amount is not None:
+              return Payment(amount=amount)
+          elif amount_cents is not None:
+              return Payment(amount=Decimal(amount_cents) / 100)
+          raise ValueError("pass amount or amount_cents")
+
+
+      def test_payment_rounds_to_cents():
+          assert make_payment(amount_cents=1999).amount == Decimal("19.99")
+  expected_output:
+    outcome: invalid
+- name: takes an amount with a default
+  inputs:
+    file: tests/test_payments.py
+    after: |
+      from decimal import Decimal
+
+      from billing.payments import Payment
+
+
+      def make_payment(amount: Decimal = Decimal("19.99")) -> Payment:
+          return Payment(amount=amount)
+
+
+      def test_payment_keeps_cents():
+          assert make_payment().amount == Decimal("19.99")
+  expected_output:
+    outcome: valid
+- name: takes an author or the username to look the author up by
+  inputs:
+    file: blog/tests/conftest.py
+    after: |
+      from blog.models import Article, Author
+
+
+      def make_article(title: str, author: Author | None = None, author_username: str | None = None) -> Article:
+          author = author or Author.objects.get(username=author_username)
+          return Article.objects.create(title=title, author=author)
+  expected_output:
+    outcome: invalid
+- name: takes a billing account and a shipping account
+  inputs:
+    file: tests/test_orders.py
+    after: |
+      from shop.orders import Order, OrderService
+
+
+      def make_order(db_session, customer, billing_account=None, shipping_account=None) -> Order:
+          return OrderService(db_session).place_order(
+              customer_id=customer.id,
+              billing_account_id=billing_account.id if billing_account else None,
+              shipping_account_id=shipping_account.id if shipping_account else None,
+              sku="BOOK-1",
+          )
+
+
+      def test_order_without_shipping_account_is_pickup(db_session, customer, account):
+          order = make_order(db_session, customer, billing_account=account)
+
+          assert order.delivery == "pickup"
+  expected_output:
+    outcome: valid
+- name: returns a factory that takes a customer or a customer email
+  inputs:
+    file: tests/conftest.py
+    after: |
+      import pytest
+
+      from shop.customers import Customer, CustomerService
+      from shop.orders import OrderService
+
+
+      @pytest.fixture
+      def place_order(db_session):
+          def place(sku: str, customer: Customer | None = None, customer_email: str | None = None):
+              if customer is None:
+                  customer = CustomerService(db_session).find_by_email(customer_email)
+              return OrderService(db_session).place_order(customer_id=customer.id, sku=sku)
+
+          return place
+  expected_output:
+    outcome: invalid
+- name: takes a path or the text it holds in a test helper class
+  inputs:
+    file: tests/test_imports.py
+    after: |
+      from pathlib import Path
+
+      from imports.parsers import CsvParser
+
+
+      class CsvInput:
+          def rows(self, path: Path | None = None, text: str | None = None):
+              content = text if text is not None else path.read_text()
+              return CsvParser().parse(content)
+
+
+      def test_parse_reads_quantity():
+          assert CsvInput().rows(text="sku,qty\nA1,2\n")[0].quantity == 2
+  expected_output:
+    outcome: invalid
+- name: takes a due date with a default
+  inputs:
+    file: tests/test_reminders.py
+    after: |
+      from datetime import date
+
+      from billing.invoices import Invoice
+
+
+      def make_invoice(number: str, due: date | None = None) -> Invoice:
+          return Invoice(number=number, due=due or date(2026, 1, 31))
+
+
+      def test_invoice_due_defaults_to_month_end():
+          assert make_invoice("inv-1").due == date(2026, 1, 31)
+  expected_output:
+    outcome: valid
+- name: changes an amount in a test
+  inputs:
+    file: tests/test_payments.py
+    before: |
+      from decimal import Decimal
+
+      from billing.payments import Payment
+
+
+      def test_payment_keeps_cents():
+          assert Payment(amount=Decimal("19.99")).amount == Decimal("19.99")
+    after: |
+      from decimal import Decimal
+
+      from billing.payments import Payment
+
+
+      def test_payment_keeps_cents():
+          assert Payment(amount=Decimal("5.01")).amount == Decimal("5.01")
+  expected_output:
+    outcome: skipped
+- name: changes a helper without defaults
+  inputs:
+    file: tests/test_payments.py
+    before: |
+      from decimal import Decimal
+
+      from billing.payments import Payment
+
+
+      def make_payment(amount: Decimal) -> Payment:
+          return Payment(amount=amount)
+    after: |
+      from decimal import Decimal
+
+      from billing.payments import Payment
+
+
+      def make_payment(amount: Decimal) -> Payment:
+          return Payment(amount=amount, currency="EUR")
+  expected_output:
+    outcome: valid
+- name: passes an invoice from a data fixture to the renderer
+  inputs:
+    file: tests/test_invoice_rendering.py
+    after: |
+      import pytest
+
+      from billing.invoices import Invoice
+      from billing.rendering import render_invoice
+
+
+      @pytest.fixture
+      def invoice():
+          return Invoice(number="inv-42", total=120, status="open")
+
+
+      def test_render_shows_the_number(invoice):
+          html = render_invoice(invoice)
+
+          assert "inv-42" in html
+
+
+      def test_render_shows_the_total(invoice):
+          html = render_invoice(invoice)
+
+          assert "120.00" in html
+  expected_output:
+    outcome: valid
+- name: calls methods on an invoice a fixture builds
+  inputs:
+    file: tests/test_invoice_rendering.py
+    after: |
+      import pytest
+
+      from billing.invoices import Invoice
+      from billing.rendering import render_invoice
+
+
+      @pytest.fixture
+      def invoice():
+          return Invoice(number="inv-42", total=120, status="open")
+
+
+      def test_mark_paid_sets_status(invoice):
+          invoice.mark_paid(reference="ch_1")
+
+          assert invoice.status == "paid"
+
+
+      def test_mark_void_sets_status(invoice):
+          invoice.mark_void(reason="duplicate")
+
+          assert invoice.status == "void"
+  expected_output:
+    outcome: invalid

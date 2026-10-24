@@ -1,0 +1,49 @@
+id: subclass-override
+valid:
+# A class with no base class
+- |
+  class FakeQueue:
+      def enqueue(self, name, message):
+          self.messages.append(message)
+# A subclass with only class attributes
+- |
+  class SlowFakeQueue(FakeQueue):
+      delay = 5
+# A test class's methods
+- |
+  class TestOrders(BaseOrderTest):
+      def test_total(self):
+          assert total([1]) == 1
+# A unittest class named with a Tests suffix
+- |
+  class OrderTests(TestCase):
+      def test_total(self):
+          assert total([1]) == 1
+invalid:
+# A method of a subclass
+- |
+  class CheckingFakeQueue(FakeQueue):
+      def enqueue(self, name, message):
+          assert message
+# A decorated method of a subclass
+- |
+  class FixedRates(FakeRates):
+      @property
+      def currency(self):
+          return "EUR"
+# An async method of a subclass
+- |
+  class FailingClient(FakeClient):
+      async def fetch(self, path):
+          raise TimeoutError
+# A subclass of a dotted base
+- |
+  class RecordingMailer(fakes.FakeMailer):
+      def send(self, message):
+          self.sent_count += 1
+# A subclass's __init__
+- |
+  class SeededStore(FakeStore):
+      def __init__(self):
+          super().__init__()
+          self.rows = [1]

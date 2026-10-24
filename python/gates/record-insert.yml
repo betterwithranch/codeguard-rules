@@ -1,0 +1,16 @@
+id: record-insert
+language: python
+rule:
+  any:
+  - kind: call
+    has:
+      field: function
+      kind: attribute
+      has:
+        field: attribute
+        regex: ^(add|add_all|merge|bulk_save_objects|bulk_create|create|get_or_create|update_or_create|insert|insert_one|insert_many|save|execute|executemany|put_item)$
+  - kind: call
+    has:
+      field: function
+      kind: identifier
+      regex: ^insert$

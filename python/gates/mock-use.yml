@@ -5,6 +5,14 @@ rule:
   - kind: call
     has:
       field: function
-      regex: (^|\.)(Mock|MagicMock|AsyncMock|create_autospec)$|(^|\.)patch(\.object|\.dict|\.multiple)?$|^monkeypatch\.setattr$|^mocker\.
+      regex: (^|\.)(Mock|MagicMock|AsyncMock|NonCallableMock|NonCallableMagicMock|PropertyMock|create_autospec)$|(^|\.)patch(\.object|\.dict|\.multiple)?$|(^|\.)monkeypatch\.(setattr|setitem|delattr|delitem)$|^mocker\.|^setattr$
   - kind: decorator
-    regex: patch
+    regex: ^@(\w+\.)*patch\b
+  - kind: assignment
+    all:
+    - has:
+        field: left
+        kind: attribute
+    - has:
+        field: right
+        kind: lambda

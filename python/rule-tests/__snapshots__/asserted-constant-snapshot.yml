@@ -1,0 +1,84 @@
+id: asserted-constant
+snapshots:
+  ? |
+    class TestExample(unittest.TestCase):
+        def test_example(self):
+            self.assertEqual(load().id, EXAMPLE_ID)
+  : labels:
+    - source: self.assertEqual(load().id, EXAMPLE_ID)
+      style: primary
+      start: 74
+      end: 113
+    - source: assertEqual
+      style: secondary
+      start: 79
+      end: 90
+    - source: self.assertEqual
+      style: secondary
+      start: 74
+      end: 90
+    - source: EXAMPLE_ID
+      style: secondary
+      start: 102
+      end: 112
+    - source: EXAMPLE_ID
+      style: secondary
+      start: 102
+      end: 112
+  ? |
+    class TestExample:
+        def test_example(self, example_model):
+            assert example_model.id == self.EXAMPLE_ID
+  : labels:
+    - source: assert example_model.id == self.EXAMPLE_ID
+      style: primary
+      start: 70
+      end: 112
+    - source: EXAMPLE_ID
+      style: secondary
+      start: 102
+      end: 112
+    - source: self.EXAMPLE_ID
+      style: secondary
+      start: 97
+      end: 112
+  ? |
+    def test_example(example_model):
+        assert example_model.id == EXAMPLE_ID
+  : labels:
+    - source: assert example_model.id == EXAMPLE_ID
+      style: primary
+      start: 37
+      end: 74
+    - source: EXAMPLE_ID
+      style: secondary
+      start: 64
+      end: 74
+  ? |
+    def test_example(example_model):
+        assert example_model.id == constants.EXAMPLE_ID
+  : labels:
+    - source: assert example_model.id == constants.EXAMPLE_ID
+      style: primary
+      start: 37
+      end: 84
+    - source: EXAMPLE_ID
+      style: secondary
+      start: 74
+      end: 84
+    - source: constants.EXAMPLE_ID
+      style: secondary
+      start: 64
+      end: 84
+  ? |
+    def test_example(result):
+        assert result == ExampleModel(id=EXAMPLE_ID, name="a")
+  : labels:
+    - source: assert result == ExampleModel(id=EXAMPLE_ID, name="a")
+      style: primary
+      start: 30
+      end: 84
+    - source: EXAMPLE_ID
+      style: secondary
+      start: 63
+      end: 73

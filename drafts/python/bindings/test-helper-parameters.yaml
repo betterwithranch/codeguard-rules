@@ -1,3 +1,0 @@
-skill: python/skills/test-helper-parameters
-paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
-triggers: [helper-with-parameters, setup-bundle-class]

@@ -4,13 +4,103 @@ rule:
   kind: for_statement
   all:
   - has:
-      kind: if_statement
-      stopBy: end
+      field: body
+      has:
+        stopBy: end
+        any:
+        - kind: if_statement
+        - kind: conditional_expression
+        - kind: match_statement
   - has:
-      stopBy: end
-      any:
-      - kind: call
-        has:
-          field: function
-          regex: \.(append|add|extend)$
-      - kind: augmented_assignment
+      field: body
+      has:
+        stopBy: end
+        any:
+        - kind: call
+          has:
+            field: function
+            kind: attribute
+            has:
+              field: attribute
+              regex: ^(append|add|extend|insert)$
+        - kind: augmented_assignment
+          has:
+            field: right
+            any:
+            - kind: list
+            - kind: list_comprehension
+  - not:
+      all:
+      - not:
+          has:
+            field: alternative
+            kind: else_clause
+      - has:
+          field: body
+          has:
+            kind: if_statement
+            all:
+            - nthChild: 1
+            - nthChild:
+                position: 1
+                reverse: true
+            - has:
+                field: consequence
+                kind: block
+                has:
+                  kind: expression_statement
+                  all:
+                  - nthChild: 1
+                  - nthChild:
+                      position: 1
+                      reverse: true
+                  has:
+                    pattern: $LIST.append($_)
+                    not:
+                      has:
+                        field: arguments
+                        has:
+                          stopBy: end
+                          pattern: $LIST
+            - has:
+                kind: else_clause
+                has:
+                  field: body
+                  kind: block
+                  has:
+                    kind: expression_statement
+                    all:
+                    - nthChild: 1
+                    - nthChild:
+                        position: 1
+                        reverse: true
+                    has:
+                      pattern: $LIST.append($_)
+                      not:
+                        has:
+                          field: arguments
+                          has:
+                            stopBy: end
+                            pattern: $LIST
+            - not:
+                has:
+                  kind: elif_clause
+                  not:
+                    has:
+                      field: consequence
+                      kind: block
+                      has:
+                        kind: expression_statement
+                        all:
+                        - nthChild: 1
+                        - nthChild:
+                            position: 1
+                            reverse: true
+                        has:
+                          pattern: $LIST.append($_)
+                          not:
+                            has:
+                              field: arguments
+                              has:
+                                stopBy: end
+                                pattern: $LIST

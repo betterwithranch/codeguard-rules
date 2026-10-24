@@ -1,0 +1,21 @@
+id: request-or-action-type-name
+language: python
+rule:
+  any:
+  - kind: identifier
+    regex: ([a-z0-9](Request|Create|Update|Delete)$)|(^(Create|Update|Delete)[A-Z])
+    inside:
+      kind: class_definition
+      field: name
+  - kind: assignment
+    all:
+    - has:
+        field: left
+        kind: identifier
+        regex: ([a-z0-9](Request|Create|Update|Delete)$)|(^(Create|Update|Delete)[A-Z])
+    - has:
+        field: right
+        kind: call
+        has:
+          field: function
+          regex: (TypedDict|NamedTuple|namedtuple|make_dataclass|create_model)$

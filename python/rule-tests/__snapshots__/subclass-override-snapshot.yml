@@ -1,0 +1,137 @@
+id: subclass-override
+snapshots:
+  ? |
+    class CheckingFakeQueue(FakeQueue):
+        def enqueue(self, name, message):
+            assert message
+  : labels:
+    - source: |-
+        def enqueue(self, name, message):
+                assert message
+      style: primary
+      start: 40
+      end: 96
+    - source: FakeQueue
+      style: secondary
+      start: 24
+      end: 33
+    - source: (FakeQueue)
+      style: secondary
+      start: 23
+      end: 34
+    - source: |-
+        class CheckingFakeQueue(FakeQueue):
+            def enqueue(self, name, message):
+                assert message
+      style: secondary
+      start: 0
+      end: 96
+  ? |
+    class FailingClient(FakeClient):
+        async def fetch(self, path):
+            raise TimeoutError
+  : labels:
+    - source: |-
+        async def fetch(self, path):
+                raise TimeoutError
+      style: primary
+      start: 37
+      end: 92
+    - source: FakeClient
+      style: secondary
+      start: 20
+      end: 30
+    - source: (FakeClient)
+      style: secondary
+      start: 19
+      end: 31
+    - source: |-
+        class FailingClient(FakeClient):
+            async def fetch(self, path):
+                raise TimeoutError
+      style: secondary
+      start: 0
+      end: 92
+  ? |
+    class FixedRates(FakeRates):
+        @property
+        def currency(self):
+            return "EUR"
+  : labels:
+    - source: |-
+        def currency(self):
+                return "EUR"
+      style: primary
+      start: 47
+      end: 87
+    - source: FakeRates
+      style: secondary
+      start: 17
+      end: 26
+    - source: (FakeRates)
+      style: secondary
+      start: 16
+      end: 27
+    - source: |-
+        class FixedRates(FakeRates):
+            @property
+            def currency(self):
+                return "EUR"
+      style: secondary
+      start: 0
+      end: 87
+  ? |
+    class RecordingMailer(fakes.FakeMailer):
+        def send(self, message):
+            self.sent_count += 1
+  : labels:
+    - source: |-
+        def send(self, message):
+                self.sent_count += 1
+      style: primary
+      start: 45
+      end: 98
+    - source: fakes
+      style: secondary
+      start: 22
+      end: 27
+    - source: (fakes.FakeMailer)
+      style: secondary
+      start: 21
+      end: 39
+    - source: |-
+        class RecordingMailer(fakes.FakeMailer):
+            def send(self, message):
+                self.sent_count += 1
+      style: secondary
+      start: 0
+      end: 98
+  ? |
+    class SeededStore(FakeStore):
+        def __init__(self):
+            super().__init__()
+            self.rows = [1]
+  : labels:
+    - source: |-
+        def __init__(self):
+                super().__init__()
+                self.rows = [1]
+      style: primary
+      start: 34
+      end: 104
+    - source: FakeStore
+      style: secondary
+      start: 18
+      end: 27
+    - source: (FakeStore)
+      style: secondary
+      start: 17
+      end: 28
+    - source: |-
+        class SeededStore(FakeStore):
+            def __init__(self):
+                super().__init__()
+                self.rows = [1]
+      style: secondary
+      start: 0
+      end: 104

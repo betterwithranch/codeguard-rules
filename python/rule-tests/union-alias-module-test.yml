@@ -1,0 +1,74 @@
+id: union-alias-module
+valid:
+# Class in a module with no union alias
+- |
+  class Card:
+      pass
+# Optional alias
+- |
+  class Card:
+      pass
+
+
+  type MaybeCard = Card | None
+# Plain alias
+- |
+  class Card:
+      pass
+
+
+  type CardId = str
+# Union field annotation with no alias
+- |
+  class Checkout(BaseModel):
+      payment: Card | Transfer
+# Module assignment of an optional class
+- |
+  MaybeCard = Card | None
+invalid:
+# type statement alias of a union
+- |
+  type Payment = Card | Transfer
+# Module assignment of a class union
+- |
+  Payment = Card | Transfer
+# Annotated discriminated alias
+- |
+  Payment = Annotated[Card | Transfer, Field(discriminator="kind")]
+# Union subscript alias
+- |
+  Payment = Union[Card, Transfer]
+# Class beside a union alias
+- |
+  class Card:
+      pass
+
+
+  type Payment = Card | Transfer
+# Decorated class beside a union alias
+- |
+  @dataclass
+  class Card:
+      pass
+
+
+  Payment = Card | Transfer
+# Function beside a union alias
+- |
+  def fee(payment):
+      return 1
+
+
+  type Payment = Card | Transfer
+# Import in a module with a union alias
+- |
+  from payments.transfer import Transfer
+
+
+  type Payment = Card | Transfer
+# Constant in a module with a union alias
+- |
+  VERSION = "2024-06"
+
+
+  type Payment = Card | Transfer

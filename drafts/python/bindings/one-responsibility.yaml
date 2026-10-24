@@ -1,0 +1,4 @@
+skill: python/skills/one-responsibility
+paths: ["**/*.py"]
+exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
+triggers: [nontrivial-function, multi-method-class, accumulating-loop]

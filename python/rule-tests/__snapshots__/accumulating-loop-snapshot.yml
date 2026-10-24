@@ -1,6 +1,235 @@
 id: accumulating-loop
 snapshots:
   ? |
+    async def collect(items):
+        async for item in items:
+            if item.active:
+                results.append(item.name)
+  : labels:
+    - source: |-
+        async for item in items:
+                if item.active:
+                    results.append(item.name)
+      style: primary
+      start: 30
+      end: 116
+    - source: |-
+        if item.active:
+                    results.append(item.name)
+      style: secondary
+      start: 63
+      end: 116
+    - source: |-
+        if item.active:
+                    results.append(item.name)
+      style: secondary
+      start: 63
+      end: 116
+    - source: append
+      style: secondary
+      start: 99
+      end: 105
+    - source: results.append
+      style: secondary
+      start: 91
+      end: 105
+    - source: results.append(item.name)
+      style: secondary
+      start: 91
+      end: 116
+    - source: results.append(item.name)
+      style: secondary
+      start: 91
+      end: 116
+  ? |
+    for event in events:
+        match event.kind:
+            case "scan":
+                kind = "S"
+            case _:
+                kind = "X"
+        kinds.append(kind)
+  : labels:
+    - source: |-
+        for event in events:
+            match event.kind:
+                case "scan":
+                    kind = "S"
+                case _:
+                    kind = "X"
+            kinds.append(kind)
+      style: primary
+      start: 0
+      end: 148
+    - source: |-
+        match event.kind:
+                case "scan":
+                    kind = "S"
+                case _:
+                    kind = "X"
+      style: secondary
+      start: 25
+      end: 125
+    - source: |-
+        match event.kind:
+                case "scan":
+                    kind = "S"
+                case _:
+                    kind = "X"
+      style: secondary
+      start: 25
+      end: 125
+    - source: append
+      style: secondary
+      start: 136
+      end: 142
+    - source: kinds.append
+      style: secondary
+      start: 130
+      end: 142
+    - source: kinds.append(kind)
+      style: secondary
+      start: 130
+      end: 148
+    - source: kinds.append(kind)
+      style: secondary
+      start: 130
+      end: 148
+  ? |
+    for item in items:
+        if item.active:
+            results.append(item.name)
+        else:
+            results.append(item.id)
+    else:
+        results.append(None)
+  : labels:
+    - source: |-
+        for item in items:
+            if item.active:
+                results.append(item.name)
+            else:
+                results.append(item.id)
+        else:
+            results.append(None)
+      style: primary
+      start: 0
+      end: 145
+    - source: |-
+        if item.active:
+                results.append(item.name)
+            else:
+                results.append(item.id)
+      style: secondary
+      start: 23
+      end: 114
+    - source: |-
+        if item.active:
+                results.append(item.name)
+            else:
+                results.append(item.id)
+      style: secondary
+      start: 23
+      end: 114
+    - source: append
+      style: secondary
+      start: 55
+      end: 61
+    - source: results.append
+      style: secondary
+      start: 47
+      end: 61
+    - source: results.append(item.name)
+      style: secondary
+      start: 47
+      end: 72
+    - source: results.append(item.name)
+      style: secondary
+      start: 47
+      end: 72
+  ? |
+    for line in lines:
+        amounts.append(-line.amount if line.is_refund else line.amount)
+  : labels:
+    - source: |-
+        for line in lines:
+            amounts.append(-line.amount if line.is_refund else line.amount)
+      style: primary
+      start: 0
+      end: 86
+    - source: -line.amount if line.is_refund else line.amount
+      style: secondary
+      start: 38
+      end: 85
+    - source: -line.amount if line.is_refund else line.amount
+      style: secondary
+      start: 38
+      end: 85
+    - source: append
+      style: secondary
+      start: 31
+      end: 37
+    - source: amounts.append
+      style: secondary
+      start: 23
+      end: 37
+    - source: amounts.append(-line.amount if line.is_refund else line.amount)
+      style: secondary
+      start: 23
+      end: 86
+    - source: amounts.append(-line.amount if line.is_refund else line.amount)
+      style: secondary
+      start: 23
+      end: 86
+  ? |
+    for line in lines:
+        if line.is_voided:
+            continue
+        if line.is_refund:
+            amounts.append(-line.amount)
+        else:
+            amounts.append(line.amount)
+  : labels:
+    - source: |-
+        for line in lines:
+            if line.is_voided:
+                continue
+            if line.is_refund:
+                amounts.append(-line.amount)
+            else:
+                amounts.append(line.amount)
+      style: primary
+      start: 0
+      end: 164
+    - source: |-
+        if line.is_voided:
+                continue
+      style: secondary
+      start: 23
+      end: 58
+    - source: |-
+        if line.is_voided:
+                continue
+      style: secondary
+      start: 23
+      end: 58
+    - source: append
+      style: secondary
+      start: 98
+      end: 104
+    - source: amounts.append
+      style: secondary
+      start: 90
+      end: 104
+    - source: amounts.append(-line.amount)
+      style: secondary
+      start: 90
+      end: 118
+    - source: amounts.append(-line.amount)
+      style: secondary
+      start: 90
+      end: 118
+  ? |
     for line in lines:
         if line.sku:
             found.append(line)
@@ -18,6 +247,16 @@ snapshots:
       style: secondary
       start: 23
       end: 62
+    - source: |-
+        if line.sku:
+                found.append(line)
+      style: secondary
+      start: 23
+      end: 62
+    - source: append
+      style: secondary
+      start: 50
+      end: 56
     - source: found.append
       style: secondary
       start: 44
@@ -26,3 +265,213 @@ snapshots:
       style: secondary
       start: 44
       end: 62
+    - source: found.append(line)
+      style: secondary
+      start: 44
+      end: 62
+  ? |
+    for order in orders:
+        if order.is_paid:
+            paid += [order.id]
+  : labels:
+    - source: |-
+        for order in orders:
+            if order.is_paid:
+                paid += [order.id]
+      style: primary
+      start: 0
+      end: 69
+    - source: |-
+        if order.is_paid:
+                paid += [order.id]
+      style: secondary
+      start: 25
+      end: 69
+    - source: |-
+        if order.is_paid:
+                paid += [order.id]
+      style: secondary
+      start: 25
+      end: 69
+    - source: '[order.id]'
+      style: secondary
+      start: 59
+      end: 69
+    - source: paid += [order.id]
+      style: secondary
+      start: 51
+      end: 69
+    - source: paid += [order.id]
+      style: secondary
+      start: 51
+      end: 69
+  ? |
+    for order in orders:
+        if order.is_paid:
+            paid.add(order.id)
+  : labels:
+    - source: |-
+        for order in orders:
+            if order.is_paid:
+                paid.add(order.id)
+      style: primary
+      start: 0
+      end: 69
+    - source: |-
+        if order.is_paid:
+                paid.add(order.id)
+      style: secondary
+      start: 25
+      end: 69
+    - source: |-
+        if order.is_paid:
+                paid.add(order.id)
+      style: secondary
+      start: 25
+      end: 69
+    - source: add
+      style: secondary
+      start: 56
+      end: 59
+    - source: paid.add
+      style: secondary
+      start: 51
+      end: 59
+    - source: paid.add(order.id)
+      style: secondary
+      start: 51
+      end: 69
+    - source: paid.add(order.id)
+      style: secondary
+      start: 51
+      end: 69
+  ? |
+    for order in orders:
+        if order.is_urgent:
+            queue.insert(0, order)
+  : labels:
+    - source: |-
+        for order in orders:
+            if order.is_urgent:
+                queue.insert(0, order)
+      style: primary
+      start: 0
+      end: 75
+    - source: |-
+        if order.is_urgent:
+                queue.insert(0, order)
+      style: secondary
+      start: 25
+      end: 75
+    - source: |-
+        if order.is_urgent:
+                queue.insert(0, order)
+      style: secondary
+      start: 25
+      end: 75
+    - source: insert
+      style: secondary
+      start: 59
+      end: 65
+    - source: queue.insert
+      style: secondary
+      start: 53
+      end: 65
+    - source: queue.insert(0, order)
+      style: secondary
+      start: 53
+      end: 75
+    - source: queue.insert(0, order)
+      style: secondary
+      start: 53
+      end: 75
+  ? |
+    for order in orders:
+        if order.lines:
+            lines.extend(order.lines)
+  : labels:
+    - source: |-
+        for order in orders:
+            if order.lines:
+                lines.extend(order.lines)
+      style: primary
+      start: 0
+      end: 74
+    - source: |-
+        if order.lines:
+                lines.extend(order.lines)
+      style: secondary
+      start: 25
+      end: 74
+    - source: |-
+        if order.lines:
+                lines.extend(order.lines)
+      style: secondary
+      start: 25
+      end: 74
+    - source: extend
+      style: secondary
+      start: 55
+      end: 61
+    - source: lines.extend
+      style: secondary
+      start: 49
+      end: 61
+    - source: lines.extend(order.lines)
+      style: secondary
+      start: 49
+      end: 74
+    - source: lines.extend(order.lines)
+      style: secondary
+      start: 49
+      end: 74
+  ? |
+    for shipment in shipments:
+        if shipment.is_express:
+            label = "EXPRESS"
+        else:
+            label = "STANDARD"
+        labels.append(label)
+  : labels:
+    - source: |-
+        for shipment in shipments:
+            if shipment.is_express:
+                label = "EXPRESS"
+            else:
+                label = "STANDARD"
+            labels.append(label)
+      style: primary
+      start: 0
+      end: 142
+    - source: |-
+        if shipment.is_express:
+                label = "EXPRESS"
+            else:
+                label = "STANDARD"
+      style: secondary
+      start: 31
+      end: 117
+    - source: |-
+        if shipment.is_express:
+                label = "EXPRESS"
+            else:
+                label = "STANDARD"
+      style: secondary
+      start: 31
+      end: 117
+    - source: append
+      style: secondary
+      start: 129
+      end: 135
+    - source: labels.append
+      style: secondary
+      start: 122
+      end: 135
+    - source: labels.append(label)
+      style: secondary
+      start: 122
+      end: 142
+    - source: labels.append(label)
+      style: secondary
+      start: 122
+      end: 142

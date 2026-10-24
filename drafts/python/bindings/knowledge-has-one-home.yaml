@@ -1,0 +1,4 @@
+skill: python/skills/knowledge-has-one-home
+paths: ["**/*.py"]
+exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
+triggers: [nontrivial-function, definition-added-or-removed, chained-calls, self-free-function, self-attribute-assignment, class-attribute, module-collection]

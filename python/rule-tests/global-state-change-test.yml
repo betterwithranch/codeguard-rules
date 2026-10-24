@@ -1,0 +1,65 @@
+id: global-state-change
+valid:
+# A local object's field
+- |
+  order.status = "paid"
+# A field of an object held by the test instance
+- |
+  self.order.status = "paid"
+# A call that changes nothing global
+- |
+  total = cart.total()
+# An instance attribute set in setup
+- |
+  self.cart = Cart()
+invalid:
+# Item assignment on os.environ
+- |
+  os.environ["PAYMENTS_MODE"] = "live"
+# os.environ.update
+- |
+  os.environ.update({"PAYMENTS_MODE": "live"})
+# sys.path insert
+- |
+  sys.path.insert(0, "plugins")
+# sys.modules item assignment
+- |
+  sys.modules["billing.tax"] = fake_tax
+# A global statement
+- |
+  def test_counts():
+      global CALLS
+      CALLS = 0
+# monkeypatch.setenv
+- |
+  monkeypatch.setenv("PAYMENTS_MODE", "live")
+# Bare setattr on a module
+- |
+  setattr(billing.tax, "RATE", 0)
+# os.chdir
+- |
+  os.chdir(tmp_path)
+# Logger level
+- |
+  logging.getLogger("billing").setLevel(logging.DEBUG)
+# A registry registration
+- |
+  plugins.register(CsvExporter)
+# A patcher started by hand
+- |
+  patcher.start()
+# A file opened without a with block
+- |
+  handle = open("orders.csv")
+# A database connection
+- |
+  connection = sqlite3.connect("orders.db")
+# An upper-case attribute assigned
+- |
+  settings.PAYMENTS_MODE = "live"
+# A class attribute assigned
+- |
+  Order.max_items = 2
+# A module attribute assigned
+- |
+  billing.tax.rate = 0

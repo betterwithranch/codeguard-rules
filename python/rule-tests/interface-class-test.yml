@@ -1,12 +1,31 @@
 id: interface-class
 valid:
+# Ordinary base class
 - |
-  class Order(Base):
+  class ExampleOrder(Base):
+      pass
+# Name starting with ABC
+- |
+  class ExampleReport(ABCReport):
       pass
 invalid:
+# Protocol
 - |
-  class Pricer(Protocol):
+  class ExamplePricer(Protocol):
       def price(self): ...
+# ABC
 - |
-  class Pricer(ABC):
+  class ExamplePricer(ABC):
       pass
+# abc.ABC
+- |
+  class ExamplePricer(abc.ABC):
+      pass
+# ABCMeta metaclass
+- |
+  class ExamplePricer(metaclass=ABCMeta):
+      pass
+# Generic Protocol
+- |
+  class ExampleSource(Protocol[T]):
+      def read(self) -> T: ...

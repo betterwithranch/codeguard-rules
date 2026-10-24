@@ -1,0 +1,99 @@
+id: module-state-write
+valid:
+# Local dict filled in a function
+- |
+  def build():
+      index = {}
+      index["a"] = 1
+      return index
+# Instance attribute set in __init__ and appended to
+- |
+  class ExampleCollector:
+      def __init__(self):
+          self.items = []
+
+      def add(self, item):
+          self.items.append(item)
+# Module constant read in a function
+- |
+  LIMITS = {"a": 1}
+
+  def limit(key):
+      return LIMITS[key]
+# Module-level write outside a function
+- |
+  HANDLERS = {}
+  HANDLERS["a"] = handle_a
+# Class attribute that is not a container
+- |
+  class ExampleCounter:
+      label = "count"
+
+      def rename(self, value):
+          self.label.update(value)
+invalid:
+# Global statement
+- |
+  _count = 0
+
+  def next_id():
+      global _count
+      _count += 1
+      return _count
+# Subscript write to a module-level dict
+- |
+  _CACHE = {}
+
+  def remember(key, value):
+      _CACHE[key] = value
+# Augmented subscript write to a module-level dict
+- |
+  _counts: dict[str, int] = {}
+
+  def count(key):
+      _counts[key] += 1
+# Mutating call on a module-level list
+- |
+  _errors = []
+
+  def check(order):
+      _errors.append(order)
+# Mutating call on a class-level list through self
+- |
+  class ExampleCart:
+      items = []
+
+      def add(self, item):
+          self.items.append(item)
+# Subscript write to a class-level dict through cls
+- |
+  class ExampleRegistry:
+      entries = defaultdict(list)
+
+      @classmethod
+      def put(cls, key, value):
+          cls.entries[key] = value
+# Module-level dict assigned after another module-level name
+- |
+  LIMIT = 10
+  _seen = set()
+
+  def mark(key):
+      _seen.add(key)
+# Subscript write in a nested function
+- |
+  _handlers = {}
+
+  def handles(kind):
+      def register(handler):
+          _handlers[kind] = handler
+          return handler
+      return register
+# Class-level list assigned after another class attribute
+- |
+  class ExampleCart:
+      label = "cart"
+      items = []
+
+      def add(self, item):
+          self.items.append(item)

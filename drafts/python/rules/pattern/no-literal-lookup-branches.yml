@@ -1,0 +1,98 @@
+id: no-literal-lookup-branches
+language: python
+severity: error
+message: Don't map one value to another with an `if`/`elif` or `match` chain of constant returns.
+note: |
+  A chain where every branch compares the same value to a constant and returns a constant
+  (`if country == "DE": return "DHL" elif country == "FR": return "Colissimo"`) is a lookup
+  table written as control flow: each new entry adds a branch, and the mapping can't be
+  read, iterated or tested as data. Put the pairs in a dict (or on the enum) and look the
+  value up.
+utils:
+  constant:
+    any:
+      - kind: string
+      - kind: integer
+      - kind: float
+      - kind: "true"
+      - kind: "false"
+      - kind: none
+      - kind: attribute
+        not:
+          has:
+            stopBy: end
+            kind: call
+  returns-constant:
+    kind: block
+    has:
+      kind: return_statement
+      nthChild: 1
+      all:
+        - nthChild:
+            position: 1
+            reverse: true
+        - has:
+            matches: constant
+  compares-subject:
+    kind: comparison_operator
+    all:
+      - has: {nthChild: 1, pattern: $SUBJECT}
+      - has: {nthChild: 2, matches: constant}
+      - regex: ==
+      - not:
+          regex: "!=|<|>"
+  guard-return:
+    kind: if_statement
+    all:
+      - has: {field: condition, matches: compares-subject}
+      - has: {field: consequence, matches: returns-constant}
+      - not: {has: {kind: elif_clause}}
+      - not: {has: {kind: else_clause}}
+rule:
+  any:
+    - matches: guard-return
+      precedes:
+        stopBy: neighbor
+        matches: guard-return
+      not:
+        follows:
+          stopBy: neighbor
+          matches: guard-return
+    - kind: if_statement
+      all:
+        - has: {field: condition, matches: compares-subject}
+        - has: {field: consequence, matches: returns-constant}
+        - has: {kind: elif_clause}
+        - not:
+            has:
+              kind: elif_clause
+              not:
+                all:
+                  - has: {field: condition, matches: compares-subject}
+                  - has: {field: consequence, matches: returns-constant}
+        - not:
+            has:
+              kind: else_clause
+              not:
+                has: {field: body, matches: returns-constant}
+    - kind: match_statement
+      all:
+        - has:
+            field: body
+            has:
+              kind: case_clause
+              nthChild: 2
+        - not:
+            has:
+              field: body
+              has:
+                kind: case_clause
+                not:
+                  all:
+                    - has:
+                        kind: case_pattern
+                        any:
+                          - has: {matches: constant}
+                          - regex: ^_$
+                    - not: {has: {kind: if_clause}}
+                    - has: {field: consequence, matches: returns-constant}

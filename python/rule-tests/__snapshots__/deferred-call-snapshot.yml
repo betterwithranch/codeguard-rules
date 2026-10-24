@@ -1,0 +1,196 @@
+id: deferred-call
+snapshots:
+  ? |
+    @app.task(bind=True)
+    def ship_order(self, order):
+        pass
+  : labels:
+    - source: |-
+        @app.task(bind=True)
+        def ship_order(self, order):
+            pass
+      style: primary
+      start: 0
+      end: 58
+    - source: '@app.task(bind=True)'
+      style: secondary
+      start: 0
+      end: 20
+    - source: |-
+        def ship_order(self, order):
+            pass
+      style: secondary
+      start: 21
+      end: 58
+  ? |
+    @shared_task
+    def ship_order(order):
+        pass
+  : labels:
+    - source: |-
+        @shared_task
+        def ship_order(order):
+            pass
+      style: primary
+      start: 0
+      end: 44
+    - source: '@shared_task'
+      style: secondary
+      start: 0
+      end: 12
+    - source: |-
+        def ship_order(order):
+            pass
+      style: secondary
+      start: 13
+      end: 44
+  ? |
+    broker.publish("orders", order)
+  : labels:
+    - source: broker.publish("orders", order)
+      style: primary
+      start: 0
+      end: 31
+    - source: publish
+      style: secondary
+      start: 7
+      end: 14
+    - source: broker.publish
+      style: secondary
+      start: 0
+      end: 14
+  ? |
+    chain(ship_order.s(order))
+  : labels:
+    - source: ship_order.s(order)
+      style: primary
+      start: 6
+      end: 25
+    - source: s
+      style: secondary
+      start: 17
+      end: 18
+    - source: ship_order.s
+      style: secondary
+      start: 6
+      end: 18
+  ? |
+    client.start_workflow(ShipOrder.run, order, id="x")
+  : labels:
+    - source: client.start_workflow(ShipOrder.run, order, id="x")
+      style: primary
+      start: 0
+      end: 51
+    - source: start_workflow
+      style: secondary
+      start: 7
+      end: 21
+    - source: client.start_workflow
+      style: secondary
+      start: 0
+      end: 21
+  ? |
+    jobs.put(order)
+  : labels:
+    - source: jobs.put(order)
+      style: primary
+      start: 0
+      end: 15
+    - source: put
+      style: secondary
+      start: 5
+      end: 8
+    - source: jobs.put
+      style: secondary
+      start: 0
+      end: 8
+  ? |
+    pool.submit(ship_order, order)
+  : labels:
+    - source: pool.submit(ship_order, order)
+      style: primary
+      start: 0
+      end: 30
+    - source: submit
+      style: secondary
+      start: 5
+      end: 11
+    - source: pool.submit
+      style: secondary
+      start: 0
+      end: 11
+  ? |
+    queue.enqueue(ship_order, order)
+  : labels:
+    - source: queue.enqueue(ship_order, order)
+      style: primary
+      start: 0
+      end: 32
+    - source: enqueue
+      style: secondary
+      start: 6
+      end: 13
+    - source: queue.enqueue
+      style: secondary
+      start: 0
+      end: 13
+  ? |
+    ship_order.apply_async(args=[order])
+  : labels:
+    - source: ship_order.apply_async(args=[order])
+      style: primary
+      start: 0
+      end: 36
+    - source: apply_async
+      style: secondary
+      start: 11
+      end: 22
+    - source: ship_order.apply_async
+      style: secondary
+      start: 0
+      end: 22
+  ? |
+    ship_order.delay(order)
+  : labels:
+    - source: ship_order.delay(order)
+      style: primary
+      start: 0
+      end: 23
+    - source: delay
+      style: secondary
+      start: 11
+      end: 16
+    - source: ship_order.delay
+      style: secondary
+      start: 0
+      end: 16
+  ? |
+    ship_order.send(order)
+  : labels:
+    - source: ship_order.send(order)
+      style: primary
+      start: 0
+      end: 22
+    - source: send
+      style: secondary
+      start: 11
+      end: 15
+    - source: ship_order.send
+      style: secondary
+      start: 0
+      end: 15
+  ? |
+    workflow.execute_activity(ship_order, order)
+  : labels:
+    - source: workflow.execute_activity(ship_order, order)
+      style: primary
+      start: 0
+      end: 44
+    - source: execute_activity
+      style: secondary
+      start: 9
+      end: 25
+    - source: workflow.execute_activity
+      style: secondary
+      start: 0
+      end: 25

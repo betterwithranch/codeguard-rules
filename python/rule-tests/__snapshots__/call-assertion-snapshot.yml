@@ -1,0 +1,132 @@
+id: call-assertion
+snapshots:
+  ? |
+    assert not repository.delete.called
+  : labels:
+    - source: repository.delete.called
+      style: primary
+      start: 11
+      end: 35
+    - source: called
+      style: secondary
+      start: 29
+      end: 35
+  ? |
+    assert pricing.quote.call_args_list == [call(order)]
+  : labels:
+    - source: pricing.quote.call_args_list
+      style: primary
+      start: 7
+      end: 35
+    - source: call_args_list
+      style: secondary
+      start: 21
+      end: 35
+  ? |
+    assert repository.save.call_args == call(invoice)
+  : labels:
+    - source: repository.save.call_args
+      style: primary
+      start: 7
+      end: 32
+    - source: call_args
+      style: secondary
+      start: 23
+      end: 32
+  ? |
+    assert service.mock_calls == [call.reserve(order)]
+  : labels:
+    - source: service.mock_calls
+      style: primary
+      start: 7
+      end: 25
+    - source: mock_calls
+      style: secondary
+      start: 15
+      end: 25
+  ? |
+    assert spy.call_count == 1
+  : labels:
+    - source: spy.call_count
+      style: primary
+      start: 7
+      end: 21
+    - source: call_count
+      style: secondary
+      start: 11
+      end: 21
+  ? |
+    calculate_tax.assert_called_once_with(100)
+  : labels:
+    - source: calculate_tax.assert_called_once_with(100)
+      style: primary
+      start: 0
+      end: 42
+    - source: assert_called_once_with
+      style: secondary
+      start: 14
+      end: 37
+    - source: calculate_tax.assert_called_once_with
+      style: secondary
+      start: 0
+      end: 37
+  ? |
+    client.fetch.assert_awaited_once_with("orders")
+  : labels:
+    - source: client.fetch.assert_awaited_once_with("orders")
+      style: primary
+      start: 0
+      end: 47
+    - source: assert_awaited_once_with
+      style: secondary
+      start: 13
+      end: 37
+    - source: client.fetch.assert_awaited_once_with
+      style: secondary
+      start: 0
+      end: 37
+  ? |
+    mailer.send.assert_not_called()
+  : labels:
+    - source: mailer.send.assert_not_called()
+      style: primary
+      start: 0
+      end: 31
+    - source: assert_not_called
+      style: secondary
+      start: 12
+      end: 29
+    - source: mailer.send.assert_not_called
+      style: secondary
+      start: 0
+      end: 29
+  ? |
+    notifier.notify.assert_has_calls([call("a"), call("b")])
+  : labels:
+    - source: notifier.notify.assert_has_calls([call("a"), call("b")])
+      style: primary
+      start: 0
+      end: 56
+    - source: assert_has_calls
+      style: secondary
+      start: 16
+      end: 32
+    - source: notifier.notify.assert_has_calls
+      style: secondary
+      start: 0
+      end: 32
+  ? |
+    repository.save.assert_called_with(invoice)
+  : labels:
+    - source: repository.save.assert_called_with(invoice)
+      style: primary
+      start: 0
+      end: 43
+    - source: assert_called_with
+      style: secondary
+      start: 16
+      end: 34
+    - source: repository.save.assert_called_with
+      style: secondary
+      start: 0
+      end: 34

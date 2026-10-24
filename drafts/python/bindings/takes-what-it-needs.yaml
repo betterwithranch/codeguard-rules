@@ -1,0 +1,4 @@
+skill: python/skills/takes-what-it-needs
+paths: ["**/*.py"]
+exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
+triggers: [method-with-parameters, parameter-field-read, derived-argument, deferred-call, reference-id]

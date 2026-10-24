@@ -1,0 +1,45 @@
+id: fallback-default
+language: python
+rule:
+  any:
+  - kind: call
+    all:
+    - has:
+        field: function
+        regex: (\.get|\.pop|(^|\.)getenv)$
+    - has:
+        field: arguments
+        has:
+          nthChild: 2
+  - kind: call
+    all:
+    - has:
+        field: function
+        regex: ^getattr$
+    - has:
+        field: arguments
+        has:
+          nthChild: 3
+  - kind: boolean_operator
+    all:
+    - has:
+        field: operator
+        regex: ^or$
+    - has:
+        field: right
+        any:
+        - kind: integer
+        - kind: float
+        - kind: string
+        - kind: list
+        - kind: dictionary
+        - kind: tuple
+        - kind: set
+        - kind: "true"
+        - kind: "false"
+        - kind: none
+        - kind: unary_operator
+  - kind: conditional_expression
+    has:
+      kind: comparison_operator
+      regex: \bis (not )?None\b

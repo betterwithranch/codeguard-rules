@@ -1,0 +1,62 @@
+id: unpacked-argument-group
+language: python
+rule:
+  any:
+  - kind: call
+    all:
+    - has:
+        field: arguments
+        has:
+          stopBy: end
+          any:
+          - kind: attribute
+            has:
+              field: object
+              kind: identifier
+              pattern: $G
+          - kind: subscript
+            all:
+            - has:
+                field: value
+                kind: identifier
+                pattern: $G
+            - has:
+                field: subscript
+                kind: string
+          - any:
+            - kind: list_splat
+            - kind: dictionary_splat
+            has:
+              kind: identifier
+              pattern: $G
+    - inside:
+        stopBy: end
+        kind: function_definition
+        has:
+          field: body
+          has:
+            kind: expression_statement
+            has:
+              kind: assignment
+              all:
+              - has:
+                  field: left
+                  pattern: $G
+              - has:
+                  field: right
+                  kind: call
+                  has:
+                    field: function
+                    regex: ^([A-Za-z_][\w.]*\.)?[A-Z]\w*$
+  - kind: call
+    has:
+      field: arguments
+      has:
+        any:
+        - kind: list_splat
+        - kind: dictionary_splat
+        has:
+          kind: call
+          has:
+            field: function
+            regex: (^|\.)(asdict|astuple|vars|model_dump|dict|_asdict)$

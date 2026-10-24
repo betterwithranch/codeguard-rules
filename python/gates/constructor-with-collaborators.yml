@@ -1,0 +1,32 @@
+id: constructor-with-collaborators
+language: python
+rule:
+  kind: call
+  all:
+  - has:
+      field: function
+      regex: (^|\.)[A-Z][A-Za-z0-9_]*$
+  - has:
+      field: arguments
+      has:
+        any:
+        - kind: identifier
+        - kind: call
+        - kind: attribute
+        - kind: subscript
+        - kind: list_comprehension
+        - kind: generator_expression
+        - kind: binary_operator
+        - kind: list
+        - kind: keyword_argument
+          has:
+            field: value
+            any:
+            - kind: identifier
+            - kind: call
+            - kind: attribute
+            - kind: subscript
+            - kind: list_comprehension
+            - kind: generator_expression
+            - kind: binary_operator
+            - kind: list

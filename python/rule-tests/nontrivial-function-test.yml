@@ -1,0 +1,86 @@
+id: nontrivial-function
+valid:
+# pass body
+- |
+  def submit(order):
+      pass
+# Ellipsis body
+- |
+  class Submitter(Protocol):
+      def submit(self, order): ...
+# Docstring-only body
+- |
+  def submit(order):
+      """Submit an order."""
+# Returns an attribute
+- |
+  def total(self):
+      return self._total
+# Returns a constant
+- |
+  def limit():
+      return 10
+# Only raises
+- |
+  def submit(self, order):
+      raise NotImplementedError
+# Module code outside a function
+- |
+  total = subtotal + tax
+invalid:
+# Two statements
+- |
+  def total(subtotal, discount):
+      net = subtotal - discount
+      return max(net, 0)
+# Returns a call
+- |
+  def total(lines):
+      return sum(lines)
+# Returns arithmetic
+- |
+  def total(subtotal, tax):
+      return subtotal + tax
+# Returns a boolean expression
+- |
+  def is_open(order):
+      return order.paid and not order.shipped
+# Returns a comparison
+- |
+  def is_late(order, now):
+      return order.due < now
+# Returns a conditional expression
+- |
+  def label(order):
+      return "paid" if order.paid else "due"
+# Returns a comprehension
+- |
+  def totals(orders):
+      return [order.total for order in orders]
+# Returns a subscript
+- |
+  def first(orders):
+      return orders[0]
+# Returns a negation
+- |
+  def credit(amount):
+      return -amount
+# Returns a not
+- |
+  def is_due(order):
+      return not order.paid
+# Single expression statement call
+- |
+  def notify(order):
+      mailer.send(order)
+# Single if statement
+- |
+  def check(order):
+      if order.total < 0:
+          raise ValueError(order)
+# Method with a loop
+- |
+  class Order:
+      def total(self):
+          for line in self.lines:
+              yield line.total

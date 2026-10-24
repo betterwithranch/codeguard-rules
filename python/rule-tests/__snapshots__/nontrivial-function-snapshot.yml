@@ -1,0 +1,139 @@
+id: nontrivial-function
+snapshots:
+  ? |
+    class Order:
+        def total(self):
+            for line in self.lines:
+                yield line.total
+  : labels:
+    - source: |-
+        def total(self):
+                for line in self.lines:
+                    yield line.total
+      style: primary
+      start: 17
+      end: 94
+  ? |
+    def check(order):
+        if order.total < 0:
+            raise ValueError(order)
+  : labels:
+    - source: |-
+        def check(order):
+            if order.total < 0:
+                raise ValueError(order)
+      style: primary
+      start: 0
+      end: 73
+  ? |
+    def credit(amount):
+        return -amount
+  : labels:
+    - source: |-
+        def credit(amount):
+            return -amount
+      style: primary
+      start: 0
+      end: 38
+  ? |
+    def first(orders):
+        return orders[0]
+  : labels:
+    - source: |-
+        def first(orders):
+            return orders[0]
+      style: primary
+      start: 0
+      end: 39
+  ? |
+    def is_due(order):
+        return not order.paid
+  : labels:
+    - source: |-
+        def is_due(order):
+            return not order.paid
+      style: primary
+      start: 0
+      end: 44
+  ? |
+    def is_late(order, now):
+        return order.due < now
+  : labels:
+    - source: |-
+        def is_late(order, now):
+            return order.due < now
+      style: primary
+      start: 0
+      end: 51
+  ? |
+    def is_open(order):
+        return order.paid and not order.shipped
+  : labels:
+    - source: |-
+        def is_open(order):
+            return order.paid and not order.shipped
+      style: primary
+      start: 0
+      end: 63
+  ? |
+    def label(order):
+        return "paid" if order.paid else "due"
+  : labels:
+    - source: |-
+        def label(order):
+            return "paid" if order.paid else "due"
+      style: primary
+      start: 0
+      end: 60
+  ? |
+    def notify(order):
+        mailer.send(order)
+  : labels:
+    - source: |-
+        def notify(order):
+            mailer.send(order)
+      style: primary
+      start: 0
+      end: 41
+  ? |
+    def total(lines):
+        return sum(lines)
+  : labels:
+    - source: |-
+        def total(lines):
+            return sum(lines)
+      style: primary
+      start: 0
+      end: 39
+  ? |
+    def total(subtotal, discount):
+        net = subtotal - discount
+        return max(net, 0)
+  : labels:
+    - source: |-
+        def total(subtotal, discount):
+            net = subtotal - discount
+            return max(net, 0)
+      style: primary
+      start: 0
+      end: 83
+  ? |
+    def total(subtotal, tax):
+        return subtotal + tax
+  : labels:
+    - source: |-
+        def total(subtotal, tax):
+            return subtotal + tax
+      style: primary
+      start: 0
+      end: 51
+  ? |
+    def totals(orders):
+        return [order.total for order in orders]
+  : labels:
+    - source: |-
+        def totals(orders):
+            return [order.total for order in orders]
+      style: primary
+      start: 0
+      end: 64

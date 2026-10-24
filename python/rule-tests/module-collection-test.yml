@@ -1,0 +1,56 @@
+id: module-collection
+valid:
+  # Module collection derived from another
+  - |
+    SUPPORTED = tuple(HANDLERS)
+
+  # Empty module collection
+  - |
+    REGISTRY = {}
+
+  # Module scalar constant
+  - |
+    TIMEOUT_SECONDS = 5
+
+  # Collection literal inside a function
+  - |
+    def supported():
+        names = ("card", "bank")
+        return names
+
+  # Collection literal as a class attribute
+  - |
+    class ExampleExport:
+        columns = ("id", "name")
+
+  # Call with no collection argument
+  - |
+    KINDS = frozenset(ExampleKind)
+invalid:
+  # Module tuple of strings
+  - |
+    SUPPORTED = ("card", "bank")
+
+  # Module dict literal
+  - |
+    HANDLERS = {"card": handle_card, "bank": handle_bank}
+
+  # Module list of enum members
+  - |
+    ALL_KINDS = [ExampleKind.CARD, ExampleKind.BANK]
+
+  # Module set literal
+  - |
+    REFUNDABLE = {"card"}
+
+  # Annotated module tuple
+  - |
+    SUPPORTED: tuple[str, ...] = ("card", "bank")
+
+  # Tuple without parentheses
+  - |
+    SUPPORTED = "card", "bank"
+
+  # Collection literal wrapped in a call
+  - |
+    SUPPORTED = frozenset({"card", "bank"})

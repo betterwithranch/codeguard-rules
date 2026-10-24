@@ -1,0 +1,1583 @@
+cases:
+- name: branches on payment type in two functions
+  inputs:
+    file: payments/receipts.py
+    after: |
+      from .methods import BankTransfer, CardPayment, Payment
+
+
+      def processing_fee_cents(payment: Payment) -> int:
+          if isinstance(payment, CardPayment):
+              return payment.amount_cents * 3 // 100
+          if isinstance(payment, BankTransfer):
+              return 50
+          raise ValueError(payment)
+
+
+      def receipt_line(payment: Payment) -> str:
+          if isinstance(payment, CardPayment):
+              return f"Card ending {payment.last_four}"
+          if isinstance(payment, BankTransfer):
+              return f"Transfer from {payment.iban}"
+          raise ValueError(payment)
+  expected_output:
+    outcome: invalid
+- name: adds a second payment type switch beside the first
+  inputs:
+    file: payments/receipts.py
+    before: |
+      from .methods import BankTransfer, CardPayment, Payment
+
+
+      def processing_fee_cents(payment: Payment) -> int:
+          if isinstance(payment, CardPayment):
+              return payment.amount_cents * 3 // 100
+          if isinstance(payment, BankTransfer):
+              return 50
+          raise ValueError(payment)
+    after: |
+      from .methods import BankTransfer, CardPayment, Payment
+
+
+      def processing_fee_cents(payment: Payment) -> int:
+          if isinstance(payment, CardPayment):
+              return payment.amount_cents * 3 // 100
+          if isinstance(payment, BankTransfer):
+              return 50
+          raise ValueError(payment)
+
+
+      def settlement_days(payment: Payment) -> int:
+          match payment:
+              case CardPayment():
+                  return 2
+              case BankTransfer():
+                  return 5
+          raise ValueError(payment)
+  expected_output:
+    outcome: invalid
+- name: switches on payment type once
+  inputs:
+    file: payments/receipts.py
+    after: |
+      from .methods import BankTransfer, CardPayment, Payment
+
+
+      def processing_fee_cents(payment: Payment) -> int:
+          if isinstance(payment, CardPayment):
+              return payment.amount_cents * 3 // 100
+          if isinstance(payment, BankTransfer):
+              return 50
+          raise ValueError(payment)
+
+
+      def receipt_total(payment: Payment) -> str:
+          return f"{(payment.amount_cents + processing_fee_cents(payment)) / 100:.2f}"
+  expected_output:
+    outcome: valid
+- name: switches on shape type in two methods of a renderer
+  inputs:
+    file: drawing/renderer.py
+    after: |
+      from .shapes import Circle, Rectangle, Shape
+
+
+      class SvgRenderer:
+          def element(self, shape: Shape) -> str:
+              if type(shape) is Circle:
+                  return f'<circle r="{shape.radius}"/>'
+              elif type(shape) is Rectangle:
+                  return f'<rect width="{shape.width}" height="{shape.height}"/>'
+              raise TypeError(shape)
+
+          def area(self, shape: Shape) -> float:
+              if type(shape) is Circle:
+                  return 3.14159 * shape.radius**2
+              elif type(shape) is Rectangle:
+                  return shape.width * shape.height
+              raise TypeError(shape)
+  expected_output:
+    outcome: invalid
+- name: dispatches by event type through lookups in two functions
+  inputs:
+    file: webhooks/dispatch.py
+    after: |
+      from .events import ChargeFailed, ChargeSucceeded, WebhookEvent
+      from .handlers import notify_failure, notify_success, record_failure, record_success
+
+      NOTIFIERS = {ChargeSucceeded: notify_success, ChargeFailed: notify_failure}
+      RECORDERS = {ChargeSucceeded: record_success, ChargeFailed: record_failure}
+
+
+      def notify(event: WebhookEvent) -> None:
+          NOTIFIERS[type(event)](event)
+
+
+      def record(event: WebhookEvent) -> None:
+          RECORDERS[type(event)](event)
+  expected_output:
+    outcome: invalid
+- name: switches on different types in two functions
+  inputs:
+    file: payments/receipts.py
+    after: |
+      from .methods import BankTransfer, CardPayment, Payment
+      from .refunds import ChargebackRefund, ManualRefund, Refund
+
+
+      def processing_fee_cents(payment: Payment) -> int:
+          if isinstance(payment, CardPayment):
+              return payment.amount_cents * 3 // 100
+          if isinstance(payment, BankTransfer):
+              return 50
+          raise ValueError(payment)
+
+
+      def refund_reason(refund: Refund) -> str:
+          if isinstance(refund, ChargebackRefund):
+              return f"Chargeback {refund.case_number}"
+          if isinstance(refund, ManualRefund):
+              return refund.note
+          raise ValueError(refund)
+  expected_output:
+    outcome: valid
+- name: guards input types in two validators
+  inputs:
+    file: accounts/signup.py
+    after: |
+      from pydantic import BaseModel, field_validator
+
+
+      class SignupForm(BaseModel):
+          email: str
+          age: int
+
+          @field_validator("email", mode="before")
+          @classmethod
+          def email_is_text(cls, value: object) -> object:
+              if not isinstance(value, str):
+                  raise ValueError("email must be text")
+              return value.strip().lower()
+
+          @field_validator("age", mode="before")
+          @classmethod
+          def age_is_number(cls, value: object) -> object:
+              if isinstance(value, bool):
+                  raise ValueError("age must be a number")
+              return value
+  expected_output:
+    outcome: valid
+- name: registers singledispatch handlers per payment type
+  inputs:
+    file: payments/receipts.py
+    after: |
+      from functools import singledispatch
+
+      from .methods import BankTransfer, CardPayment, Payment
+
+
+      @singledispatch
+      def receipt_line(payment: Payment) -> str:
+          raise ValueError(payment)
+
+
+      @receipt_line.register
+      def _(payment: CardPayment) -> str:
+          return f"Card ending {payment.last_four}"
+
+
+      @receipt_line.register
+      def _(payment: BankTransfer) -> str:
+          return f"Transfer from {payment.iban}"
+
+
+      def is_card(payment: Payment) -> bool:
+          return isinstance(payment, CardPayment)
+  expected_output:
+    outcome: valid
+- name: switches on node type in two serializer methods
+  inputs:
+    file: content/serializers.py
+    after: |
+      from rest_framework import serializers
+
+      from .blocks import Block, ImageBlock, TextBlock
+
+
+      class BlockSerializer(serializers.Serializer):
+          def to_representation(self, block: Block) -> dict[str, str]:
+              if isinstance(block, TextBlock):
+                  return {"type": "text", "body": block.body}
+              if isinstance(block, ImageBlock):
+                  return {"type": "image", "src": block.url}
+              raise TypeError(block)
+
+          def word_count(self, block: Block) -> int:
+              if isinstance(block, TextBlock):
+                  return len(block.body.split())
+              if isinstance(block, ImageBlock):
+                  return len(block.caption.split())
+              raise TypeError(block)
+  expected_output:
+    outcome: invalid
+- name: matches on status strings in two functions
+  inputs:
+    file: orders/status_text.py
+    before: |
+      def status_label(status: str) -> str:
+          return status.title()
+    after: |
+      def status_label(status: str) -> str:
+          match status:
+              case "open":
+                  return "Open"
+              case "shipped":
+                  return "On its way"
+          return status.title()
+
+
+      def status_colour(status: str) -> str:
+          match status:
+              case "open":
+                  return "blue"
+              case "shipped":
+                  return "green"
+          return "grey"
+  expected_output:
+    outcome: valid
+- name: renames the receipt prefix
+  inputs:
+    file: payments/receipts.py
+    before: |
+      from .methods import CardPayment, Payment
+
+      PREFIX = "Card"
+
+
+      def receipt_line(payment: Payment) -> str:
+          if isinstance(payment, CardPayment):
+              return f"{PREFIX} ending {payment.last_four}"
+          return "Other"
+    after: |
+      from .methods import CardPayment, Payment
+
+      PREFIX = "Credit card"
+
+
+      def receipt_line(payment: Payment) -> str:
+          if isinstance(payment, CardPayment):
+              return f"{PREFIX} ending {payment.last_four}"
+          return "Other"
+  expected_output:
+    outcome: skipped
+- name: branches on a Literal status alias
+  inputs:
+    file: orders/fulfillment.py
+    after: |
+      from dataclasses import dataclass
+      from typing import Literal
+
+      type OrderStatus = Literal["pending", "shipped", "cancelled"]
+
+
+      @dataclass(frozen=True)
+      class Order:
+          number: str
+          status: OrderStatus
+
+
+      def next_step(order: Order) -> str:
+          if order.status == "pending":
+              return "pick and pack"
+          if order.status == "shipped":
+              return "await delivery"
+          return "refund payment"
+  expected_output:
+    outcome: invalid
+- name: branches on StrEnum status members
+  inputs:
+    file: orders/fulfillment.py
+    after: |
+      from dataclasses import dataclass
+      from enum import StrEnum
+
+
+      class OrderStatus(StrEnum):
+          PENDING = "pending"
+          SHIPPED = "shipped"
+          CANCELLED = "cancelled"
+
+
+      @dataclass(frozen=True)
+      class Order:
+          number: str
+          status: OrderStatus
+
+
+      def next_step(order: Order) -> str:
+          if order.status == OrderStatus.PENDING:
+              return "pick and pack"
+          if order.status == OrderStatus.SHIPPED:
+              return "await delivery"
+          return "refund payment"
+  expected_output:
+    outcome: skipped
+- name: matches on a Literal status field
+  inputs:
+    file: orders/fulfillment.py
+    before: |
+      from dataclasses import dataclass
+      from typing import Literal
+
+
+      @dataclass(frozen=True)
+      class Order:
+          number: str
+          status: Literal["pending", "shipped", "cancelled"]
+    after: |
+      from dataclasses import dataclass
+      from typing import Literal
+
+
+      @dataclass(frozen=True)
+      class Order:
+          number: str
+          status: Literal["pending", "shipped", "cancelled"]
+
+
+      def next_step(order: Order) -> str:
+          match order.status:
+              case "pending":
+                  return "pick and pack"
+              case "shipped":
+                  return "await delivery"
+              case "cancelled":
+                  return "refund payment"
+  expected_output:
+    outcome: invalid
+- name: matches on StrEnum status members
+  inputs:
+    file: orders/fulfillment.py
+    after: |
+      from dataclasses import dataclass
+      from enum import StrEnum
+
+
+      class OrderStatus(StrEnum):
+          PENDING = "pending"
+          SHIPPED = "shipped"
+          CANCELLED = "cancelled"
+
+
+      @dataclass(frozen=True)
+      class Order:
+          number: str
+          status: OrderStatus
+
+
+      def next_step(order: Order) -> str:
+          match order.status:
+              case OrderStatus.PENDING:
+                  return "pick and pack"
+              case OrderStatus.SHIPPED:
+                  return "await delivery"
+              case OrderStatus.CANCELLED:
+                  return "refund payment"
+  expected_output:
+    outcome: skipped
+- name: tests an imported Literal mode against a tuple
+  inputs:
+    file: sync/runner.py
+    before: |
+      from sync.settings import SyncMode
+
+
+      def run(mode: SyncMode) -> None:
+          start(mode)
+    after: |
+      from sync.settings import SyncMode
+
+
+      def run(mode: SyncMode) -> None:
+          if mode in ("fast", "safe"):
+              start(mode)
+    unchanged:
+      sync/settings.py: |
+        from typing import Literal
+
+        type SyncMode = Literal["fast", "safe", "off"]
+  expected_output:
+    outcome: invalid
+- name: dispatches pydantic events through a table keyed by Literal values
+  inputs:
+    file: webhooks/dispatch.py
+    after: |
+      from collections.abc import Callable
+      from typing import Literal
+
+      from pydantic import BaseModel
+
+
+      class WebhookEvent(BaseModel):
+          kind: Literal["created", "updated", "deleted"]
+          object_id: str
+
+
+      def on_created(event: WebhookEvent) -> None:
+          print("created", event.object_id)
+
+
+      def on_deleted(event: WebhookEvent) -> None:
+          print("deleted", event.object_id)
+
+
+      HANDLERS: dict[str, Callable[[WebhookEvent], None]] = {
+          "created": on_created,
+          "deleted": on_deleted,
+      }
+
+
+      def dispatch(event: WebhookEvent) -> None:
+          HANDLERS[event.kind](event)
+  expected_output:
+    outcome: invalid
+- name: skips cancelled attrs orders by a Literal field
+  inputs:
+    file: orders/batching.py
+    after: |
+      from typing import Literal
+
+      import attrs
+
+
+      @attrs.frozen
+      class BatchOrder:
+          number: str
+          status: Literal["open", "held", "cancelled"]
+
+
+      def billable(orders: list[BatchOrder]) -> list[BatchOrder]:
+          return [order for order in orders if order.status != "cancelled"]
+  expected_output:
+    outcome: invalid
+- name: tests a SQLAlchemy Literal column in a property
+  inputs:
+    file: accounts/models.py
+    after: |
+      from typing import Literal
+
+      from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+
+      class Base(DeclarativeBase):
+          pass
+
+
+      class Account(Base):
+          __tablename__ = "accounts"
+
+          id: Mapped[int] = mapped_column(primary_key=True)
+          tier: Mapped[Literal["free", "pro", "enterprise"]] = mapped_column()
+
+          @property
+          def has_support(self) -> bool:
+              return self.tier in {"pro", "enterprise"}
+  expected_output:
+    outcome: invalid
+- name: compares a union variant's Literal tag
+  inputs:
+    file: payments/payment_method.py
+    after: |
+      from dataclasses import dataclass
+      from typing import Literal
+
+
+      @dataclass(frozen=True)
+      class CardPayment:
+          last_four: str
+          kind: Literal["card"] = "card"
+
+
+      @dataclass(frozen=True)
+      class BankTransfer:
+          iban: str
+          kind: Literal["bank_transfer"] = "bank_transfer"
+
+
+      type PaymentMethod = CardPayment | BankTransfer
+
+
+      def is_card(payment: PaymentMethod) -> bool:
+          return payment.kind == "card"
+  expected_output:
+    outcome: valid
+- name: passes a Literal export format on and compares a str suffix
+  inputs:
+    file: exports/writer.py
+    after: |
+      from dataclasses import dataclass
+      from pathlib import Path
+      from typing import Literal
+
+      import tablib
+
+
+      @dataclass(frozen=True)
+      class Export:
+          path: Path
+          format: Literal["csv", "json", "xlsx"]
+
+
+      def write(export: Export, rows: tablib.Dataset) -> None:
+          export.path.write_bytes(rows.export(export.format))
+
+
+      def is_spreadsheet(path: Path) -> bool:
+          return path.suffix == ".xlsx"
+  expected_output:
+    outcome: valid
+- name: serializes a Literal format into a payload dict
+  inputs:
+    file: exports/payload.py
+    after: |
+      from dataclasses import dataclass
+      from typing import Literal
+
+
+      @dataclass(frozen=True)
+      class ExportRequest:
+          report_id: str
+          format: Literal["csv", "json"]
+
+
+      def payload(request: ExportRequest) -> dict[str, str]:
+          return {"report": request.report_id, "format": request.format}
+  expected_output:
+    outcome: valid
+- name: matches a str command name
+  inputs:
+    file: cli/commands.py
+    after: |
+      import sys
+
+
+      def run(command: str) -> int:
+          match command:
+              case "sync":
+                  return sync()
+              case "report":
+                  return report()
+              case _:
+                  print(f"unknown command {command}", file=sys.stderr)
+                  return 2
+  expected_output:
+    outcome: valid
+- name: compares a str header to a string
+  inputs:
+    file: http/encoding.py
+    after: |
+      def is_gzipped(content_encoding: str) -> bool:
+          return content_encoding == "gzip"
+  expected_output:
+    outcome: valid
+- name: changes the large box threshold
+  inputs:
+    file: orders/fulfillment.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Order:
+          number: str
+          item_count: int
+
+
+      def needs_large_box(order: Order) -> bool:
+          return order.item_count > 5
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Order:
+          number: str
+          item_count: int
+
+
+      def needs_large_box(order: Order) -> bool:
+          return order.item_count > 8
+  expected_output:
+    outcome: skipped
+- name: tests a mode against a tuple of enum members
+  inputs:
+    file: sync/runner.py
+    before: |
+      from sync.settings import SyncMode
+
+
+      def run(mode: SyncMode) -> None:
+          start(mode)
+    after: |
+      from sync.settings import SyncMode
+
+
+      def run(mode: SyncMode) -> None:
+          if mode in (SyncMode.FAST, SyncMode.SAFE):
+              start(mode)
+  expected_output:
+    outcome: skipped
+- name: returns a tuple of separate answers
+  inputs:
+    file: orders/review.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Order:
+          order_id: str
+          holds: tuple[str, ...]
+          balance_due: int
+
+
+      def evaluate_order(order: Order) -> tuple[str | None, bool]:
+          rejection_reason = "unpaid balance" if order.balance_due > 0 else None
+          return rejection_reason, bool(order.holds)
+  expected_output:
+    outcome: invalid
+- name: returns the order's hold reasons as a tuple
+  inputs:
+    file: orders/review.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Order:
+          order_id: str
+          holds: tuple[str, ...]
+          balance_due: int
+
+
+      def hold_reasons(order: Order) -> tuple[str, ...]:
+          reasons = tuple(order.holds)
+          if order.balance_due > 0:
+              reasons += ("unpaid balance",)
+          return reasons
+  expected_output:
+    outcome: valid
+- name: returns a fee and a delivery date in a dict
+  inputs:
+    file: shipments/quotes.py
+    after: |
+      from dataclasses import dataclass
+      from datetime import date, timedelta
+
+
+      @dataclass(frozen=True)
+      class Parcel:
+          weight_grams: int
+          express: bool
+
+
+      def quote(parcel: Parcel, today: date) -> dict[str, object]:
+          fee_cents = 500 + parcel.weight_grams // 100
+          delivers_on = today + timedelta(days=1 if parcel.express else 3)
+          return {"fee_cents": fee_cents, "delivers_on": delivers_on}
+  expected_output:
+    outcome: invalid
+- name: returns carriers keyed by their id
+  inputs:
+    file: shipments/carriers.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Carrier:
+          id: str
+          name: str
+          country: str
+
+
+      def carriers_by_id(carriers: list[Carrier]) -> dict[str, Carrier]:
+          return {carrier.id: carrier for carrier in carriers}
+  expected_output:
+    outcome: valid
+- name: returns a customer and whether it was created
+  inputs:
+    file: accounts/signup.py
+    after: |
+      from dataclasses import dataclass
+      from typing import Protocol
+
+
+      @dataclass(frozen=True)
+      class Customer:
+          email: str
+
+
+      class CustomerStore(Protocol):
+          def find(self, email: str) -> Customer | None: ...
+
+          def add(self, customer: Customer) -> None: ...
+
+
+      class Signup:
+          def __init__(self, customers: CustomerStore) -> None:
+              self.customers = customers
+
+          def register(self, email: str):
+              existing = self.customers.find(email)
+              if existing is not None:
+                  return existing, False
+              customer = Customer(email=email)
+              self.customers.add(customer)
+              return customer, True
+  expected_output:
+    outcome: invalid
+- name: returns parsed rows and warnings through an annotation
+  inputs:
+    file: imports/rows.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Row:
+          sku: str
+          quantity: int
+
+
+      def parse_rows(lines: list[str]) -> tuple[list[Row], list[str]]:
+          rows: list[Row] = []
+          warnings: list[str] = []
+          for number, line in enumerate(lines, start=1):
+              sku, quantity = line.split(",")
+              if not quantity.isdigit():
+                  warnings.append(f"line {number}: bad quantity")
+                  continue
+              rows.append(Row(sku=sku, quantity=int(quantity)))
+          result = (rows, warnings)
+          return result
+  expected_output:
+    outcome: invalid
+- name: returns request headers for a payment API
+  inputs:
+    file: payments/client.py
+    after: |
+      def auth_headers(api_key: str, idempotency_key: str) -> dict[str, str]:
+          return {
+              "Authorization": f"Bearer {api_key}",
+              "Idempotency-Key": idempotency_key,
+              "Accept": "application/json",
+          }
+  expected_output:
+    outcome: valid
+- name: implements divmod for money
+  inputs:
+    file: billing/money.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Money:
+          cents: int
+
+          def __divmod__(self, parts: int) -> tuple["Money", "Money"]:
+              share, left_over = divmod(self.cents, parts)
+              return Money(share), Money(left_over)
+  expected_output:
+    outcome: valid
+- name: returns a Django template context
+  inputs:
+    file: shop/views.py
+    after: |
+      from django.views.generic import TemplateView
+
+      from shop.models import Order
+
+
+      class OrderListView(TemplateView):
+          template_name = "shop/orders.html"
+
+          def get_context_data(self, **kwargs):
+              orders = Order.objects.filter(customer=self.request.user)
+              return {**super().get_context_data(**kwargs), "orders": orders, "count": orders.count()}
+  expected_output:
+    outcome: valid
+- name: returns a total and a late flag from a SQLAlchemy query
+  inputs:
+    file: billing/queries.py
+    after: |
+      from datetime import date
+
+      from sqlalchemy import func, select
+      from sqlalchemy.orm import Session
+
+      from billing.models import Invoice
+
+
+      def customer_balance(session: Session, customer_id: int, today: date):
+          open_invoices = select(Invoice).where(Invoice.customer_id == customer_id, Invoice.paid.is_(False))
+          invoices = session.scalars(open_invoices).all()
+          total_cents = sum(invoice.amount_cents for invoice in invoices)
+          any_late = any(invoice.due_on < today for invoice in invoices)
+          return total_cents, any_late
+  expected_output:
+    outcome: invalid
+- name: returns a named review type
+  inputs:
+    file: orders/review.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Order:
+          order_id: str
+          holds: tuple[str, ...]
+          balance_due: int
+
+
+      @dataclass(frozen=True)
+      class OrderReview:
+          rejection_reason: str | None
+          is_on_hold: bool
+
+
+      def evaluate_order(order: Order) -> OrderReview:
+          rejection_reason = "unpaid balance" if order.balance_due > 0 else None
+          return OrderReview(rejection_reason=rejection_reason, is_on_hold=bool(order.holds))
+  expected_output:
+    outcome: valid
+- name: truncates tax instead of rounding
+  inputs:
+    file: invoices/tax.py
+    before: |
+      TAX_RATE = 0.2
+
+
+      def tax_due(subtotal: int) -> int:
+          return round(subtotal * TAX_RATE)
+    after: |
+      TAX_RATE = 0.2
+
+
+      def tax_due(subtotal: int) -> int:
+          return int(subtotal * TAX_RATE)
+  expected_output:
+    outcome: skipped
+- name: indexes orders by customer with overwrites
+  inputs:
+    file: orders/order_lookup.py
+    before: |
+      def orders_for_customer(orders, customer_id):
+          return [order for order in orders if order.customer_id == customer_id]
+    after: |
+      def orders_for_customer(orders, customer_id):
+          return [order for order in orders if order.customer_id == customer_id]
+
+
+      def order_by_customer(orders):
+          by_customer = {}
+          for order in orders:
+              by_customer[order.customer_id] = order
+          return by_customer
+  expected_output:
+    outcome: invalid
+- name: groups orders by customer into lists
+  inputs:
+    file: orders/order_lookup.py
+    after: |
+      def orders_by_customer(orders):
+          by_customer = {}
+          for order in orders:
+              by_customer.setdefault(order.customer_id, []).append(order)
+          return by_customer
+  expected_output:
+    outcome: valid
+- name: indexes orders by their own id in a comprehension
+  inputs:
+    file: orders/order_lookup.py
+    after: |
+      from .models import Order
+
+
+      def orders_by_id(orders: list[Order]) -> dict[int, Order]:
+          return {order.id: order for order in orders}
+  expected_output:
+    outcome: valid
+- name: indexes products by category in a comprehension
+  inputs:
+    file: catalog/featured.py
+    after: |
+      from .models import Product
+
+
+      def product_per_category(products: list[Product]) -> dict[str, Product]:
+          return {product.category: product for product in products}
+  expected_output:
+    outcome: invalid
+- name: keeps the latest event per shipment after sorting by time
+  inputs:
+    file: shipping/tracking.py
+    after: |
+      from .events import TrackingEvent
+
+
+      def latest_events(events: list[TrackingEvent]) -> dict[str, TrackingEvent]:
+          latest: dict[str, TrackingEvent] = {}
+          for event in sorted(events, key=lambda event: event.occurred_at):
+              latest[event.shipment_id] = event
+          return latest
+  expected_output:
+    outcome: valid
+- name: keeps an arbitrary event per shipment
+  inputs:
+    file: shipping/tracking.py
+    after: |
+      from .events import TrackingEvent
+
+
+      def events_by_shipment(events: list[TrackingEvent]) -> dict[str, TrackingEvent]:
+          return dict((event.shipment_id, event) for event in events)
+  expected_output:
+    outcome: invalid
+- name: raises on a duplicate sku in the catalog index
+  inputs:
+    file: catalog/index.py
+    after: |
+      from .models import CatalogRow
+
+
+      class DuplicateSku(Exception):
+          pass
+
+
+      def index_rows(rows: list[CatalogRow]) -> dict[str, CatalogRow]:
+          index: dict[str, CatalogRow] = {}
+          for row in rows:
+              if row.sku in index:
+                  raise DuplicateSku(row.sku)
+              index[row.sku] = row
+          return index
+  expected_output:
+    outcome: valid
+- name: keeps the first payment per invoice with setdefault
+  inputs:
+    file: billing/payments.py
+    after: |
+      from .models import Payment
+
+
+      def payment_per_invoice(payments: list[Payment]) -> dict[int, Payment]:
+          by_invoice: dict[int, Payment] = {}
+          for payment in payments:
+              by_invoice.setdefault(payment.invoice_id, payment)
+          return by_invoice
+  expected_output:
+    outcome: invalid
+- name: sums payment amounts per invoice
+  inputs:
+    file: billing/payments.py
+    after: |
+      from .models import Payment
+
+
+      def paid_per_invoice(payments: list[Payment]) -> dict[int, int]:
+          totals: dict[int, int] = {}
+          for payment in payments:
+              totals[payment.invoice_id] = totals.get(payment.invoice_id, 0) + payment.cents
+          return totals
+  expected_output:
+    outcome: valid
+- name: zips customer names with emails into a dict
+  inputs:
+    file: customers/directory.py
+    after: |
+      from .models import Customer
+
+
+      def email_by_name(customers: list[Customer]) -> dict[str, str]:
+          names = [customer.full_name for customer in customers]
+          emails = [customer.email for customer in customers]
+          return dict(zip(names, emails))
+  expected_output:
+    outcome: invalid
+- name: updates a rate table per region in a while loop
+  inputs:
+    file: shipping/rates.py
+    after: |
+      from .models import RateQuote
+
+
+      def rate_per_region(quotes: list[RateQuote]) -> dict[str, int]:
+          rates: dict[str, int] = {}
+          pending = list(quotes)
+          while pending:
+              quote = pending.pop()
+              rates.update({quote.region: quote.cents})
+          return rates
+  expected_output:
+    outcome: invalid
+- name: renames settings keys from another mapping
+  inputs:
+    file: config/env.py
+    after: |
+      def prefixed(settings: dict[str, str]) -> dict[str, str]:
+          return {f"APP_{key}": value for key, value in settings.items()}
+  expected_output:
+    outcome: valid
+- name: changes a filter in a list comprehension
+  inputs:
+    file: orders/order_lookup.py
+    before: |
+      def open_orders(orders):
+          return [order for order in orders if order.status == "open"]
+    after: |
+      def open_orders(orders):
+          return [order for order in orders if order.status in ("open", "held")]
+  expected_output:
+    outcome: valid
+- name: adds one helper per issue type
+  inputs:
+    file: shipments/shipment_validator.py
+    after: |
+      from abc import ABC, abstractmethod
+      from dataclasses import dataclass
+      from enum import StrEnum
+
+      from .shipment import Shipment
+
+
+      class IssueType(StrEnum):
+          MISSING = "missing"
+          INVALID = "invalid"
+          AMBIGUOUS = "ambiguous"
+
+
+      @dataclass(frozen=True)
+      class ValidationIssue:
+          field: str
+          issue_type: IssueType
+
+
+      class ShipmentValidator(ABC):
+          def __init__(self) -> None:
+              self.issues: list[ValidationIssue] = []
+
+          @abstractmethod
+          def validate(self, shipment: Shipment) -> None: ...
+
+          def _missing(self, field: str) -> None:
+              self.issues.append(ValidationIssue(field, IssueType.MISSING))
+
+          def _invalid(self, field: str) -> None:
+              self.issues.append(ValidationIssue(field, IssueType.INVALID))
+
+          def _ambiguous(self, field: str) -> None:
+              self.issues.append(ValidationIssue(field, IssueType.AMBIGUOUS))
+  expected_output:
+    outcome: invalid
+- name: adds a second per-type issue helper
+  inputs:
+    file: shipments/shipment_validator.py
+    before: |
+      from abc import ABC, abstractmethod
+      from dataclasses import dataclass
+      from enum import StrEnum
+
+      from .shipment import Shipment
+
+
+      class IssueType(StrEnum):
+          MISSING = "missing"
+          INVALID = "invalid"
+
+
+      @dataclass(frozen=True)
+      class ValidationIssue:
+          field: str
+          issue_type: IssueType
+
+
+      class ShipmentValidator(ABC):
+          def __init__(self) -> None:
+              self.issues: list[ValidationIssue] = []
+
+          @abstractmethod
+          def validate(self, shipment: Shipment) -> None: ...
+
+          def _missing(self, field: str) -> None:
+              self.issues.append(ValidationIssue(field, IssueType.MISSING))
+    after: |
+      from abc import ABC, abstractmethod
+      from dataclasses import dataclass
+      from enum import StrEnum
+
+      from .shipment import Shipment
+
+
+      class IssueType(StrEnum):
+          MISSING = "missing"
+          INVALID = "invalid"
+
+
+      @dataclass(frozen=True)
+      class ValidationIssue:
+          field: str
+          issue_type: IssueType
+
+
+      class ShipmentValidator(ABC):
+          def __init__(self) -> None:
+              self.issues: list[ValidationIssue] = []
+
+          @abstractmethod
+          def validate(self, shipment: Shipment) -> None: ...
+
+          def _missing(self, field: str) -> None:
+              self.issues.append(ValidationIssue(field, IssueType.MISSING))
+
+          def _invalid(self, field: str) -> None:
+              self.issues.append(ValidationIssue(field, IssueType.INVALID))
+  expected_output:
+    outcome: invalid
+- name: takes the issue type as a parameter
+  inputs:
+    file: shipments/shipment_validator.py
+    after: |
+      from abc import ABC, abstractmethod
+      from dataclasses import dataclass
+      from enum import StrEnum
+
+      from .shipment import Shipment
+
+
+      class IssueType(StrEnum):
+          MISSING = "missing"
+          INVALID = "invalid"
+          AMBIGUOUS = "ambiguous"
+
+
+      @dataclass(frozen=True)
+      class ValidationIssue:
+          field: str
+          issue_type: IssueType
+
+
+      class ShipmentValidator(ABC):
+          def __init__(self) -> None:
+              self.issues: list[ValidationIssue] = []
+
+          @abstractmethod
+          def validate(self, shipment: Shipment) -> None: ...
+
+          def _add_issue(self, field: str, issue_type: IssueType) -> None:
+              self.issues.append(ValidationIssue(field, issue_type))
+  expected_output:
+    outcome: valid
+- name: adds module helpers that differ by a status string
+  inputs:
+    file: orders/order_events.py
+    after: |
+      from .events import OrderEvent
+
+
+      def _opened(order_id: str) -> OrderEvent:
+          return OrderEvent(order_id=order_id, status="opened")
+
+
+      def _shipped(order_id: str) -> OrderEvent:
+          return OrderEvent(order_id=order_id, status="shipped")
+
+
+      def events_for(order_ids: list[str], shipped: bool) -> list[OrderEvent]:
+          make = _shipped if shipped else _opened
+          return [make(order_id) for order_id in order_ids]
+  expected_output:
+    outcome: invalid
+- name: adds module helpers that build different events
+  inputs:
+    file: orders/order_events.py
+    after: |
+      from datetime import datetime
+
+      from .events import OrderEvent, ShipmentEvent
+
+
+      def _opened(order_id: str) -> OrderEvent:
+          return OrderEvent(order_id=order_id, status="opened")
+
+
+      def _shipped(order_id: str, carrier: str, at: datetime) -> ShipmentEvent:
+          return ShipmentEvent(order_id=order_id, carrier=carrier, shipped_at=at)
+
+
+      def events_for(order_ids: list[str]) -> list[OrderEvent]:
+          return [_opened(order_id) for order_id in order_ids]
+  expected_output:
+    outcome: valid
+- name: adds serializer helpers that differ by a field name
+  inputs:
+    file: accounts/serializers.py
+    after: |
+      from rest_framework import serializers
+
+
+      class AddressSerializer(serializers.Serializer):
+          street = serializers.CharField()
+          city = serializers.CharField()
+
+          def validate(self, attrs: dict[str, str]) -> dict[str, str]:
+              self._require_text(attrs)
+              self._require_city(attrs)
+              return attrs
+
+          def _require_text(self, attrs: dict[str, str]) -> None:
+              if not attrs.get("street", "").strip():
+                  raise serializers.ValidationError({"street": "required"})
+
+          def _require_city(self, attrs: dict[str, str]) -> None:
+              if not attrs.get("city", "").strip():
+                  raise serializers.ValidationError({"city": "required"})
+  expected_output:
+    outcome: invalid
+- name: adds a helper that takes the field name
+  inputs:
+    file: accounts/serializers.py
+    after: |
+      from rest_framework import serializers
+
+
+      class AddressSerializer(serializers.Serializer):
+          street = serializers.CharField()
+          city = serializers.CharField()
+
+          def validate(self, attrs: dict[str, str]) -> dict[str, str]:
+              self._require(attrs, "street")
+              self._require(attrs, "city")
+              return attrs
+
+          def _require(self, attrs: dict[str, str], field: str) -> None:
+              if not attrs.get(field, "").strip():
+                  raise serializers.ValidationError({field: "required"})
+
+          def _normalised(self, attrs: dict[str, str]) -> dict[str, str]:
+              return {key: value.strip() for key, value in attrs.items()}
+  expected_output:
+    outcome: valid
+- name: adds static rate helpers that differ by a number
+  inputs:
+    file: shipping/rates.py
+    after: |
+      class ParcelRates:
+          def quote(self, weight_grams: int, express: bool) -> int:
+              if express:
+                  return self._express(weight_grams)
+              return self._standard(weight_grams)
+
+          @staticmethod
+          def _standard(weight_grams: int) -> int:
+              return 500 + weight_grams // 100 * 20
+
+          @staticmethod
+          def _express(weight_grams: int) -> int:
+              return 500 + weight_grams // 100 * 45
+  expected_output:
+    outcome: invalid
+- name: keeps public log methods over one private helper
+  inputs:
+    file: audit/audit_log.py
+    after: |
+      from enum import StrEnum
+
+
+      class Level(StrEnum):
+          INFO = "info"
+          WARNING = "warning"
+
+
+      class AuditLog:
+          def __init__(self) -> None:
+              self.entries: list[tuple[Level, str]] = []
+
+          def info(self, message: str) -> None:
+              self._write(Level.INFO, message)
+
+          def warning(self, message: str) -> None:
+              self._write(Level.WARNING, message)
+
+          def _write(self, level: Level, message: str) -> None:
+              self.entries.append((level, message.strip()))
+
+          def _reset(self) -> None:
+              self.entries.clear()
+  expected_output:
+    outcome: valid
+- name: adds async fetch helpers that differ by a path
+  inputs:
+    file: carriers/carrier_client.py
+    after: |
+      import httpx
+
+
+      class CarrierClient:
+          def __init__(self, http: httpx.AsyncClient) -> None:
+              self._http = http
+
+          async def _fetch_rates(self) -> bytes:
+              response = await self._http.get("/v1/rates", timeout=10)
+              response.raise_for_status()
+              return response.content
+
+          async def _fetch_zones(self) -> bytes:
+              response = await self._http.get("/v1/zones", timeout=10)
+              response.raise_for_status()
+              return response.content
+  expected_output:
+    outcome: invalid
+- name: adds async helpers that parse different responses
+  inputs:
+    file: carriers/carrier_client.py
+    after: |
+      import httpx
+
+      from .models import RateTable, ZoneMap
+
+
+      class CarrierClient:
+          def __init__(self, http: httpx.AsyncClient) -> None:
+              self._http = http
+
+          async def _fetch_rates(self) -> RateTable:
+              response = await self._http.get("/v1/rates", timeout=10)
+              return RateTable.model_validate_json(response.content)
+
+          async def _fetch_zones(self, region: str) -> ZoneMap:
+              response = await self._http.get("/v1/zones", params={"region": region})
+              response.raise_for_status()
+              return ZoneMap.from_csv(response.text)
+  expected_output:
+    outcome: valid
+- name: raises the reported issue limit
+  inputs:
+    file: shipments/shipment_validator.py
+    before: |
+      from enum import StrEnum
+
+      MAX_REPORTED_ISSUES = 50
+
+
+      class IssueType(StrEnum):
+          MISSING = "missing"
+          INVALID = "invalid"
+    after: |
+      from enum import StrEnum
+
+      MAX_REPORTED_ISSUES = 100
+
+
+      class IssueType(StrEnum):
+          MISSING = "missing"
+          INVALID = "invalid"
+  expected_output:
+    outcome: skipped
+- name: renames a public method on a class without helpers
+  inputs:
+    file: shipping/rates.py
+    before: |
+      class ParcelRates:
+          def quote(self, weight_grams: int) -> int:
+              return 500 + weight_grams // 100 * 20
+    after: |
+      class ParcelRates:
+          def standard_quote(self, weight_grams: int) -> int:
+              return 500 + weight_grams // 100 * 20
+  expected_output:
+    outcome: skipped
+- name: adds a shipped flag beside the shipped date
+  inputs:
+    file: orders/models.py
+    after: |
+      from dataclasses import dataclass
+      from datetime import datetime
+
+
+      @dataclass
+      class Order:
+          id: str
+          shipped_at: datetime | None = None
+          is_shipped: bool = False
+  expected_output:
+    outcome: invalid
+- name: computes shipped from the shipped date
+  inputs:
+    file: orders/models.py
+    after: |
+      from dataclasses import dataclass
+      from datetime import datetime
+
+
+      @dataclass
+      class Order:
+          id: str
+          shipped_at: datetime | None = None
+          is_gift: bool = False
+
+          @property
+          def is_shipped(self) -> bool:
+              return self.shipped_at is not None
+  expected_output:
+    outcome: valid
+- name: adds a paid flag beside the payment status
+  inputs:
+    file: billing/models.py
+    after: |
+      from django.db import models
+
+
+      class PaymentStatus(models.TextChoices):
+          PENDING = "pending"
+          PAID = "paid"
+          REFUNDED = "refunded"
+
+
+      class Invoice(models.Model):
+          number = models.CharField(max_length=20, unique=True)
+          status = models.CharField(max_length=10, choices=PaymentStatus.choices)
+          is_paid = models.BooleanField(default=False)
+  expected_output:
+    outcome: invalid
+- name: adds an autopay flag beside the payment status
+  inputs:
+    file: billing/models.py
+    after: |
+      from django.db import models
+
+
+      class PaymentStatus(models.TextChoices):
+          PENDING = "pending"
+          PAID = "paid"
+          REFUNDED = "refunded"
+
+
+      class Invoice(models.Model):
+          number = models.CharField(max_length=20, unique=True)
+          status = models.CharField(max_length=10, choices=PaymentStatus.choices)
+          autopay_enabled = models.BooleanField(default=False)
+  expected_output:
+    outcome: valid
+- name: sets the cancelled flag alongside the cancelled date
+  inputs:
+    file: subscriptions/cancel.py
+    after: |
+      from datetime import date
+
+      from .models import Subscription
+
+
+      def cancel(subscription: Subscription, today: date) -> None:
+          subscription.cancelled_on = today
+          subscription.is_cancelled = True
+          subscription.save()
+    unchanged:
+      subscriptions/models.py: |
+        from datetime import date
+
+        from sqlalchemy.orm import Mapped, mapped_column
+
+        from .db import Base
+
+
+        class Subscription(Base):
+            __tablename__ = "subscriptions"
+
+            id: Mapped[int] = mapped_column(primary_key=True)
+            cancelled_on: Mapped[date | None] = mapped_column(default=None)
+            is_cancelled: Mapped[bool] = mapped_column(default=False)
+  expected_output:
+    outcome: invalid
+- name: sets the renewal flag when cancelling
+  inputs:
+    file: subscriptions/cancel.py
+    after: |
+      from datetime import date
+
+      from .models import Subscription
+
+
+      def cancel(subscription: Subscription, today: date) -> None:
+          subscription.cancelled_on = today
+          subscription.auto_renew = False
+          subscription.save()
+    unchanged:
+      subscriptions/models.py: |
+        from datetime import date
+
+        from sqlalchemy.orm import Mapped, mapped_column
+
+        from .db import Base
+
+
+        class Subscription(Base):
+            __tablename__ = "subscriptions"
+
+            id: Mapped[int] = mapped_column(primary_key=True)
+            cancelled_on: Mapped[date | None] = mapped_column(default=None)
+            auto_renew: Mapped[bool] = mapped_column(default=True)
+  expected_output:
+    outcome: valid
+- name: adds an active flag beside the deactivation time on a pydantic model
+  inputs:
+    file: accounts/schemas.py
+    after: |
+      from datetime import datetime
+
+      from pydantic import BaseModel
+
+
+      class Account(BaseModel):
+          id: str
+          email: str
+          deactivated_at: datetime | None = None
+          is_active: bool = True
+  expected_output:
+    outcome: invalid
+- name: response model copies the shipped flag from the record
+  inputs:
+    file: orders/responses.py
+    after: |
+      from datetime import datetime
+
+      from pydantic import BaseModel
+
+      from .models import Order
+
+
+      class OrderResponse(BaseModel):
+          id: str
+          is_shipped: bool
+
+          @classmethod
+          def from_order(cls, order: Order) -> "OrderResponse":
+              return cls(id=order.id, is_shipped=order.is_shipped)
+    unchanged:
+      orders/models.py: |
+        from dataclasses import dataclass
+        from datetime import datetime
+
+
+        @dataclass
+        class Order:
+            id: str
+            shipped_at: datetime | None = None
+
+            @property
+            def is_shipped(self) -> bool:
+                return self.shipped_at is not None
+  expected_output:
+    outcome: valid

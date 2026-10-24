@@ -1,0 +1,134 @@
+id: shared-instance
+snapshots:
+  ? |
+    @cache
+    def get_validator():
+        return ExampleValidator()
+  : labels:
+    - source: |-
+        @cache
+        def get_validator():
+            return ExampleValidator()
+      style: primary
+      start: 0
+      end: 57
+    - source: '@cache'
+      style: secondary
+      start: 0
+      end: 6
+    - source: |-
+        def get_validator():
+            return ExampleValidator()
+      style: secondary
+      start: 7
+      end: 57
+  ? |
+    class ExampleService:
+        validator = ExampleValidator()
+  : labels:
+    - source: validator = ExampleValidator()
+      style: primary
+      start: 26
+      end: 56
+    - source: |-
+        class ExampleService:
+            validator = ExampleValidator()
+      style: secondary
+      start: 0
+      end: 56
+    - source: validator = ExampleValidator()
+      style: secondary
+      start: 26
+      end: 56
+    - source: validator = ExampleValidator()
+      style: secondary
+      start: 26
+      end: 56
+    - source: ExampleValidator()
+      style: secondary
+      start: 38
+      end: 56
+  ? |
+    def check(order, validator: ExampleValidator = ExampleValidator()):
+        pass
+  : labels:
+    - source: 'validator: ExampleValidator = ExampleValidator()'
+      style: primary
+      start: 17
+      end: 65
+    - source: ExampleValidator()
+      style: secondary
+      start: 47
+      end: 65
+  ? |
+    def check(order, validator=ExampleValidator()):
+        pass
+  : labels:
+    - source: validator=ExampleValidator()
+      style: primary
+      start: 17
+      end: 45
+    - source: ExampleValidator()
+      style: secondary
+      start: 27
+      end: 45
+  ? |
+    validator = ExampleValidator(region="eu")
+  : labels:
+    - source: validator = ExampleValidator(region="eu")
+      style: primary
+      start: 0
+      end: 41
+    - source: |
+        validator = ExampleValidator(region="eu")
+      style: secondary
+      start: 0
+      end: 42
+    - source: validator = ExampleValidator(region="eu")
+      style: secondary
+      start: 0
+      end: 41
+    - source: ExampleValidator(region="eu")
+      style: secondary
+      start: 12
+      end: 41
+  ? |
+    validator = create_validator()
+  : labels:
+    - source: validator = create_validator()
+      style: primary
+      start: 0
+      end: 30
+    - source: |
+        validator = create_validator()
+      style: secondary
+      start: 0
+      end: 31
+    - source: validator = create_validator()
+      style: secondary
+      start: 0
+      end: 30
+    - source: create_validator()
+      style: secondary
+      start: 12
+      end: 30
+  ? |
+    validator: ExampleValidator = ExampleValidator()
+  : labels:
+    - source: 'validator: ExampleValidator = ExampleValidator()'
+      style: primary
+      start: 0
+      end: 48
+    - source: |
+        validator: ExampleValidator = ExampleValidator()
+      style: secondary
+      start: 0
+      end: 49
+    - source: 'validator: ExampleValidator = ExampleValidator()'
+      style: secondary
+      start: 0
+      end: 48
+    - source: ExampleValidator()
+      style: secondary
+      start: 30
+      end: 48

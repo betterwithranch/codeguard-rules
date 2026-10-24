@@ -1,0 +1,30 @@
+id: class-import
+valid:
+# Import of a function
+- |
+  from retry.backoff import next_delay
+# Import of a module
+- |
+  import retry.retry_attempt_params
+# Import of a lowercase name under an alias
+- |
+  from retry import backoff as bo
+invalid:
+# Import of a class
+- |
+  from retry.retry_attempt_params import RetryAttemptParams
+# Relative import of a class
+- |
+  from .checkout_result import CheckoutResult
+# Import of a class under an alias
+- |
+  from retry.retry_attempt import RetryAttempt as Attempt
+# Import of a function and a class
+- |
+  from retry.retry_attempt import build, RetryAttempt
+# Parenthesized multi-line import of classes
+- |
+  from retry.shapes import (
+      RetryAttempt,
+      RetryAttemptParams,
+  )

@@ -1,0 +1,69 @@
+id: no-packing-helpers
+valid:
+  # Dict key renames a parameter
+  - |
+    def payload_example(carrier, number):
+        return {"name": carrier, "number": number}
+
+  # Dict with a computed value
+  - |
+    def payload_example(carrier, number):
+        return {"carrier": carrier, "number": number.strip()}
+
+  # Dict with one key
+  - |
+    def payload_example(carrier):
+        return {"carrier": carrier}
+
+  # Tuple with a computed element
+  - |
+    def pair_example(carrier, number):
+        return carrier, len(number)
+
+  # Packing after another statement
+  - |
+    def pair_example(carrier, number):
+        audit_example(carrier)
+        return carrier, number
+
+  # List, not a dict or tuple
+  - |
+    def items_example(carrier, number):
+        return [carrier, number]
+
+  # dict call with a computed keyword value
+  - |
+    def payload_example(carrier, number):
+        return dict(carrier=carrier, number=str(number))
+
+  # Constructs a named type
+  - |
+    def label_example(carrier, number):
+        return ExampleLabel(carrier=carrier, number=number)
+
+invalid:
+  # Dict literal under the parameters' names
+  - |
+    def payload_example(carrier, number):
+        return {"carrier": carrier, "number": number}
+
+  # dict call with keyword arguments
+  - |
+    def payload_example(carrier, number):
+        return dict(carrier=carrier, number=number)
+
+  # Bare tuple
+  - |
+    def pair_example(carrier, number):
+        return carrier, number
+
+  # Parenthesized tuple
+  - |
+    def pair_example(carrier, number):
+        return (carrier, number)
+
+  # Method packing its parameters
+  - |
+    class ExampleDispatcher:
+        def payload(self, carrier, number):
+            return {"carrier": carrier, "number": number}

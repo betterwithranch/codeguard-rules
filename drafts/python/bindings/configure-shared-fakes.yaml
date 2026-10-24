@@ -1,3 +1,0 @@
-skill: python/skills/configure-shared-fakes
-paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
-triggers: [subclass]

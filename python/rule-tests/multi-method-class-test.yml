@@ -1,19 +1,42 @@
 id: multi-method-class
 valid:
+# One method and a field
 - |
-  class Order:
+  class ExampleOrder:
       total: int
 
       def tax(self):
           return 1
-invalid:
+# Two module functions, no class
 - |
-  class Order:
-      def tax(self):
+  def place(order):
+      return order
+
+  def cancel(order):
+      return order
+invalid:
+# Two plain methods
+- |
+  class ExampleService:
+      def place(self):
           return 1
 
-      def total(self):
+      def cancel(self):
           return 2
+# A decorated method beside a plain one
 - |
-  def fetch_and_validate(order):
-      return order
+  class ExampleService:
+      def place(self):
+          return 1
+
+      @property
+      def name(self):
+          return "x"
+# Two async methods
+- |
+  class ExampleService:
+      async def place(self):
+          return 1
+
+      async def cancel(self):
+          return 2

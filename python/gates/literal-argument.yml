@@ -1,0 +1,29 @@
+id: literal-argument
+language: python
+rule:
+  any:
+  - kind: keyword_argument
+    has:
+      field: value
+      any:
+      - kind: string
+      - kind: integer
+      - kind: float
+      - kind: "true"
+      - kind: "false"
+      - kind: none
+      - kind: list
+      - kind: dictionary
+      - kind: tuple
+      - kind: unary_operator
+      - kind: attribute
+  - kind: argument_list
+    has:
+      any:
+      - kind: string
+      - kind: integer
+      - kind: float
+      - kind: "true"
+      - kind: "false"
+      - kind: none
+      - kind: unary_operator

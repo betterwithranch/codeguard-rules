@@ -1,0 +1,16 @@
+id: builder-class
+valid:
+# Composer-named class
+- |
+  class ExampleInvoiceComposer:
+      pass
+# Builder in the middle of the name
+- |
+  class ExampleBuilderConfig:
+      pass
+invalid:
+# Builder class
+- |
+  class ExampleInvoiceBuilder:
+      def build(self):
+          pass

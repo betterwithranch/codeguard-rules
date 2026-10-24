@@ -1,0 +1,77 @@
+id: membership-assert
+snapshots:
+  ? |
+    assert '42' in title
+  : labels:
+    - source: '''42'' in title'
+      style: primary
+      start: 7
+      end: 20
+    - source: assert '42' in title
+      style: secondary
+      start: 0
+      end: 20
+    - source: in
+      style: secondary
+      start: 12
+      end: 14
+  ? |
+    assert 'draft' not in title
+  : labels:
+    - source: '''draft'' not in title'
+      style: primary
+      start: 7
+      end: 27
+    - source: assert 'draft' not in title
+      style: secondary
+      start: 0
+      end: 27
+    - source: not in
+      style: secondary
+      start: 15
+      end: 21
+  ? |
+    assert any('42' in line for line in lines)
+  : labels:
+    - source: '''42'' in line'
+      style: primary
+      start: 11
+      end: 23
+    - source: assert any('42' in line for line in lines)
+      style: secondary
+      start: 0
+      end: 42
+    - source: in
+      style: secondary
+      start: 16
+      end: 18
+  ? |
+    self.assertIn('42', title)
+  : labels:
+    - source: self.assertIn('42', title)
+      style: primary
+      start: 0
+      end: 26
+    - source: assertIn
+      style: secondary
+      start: 5
+      end: 13
+    - source: self.assertIn
+      style: secondary
+      start: 0
+      end: 13
+  ? |
+    self.assertNotIn('draft', title)
+  : labels:
+    - source: self.assertNotIn('draft', title)
+      style: primary
+      start: 0
+      end: 32
+    - source: assertNotIn
+      style: secondary
+      start: 5
+      end: 16
+    - source: self.assertNotIn
+      style: secondary
+      start: 0
+      end: 16

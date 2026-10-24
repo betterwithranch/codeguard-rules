@@ -1,0 +1,1708 @@
+cases:
+- name: adds a protocol with one implementer
+  inputs:
+    file: invoices/service.py
+    after: |
+      from typing import Protocol
+
+      from invoices.invoice import Invoice
+      from invoices.storage import Database
+
+
+      class InvoiceRepository(Protocol):
+          def find(self, number: str) -> Invoice: ...
+
+
+      class PostgresInvoiceRepository:
+          def __init__(self, database: Database) -> None:
+              self._database = database
+
+          def find(self, number: str) -> Invoice:
+              return self._database.fetch_invoice(number)
+
+
+      class InvoiceService:
+          def __init__(self, repository: InvoiceRepository) -> None:
+              self._repository = repository
+
+          def total_cents(self, number: str) -> int:
+              return self._repository.find(number).total_cents
+  expected_output:
+    outcome: invalid
+- name: adds an ABC over a single notifier
+  inputs:
+    file: shipments/dispatch.py
+    before: |
+      from shipments.email import EmailClient
+      from shipments.shipment import Shipment
+
+
+      class ShipmentNotifier:
+          def __init__(self, email_client: EmailClient) -> None:
+              self._email_client = email_client
+
+          def notify_dispatched(self, shipment: Shipment) -> None:
+              self._email_client.send(shipment.customer_email, "Your order has shipped")
+
+
+      class ShipmentDispatcher:
+          def __init__(self, notifier: ShipmentNotifier) -> None:
+              self._notifier = notifier
+
+          def dispatch(self, shipment: Shipment) -> None:
+              self._notifier.notify_dispatched(shipment)
+    after: |
+      from abc import ABC, abstractmethod
+
+      from shipments.email import EmailClient
+      from shipments.shipment import Shipment
+
+
+      class DispatchNotifier(ABC):
+          @abstractmethod
+          def notify_dispatched(self, shipment: Shipment) -> None: ...
+
+
+      class ShipmentNotifier(DispatchNotifier):
+          def __init__(self, email_client: EmailClient) -> None:
+              self._email_client = email_client
+
+          def notify_dispatched(self, shipment: Shipment) -> None:
+              self._email_client.send(shipment.customer_email, "Your order has shipped")
+
+
+      class ShipmentDispatcher:
+          def __init__(self, notifier: DispatchNotifier) -> None:
+              self._notifier = notifier
+
+          def dispatch(self, shipment: Shipment) -> None:
+              self._notifier.notify_dispatched(shipment)
+  expected_output:
+    outcome: invalid
+- name: defines a protocol with two gateways
+  inputs:
+    file: payments/gateway.py
+    after: |
+      from typing import Protocol
+
+      from payments.adyen import AdyenClient
+      from payments.stripe import StripeClient
+
+
+      class PaymentGateway(Protocol):
+          def charge(self, token: str, amount_cents: int) -> str: ...
+
+
+      class StripeGateway:
+          def __init__(self, client: StripeClient) -> None:
+              self._client = client
+
+          def charge(self, token: str, amount_cents: int) -> str:
+              return self._client.create_charge(token, amount_cents)
+
+
+      class AdyenGateway:
+          def __init__(self, client: AdyenClient) -> None:
+              self._client = client
+
+          def charge(self, token: str, amount_cents: int) -> str:
+              return self._client.authorise(token, amount_cents)
+  expected_output:
+    outcome: valid
+- name: adds an ABC whose two implementers live in other modules
+  inputs:
+    file: exports/exporter.py
+    unchanged:
+      exports/csv_exporter.py: |
+        import csv
+        import io
+
+        from exports.exporter import ReportExporter
+
+
+        class CsvExporter(ReportExporter):
+            def export(self, rows: list[dict[str, str]]) -> bytes:
+                buffer = io.StringIO()
+                writer = csv.DictWriter(buffer, fieldnames=list(rows[0]))
+                writer.writeheader()
+                writer.writerows(rows)
+                return buffer.getvalue().encode()
+      exports/json_exporter.py: |
+        import json
+
+        from exports.exporter import ReportExporter
+
+
+        class JsonExporter(ReportExporter):
+            def export(self, rows: list[dict[str, str]]) -> bytes:
+                return json.dumps(rows).encode()
+    after: |
+      from abc import ABC, abstractmethod
+
+
+      class ReportExporter(ABC):
+          @abstractmethod
+          def export(self, rows: list[dict[str, str]]) -> bytes: ...
+  expected_output:
+    outcome: valid
+- name: adds an ABC whose one implementer lives in another module
+  inputs:
+    file: exports/exporter.py
+    unchanged:
+      exports/csv_exporter.py: |
+        import csv
+        import io
+
+        from exports.exporter import ReportExporter
+
+
+        class CsvExporter(ReportExporter):
+            def export(self, rows: list[dict[str, str]]) -> bytes:
+                buffer = io.StringIO()
+                writer = csv.DictWriter(buffer, fieldnames=list(rows[0]))
+                writer.writeheader()
+                writer.writerows(rows)
+                return buffer.getvalue().encode()
+      reports/monthly.py: |
+        from exports.exporter import ReportExporter
+
+
+        def monthly_report(exporter: ReportExporter, rows: list[dict[str, str]]) -> bytes:
+            return exporter.export(rows)
+    after: |
+      from abc import ABC, abstractmethod
+
+
+      class ReportExporter(ABC):
+          @abstractmethod
+          def export(self, rows: list[dict[str, str]]) -> bytes: ...
+  expected_output:
+    outcome: invalid
+- name: adds a protocol whose only other class is a test fake
+  inputs:
+    file: billing/clock.py
+    unchanged:
+      billing/system_clock.py: |
+        from datetime import datetime, timezone
+
+
+        class SystemClock:
+            def now(self) -> datetime:
+                return datetime.now(timezone.utc)
+      tests/billing/fakes.py: |
+        from datetime import datetime
+
+
+        class FakeClock:
+            def __init__(self, fixed: datetime) -> None:
+                self._fixed = fixed
+
+            def now(self) -> datetime:
+                return self._fixed
+      billing/due_dates.py: |
+        from datetime import timedelta
+
+        from billing.clock import Clock
+
+
+        def is_overdue(clock: Clock, issued_days_ago: int) -> bool:
+            return clock.now() - timedelta(days=issued_days_ago) > clock.now() - timedelta(days=30)
+    after: |
+      from datetime import datetime
+      from typing import Protocol
+
+
+      class Clock(Protocol):
+          def now(self) -> datetime: ...
+  expected_output:
+    outcome: invalid
+- name: adds a lower-level protocol that its one implementer imports
+  inputs:
+    file: ledger/notifier.py
+    unchanged:
+      ledger/postings.py: |
+        from ledger.notifier import PostingNotifier
+
+
+        class Ledger:
+            def __init__(self, notifier: PostingNotifier) -> None:
+                self._notifier = notifier
+                self._balance_cents = 0
+
+            def post(self, account: str, amount_cents: int) -> None:
+                self._balance_cents += amount_cents
+                self._notifier.posted(account, amount_cents)
+      accounts/alerts.py: |
+        from accounts.mailer import Mailer
+        from ledger.postings import Ledger
+
+
+        class LedgerAlerts:
+            def __init__(self, mailer: Mailer) -> None:
+                self._mailer = mailer
+
+            def posted(self, account: str, amount_cents: int) -> None:
+                self._mailer.send(account, f"Posted {amount_cents / 100:.2f}")
+
+
+        def build_ledger(mailer: Mailer) -> Ledger:
+            return Ledger(LedgerAlerts(mailer))
+    after: |
+      from typing import Protocol
+
+
+      class PostingNotifier(Protocol):
+          def posted(self, account: str, amount_cents: int) -> None: ...
+  expected_output:
+    outcome: valid
+- name: adds a protocol that two classes elsewhere satisfy
+  inputs:
+    file: search/indexer.py
+    unchanged:
+      catalog/product_document.py: |
+        from catalog.models import Product
+
+
+        class ProductDocument:
+            def __init__(self, product: Product) -> None:
+                self._product = product
+
+            def search_text(self) -> str:
+                return f"{self._product.name} {self._product.description}"
+      blog/post_document.py: |
+        from blog.models import Post
+
+
+        class PostDocument:
+            def __init__(self, post: Post) -> None:
+                self._post = post
+
+            def search_text(self) -> str:
+                return f"{self._post.title} {self._post.body}"
+    after: |
+      from typing import Protocol
+
+
+      class Searchable(Protocol):
+          def search_text(self) -> str: ...
+
+
+      def index_words(documents: list[Searchable]) -> set[str]:
+          return {word for document in documents for word in document.search_text().split()}
+  expected_output:
+    outcome: valid
+- name: adds a runtime-checkable protocol with no implementer
+  inputs:
+    file: plugins/hooks.py
+    after: |
+      from typing import Protocol, runtime_checkable
+
+
+      @runtime_checkable
+      class PreSaveHook(Protocol):
+          def before_save(self, record_id: str) -> None: ...
+
+
+      def run_hooks(hooks: list[object], record_id: str) -> None:
+          for hook in hooks:
+              if isinstance(hook, PreSaveHook):
+                  hook.before_save(record_id)
+  expected_output:
+    outcome: invalid
+- name: adds an ABCMeta interface with two implementers in the file
+  inputs:
+    file: pricing/discounts.py
+    after: |
+      from abc import ABCMeta, abstractmethod
+
+
+      class Discount(metaclass=ABCMeta):
+          @abstractmethod
+          def apply(self, total_cents: int) -> int: ...
+
+
+      class PercentDiscount(Discount):
+          def __init__(self, percent: int) -> None:
+              self._percent = percent
+
+          def apply(self, total_cents: int) -> int:
+              return total_cents * (100 - self._percent) // 100
+
+
+      class FixedDiscount(Discount):
+          def __init__(self, cents: int) -> None:
+              self._cents = cents
+
+          def apply(self, total_cents: int) -> int:
+              return max(total_cents - self._cents, 0)
+  expected_output:
+    outcome: valid
+- name: rewords a notification message
+  inputs:
+    file: shipments/dispatch.py
+    before: |
+      from shipments.email import EmailClient
+      from shipments.shipment import Shipment
+
+
+      class ShipmentNotifier:
+          def __init__(self, email_client: EmailClient) -> None:
+              self._email_client = email_client
+
+          def notify_dispatched(self, shipment: Shipment) -> None:
+              self._email_client.send(shipment.customer_email, "Your order has shipped")
+    after: |
+      from shipments.email import EmailClient
+      from shipments.shipment import Shipment
+
+
+      class ShipmentNotifier:
+          def __init__(self, email_client: EmailClient) -> None:
+              self._email_client = email_client
+
+          def notify_dispatched(self, shipment: Shipment) -> None:
+              self._email_client.send(shipment.customer_email, "Your order is on its way")
+  expected_output:
+    outcome: valid
+- name: changes a method on a class with an ordinary base
+  inputs:
+    file: pricing/discounts.py
+    before: |
+      from .base import Discount
+
+
+      class PercentDiscount(Discount):
+          def apply(self, total_cents: int) -> int:
+              return total_cents * 90 // 100
+    after: |
+      from .base import Discount
+
+
+      class PercentDiscount(Discount):
+          def apply(self, total_cents: int) -> int:
+              return total_cents * 85 // 100
+  expected_output:
+    outcome: valid
+- name: mirrors three settings fields in a protocol
+  inputs:
+    file: carriers/client.py
+    unchanged:
+      config/settings.py: |
+        from pydantic_settings import BaseSettings
+
+
+        class Settings(BaseSettings):
+            database_url: str
+            carrier_base_url: str
+            carrier_timeout_seconds: int
+            carrier_retries: int
+            smtp_host: str
+            debug: bool = False
+    after: |
+      from typing import Protocol
+
+      import httpx
+
+
+      class CarrierSettings(Protocol):
+          carrier_base_url: str
+          carrier_timeout_seconds: int
+          carrier_retries: int
+
+
+      def carrier_client(settings: CarrierSettings) -> httpx.Client:
+          transport = httpx.HTTPTransport(retries=settings.carrier_retries)
+          return httpx.Client(
+              base_url=settings.carrier_base_url,
+              timeout=settings.carrier_timeout_seconds,
+              transport=transport,
+          )
+  expected_output:
+    outcome: invalid
+- name: declares a protocol with a method two token sources implement
+  inputs:
+    file: carriers/client.py
+    unchanged:
+      config/settings.py: |
+        from pydantic_settings import BaseSettings
+
+
+        class Settings(BaseSettings):
+            database_url: str
+            carrier_base_url: str
+            carrier_timeout_seconds: int
+            carrier_retries: int
+            smtp_host: str
+            debug: bool = False
+      carriers/tokens.py: |
+        import httpx
+
+
+        class StaticTokens:
+            def __init__(self, carrier_base_url: str, token: str) -> None:
+                self.carrier_base_url = carrier_base_url
+                self._token = token
+
+            def access_token(self) -> str:
+                return self._token
+
+
+        class OAuthTokens:
+            def __init__(self, carrier_base_url: str, client_id: str, secret: str) -> None:
+                self.carrier_base_url = carrier_base_url
+                self._client_id = client_id
+                self._secret = secret
+
+            def access_token(self) -> str:
+                response = httpx.post(
+                    f"{self.carrier_base_url}/oauth/token",
+                    data={"client_id": self._client_id, "client_secret": self._secret},
+                )
+                return response.json()["access_token"]
+    after: |
+      from typing import Protocol
+
+      import httpx
+
+
+      class TokenSource(Protocol):
+          carrier_base_url: str
+
+          def access_token(self) -> str: ...
+
+
+      def carrier_client(tokens: TokenSource) -> httpx.Client:
+          return httpx.Client(
+              base_url=tokens.carrier_base_url,
+              headers={"Authorization": f"Bearer {tokens.access_token()}"},
+          )
+  expected_output:
+    outcome: valid
+- name: mirrors two order model columns as protocol properties
+  inputs:
+    file: shipping/labels.py
+    unchanged:
+      orders/models.py: |
+        from django.db import models
+
+
+        class Order(models.Model):
+            number = models.CharField(max_length=20)
+            customer_name = models.CharField(max_length=200)
+            shipping_address = models.TextField()
+            total_cents = models.IntegerField()
+            status = models.CharField(max_length=20)
+    after: |
+      from typing import Protocol
+
+
+      class LabelSource(Protocol):
+          @property
+          def customer_name(self) -> str: ...
+
+          @property
+          def shipping_address(self) -> str: ...
+
+
+      def label_text(source: LabelSource) -> str:
+          return f"{source.customer_name}\n{source.shipping_address}"
+  expected_output:
+    outcome: invalid
+- name: declares a data protocol that several models match
+  inputs:
+    file: audit/trail.py
+    unchanged:
+      orders/models.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass
+        class Order:
+            id: int
+            number: str
+            total_cents: int
+      invoices/models.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass
+        class Invoice:
+            id: int
+            order_id: int
+            issued_on: str
+      customers/models.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass
+        class Customer:
+            id: int
+            email: str
+    after: |
+      from typing import Protocol
+
+
+      class HasId(Protocol):
+          id: int
+
+
+      def audit_key(record: HasId, action: str) -> str:
+          return f"{type(record).__name__.lower()}:{record.id}:{action}"
+  expected_output:
+    outcome: valid
+- name: mirrors attributes of a dataclass with more fields
+  inputs:
+    file: reports/greeting.py
+    unchanged:
+      customers/customer.py: |
+        from dataclasses import dataclass
+        from datetime import date
+
+
+        @dataclass(frozen=True)
+        class Customer:
+            first_name: str
+            last_name: str
+            email: str
+            birthday: date
+            loyalty_points: int
+    after: |
+      from typing import Protocol
+
+
+      class Greetable(Protocol):
+          first_name: str
+          loyalty_points: int
+
+
+      def greeting(person: Greetable) -> str:
+          return f"Hi {person.first_name}, you have {person.loyalty_points} points"
+  expected_output:
+    outcome: invalid
+- name: declares a data protocol no class implements
+  inputs:
+    file: reports/greeting.py
+    unchanged:
+      customers/customer.py: |
+        from dataclasses import dataclass
+        from datetime import date
+
+
+        @dataclass(frozen=True)
+        class Customer:
+            first_name: str
+            last_name: str
+            email: str
+            birthday: date
+      loyalty/account.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class LoyaltyAccount:
+            customer_email: str
+            points: int
+    after: |
+      from typing import Protocol
+
+
+      class Greetable(Protocol):
+          display_name: str
+          points_balance: int
+
+
+      def greeting(person: Greetable) -> str:
+          return f"Hi {person.display_name}, you have {person.points_balance} points"
+  expected_output:
+    outcome: invalid
+- name: declares a generic reader protocol with a method two sources implement
+  inputs:
+    file: imports/readers.py
+    after: |
+      from typing import Iterator, Protocol, TypeVar
+
+      T_co = TypeVar("T_co", covariant=True)
+
+
+      class RowSource(Protocol[T_co]):
+          source_name: str
+
+          def rows(self) -> Iterator[T_co]: ...
+
+
+      def count_rows(source: RowSource[object]) -> int:
+          return sum(1 for _ in source.rows())
+    unchanged:
+      imports/sources.py: |
+        import csv
+        from collections.abc import Iterator
+
+        import httpx
+
+
+        class CsvRowSource:
+            def __init__(self, path: str) -> None:
+                self.source_name = path
+                self._path = path
+
+            def rows(self) -> Iterator[dict[str, str]]:
+                with open(self._path, newline="") as handle:
+                    yield from csv.DictReader(handle)
+
+
+        class ApiRowSource:
+            def __init__(self, url: str) -> None:
+                self.source_name = url
+                self._url = url
+
+            def rows(self) -> Iterator[dict[str, str]]:
+                yield from httpx.get(self._url).json()["rows"]
+  expected_output:
+    outcome: valid
+- name: mirrors two columns of a SQLAlchemy account model
+  inputs:
+    file: banking/overdraft.py
+    unchanged:
+      banking/models.py: |
+        from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+
+        class Base(DeclarativeBase):
+            pass
+
+
+        class Account(Base):
+            __tablename__ = "accounts"
+
+            id: Mapped[int] = mapped_column(primary_key=True)
+            holder_name: Mapped[str]
+            balance_cents: Mapped[int]
+            overdraft_limit_cents: Mapped[int]
+            opened_on: Mapped[str]
+    after: |
+      from typing import Protocol
+
+
+      class OverdraftView(Protocol):
+          balance_cents: int
+          overdraft_limit_cents: int
+
+
+      def is_overdrawn(account: OverdraftView) -> bool:
+          return account.balance_cents < -account.overdraft_limit_cents
+  expected_output:
+    outcome: invalid
+- name: declares every field of a point class that alone implements it
+  inputs:
+    file: maps/distance.py
+    unchanged:
+      maps/point.py: |
+        from typing import NamedTuple
+
+
+        class GeoPoint(NamedTuple):
+            latitude: float
+            longitude: float
+    after: |
+      from typing import Protocol
+
+
+      class HasCoordinates(Protocol):
+          latitude: float
+          longitude: float
+
+
+      def rough_distance(a: HasCoordinates, b: HasCoordinates) -> float:
+          return abs(a.latitude - b.latitude) + abs(a.longitude - b.longitude)
+  expected_output:
+    outcome: invalid
+- name: mirrors attributes of an attrs parcel class
+  inputs:
+    file: shipping/postage.py
+    unchanged:
+      shipping/parcel.py: |
+        import attrs
+
+
+        @attrs.frozen
+        class Parcel:
+            tracking_number: str
+            weight_grams: int
+            length_cm: int
+            recipient_name: str
+            insured: bool
+    after: |
+      from typing import Protocol
+
+
+      class Weighable(Protocol):
+          weight_grams: int
+          insured: bool
+
+
+      def postage_cents(parcel: Weighable) -> int:
+          base = 300 + parcel.weight_grams // 100 * 15
+          return base + 200 if parcel.insured else base
+  expected_output:
+    outcome: invalid
+- name: adds a parameter to an ABC with two implementers
+  inputs:
+    file: imports/readers.py
+    unchanged:
+      imports/csv_reader.py: |
+        from .readers import Reader
+
+
+        class CsvReader(Reader):
+            def __init__(self, path: str) -> None:
+                self.path = path
+
+            def read(self, limit: int) -> bytes:
+                with open(self.path, "rb") as handle:
+                    return handle.read(limit)
+      imports/http_reader.py: |
+        import httpx
+
+        from .readers import Reader
+
+
+        class HttpReader(Reader):
+            def __init__(self, url: str) -> None:
+                self.url = url
+
+            def read(self, limit: int) -> bytes:
+                return httpx.get(self.url).content[:limit]
+    before: |
+      from abc import ABC, abstractmethod
+
+
+      class Reader(ABC):
+          @abstractmethod
+          def read(self) -> bytes: ...
+    after: |
+      from abc import ABC, abstractmethod
+
+
+      class Reader(ABC):
+          @abstractmethod
+          def read(self, limit: int) -> bytes: ...
+  expected_output:
+    outcome: valid
+- name: wraps a label comprehension used once
+  inputs:
+    file: shipments/dispatch.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          carrier: str
+          tracking_number: str
+
+
+      def label(shipment: Shipment) -> str:
+          return f"{shipment.carrier}:{shipment.tracking_number}"
+
+
+      def _labels(shipments: list[Shipment]) -> list[str]:
+          return [label(shipment) for shipment in shipments]
+
+
+      def dispatch(shipments: list[Shipment]) -> str:
+          return "\n".join(_labels(shipments))
+  expected_output:
+    outcome: invalid
+- name: wraps a label comprehension used twice
+  inputs:
+    file: shipments/dispatch.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          carrier: str
+          tracking_number: str
+
+
+      def label(shipment: Shipment) -> str:
+          return f"{shipment.carrier}:{shipment.tracking_number}"
+
+
+      def _labels(shipments: list[Shipment]) -> list[str]:
+          return [label(shipment) for shipment in shipments]
+
+
+      def dispatch(shipments: list[Shipment]) -> str:
+          return "\n".join(_labels(shipments))
+
+
+      def manifest(shipments: list[Shipment]) -> str:
+          return ", ".join(sorted(_labels(shipments)))
+  expected_output:
+    outcome: valid
+- name: wraps a filtering comprehension used once
+  inputs:
+    file: shipments/dispatch.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          carrier: str
+          tracking_number: str
+          cancelled: bool
+
+
+      def label(shipment: Shipment) -> str:
+          return f"{shipment.carrier}:{shipment.tracking_number}"
+
+
+      def _live_labels(shipments: list[Shipment]) -> list[str]:
+          return [label(shipment) for shipment in shipments if not shipment.cancelled]
+
+
+      def dispatch(shipments: list[Shipment]) -> str:
+          return "\n".join(_live_labels(shipments))
+  expected_output:
+    outcome: valid
+- name: wraps a comprehension that formats inline and is used once
+  inputs:
+    file: shipments/dispatch.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          carrier: str
+          tracking_number: str
+
+
+      def _labels(shipments: list[Shipment]) -> list[str]:
+          return [f"{shipment.carrier.upper()}:{shipment.tracking_number}" for shipment in shipments]
+
+
+      def dispatch(shipments: list[Shipment]) -> str:
+          return "\n".join(_labels(shipments))
+  expected_output:
+    outcome: valid
+- name: adds a public map wrapper that one other module calls
+  inputs:
+    file: shipments/labels.py
+    unchanged:
+      shipments/dispatch.py: |
+        from shipments.labels import Shipment, labels_for
+
+
+        def dispatch(shipments: list[Shipment]) -> str:
+            return "\n".join(labels_for(shipments))
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          carrier: str
+          tracking_number: str
+
+
+      def label(shipment: Shipment) -> str:
+          return f"{shipment.carrier}:{shipment.tracking_number}"
+
+
+      def labels_for(shipments: list[Shipment]) -> list[str]:
+          return [label(shipment) for shipment in shipments]
+  expected_output:
+    outcome: invalid
+- name: adds a public map wrapper that two other modules call
+  inputs:
+    file: shipments/labels.py
+    unchanged:
+      shipments/dispatch.py: |
+        from shipments.labels import Shipment, labels_for
+
+
+        def dispatch(shipments: list[Shipment]) -> str:
+            return "\n".join(labels_for(shipments))
+      shipments/manifest.py: |
+        from shipments.labels import Shipment, labels_for
+
+
+        def manifest(shipments: list[Shipment]) -> str:
+            return ", ".join(sorted(labels_for(shipments)))
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          carrier: str
+          tracking_number: str
+
+
+      def label(shipment: Shipment) -> str:
+          return f"{shipment.carrier}:{shipment.tracking_number}"
+
+
+      def labels_for(shipments: list[Shipment]) -> list[str]:
+          return [label(shipment) for shipment in shipments]
+  expected_output:
+    outcome: valid
+- name: wraps a dict comprehension of totals used once
+  inputs:
+    file: billing/statements.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          number: str
+          amount_cents: int
+          tax_cents: int
+
+
+      def invoice_total(invoice: Invoice) -> int:
+          return invoice.amount_cents + invoice.tax_cents
+
+
+      def _totals_by_number(invoices: list[Invoice]) -> dict[str, int]:
+          return {invoice.number: invoice_total(invoice) for invoice in invoices}
+
+
+      def statement(invoices: list[Invoice]) -> str:
+          totals = _totals_by_number(invoices)
+          return "\n".join(f"{number}: {total}" for number, total in totals.items())
+  expected_output:
+    outcome: invalid
+- name: maps a method over shipments in a method used once
+  inputs:
+    file: shipments/printer.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          carrier: str
+          tracking_number: str
+
+
+      class LabelPrinter:
+          def label(self, shipment: Shipment) -> str:
+              return f"{shipment.carrier}:{shipment.tracking_number}"
+
+          def _labels(self, shipments: list[Shipment]) -> list[str]:
+              return [self.label(shipment) for shipment in shipments]
+
+          def print_batch(self, shipments: list[Shipment]) -> str:
+              return "\n".join(self._labels(shipments))
+  expected_output:
+    outcome: invalid
+- name: wraps list of map used once
+  inputs:
+    file: shipments/dispatch.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          carrier: str
+          tracking_number: str
+
+
+      def label(shipment: Shipment) -> str:
+          return f"{shipment.carrier}:{shipment.tracking_number}"
+
+
+      def _labels(shipments: list[Shipment]) -> list[str]:
+          return list(map(label, shipments))
+
+
+      def dispatch(shipments: list[Shipment]) -> str:
+          return "\n".join(_labels(shipments))
+  expected_output:
+    outcome: invalid
+- name: implements a protocol method by mapping
+  inputs:
+    file: shipments/printer.py
+    unchanged:
+      shipments/ports.py: |
+        from typing import Protocol
+
+        from shipments.models import Shipment
+
+
+        class Labeler(Protocol):
+            def labels(self, shipments: list[Shipment]) -> list[str]: ...
+      shipments/models.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Shipment:
+            carrier: str
+            tracking_number: str
+    after: |
+      from shipments.models import Shipment
+      from shipments.ports import Labeler
+
+
+      class PlainLabeler(Labeler):
+          def label(self, shipment: Shipment) -> str:
+              return f"{shipment.carrier}:{shipment.tracking_number}"
+
+          def labels(self, shipments: list[Shipment]) -> list[str]:
+              return [self.label(shipment) for shipment in shipments]
+  expected_output:
+    outcome: valid
+- name: builds labels inside a longer function
+  inputs:
+    file: shipments/dispatch.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          carrier: str
+          tracking_number: str
+
+
+      def label(shipment: Shipment) -> str:
+          return f"{shipment.carrier}:{shipment.tracking_number}"
+
+
+      def dispatch(shipments: list[Shipment]) -> str:
+          labels = [label(shipment) for shipment in shipments]
+          return "\n".join(labels)
+  expected_output:
+    outcome: valid
+- name: changes the label separator
+  inputs:
+    file: shipments/dispatch.py
+    before: |
+      def label(carrier: str, tracking_number: str) -> str:
+          return f"{carrier}:{tracking_number}"
+    after: |
+      def label(carrier: str, tracking_number: str) -> str:
+          return f"{carrier}/{tracking_number}"
+  expected_output:
+    outcome: skipped
+- name: unpacks a dataclass it just built into positional arguments
+  inputs:
+    file: quoting/quotes.py
+    after: |
+      from dataclasses import dataclass
+
+      from quoting.carts import Cart, Region
+      from quoting.pricing import Quote, build_quote
+
+
+      @dataclass(frozen=True)
+      class QuoteArgs:
+          cart: Cart
+          region: Region
+
+
+      def quote(cart: Cart, region: Region) -> Quote:
+          args = QuoteArgs(cart=cart, region=region)
+          return build_quote(args.cart, args.region)
+  expected_output:
+    outcome: invalid
+- name: hands a dataclass it just built to the factory whole
+  inputs:
+    file: quoting/quotes.py
+    after: |
+      import logging
+      from dataclasses import dataclass
+
+      from quoting.carts import Cart, Region
+      from quoting.pricing import Quote
+
+      logger = logging.getLogger(__name__)
+
+
+      @dataclass(frozen=True)
+      class QuoteParams:
+          cart: Cart
+          region: Region
+
+
+      class QuoteFactory:
+          def create(self, params: QuoteParams) -> Quote:
+              return Quote(lines=params.cart.lines, region=params.region)
+
+
+      def quote(cart: Cart, region: Region) -> Quote:
+          params = QuoteParams(cart=cart, region=region)
+          logger.info("quoting cart %s", params.cart.id)
+          return QuoteFactory().create(params)
+  expected_output:
+    outcome: valid
+- name: unpacks a NamedTuple it just built into keyword arguments
+  inputs:
+    file: shipping/labels.py
+    after: |
+      from typing import NamedTuple
+
+      from shipping.printing import print_label
+
+
+      class LabelArgs(NamedTuple):
+          name: str
+          street: str
+          postcode: str
+
+
+      def label_for(name: str, street: str, postcode: str) -> bytes:
+          args = LabelArgs(name, street, postcode)
+          return print_label(name=args.name, street=args.street, postcode=args.postcode)
+  expected_output:
+    outcome: invalid
+- name: passes the fields of an order it was given
+  inputs:
+    file: shipping/dispatch.py
+    after: |
+      from shipping.carriers import ship
+      from shipping.orders import Order, Tracking
+
+
+      def dispatch(order: Order) -> Tracking:
+          return ship(order.id, order.address)
+  expected_output:
+    outcome: skipped
+- name: splats asdict of a dataclass built inline
+  inputs:
+    file: billing/invoices.py
+    after: |
+      from dataclasses import asdict, dataclass
+
+      from billing.documents import Invoice, render_invoice
+
+
+      @dataclass(frozen=True)
+      class InvoiceArgs:
+          number: str
+          customer_name: str
+          total_cents: int
+
+
+      def invoice(number: str, customer_name: str, total_cents: int) -> Invoice:
+          return render_invoice(
+              **asdict(
+                  InvoiceArgs(
+                      number=number,
+                      customer_name=customer_name,
+                      total_cents=total_cents,
+                  )
+              )
+          )
+  expected_output:
+    outcome: invalid
+- name: splats headers a helper computes
+  inputs:
+    file: billing/webhooks.py
+    after: |
+      from billing.http import post
+      from billing.signing import headers_for
+
+
+      def notify(url: str, payload: bytes) -> int:
+          return post(url, payload, **headers_for(payload))
+  expected_output:
+    outcome: skipped
+- name: unpacks an attrs group declared in another module
+  inputs:
+    file: reports/monthly.py
+    after: |
+      from datetime import date
+
+      from reports.args import ReportArgs
+      from reports.rendering import Report, render_report
+
+
+      def monthly_report(account_id: str, start: date, end: date) -> Report:
+          args = ReportArgs(account_id=account_id, start=start, end=end)
+          return render_report(args.account_id, args.start, args.end)
+    unchanged:
+      reports/args.py: |
+        from datetime import date
+
+        import attrs
+
+
+        @attrs.frozen
+        class ReportArgs:
+            account_id: str
+            start: date
+            end: date
+  expected_output:
+    outcome: invalid
+- name: reads dates a pydantic model parsed from text
+  inputs:
+    file: reports/requests.py
+    after: |
+      from datetime import date
+
+      from pydantic import BaseModel
+
+      from reports.rendering import Report, render_report
+
+
+      class DateWindow(BaseModel):
+          start: date
+          end: date
+
+
+      def report_for(account_id: str, start_text: str, end_text: str) -> Report:
+          window = DateWindow(start=start_text, end=end_text)
+          return render_report(account_id, window.start, window.end)
+  expected_output:
+    outcome: valid
+- name: unpacks a pydantic model with model_dump
+  inputs:
+    file: reports/requests.py
+    after: |
+      from datetime import date
+
+      from pydantic import BaseModel
+
+      from reports.rendering import Report, render_report
+
+
+      class ReportArgs(BaseModel):
+          account_id: str
+          start: date
+          end: date
+
+
+      def report_for(account_id: str, start: date, end: date) -> Report:
+          args = ReportArgs(account_id=account_id, start=start, end=end)
+          return render_report(**args.model_dump())
+  expected_output:
+    outcome: invalid
+- name: reads an address a dataclass normalized on construction
+  inputs:
+    file: accounts/emails.py
+    after: |
+      from dataclasses import dataclass
+
+      from accounts.mail import send_welcome
+
+
+      @dataclass(frozen=True)
+      class EmailAddress:
+          value: str
+
+          def __post_init__(self) -> None:
+              object.__setattr__(self, "value", self.value.strip().lower())
+
+
+      def welcome(raw_address: str, name: str) -> None:
+          address = EmailAddress(raw_address)
+          send_welcome(address.value, name)
+  expected_output:
+    outcome: valid
+- name: splats a TypedDict it just built
+  inputs:
+    file: accounts/signup.py
+    after: |
+      from typing import TypedDict
+
+      from accounts.users import User, create_user
+
+
+      class SignupArgs(TypedDict):
+          email: str
+          name: str
+
+
+      def sign_up(email: str, name: str) -> User:
+          args = SignupArgs(email=email, name=name)
+          return create_user(**args)
+  expected_output:
+    outcome: invalid
+- name: stores the group it built and passes one field on
+  inputs:
+    file: accounts/signup.py
+    after: |
+      from dataclasses import dataclass
+
+      from accounts.audit import AuditLog
+      from accounts.users import User, create_user
+
+
+      @dataclass(frozen=True)
+      class Signup:
+          email: str
+          name: str
+
+
+      class SignupService:
+          def __init__(self, audit: AuditLog) -> None:
+              self._audit = audit
+
+          def sign_up(self, email: str, name: str) -> User:
+              signup = Signup(email=email, name=name)
+              self._audit.record(signup)
+              return create_user(signup.email)
+  expected_output:
+    outcome: valid
+- name: reads a session off a client it built
+  inputs:
+    file: carriers/tracking.py
+    after: |
+      from carriers.http import HttpClient, fetch_json
+
+
+      def tracking_events(base_url: str, tracking_number: str) -> list[str]:
+          client = HttpClient(base_url, timeout_seconds=5)
+          return fetch_json(client.session, f"/track/{tracking_number}")
+  expected_output:
+    outcome: valid
+- name: changes a timeout constant
+  inputs:
+    file: carriers/tracking.py
+    before: |
+      TIMEOUT_SECONDS = 5
+    after: |
+      TIMEOUT_SECONDS = 10
+  expected_output:
+    outcome: skipped
+- name: adds a function that passes its parameters straight through
+  inputs:
+    file: quoting/quotes.py
+    before: |
+      from quoting.pricing import Quote, build_quote
+    after: |
+      from quoting.carts import Cart, Region
+      from quoting.pricing import Quote, build_quote
+
+
+      def quote(cart: Cart, region: Region) -> Quote:
+          return build_quote(cart, region)
+  expected_output:
+    outcome: skipped
+- name: wraps a bare order id string
+  inputs:
+    file: orders/order_id.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class OrderId:
+          value: str
+  expected_output:
+    outcome: invalid
+- name: declares the order id as a NewType
+  inputs:
+    file: orders/order_id.py
+    after: |
+      from typing import NewType
+
+      OrderId = NewType("OrderId", str)
+
+
+      class OrderNumberFormat:
+          prefix = "ORD"
+  expected_output:
+    outcome: valid
+- name: wraps a customer key in a pydantic model
+  inputs:
+    file: customers/keys.py
+    after: |
+      from pydantic import BaseModel, ConfigDict
+
+
+      class CustomerKey(BaseModel):
+          model_config = ConfigDict(frozen=True)
+
+          key: str
+  expected_output:
+    outcome: invalid
+- name: constrains a sku with a pattern in a pydantic model
+  inputs:
+    file: catalog/sku.py
+    after: |
+      from pydantic import BaseModel, ConfigDict, Field
+
+
+      class Sku(BaseModel):
+          model_config = ConfigDict(frozen=True)
+
+          code: str = Field(pattern=r"^[A-Z]{3}-\d{4}$")
+  expected_output:
+    outcome: valid
+- name: stores one shipment id in a plain class
+  inputs:
+    file: shipping/shipment_ref.py
+    after: |
+      class ShipmentRef:
+          def __init__(self, shipment_id: int) -> None:
+              self.shipment_id = shipment_id
+  expected_output:
+    outcome: invalid
+- name: checks the iban checksum in post init
+  inputs:
+    file: payments/iban.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Iban:
+          value: str
+
+          def __post_init__(self) -> None:
+              digits = self.value[4:] + self.value[:4]
+              numeric = "".join(str(int(char, 36)) for char in digits)
+              if int(numeric) % 97 != 1:
+                  raise ValueError(f"invalid IBAN {self.value}")
+  expected_output:
+    outcome: valid
+- name: subclasses UUID for a session id
+  inputs:
+    file: accounts/session_id.py
+    after: |
+      from uuid import UUID
+
+
+      class SessionId(UUID):
+          pass
+  expected_output:
+    outcome: invalid
+- name: wraps a tracking number with carrier lookup
+  inputs:
+    file: shipping/tracking_number.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class TrackingNumber:
+          value: str
+
+          def carrier(self) -> str:
+              return "ups" if self.value.startswith("1Z") else "dhl"
+  expected_output:
+    outcome: valid
+- name: wraps a slug in an attrs class
+  inputs:
+    file: blog/slug.py
+    after: |
+      import attrs
+
+
+      @attrs.frozen
+      class PostSlug:
+          slug: str
+  expected_output:
+    outcome: invalid
+- name: holds a region and a number in an order reference
+  inputs:
+    file: orders/order_ref.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class OrderRef:
+          region: str
+          number: int
+  expected_output:
+    outcome: valid
+- name: wraps an invoice number in a named tuple
+  inputs:
+    file: invoices/invoice_number.py
+    after: |
+      from typing import NamedTuple
+
+
+      class InvoiceNumber(NamedTuple):
+          number: str
+  expected_output:
+    outcome: invalid
+- name: wraps an amount of cents in a value class
+  inputs:
+    file: billing/money.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Cents:
+          amount: int
+  expected_output:
+    outcome: valid
+- name: adds a field to a large order class
+  inputs:
+    file: orders/order.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass
+      class Order:
+          number: str
+          customer_id: int
+          total_cents: int
+          status: str
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass
+      class Order:
+          number: str
+          customer_id: int
+          total_cents: int
+          status: str
+          currency: str
+  expected_output:
+    outcome: skipped
+- name: wraps an order repository in a class that only forwards
+  inputs:
+    file: orders/store.py
+    unchanged:
+      orders/repository.py: |
+        from .models import Order
+
+
+        class OrderRepository:
+            def get(self, order_id: int) -> Order:
+                return Order.objects.get(pk=order_id)
+
+            def save(self, order: Order) -> None:
+                order.save()
+    after: |
+      from .models import Order
+      from .repository import OrderRepository
+
+
+      class OrderStore:
+          def __init__(self, repository: OrderRepository) -> None:
+              self._repository = repository
+
+          def get(self, order_id: int) -> Order:
+              return self._repository.get(order_id)
+
+          def save(self, order: Order) -> None:
+              self._repository.save(order)
+  expected_output:
+    outcome: invalid
+- name: wraps an order repository in a class that caches reads
+  inputs:
+    file: orders/store.py
+    unchanged:
+      orders/repository.py: |
+        from .models import Order
+
+
+        class OrderRepository:
+            def get(self, order_id: int) -> Order:
+                return Order.objects.get(pk=order_id)
+
+            def save(self, order: Order) -> None:
+                order.save()
+    after: |
+      from .models import Order
+      from .repository import OrderRepository
+
+
+      class OrderStore:
+          def __init__(self, repository: OrderRepository) -> None:
+              self._repository = repository
+              self._orders: dict[int, Order] = {}
+
+          def get(self, order_id: int) -> Order:
+              if order_id not in self._orders:
+                  self._orders[order_id] = self._repository.get(order_id)
+              return self._orders[order_id]
+
+          def save(self, order: Order) -> None:
+              self._repository.save(order)
+              self._orders[order.id] = order
+  expected_output:
+    outcome: valid
+- name: wraps a mail client in an async class that only forwards
+  inputs:
+    file: notifications/mailer.py
+    after: |
+      from .smtp import AsyncSmtpClient
+
+
+      class Mailer:
+          def __init__(self, client: AsyncSmtpClient) -> None:
+              self._client = client
+
+          async def send(self, to: str, subject: str, body: str) -> None:
+              await self._client.send(to=to, subject=subject, body=body)
+
+          async def close(self) -> None:
+              await self._client.close()
+  expected_output:
+    outcome: invalid
+- name: wraps a mail client in an async class that retries sends
+  inputs:
+    file: notifications/mailer.py
+    after: |
+      from .smtp import AsyncSmtpClient, SmtpTimeout
+
+
+      class Mailer:
+          def __init__(self, client: AsyncSmtpClient) -> None:
+              self._client = client
+
+          async def send(self, to: str, subject: str, body: str) -> None:
+              for attempt in range(3):
+                  try:
+                      await self._client.send(to=to, subject=subject, body=body)
+                      return
+                  except SmtpTimeout:
+                      if attempt == 2:
+                          raise
+
+          async def close(self) -> None:
+              await self._client.close()
+  expected_output:
+    outcome: valid
+- name: brands the user id with a NewType used by a session
+  inputs:
+    file: accounts/sessions.py
+    after: |
+      from dataclasses import dataclass
+      from typing import NewType
+
+      UserId = NewType("UserId", str)
+
+
+      @dataclass(frozen=True)
+      class Session:
+          user_id: UserId
+          token: str
+  expected_output:
+    outcome: valid
+- name: wraps the user id in a dataclass used by a session
+  inputs:
+    file: accounts/sessions.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class UserId:
+          value: str
+
+
+      @dataclass(frozen=True)
+      class Session:
+          user_id: UserId
+          token: str
+  expected_output:
+    outcome: invalid

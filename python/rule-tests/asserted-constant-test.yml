@@ -1,0 +1,44 @@
+id: asserted-constant
+valid:
+  # Assert on literals and locals
+  - |
+    def test_example(example_model):
+        assert example_model.id == "ex-1"
+
+  # Module constant used outside an assert
+  - |
+    def test_example():
+        example_model = make_example_model(EXAMPLE_ID)
+        assert example_model.active
+
+  # Assert on a capitalized class name
+  - |
+    def test_example(example_model):
+        assert isinstance(example_model, ExampleModel)
+invalid:
+  # Module constant in an assert
+  - |
+    def test_example(example_model):
+        assert example_model.id == EXAMPLE_ID
+
+  # Constant nested in an expected object
+  - |
+    def test_example(result):
+        assert result == ExampleModel(id=EXAMPLE_ID, name="a")
+
+  # Class constant read through self in an assert
+  - |
+    class TestExample:
+        def test_example(self, example_model):
+            assert example_model.id == self.EXAMPLE_ID
+
+  # Module constant in a unittest assert method
+  - |
+    class TestExample(unittest.TestCase):
+        def test_example(self):
+            self.assertEqual(load().id, EXAMPLE_ID)
+
+  # Constant read from an imported module in an assert
+  - |
+    def test_example(example_model):
+        assert example_model.id == constants.EXAMPLE_ID

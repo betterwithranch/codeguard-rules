@@ -1,9 +1,0 @@
-id: enum-value-access
-valid:
-- |
-  label = status.name
-invalid:
-- |
-  code = status.value
-- |
-  code = OrderStatus.SHIPPED.value

@@ -1,4 +1,0 @@
-skill: python/skills/types-live-with-producer
-paths: ["**/*.py"]
-exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
-triggers: [definition-added-or-removed, validator]

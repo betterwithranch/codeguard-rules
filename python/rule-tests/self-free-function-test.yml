@@ -1,0 +1,70 @@
+id: self-free-function
+valid:
+# Method that reads self
+- |
+  class ExampleComposer:
+      def example_key(self, example_line):
+          return (self.prefix, example_line.position)
+# Method with no parameter besides self
+- |
+  class ExampleComposer:
+      def example_label(self):
+          return "example"
+# Function with no parameters
+- |
+  def example_default():
+      return 3
+# Nested function that reads self from the enclosing method
+- |
+  class ExampleComposer:
+      def example_lines(self):
+          def example_key(example_line):
+              return (self.prefix, example_line.position)
+          return example_key
+# Lambda
+- |
+  example_key = lambda example_line: example_line.position
+invalid:
+# Module-level function
+- |
+  def example_key(example_line):
+      return example_line.position
+# Module-level function with a typed parameter
+- |
+  def example_key(example_line: ExampleLine) -> int:
+      return example_line.position
+# Parameter with a default
+- |
+  def example_label(example_line=None):
+      return example_line.sku
+# Typed parameter with a default
+- |
+  def example_label(example_line: ExampleLine | None = None) -> str:
+      return example_line.sku
+# Static method
+- |
+  class ExampleComposer:
+      @staticmethod
+      def example_key(example_line: ExampleLine) -> int:
+          return example_line.position
+# Method that ignores self
+- |
+  class ExampleComposer:
+      def example_is_heavy(self, example_shipment: ExampleShipment) -> bool:
+          return example_shipment.weight_kg > 30
+# Class method that ignores self
+- |
+  class ExampleComposer:
+      @classmethod
+      def example_key(cls, example_line: ExampleLine) -> int:
+          return example_line.position
+# Nested function
+- |
+  def example_summary(example_lines):
+      def example_key(example_line):
+          return example_line.position
+      return sorted(example_lines, key=example_key)
+# Async function
+- |
+  async def example_key(example_line):
+      return example_line.position

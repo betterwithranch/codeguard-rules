@@ -1,7 +1,24 @@
 id: nondeterminism
 language: python
 rule:
-  kind: call
-  has:
-    field: function
-    regex: (^|\.)(uuid[14]|now|utcnow|today|time|monotonic|random|randint|choice|shuffle|sleep)$
+  any:
+  - kind: call
+    has:
+      field: function
+      regex: &calls (^|\.)(uuid[1-5]|now|utcnow|today|time|time_ns|monotonic|perf_counter|random|randint|randrange|uniform|choice|choices|sample|shuffle|getrandbits|token_hex|token_bytes|token_urlsafe|urandom|Random|Faker|sleep|wait_for|wait|Thread|Process|ThreadPoolExecutor|ProcessPoolExecutor|create_task|getenv|getcwd|cwd|home|expanduser|gethostname|getuser|getlocale|listdir|scandir|iterdir|glob|rglob|walk|set|frozenset|hash|id)$
+  - kind: attribute
+    regex: ^os\.environ$
+  - kind: set
+  - kind: set_comprehension
+  - kind: function_definition
+    has:
+      stopBy: end
+      any:
+      - kind: call
+        has:
+          field: function
+          regex: *calls
+      - kind: attribute
+        regex: ^os\.environ$
+      - kind: set
+      - kind: set_comprehension

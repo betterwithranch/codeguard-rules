@@ -1,0 +1,46 @@
+id: class-name
+snapshots:
+  ? |
+    class Order:
+        class Line:
+            pass
+  : labels:
+    - source: Order
+      style: primary
+      start: 6
+      end: 11
+    - source: |-
+        class Order:
+            class Line:
+                pass
+      style: secondary
+      start: 0
+      end: 41
+  ? |
+    class OrderSubmitter(Base):
+        pass
+  : labels:
+    - source: OrderSubmitter
+      style: primary
+      start: 6
+      end: 20
+    - source: |-
+        class OrderSubmitter(Base):
+            pass
+      style: secondary
+      start: 0
+      end: 36
+  ? |
+    class OrderSubmitter:
+        pass
+  : labels:
+    - source: OrderSubmitter
+      style: primary
+      start: 6
+      end: 20
+    - source: |-
+        class OrderSubmitter:
+            pass
+      style: secondary
+      start: 0
+      end: 30

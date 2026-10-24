@@ -1,0 +1,13 @@
+id: test-fixture-request
+language: python
+rule:
+  any:
+  - kind: parameters
+    inside:
+      kind: function_definition
+      field: parameters
+      has:
+        field: name
+        regex: ^test
+  - kind: decorator
+    regex: usefixtures

@@ -1,0 +1,1827 @@
+cases:
+- name: patches an internal tax function
+  inputs:
+    file: tests/test_invoices.py
+    after: |
+      from decimal import Decimal
+      from unittest.mock import patch
+
+      from billing.invoices import InvoiceService
+
+
+      def test_invoice_total_includes_tax(invoice_repository):
+          service = InvoiceService(invoice_repository)
+          with patch("billing.invoices.calculate_tax", return_value=Decimal("8.00")):
+              invoice = service.create(amount=Decimal("100.00"), region="CA")
+
+          assert invoice.total == Decimal("108.00")
+  expected_output:
+    outcome: invalid
+- name: mocks the invoice repository
+  inputs:
+    file: tests/test_invoices.py
+    before: |
+      from decimal import Decimal
+
+      from billing.invoices import InvoiceService
+      from billing.repositories import InvoiceRepository
+
+
+      def test_mark_paid_sets_paid_status(db_session):
+          repository = InvoiceRepository(db_session)
+          invoice = repository.create(amount=Decimal("100.00"), region="CA")
+          service = InvoiceService(repository)
+
+          paid = service.mark_paid(invoice.id)
+
+          assert paid.status == "paid"
+    after: |
+      from decimal import Decimal
+      from unittest.mock import Mock
+
+      from billing.invoices import Invoice, InvoiceService
+
+
+      def test_mark_paid_sets_paid_status():
+          invoice = Invoice(amount=Decimal("100.00"), region="CA")
+          repository = Mock()
+          repository.get.return_value = invoice
+          service = InvoiceService(repository)
+
+          paid = service.mark_paid(invoice.id)
+
+          assert paid.status == "paid"
+  expected_output:
+    outcome: invalid
+- name: monkeypatches the report module's catalog loader
+  inputs:
+    file: tests/test_reports.py
+    after: |
+      from reports import monthly
+      from reports.monthly import build_report
+
+
+      def test_report_lists_each_product(monkeypatch):
+          monkeypatch.setattr(monthly, "load_catalog", lambda: {"BOOK-1": "Atlas"})
+
+          report = build_report(month="2026-03")
+
+          assert report.product_names == ["Atlas"]
+  expected_output:
+    outcome: invalid
+- name: monkeypatches the clock's time function
+  inputs:
+    file: tests/test_sessions.py
+    after: |
+      import time
+
+      from accounts.sessions import Session
+
+
+      def test_session_expires_after_an_hour(monkeypatch):
+          session = Session(started_at=1000.0, ttl_seconds=3600)
+          monkeypatch.setattr(time, "time", lambda: 4601.0)
+
+          assert session.expired()
+  expected_output:
+    outcome: valid
+- name: patches a private validation method with a decorator
+  inputs:
+    file: tests/test_orders.py
+    after: |
+      from unittest.mock import patch
+
+      from shop.orders import OrderService
+
+
+      @patch.object(OrderService, "_validate_stock", return_value=True)
+      def test_place_order_confirms_it(_validate_stock, cart):
+          order = OrderService().place(cart)
+
+          assert order.status == "confirmed"
+  expected_output:
+    outcome: invalid
+- name: patches the Django order queryset
+  inputs:
+    file: tests/test_dashboard.py
+    after: |
+      from unittest.mock import patch
+
+      from shop.dashboard import open_order_count
+      from shop.models import Order
+
+
+      def test_open_order_count_counts_open_orders():
+          with patch.object(Order.objects, "filter") as filter_orders:
+              filter_orders.return_value.count.return_value = 3
+
+              assert open_order_count() == 3
+  expected_output:
+    outcome: invalid
+- name: patches the Stripe API to decline
+  inputs:
+    file: tests/test_payments.py
+    after: |
+      from decimal import Decimal
+      from unittest.mock import patch
+
+      import pytest
+      import stripe
+
+      from billing.payments import PaymentFailedError, charge_invoice
+
+
+      def test_charge_invoice_raises_when_card_is_declined(open_invoice):
+          declined = stripe.error.CardError("Your card was declined.", param="card", code="card_declined")
+          with patch("billing.payments.stripe.PaymentIntent.create", side_effect=declined):
+              with pytest.raises(PaymentFailedError):
+                  charge_invoice(open_invoice, amount=Decimal("100.00"))
+  expected_output:
+    outcome: valid
+- name: mocks the program's own payment gateway class
+  inputs:
+    file: tests/test_checkout.py
+    unchanged:
+      billing/gateway.py: |
+        from decimal import Decimal
+
+        import stripe
+
+
+        class PaymentGateway:
+            def charge(self, customer_id: str, amount: Decimal) -> str:
+                intent = stripe.PaymentIntent.create(customer=customer_id, amount=int(amount * 100))
+                return intent.id
+    after: |
+      from decimal import Decimal
+      from unittest.mock import Mock
+
+      from billing.gateway import PaymentGateway
+      from shop.checkout import Checkout
+
+
+      def test_checkout_stores_the_payment_id(cart):
+          gateway = Mock(spec=PaymentGateway)
+          gateway.charge.return_value = "pi_123"
+
+          order = Checkout(gateway).complete(cart, amount=Decimal("20.00"))
+
+          assert order.payment_id == "pi_123"
+  expected_output:
+    outcome: invalid
+- name: patches requests.get in the rates module
+  inputs:
+    file: tests/test_rates.py
+    after: |
+      from decimal import Decimal
+      from unittest.mock import Mock, patch
+
+      from billing.rates import fetch_rate
+
+
+      def test_fetch_rate_reads_the_eur_rate():
+          response = Mock(status_code=200)
+          response.json.return_value = {"rates": {"EUR": "1.10"}}
+          with patch("billing.rates.requests.get", return_value=response):
+              rate = fetch_rate("EUR")
+
+          assert rate == Decimal("1.10")
+  expected_output:
+    outcome: valid
+- name: mocker-patches an internal discount function
+  inputs:
+    file: tests/test_cart_totals.py
+    after: |
+      from decimal import Decimal
+
+      from shop.carts import Cart
+
+
+      def test_total_subtracts_the_discount(mocker):
+          mocker.patch("shop.carts.discount_for", return_value=Decimal("5.00"))
+          cart = Cart(items=[("BOOK-1", Decimal("20.00"))])
+
+          assert cart.total() == Decimal("15.00")
+  expected_output:
+    outcome: invalid
+- name: mocker-patches the S3 upload to fail
+  inputs:
+    file: tests/test_exports.py
+    after: |
+      import pytest
+      from botocore.exceptions import ClientError
+
+      from reports.exports import ExportFailed, upload_export
+
+
+      def test_upload_export_raises_when_s3_refuses(mocker):
+          error = ClientError({"Error": {"Code": "AccessDenied"}}, "PutObject")
+          mocker.patch("reports.exports.s3_client.put_object", side_effect=error)
+
+          with pytest.raises(ExportFailed):
+              upload_export("2026-03.csv", b"id,total\n")
+  expected_output:
+    outcome: valid
+- name: assigns a lambda over an internal shipping function
+  inputs:
+    file: tests/test_shipping.py
+    after: |
+      from decimal import Decimal
+
+      from shipping import rates
+      from shipping.quotes import quote
+
+
+      def test_quote_adds_handling_fee():
+          rates.base_rate = lambda weight: Decimal("4.00")
+
+          assert quote(weight=2).total == Decimal("5.50")
+  expected_output:
+    outcome: invalid
+- name: autospecs the program's inventory class
+  inputs:
+    file: tests/test_reservations.py
+    after: |
+      from unittest.mock import create_autospec
+
+      from shop.inventory import Inventory
+      from shop.reservations import reserve
+
+
+      def test_reserve_marks_the_line_reserved(order_line):
+          inventory = create_autospec(Inventory)
+          inventory.available.return_value = 5
+
+          line = reserve(order_line, inventory)
+
+          assert line.reserved
+  expected_output:
+    outcome: invalid
+- name: patches the environment to switch payment mode
+  inputs:
+    file: tests/test_payment_mode.py
+    after: |
+      import os
+      from unittest.mock import patch
+
+      from billing.payments import payment_mode
+
+
+      def test_payment_mode_reads_live_from_the_environment():
+          with patch.dict(os.environ, {"PAYMENTS_MODE": "live"}):
+              assert payment_mode() == "live"
+  expected_output:
+    outcome: valid
+- name: forces a full disk when writing an export
+  inputs:
+    file: tests/test_export_files.py
+    after: |
+      import errno
+      from unittest.mock import patch
+
+      import pytest
+
+      from reports.exports import ExportFailed, write_export
+
+
+      def test_write_export_raises_when_disk_is_full(tmp_path):
+          full = OSError(errno.ENOSPC, "No space left on device")
+          with patch("builtins.open", side_effect=full):
+              with pytest.raises(ExportFailed):
+                  write_export(tmp_path / "2026-03.csv", rows=[])
+  expected_output:
+    outcome: valid
+- name: changes the invoice amount and region
+  inputs:
+    file: tests/test_invoices.py
+    before: |
+      from decimal import Decimal
+
+      from billing.invoices import InvoiceService
+      from billing.repositories import InvoiceRepository
+
+
+      def test_mark_paid_sets_paid_status(db_session):
+          repository = InvoiceRepository(db_session)
+          invoice = repository.create(amount=Decimal("100.00"), region="CA")
+          service = InvoiceService(repository)
+
+          paid = service.mark_paid(invoice.id)
+
+          assert paid.status == "paid"
+    after: |
+      from decimal import Decimal
+
+      from billing.invoices import InvoiceService
+      from billing.repositories import InvoiceRepository
+
+
+      def test_mark_paid_sets_paid_status(db_session):
+          repository = InvoiceRepository(db_session)
+          invoice = repository.create(amount=Decimal("250.00"), region="NY")
+          service = InvoiceService(repository)
+
+          paid = service.mark_paid(invoice.id)
+
+          assert paid.status == "paid"
+  expected_output:
+    outcome: skipped
+- name: adds a test that uses a hand-written fake
+  inputs:
+    file: tests/test_dispatch.py
+    before: |
+      from shipping.dispatch import Dispatcher
+      from tests.fakes import FakeQueue
+    after: |
+      from shipping.dispatch import Dispatcher
+      from tests.fakes import FakeQueue
+
+
+      def test_dispatch_queues_the_shipment():
+          queue = FakeQueue()
+
+          Dispatcher(queue).dispatch("shp-1")
+
+          assert queue.messages == ["shp-1"]
+  expected_output:
+    outcome: skipped
+- name: asserts the arguments passed to the internal tax function
+  inputs:
+    file: tests/test_invoices.py
+    after: |
+      from decimal import Decimal
+      from unittest.mock import patch
+
+      from billing.invoices import InvoiceService
+
+
+      def test_create_computes_tax_for_the_region(invoice_repository):
+          service = InvoiceService(invoice_repository)
+          with patch("billing.invoices.calculate_tax", return_value=Decimal("8.00")) as calculate_tax:
+              service.create(amount=Decimal("100.00"), region="CA")
+
+          calculate_tax.assert_called_once_with(Decimal("100.00"), "CA")
+  expected_output:
+    outcome: invalid
+- name: compares the call args of the repository's save
+  inputs:
+    file: tests/test_invoices.py
+    after: |
+      from decimal import Decimal
+      from unittest.mock import Mock, call
+
+      from billing.invoices import Invoice, InvoiceService
+      from billing.repositories import InvoiceRepository
+
+
+      def test_mark_paid_saves_the_invoice():
+          invoice = Invoice(number="42", amount=Decimal("100.00"))
+          repository = Mock(spec=InvoiceRepository)
+          repository.get.return_value = invoice
+
+          InvoiceService(repository).mark_paid("42")
+
+          assert repository.save.call_args == call(invoice)
+  expected_output:
+    outcome: invalid
+- name: counts calls to a private method through a spy
+  inputs:
+    file: tests/test_orders.py
+    after: |
+      from shop.orders import OrderService
+
+
+      def test_place_reserves_stock_once(mocker, cart):
+          service = OrderService()
+          reserve = mocker.spy(service, "_reserve_stock")
+
+          service.place(cart)
+
+          assert reserve.call_count == 1
+  expected_output:
+    outcome: invalid
+- name: asserts the internal notifier was not called
+  inputs:
+    file: tests/test_shipments.py
+    after: |
+      from unittest.mock import Mock
+
+      from shipping.notifications import Notifier
+      from shipping.shipments import ShipmentService
+
+
+      def test_held_shipment_sends_no_notice(held_shipment):
+          notifier = Mock(spec=Notifier)
+
+          ShipmentService(notifier).release(held_shipment)
+
+          notifier.shipped.assert_not_called()
+  expected_output:
+    outcome: invalid
+- name: asserts the calls made to the internal audit log
+  inputs:
+    file: tests/test_refunds.py
+    after: |
+      from unittest.mock import Mock, call
+
+      from billing.audit import AuditLog
+      from billing.refunds import refund
+
+
+      def test_refund_records_both_steps(paid_invoice):
+          audit = Mock(spec=AuditLog)
+
+          refund(paid_invoice, audit=audit)
+
+          audit.record.assert_has_calls([call("refund.started", "42"), call("refund.finished", "42")])
+  expected_output:
+    outcome: invalid
+- name: asserts the internal async pricing service was awaited
+  inputs:
+    file: tests/test_quotes.py
+    after: |
+      from unittest.mock import AsyncMock
+
+      from shop.pricing import PricingService
+      from shop.quotes import QuoteBuilder
+
+
+      async def test_build_prices_the_cart(cart):
+          pricing = AsyncMock(spec=PricingService)
+
+          await QuoteBuilder(pricing).build(cart)
+
+          pricing.price.assert_awaited_once_with(cart)
+  expected_output:
+    outcome: invalid
+- name: lists the internal mailer's calls through mock_calls
+  inputs:
+    file: tests/test_reminders.py
+    after: |
+      from unittest.mock import Mock, call
+
+      from billing.mailer import InvoiceMailer
+      from billing.reminders import send_reminders
+
+
+      def test_send_reminders_mails_each_overdue_invoice(overdue_invoices):
+          mailer = Mock(spec=InvoiceMailer)
+
+          send_reminders(overdue_invoices, mailer)
+
+          assert mailer.mock_calls == [call.remind("41"), call.remind("42")]
+  expected_output:
+    outcome: invalid
+- name: asserts the HTTP session posted the charge
+  inputs:
+    file: tests/test_charges.py
+    after: |
+      from decimal import Decimal
+      from unittest.mock import Mock
+
+      import requests
+
+      from billing.charges import ChargeClient
+
+
+      def test_charge_posts_the_amount_in_cents():
+          session = Mock(spec=requests.Session)
+
+          ChargeClient(session).charge("cus_1", Decimal("12.50"))
+
+          session.post.assert_called_once_with(
+              "https://api.example.com/charges", json={"customer": "cus_1", "amount": 1250}
+          )
+  expected_output:
+    outcome: valid
+- name: asserts the S3 client stored the export
+  inputs:
+    file: tests/test_exports.py
+    after: |
+      from unittest.mock import Mock
+
+      from reports.exports import upload_export
+
+
+      def test_upload_export_puts_the_file_in_the_reports_bucket():
+          s3_client = Mock()
+
+          upload_export("2026-03.csv", b"id,total\n", client=s3_client)
+
+          s3_client.put_object.assert_called_once_with(Bucket="reports", Key="2026-03.csv", Body=b"id,total\n")
+  expected_output:
+    outcome: valid
+- name: asserts the Stripe API was asked for the amount
+  inputs:
+    file: tests/test_payments.py
+    after: |
+      from decimal import Decimal
+      from unittest.mock import patch
+
+      from billing.payments import charge_invoice
+
+
+      def test_charge_invoice_sends_the_amount_in_cents(open_invoice):
+          with patch("billing.payments.stripe.PaymentIntent.create") as create_intent:
+              charge_invoice(open_invoice, amount=Decimal("100.00"))
+
+          assert create_intent.call_args.kwargs["amount"] == 10000
+  expected_output:
+    outcome: valid
+- name: asserts the SMTP connection sent nothing
+  inputs:
+    file: tests/test_digest.py
+    after: |
+      import smtplib
+      from unittest.mock import Mock
+
+      from reports.digest import send_digest
+
+
+      def test_send_digest_sends_nothing_without_reports():
+          smtp = Mock(spec=smtplib.SMTP)
+
+          send_digest(reports=[], smtp=smtp)
+
+          assert not smtp.send_message.called
+  expected_output:
+    outcome: valid
+- name: asserts the returned invoice total
+  inputs:
+    file: tests/test_invoices.py
+    before: |
+      from decimal import Decimal
+
+      from billing.invoices import InvoiceService
+    after: |
+      from decimal import Decimal
+
+      from billing.invoices import InvoiceService
+
+
+      def test_create_adds_tax(invoice_repository):
+          invoice = InvoiceService(invoice_repository).create(amount=Decimal("100.00"), region="CA")
+
+          assert invoice.total == Decimal("108.00")
+  expected_output:
+    outcome: skipped
+- name: changes the refunded invoice number
+  inputs:
+    file: tests/test_refunds.py
+    before: |
+      from billing.refunds import refund
+
+
+      def test_refund_marks_the_invoice_refunded(paid_invoice_factory):
+          invoice = paid_invoice_factory(number="41")
+
+          assert refund(invoice).status == "refunded"
+    after: |
+      from billing.refunds import refund
+
+
+      def test_refund_marks_the_invoice_refunded(paid_invoice_factory):
+          invoice = paid_invoice_factory(number="42")
+
+          assert refund(invoice).status == "refunded"
+  expected_output:
+    outcome: skipped
+- name: overrides enqueue to assert database state
+  inputs:
+    file: tests/test_order_submitter.py
+    unchanged:
+      tests/fakes.py: |
+        from decimal import Decimal
+
+
+        class FakeQueue:
+            def __init__(self):
+                self.messages = {}
+
+            def enqueue(self, queue_name, message):
+                self.messages.setdefault(queue_name, []).append(message)
+
+            def drain(self, queue_name):
+                return self.messages.pop(queue_name, [])
+
+
+        class FakeMailer:
+            def __init__(self):
+                self.outbox = []
+
+            def send(self, to, subject):
+                self.outbox.append((to, subject))
+
+
+        class FakeRates:
+            def __init__(self, rates=None):
+                self.rates = rates or {}
+
+            def fetch_rate(self, currency):
+                return self.rates[currency]
+
+
+        class FakePaymentGateway:
+            def __init__(self, responses=None):
+                self.responses = responses or {}
+                self.charges = []
+
+            def charge(self, order_id, amount):
+                self.charges.append((order_id, amount))
+                return self.responses.get("charge", "approved")
+
+            async def refund(self, order_id):
+                return "refunded"
+    after: |
+      from orders.models import Order
+      from orders.submitter import OrderSubmitter
+      from tests.fakes import FakeQueue
+
+
+      class CheckingFakeQueue(FakeQueue):
+          def __init__(self, db):
+              super().__init__()
+              self._db = db
+
+          def enqueue(self, queue_name, message):
+              assert self._db.count_orders(message["order_id"]) == 1
+              return super().enqueue(queue_name, message)
+
+
+      def test_submit_saves_order_before_enqueue(order_db):
+          queue = CheckingFakeQueue(order_db)
+
+          OrderSubmitter(queue, order_db).submit(Order(id="ord-1", total=120))
+
+          assert queue.drain("orders") == [{"order_id": "ord-1"}]
+  expected_output:
+    outcome: invalid
+- name: overrides send to record calls
+  inputs:
+    file: tests/test_invoice_notifier.py
+    unchanged:
+      tests/fakes.py: |
+        from decimal import Decimal
+
+
+        class FakeQueue:
+            def __init__(self):
+                self.messages = {}
+
+            def enqueue(self, queue_name, message):
+                self.messages.setdefault(queue_name, []).append(message)
+
+            def drain(self, queue_name):
+                return self.messages.pop(queue_name, [])
+
+
+        class FakeMailer:
+            def __init__(self):
+                self.outbox = []
+
+            def send(self, to, subject):
+                self.outbox.append((to, subject))
+
+
+        class FakeRates:
+            def __init__(self, rates=None):
+                self.rates = rates or {}
+
+            def fetch_rate(self, currency):
+                return self.rates[currency]
+
+
+        class FakePaymentGateway:
+            def __init__(self, responses=None):
+                self.responses = responses or {}
+                self.charges = []
+
+            def charge(self, order_id, amount):
+                self.charges.append((order_id, amount))
+                return self.responses.get("charge", "approved")
+
+            async def refund(self, order_id):
+                return "refunded"
+    before: |
+      from billing.notifier import InvoiceNotifier
+      from tests.fakes import FakeMailer
+
+
+      def test_notify_mails_customer():
+          mailer = FakeMailer()
+
+          InvoiceNotifier(mailer).notify(invoice_id="inv-42", email="ada@example.com")
+
+          assert mailer.outbox == [("ada@example.com", "Invoice inv-42")]
+    after: |
+      from billing.notifier import InvoiceNotifier
+      from tests.fakes import FakeMailer
+
+
+      class RecordingFakeMailer(FakeMailer):
+          def __init__(self):
+              super().__init__()
+              self.send_calls = []
+
+          def send(self, to, subject):
+              self.send_calls.append(to)
+              return super().send(to, subject)
+
+
+      def test_notify_mails_customer():
+          mailer = FakeMailer()
+
+          InvoiceNotifier(mailer).notify(invoice_id="inv-42", email="ada@example.com")
+
+          assert mailer.outbox == [("ada@example.com", "Invoice inv-42")]
+
+
+      def test_notify_sends_once():
+          mailer = RecordingFakeMailer()
+
+          InvoiceNotifier(mailer).notify(invoice_id="inv-43", email="ada@example.com")
+
+          assert mailer.send_calls == ["ada@example.com"]
+  expected_output:
+    outcome: invalid
+- name: overrides charge to set a was-charged flag
+  inputs:
+    file: tests/test_checkout.py
+    unchanged:
+      tests/fakes.py: |
+        from decimal import Decimal
+
+
+        class FakeQueue:
+            def __init__(self):
+                self.messages = {}
+
+            def enqueue(self, queue_name, message):
+                self.messages.setdefault(queue_name, []).append(message)
+
+            def drain(self, queue_name):
+                return self.messages.pop(queue_name, [])
+
+
+        class FakeMailer:
+            def __init__(self):
+                self.outbox = []
+
+            def send(self, to, subject):
+                self.outbox.append((to, subject))
+
+
+        class FakeRates:
+            def __init__(self, rates=None):
+                self.rates = rates or {}
+
+            def fetch_rate(self, currency):
+                return self.rates[currency]
+
+
+        class FakePaymentGateway:
+            def __init__(self, responses=None):
+                self.responses = responses or {}
+                self.charges = []
+
+            def charge(self, order_id, amount):
+                self.charges.append((order_id, amount))
+                return self.responses.get("charge", "approved")
+
+            async def refund(self, order_id):
+                return "refunded"
+    after: |
+      from orders.checkout import Checkout
+      from tests.fakes import FakePaymentGateway
+
+
+      class FlaggingPaymentGateway(FakePaymentGateway):
+          was_charged = False
+
+          def charge(self, order_id, amount):
+              self.was_charged = True
+              return super().charge(order_id, amount)
+
+
+      def test_checkout_charges_the_order():
+          gateway = FlaggingPaymentGateway()
+
+          Checkout(gateway).pay(order_id="ord-1", amount=120)
+
+          assert gateway.was_charged
+  expected_output:
+    outcome: invalid
+- name: overrides enqueue to query the Django order table
+  inputs:
+    file: tests/test_order_submitter.py
+    unchanged:
+      tests/fakes.py: |
+        from decimal import Decimal
+
+
+        class FakeQueue:
+            def __init__(self):
+                self.messages = {}
+
+            def enqueue(self, queue_name, message):
+                self.messages.setdefault(queue_name, []).append(message)
+
+            def drain(self, queue_name):
+                return self.messages.pop(queue_name, [])
+
+
+        class FakeMailer:
+            def __init__(self):
+                self.outbox = []
+
+            def send(self, to, subject):
+                self.outbox.append((to, subject))
+
+
+        class FakeRates:
+            def __init__(self, rates=None):
+                self.rates = rates or {}
+
+            def fetch_rate(self, currency):
+                return self.rates[currency]
+
+
+        class FakePaymentGateway:
+            def __init__(self, responses=None):
+                self.responses = responses or {}
+                self.charges = []
+
+            def charge(self, order_id, amount):
+                self.charges.append((order_id, amount))
+                return self.responses.get("charge", "approved")
+
+            async def refund(self, order_id):
+                return "refunded"
+    after: |
+      from orders.models import Order
+      from orders.submitter import OrderSubmitter
+      from tests.fakes import FakeQueue
+
+
+      class StatusCheckingQueue(FakeQueue):
+          def enqueue(self, queue_name, message):
+              self.status_at_enqueue = Order.objects.get(id=message["order_id"]).status
+              return super().enqueue(queue_name, message)
+
+
+      def test_submit_marks_order_submitted_before_enqueue(db):
+          order = Order.objects.create(id="ord-1", total=120)
+          queue = StatusCheckingQueue()
+
+          OrderSubmitter(queue).submit(order)
+
+          assert queue.status_at_enqueue == "submitted"
+  expected_output:
+    outcome: invalid
+- name: overrides an async refund to assert the order id
+  inputs:
+    file: tests/test_refunds.py
+    unchanged:
+      tests/fakes.py: |
+        from decimal import Decimal
+
+
+        class FakeQueue:
+            def __init__(self):
+                self.messages = {}
+
+            def enqueue(self, queue_name, message):
+                self.messages.setdefault(queue_name, []).append(message)
+
+            def drain(self, queue_name):
+                return self.messages.pop(queue_name, [])
+
+
+        class FakeMailer:
+            def __init__(self):
+                self.outbox = []
+
+            def send(self, to, subject):
+                self.outbox.append((to, subject))
+
+
+        class FakeRates:
+            def __init__(self, rates=None):
+                self.rates = rates or {}
+
+            def fetch_rate(self, currency):
+                return self.rates[currency]
+
+
+        class FakePaymentGateway:
+            def __init__(self, responses=None):
+                self.responses = responses or {}
+                self.charges = []
+
+            def charge(self, order_id, amount):
+                self.charges.append((order_id, amount))
+                return self.responses.get("charge", "approved")
+
+            async def refund(self, order_id):
+                return "refunded"
+    after: |
+      from orders.refunds import RefundService
+      from tests.fakes import FakePaymentGateway
+
+
+      class CheckingRefundGateway(FakePaymentGateway):
+          async def refund(self, order_id):
+              assert order_id.startswith("ord-")
+              return await super().refund(order_id)
+
+
+      async def test_refund_returns_refunded():
+          result = await RefundService(CheckingRefundGateway()).refund("ord-1")
+
+          assert result == "refunded"
+  expected_output:
+    outcome: invalid
+- name: overrides send to fail the test on a second mail
+  inputs:
+    file: tests/test_invoice_notifier.py
+    unchanged:
+      tests/fakes.py: |
+        from decimal import Decimal
+
+
+        class FakeQueue:
+            def __init__(self):
+                self.messages = {}
+
+            def enqueue(self, queue_name, message):
+                self.messages.setdefault(queue_name, []).append(message)
+
+            def drain(self, queue_name):
+                return self.messages.pop(queue_name, [])
+
+
+        class FakeMailer:
+            def __init__(self):
+                self.outbox = []
+
+            def send(self, to, subject):
+                self.outbox.append((to, subject))
+
+
+        class FakeRates:
+            def __init__(self, rates=None):
+                self.rates = rates or {}
+
+            def fetch_rate(self, currency):
+                return self.rates[currency]
+
+
+        class FakePaymentGateway:
+            def __init__(self, responses=None):
+                self.responses = responses or {}
+                self.charges = []
+
+            def charge(self, order_id, amount):
+                self.charges.append((order_id, amount))
+                return self.responses.get("charge", "approved")
+
+            async def refund(self, order_id):
+                return "refunded"
+    after: |
+      import pytest
+
+      from billing.notifier import InvoiceNotifier
+      from tests.fakes import FakeMailer
+
+
+      class SingleMailMailer(FakeMailer):
+          def send(self, to, subject):
+              if self.outbox:
+                  pytest.fail("sent a second mail")
+              super().send(to, subject)
+
+
+      def test_notify_mails_customer_once():
+          mailer = SingleMailMailer()
+
+          InvoiceNotifier(mailer).notify(invoice_id="inv-42", email="ada@example.com")
+
+          assert mailer.outbox == [("ada@example.com", "Invoice inv-42")]
+  expected_output:
+    outcome: invalid
+- name: subclasses a fake to configure responses
+  inputs:
+    file: tests/test_checkout.py
+    unchanged:
+      tests/fakes.py: |
+        from decimal import Decimal
+
+
+        class FakeQueue:
+            def __init__(self):
+                self.messages = {}
+
+            def enqueue(self, queue_name, message):
+                self.messages.setdefault(queue_name, []).append(message)
+
+            def drain(self, queue_name):
+                return self.messages.pop(queue_name, [])
+
+
+        class FakeMailer:
+            def __init__(self):
+                self.outbox = []
+
+            def send(self, to, subject):
+                self.outbox.append((to, subject))
+
+
+        class FakeRates:
+            def __init__(self, rates=None):
+                self.rates = rates or {}
+
+            def fetch_rate(self, currency):
+                return self.rates[currency]
+
+
+        class FakePaymentGateway:
+            def __init__(self, responses=None):
+                self.responses = responses or {}
+                self.charges = []
+
+            def charge(self, order_id, amount):
+                self.charges.append((order_id, amount))
+                return self.responses.get("charge", "approved")
+
+            async def refund(self, order_id):
+                return "refunded"
+    after: |
+      from orders.checkout import Checkout
+      from tests.fakes import FakePaymentGateway
+
+
+      class DecliningPaymentGateway(FakePaymentGateway):
+          def __init__(self):
+              super().__init__(responses={"charge": "declined"})
+
+
+      def test_checkout_marks_order_unpaid_when_charge_declined():
+          gateway = DecliningPaymentGateway()
+
+          result = Checkout(gateway).pay(order_id="ord-1", amount=120)
+
+          assert result == "unpaid"
+          assert gateway.charges == [("ord-1", 120)]
+  expected_output:
+    outcome: valid
+- name: overrides fetch_rate to raise an unavailable rate
+  inputs:
+    file: tests/test_conversion.py
+    unchanged:
+      tests/fakes.py: |
+        from decimal import Decimal
+
+
+        class FakeQueue:
+            def __init__(self):
+                self.messages = {}
+
+            def enqueue(self, queue_name, message):
+                self.messages.setdefault(queue_name, []).append(message)
+
+            def drain(self, queue_name):
+                return self.messages.pop(queue_name, [])
+
+
+        class FakeMailer:
+            def __init__(self):
+                self.outbox = []
+
+            def send(self, to, subject):
+                self.outbox.append((to, subject))
+
+
+        class FakeRates:
+            def __init__(self, rates=None):
+                self.rates = rates or {}
+
+            def fetch_rate(self, currency):
+                return self.rates[currency]
+
+
+        class FakePaymentGateway:
+            def __init__(self, responses=None):
+                self.responses = responses or {}
+                self.charges = []
+
+            def charge(self, order_id, amount):
+                self.charges.append((order_id, amount))
+                return self.responses.get("charge", "approved")
+
+            async def refund(self, order_id):
+                return "refunded"
+    after: |
+      import pytest
+
+      from billing.conversion import RateUnavailable, convert
+      from tests.fakes import FakeRates
+
+
+      class UnavailableRates(FakeRates):
+          def fetch_rate(self, currency):
+              raise RateUnavailable(currency)
+
+
+      def test_convert_raises_when_the_rate_is_unavailable():
+          with pytest.raises(RateUnavailable):
+              convert(100, "EUR", rates=UnavailableRates())
+  expected_output:
+    outcome: valid
+- name: overrides fetch_rate to return a fixed rate
+  inputs:
+    file: tests/test_conversion.py
+    unchanged:
+      tests/fakes.py: |
+        from decimal import Decimal
+
+
+        class FakeQueue:
+            def __init__(self):
+                self.messages = {}
+
+            def enqueue(self, queue_name, message):
+                self.messages.setdefault(queue_name, []).append(message)
+
+            def drain(self, queue_name):
+                return self.messages.pop(queue_name, [])
+
+
+        class FakeMailer:
+            def __init__(self):
+                self.outbox = []
+
+            def send(self, to, subject):
+                self.outbox.append((to, subject))
+
+
+        class FakeRates:
+            def __init__(self, rates=None):
+                self.rates = rates or {}
+
+            def fetch_rate(self, currency):
+                return self.rates[currency]
+
+
+        class FakePaymentGateway:
+            def __init__(self, responses=None):
+                self.responses = responses or {}
+                self.charges = []
+
+            def charge(self, order_id, amount):
+                self.charges.append((order_id, amount))
+                return self.responses.get("charge", "approved")
+
+            async def refund(self, order_id):
+                return "refunded"
+    after: |
+      from decimal import Decimal
+
+      from billing.conversion import convert
+      from tests.fakes import FakeRates
+
+
+      class FlatRates(FakeRates):
+          def fetch_rate(self, currency):
+              return Decimal("1.10")
+
+
+      def test_convert_multiplies_by_the_rate():
+          assert convert(Decimal("100"), "EUR", rates=FlatRates()) == Decimal("110.00")
+  expected_output:
+    outcome: valid
+- name: overrides init to seed queued messages
+  inputs:
+    file: tests/test_order_worker.py
+    unchanged:
+      tests/fakes.py: |
+        from decimal import Decimal
+
+
+        class FakeQueue:
+            def __init__(self):
+                self.messages = {}
+
+            def enqueue(self, queue_name, message):
+                self.messages.setdefault(queue_name, []).append(message)
+
+            def drain(self, queue_name):
+                return self.messages.pop(queue_name, [])
+
+
+        class FakeMailer:
+            def __init__(self):
+                self.outbox = []
+
+            def send(self, to, subject):
+                self.outbox.append((to, subject))
+
+
+        class FakeRates:
+            def __init__(self, rates=None):
+                self.rates = rates or {}
+
+            def fetch_rate(self, currency):
+                return self.rates[currency]
+
+
+        class FakePaymentGateway:
+            def __init__(self, responses=None):
+                self.responses = responses or {}
+                self.charges = []
+
+            def charge(self, order_id, amount):
+                self.charges.append((order_id, amount))
+                return self.responses.get("charge", "approved")
+
+            async def refund(self, order_id):
+                return "refunded"
+    after: |
+      from orders.worker import OrderWorker
+      from tests.fakes import FakeQueue
+
+
+      class BackloggedQueue(FakeQueue):
+          def __init__(self):
+              super().__init__()
+              self.messages = {"orders": [{"order_id": "ord-1"}, {"order_id": "ord-2"}]}
+
+
+      def test_worker_processes_the_backlog():
+          queue = BackloggedQueue()
+
+          processed = OrderWorker(queue).run_once()
+
+          assert processed == ["ord-1", "ord-2"]
+  expected_output:
+    outcome: valid
+- name: overrides an async refund to return a failure
+  inputs:
+    file: tests/test_refunds.py
+    unchanged:
+      tests/fakes.py: |
+        from decimal import Decimal
+
+
+        class FakeQueue:
+            def __init__(self):
+                self.messages = {}
+
+            def enqueue(self, queue_name, message):
+                self.messages.setdefault(queue_name, []).append(message)
+
+            def drain(self, queue_name):
+                return self.messages.pop(queue_name, [])
+
+
+        class FakeMailer:
+            def __init__(self):
+                self.outbox = []
+
+            def send(self, to, subject):
+                self.outbox.append((to, subject))
+
+
+        class FakeRates:
+            def __init__(self, rates=None):
+                self.rates = rates or {}
+
+            def fetch_rate(self, currency):
+                return self.rates[currency]
+
+
+        class FakePaymentGateway:
+            def __init__(self, responses=None):
+                self.responses = responses or {}
+                self.charges = []
+
+            def charge(self, order_id, amount):
+                self.charges.append((order_id, amount))
+                return self.responses.get("charge", "approved")
+
+            async def refund(self, order_id):
+                return "refunded"
+    after: |
+      from orders.refunds import RefundService
+      from tests.fakes import FakePaymentGateway
+
+
+      class FailingRefundGateway(FakePaymentGateway):
+          async def refund(self, order_id):
+              return "failed"
+
+
+      async def test_refund_reports_a_failed_refund():
+          result = await RefundService(FailingRefundGateway()).refund("ord-1")
+
+          assert result == "failed"
+  expected_output:
+    outcome: valid
+- name: changes the invoice id
+  inputs:
+    file: tests/test_invoice_notifier.py
+    before: |
+      from billing.notifier import InvoiceNotifier
+      from tests.fakes import FakeMailer
+
+
+      def test_notify_mails_customer():
+          mailer = FakeMailer()
+
+          InvoiceNotifier(mailer).notify(invoice_id="inv-42", email="ada@example.com")
+
+          assert mailer.outbox == [("ada@example.com", "Invoice inv-42")]
+    after: |
+      from billing.notifier import InvoiceNotifier
+      from tests.fakes import FakeMailer
+
+
+      def test_notify_mails_customer():
+          mailer = FakeMailer()
+
+          InvoiceNotifier(mailer).notify(invoice_id="inv-7", email="ada@example.com")
+
+          assert mailer.outbox == [("ada@example.com", "Invoice inv-7")]
+  expected_output:
+    outcome: skipped
+- name: adds a fake subclass that only sets a class attribute
+  inputs:
+    file: tests/test_conversion.py
+    before: |
+      from tests.fakes import FakeRates
+    after: |
+      from tests.fakes import FakeRates
+
+
+      class EuroRates(FakeRates):
+          currency = "EUR"
+  expected_output:
+    outcome: valid
+- name: adds an inline stub clock duplicating the shared fake
+  inputs:
+    file: tests/test_shipment_dispatch.py
+    unchanged:
+      tests/fakes.py: |
+        from datetime import datetime
+
+
+        class FakeClock:
+            def __init__(self, current: datetime) -> None:
+                self.current = current
+
+            def now(self) -> datetime:
+                return self.current
+    before: |
+      from datetime import date, datetime
+
+      from shipping.dispatch import Dispatcher, Shipment
+      from tests.fakes import FakeClock
+
+
+      def test_dispatch_before_cutoff_ships_same_day():
+          clock = FakeClock(datetime(2026, 3, 1, 9, 0))
+
+          shipment = Dispatcher(clock).dispatch("shp-1")
+
+          assert shipment == Shipment(id="shp-1", ships_on=date(2026, 3, 1))
+    after: |
+      from datetime import date, datetime
+
+      from shipping.dispatch import Dispatcher, Shipment
+      from tests.fakes import FakeClock
+
+
+      class StubClock:
+          def __init__(self, current):
+              self.current = current
+
+          def now(self):
+              return self.current
+
+
+      def test_dispatch_before_cutoff_ships_same_day():
+          clock = FakeClock(datetime(2026, 3, 1, 9, 0))
+
+          shipment = Dispatcher(clock).dispatch("shp-1")
+
+          assert shipment == Shipment(id="shp-1", ships_on=date(2026, 3, 1))
+
+
+      def test_dispatch_after_cutoff_moves_to_next_day():
+          clock = StubClock(datetime(2026, 3, 1, 18, 0))
+
+          shipment = Dispatcher(clock).dispatch("shp-2")
+
+          assert shipment == Shipment(id="shp-2", ships_on=date(2026, 3, 2))
+  expected_output:
+    outcome: invalid
+- name: adds a helper that sets the shared fake clock to an hour
+  inputs:
+    file: tests/test_shipment_dispatch.py
+    unchanged:
+      tests/fakes.py: |
+        from datetime import datetime
+
+
+        class FakeClock:
+            def __init__(self, current: datetime) -> None:
+                self.current = current
+
+            def now(self) -> datetime:
+                return self.current
+    after: |
+      from datetime import date, datetime
+
+      from shipping.dispatch import Dispatcher, Shipment
+      from tests.fakes import FakeClock
+
+
+      def dispatch_at(hour, shipment_id):
+          return Dispatcher(FakeClock(datetime(2026, 3, 1, hour, 0))).dispatch(shipment_id)
+
+
+      def test_dispatch_before_cutoff_ships_same_day():
+          assert dispatch_at(9, "shp-1") == Shipment(id="shp-1", ships_on=date(2026, 3, 1))
+
+
+      def test_dispatch_after_cutoff_moves_to_next_day():
+          assert dispatch_at(18, "shp-2") == Shipment(id="shp-2", ships_on=date(2026, 3, 2))
+  expected_output:
+    outcome: valid
+- name: adds a clock that advances on each call beside the fixed shared one
+  inputs:
+    file: tests/test_session_expiry.py
+    unchanged:
+      tests/fakes.py: |
+        from datetime import datetime
+
+
+        class FakeClock:
+            def __init__(self, current: datetime) -> None:
+                self.current = current
+
+            def now(self) -> datetime:
+                return self.current
+    after: |
+      from datetime import datetime, timedelta
+
+      from accounts.sessions import SessionKeeper
+
+
+      class TickingClock:
+          def __init__(self, start, step):
+              self.current = start
+              self.step = step
+
+          def now(self):
+              self.current += self.step
+              return self.current
+
+
+      def test_keeper_expires_a_session_after_two_checks():
+          clock = TickingClock(datetime(2026, 3, 1, 9, 0), step=timedelta(minutes=20))
+          keeper = SessionKeeper(clock, ttl=timedelta(minutes=30))
+          keeper.open("tok-1")
+
+          keeper.check()
+          keeper.check()
+
+          assert keeper.open_tokens() == []
+  expected_output:
+    outcome: valid
+- name: redefines the shared database session fixture
+  inputs:
+    file: tests/billing/test_invoice_repository.py
+    unchanged:
+      tests/conftest.py: |
+        import pytest
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import Session
+
+        from billing.db import Base
+
+
+        @pytest.fixture
+        def db_session():
+            engine = create_engine("sqlite://")
+            Base.metadata.create_all(engine)
+            with Session(engine) as session:
+                yield session
+    after: |
+      from decimal import Decimal
+
+      import pytest
+      from sqlalchemy import create_engine
+      from sqlalchemy.orm import Session
+
+      from billing.db import Base
+      from billing.repositories import InvoiceRepository
+
+
+      @pytest.fixture
+      def db_session():
+          engine = create_engine("sqlite://")
+          Base.metadata.create_all(engine)
+          with Session(engine) as session:
+              yield session
+
+
+      def test_create_then_get_returns_the_invoice(db_session):
+          repository = InvoiceRepository(db_session)
+          invoice = repository.create(amount=Decimal("100.00"), region="CA")
+
+          assert repository.get(invoice.id).amount == Decimal("100.00")
+  expected_output:
+    outcome: invalid
+- name: overrides the shared order fixture with a paid order
+  inputs:
+    file: tests/refunds/test_refunds.py
+    unchanged:
+      tests/conftest.py: |
+        import pytest
+
+        from shop.orders import Order
+
+
+        @pytest.fixture
+        def order():
+            return Order(id="ord-1", status="pending")
+    after: |
+      import pytest
+
+      from shop.orders import Order
+      from shop.refunds import refund
+
+
+      @pytest.fixture
+      def order():
+          return Order(id="ord-1", status="paid")
+
+
+      def test_refund_marks_a_paid_order_refunded(order):
+          assert refund(order).status == "refunded"
+  expected_output:
+    outcome: valid
+- name: builds on the shared database session in a new fixture
+  inputs:
+    file: tests/billing/test_invoice_reports.py
+    unchanged:
+      tests/conftest.py: |
+        import pytest
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import Session
+
+        from billing.db import Base
+
+
+        @pytest.fixture
+        def db_session():
+            engine = create_engine("sqlite://")
+            Base.metadata.create_all(engine)
+            with Session(engine) as session:
+                yield session
+    after: |
+      from decimal import Decimal
+
+      import pytest
+
+      from billing.reports import unpaid_total
+      from billing.repositories import InvoiceRepository
+
+
+      @pytest.fixture
+      def two_unpaid_invoices(db_session):
+          repository = InvoiceRepository(db_session)
+          repository.create(amount=Decimal("100.00"), region="CA")
+          repository.create(amount=Decimal("50.00"), region="CA")
+          return repository
+
+
+      def test_unpaid_total_sums_unpaid_invoices(two_unpaid_invoices):
+          assert unpaid_total(two_unpaid_invoices) == Decimal("150.00")
+  expected_output:
+    outcome: valid
+- name: adds a customer builder duplicating the shared factory
+  inputs:
+    file: tests/test_loyalty.py
+    unchanged:
+      tests/factories.py: |
+        from shop.customers import Customer
+
+
+        def build_customer(name: str = "Ada", email: str = "ada@example.com", points: int = 0) -> Customer:
+            return Customer(name=name, email=email, points=points)
+    after: |
+      from shop.customers import Customer
+      from shop.loyalty import tier_for
+
+
+      def make_customer(name="Ada", email="ada@example.com", points=0):
+          return Customer(name=name, email=email, points=points)
+
+
+      def test_tier_for_five_hundred_points_is_gold():
+          assert tier_for(make_customer(points=500)) == "gold"
+  expected_output:
+    outcome: invalid
+- name: adds a builder for a type no shared module builds
+  inputs:
+    file: tests/test_loyalty.py
+    unchanged:
+      tests/factories.py: |
+        from shop.customers import Customer
+
+
+        def build_customer(name: str = "Ada", email: str = "ada@example.com", points: int = 0) -> Customer:
+            return Customer(name=name, email=email, points=points)
+    after: |
+      from shop.loyalty import Campaign, bonus_points
+      from tests.factories import build_customer
+
+
+      def make_campaign(multiplier=2):
+          return Campaign(name="Spring", multiplier=multiplier)
+
+
+      def test_bonus_points_double_during_the_campaign():
+          assert bonus_points(build_customer(points=100), make_campaign()) == 200
+  expected_output:
+    outcome: valid
+- name: adds a fake mailer duplicating the shared one
+  inputs:
+    file: tests/test_invoice_notifier.py
+    unchanged:
+      tests/fakes.py: |
+        class FakeMailer:
+            def __init__(self) -> None:
+                self.outbox: list[tuple[str, str]] = []
+
+            def send(self, to: str, subject: str) -> None:
+                self.outbox.append((to, subject))
+    after: |
+      from billing.notifier import InvoiceNotifier
+
+
+      class InMemoryMailer:
+          def __init__(self):
+              self.sent = []
+
+          def send(self, to, subject):
+              self.sent.append((to, subject))
+
+
+      def test_notify_mails_the_customer():
+          mailer = InMemoryMailer()
+
+          InvoiceNotifier(mailer).notify(invoice_id="inv-42", email="ada@example.com")
+
+          assert mailer.sent == [("ada@example.com", "Invoice inv-42")]
+  expected_output:
+    outcome: invalid
+- name: adds a builder method on a test class duplicating the shared factory
+  inputs:
+    file: tests/test_points.py
+    unchanged:
+      tests/factories.py: |
+        from shop.customers import Customer
+
+
+        def build_customer(name: str = "Ada", email: str = "ada@example.com", points: int = 0) -> Customer:
+            return Customer(name=name, email=email, points=points)
+    after: |
+      from shop.customers import Customer
+      from shop.loyalty import add_points
+
+
+      class TestAddPoints:
+          def customer(self, points=0):
+              return Customer(name="Ada", email="ada@example.com", points=points)
+
+          def test_add_points_increases_the_balance(self):
+              assert add_points(self.customer(points=10), 5).points == 15
+  expected_output:
+    outcome: invalid
+- name: changes a test's input values
+  inputs:
+    file: tests/test_orders.py
+    before: |
+      class TestOrders:
+          def test_total(self):
+              assert total([1]) == 1
+    after: |
+      class TestOrders:
+          def test_total(self):
+              assert total([1, 2]) == 3
+  expected_output:
+    outcome: skipped
+- name: imports a shared factory
+  inputs:
+    file: tests/test_loyalty.py
+    before: |
+      from shop.loyalty import tier_for
+    after: |
+      from shop.loyalty import tier_for
+      from tests.factories import build_customer
+  expected_output:
+    outcome: skipped
+- name: adds tests that use the shared fake clock
+  inputs:
+    file: tests/test_shipment_dispatch.py
+    unchanged:
+      tests/fakes.py: |
+        from datetime import datetime
+
+
+        class FakeClock:
+            def __init__(self, current: datetime) -> None:
+                self.current = current
+
+            def now(self) -> datetime:
+                return self.current
+    after: |
+      from datetime import date, datetime
+
+      from shipping.dispatch import Dispatcher, Shipment
+      from tests.fakes import FakeClock
+
+
+      def test_dispatch_before_cutoff_ships_same_day():
+          clock = FakeClock(datetime(2026, 3, 1, 9, 0))
+
+          shipment = Dispatcher(clock).dispatch("shp-1")
+
+          assert shipment == Shipment(id="shp-1", ships_on=date(2026, 3, 1))
+
+
+      def test_dispatch_after_cutoff_moves_to_next_day():
+          clock = FakeClock(datetime(2026, 3, 1, 18, 0))
+
+          shipment = Dispatcher(clock).dispatch("shp-2")
+
+          assert shipment == Shipment(id="shp-2", ships_on=date(2026, 3, 2))
+  expected_output:
+    outcome: skipped
+- name: patches the program's tax rate constant
+  inputs:
+    file: tests/test_pricing.py
+    after: |
+      from unittest.mock import patch
+
+      from shop.pricing import price_with_tax
+
+
+      def test_price_without_tax():
+          with patch("shop.pricing.TAX_PERCENT", 0):
+              assert price_with_tax(1000) == 1000
+    unchanged:
+      shop/pricing.py: |
+        from datetime import datetime
+
+        TAX_PERCENT = 20
+        WEEKEND_SURCHARGE_PERCENT = 10
+
+
+        def price_with_tax(cents: int) -> int:
+            if datetime.now().weekday() >= 5:
+                cents += cents * WEEKEND_SURCHARGE_PERCENT // 100
+            return cents + cents * TAX_PERCENT // 100
+  expected_output:
+    outcome: invalid
+- name: patches the pricing module's clock to a weekday
+  inputs:
+    file: tests/test_pricing.py
+    after: |
+      from datetime import datetime
+      from unittest.mock import patch
+
+      from shop.pricing import price_with_tax
+
+
+      def test_weekday_price_adds_only_tax():
+          with patch("shop.pricing.datetime") as clock:
+              clock.now.return_value = datetime(2026, 3, 4, 12, 0)
+
+              assert price_with_tax(1000) == 1200
+    unchanged:
+      shop/pricing.py: |
+        from datetime import datetime
+
+        TAX_PERCENT = 20
+        WEEKEND_SURCHARGE_PERCENT = 10
+
+
+        def price_with_tax(cents: int) -> int:
+            if datetime.now().weekday() >= 5:
+                cents += cents * WEEKEND_SURCHARGE_PERCENT // 100
+            return cents + cents * TAX_PERCENT // 100
+  expected_output:
+    outcome: valid

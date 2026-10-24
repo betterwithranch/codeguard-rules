@@ -1,0 +1,2 @@
+rule: no-attribute-set-after-build
+paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]

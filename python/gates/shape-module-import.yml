@@ -1,7 +1,0 @@
-id: shape-module-import
-language: python
-rule:
-  kind: import_from_statement
-  has:
-    field: module_name
-    regex: _(params|result)$

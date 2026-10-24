@@ -1,14 +1,60 @@
 id: union-alias
 valid:
+# Optional parameter annotation
 - |
   def pay(method: Card | None):
       return method
+# Optional field annotation
+- |
+  class Order(BaseModel):
+      shipment: Shipment | None = None
+# Plain annotation
+- |
+  amount: int = 0
+# Union of lowercase builtins
+- |
+  value: int | str = 0
+# Bitwise or of values
+- |
+  flags = read | write
 invalid:
+# type statement alias
 - |
   type Payment = Card | Transfer
+# Module assignment of a class union
 - |
   Payment = Card | Transfer
+# Union subscript annotation
 - |
   payment: Union[Card, Transfer]
+# Class field annotated with a union
+- |
+  class Order(BaseModel):
+      payment: Card | Transfer
+# Union inside a generic annotation
+- |
+  class Order(BaseModel):
+      payments: list[Card | Transfer]
+# Union with None alongside two classes
+- |
+  class Order(BaseModel):
+      payment: Card | Transfer | None = None
+# discriminator keyword
 - |
   payment: Payment = Field(discriminator='kind')
+# Callable discriminator
+- |
+  Payment = Annotated[Card | Transfer, Discriminator(payment_kind)]
+# Tag on a variant
+- |
+  Payment = Annotated[Annotated[Card, Tag('card')] | Annotated[Transfer, Tag('transfer')], Discriminator(kind_of)]
+# msgspec tagged struct
+- |
+  class Card(Struct, tag='card'):
+      token: str
+# TypeAdapter over a union
+- |
+  events = TypeAdapter(list[Created | Deleted])
+# Union passed as a call argument
+- |
+  sample = msgspec.json.decode(raw, type=CpuSample | MemorySample)

@@ -1,3 +1,0 @@
-skill: python/skills/build-through-factory
-paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
-triggers: [construction-helper]

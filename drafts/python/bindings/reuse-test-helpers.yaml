@@ -1,3 +1,0 @@
-skill: python/skills/reuse-test-helpers
-paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
-triggers: [class-header, fixture, helper-function, fixture-module-import]

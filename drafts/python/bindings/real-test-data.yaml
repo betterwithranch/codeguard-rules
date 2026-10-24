@@ -1,3 +1,3 @@
 skill: python/skills/real-test-data
 paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
-triggers: [test-data-construction, fixture]
+triggers: [constructor-with-collaborators, record-insert, reference-id]

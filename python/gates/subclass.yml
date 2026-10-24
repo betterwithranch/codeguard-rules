@@ -1,7 +1,0 @@
-id: subclass
-language: python
-rule:
-  kind: class_definition
-  has:
-    field: superclasses
-    kind: argument_list

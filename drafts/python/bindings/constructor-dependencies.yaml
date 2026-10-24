@@ -1,4 +1,0 @@
-skill: python/skills/constructor-dependencies
-paths: ["**/*.py"]
-exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
-triggers: [method-with-parameters]

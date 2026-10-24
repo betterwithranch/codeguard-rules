@@ -1,0 +1,46 @@
+id: sibling-private-function
+valid:
+# Private function alone
+- |
+  def _missing(field):
+      return field
+# Public siblings
+- |
+  def missing(field):
+      return field
+
+  def invalid(field):
+      return field
+# Dunder methods
+- |
+  class ExampleValidator:
+      def __init__(self):
+          pass
+
+      def __repr__(self):
+          return "x"
+invalid:
+# Private module function after another function
+- |
+  def check(field):
+      return field
+
+  def _missing(field):
+      return field
+# Private method before another method
+- |
+  class ExampleValidator:
+      def _missing(self, field):
+          pass
+
+      def _invalid(self, field):
+          pass
+# Decorated private method
+- |
+  class ExampleValidator:
+      def check(self):
+          pass
+
+      @staticmethod
+      def _missing(field):
+          pass

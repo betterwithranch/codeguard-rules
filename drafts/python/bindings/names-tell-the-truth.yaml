@@ -1,0 +1,4 @@
+skill: python/skills/names-tell-the-truth
+paths: ["**/*.py"]
+exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
+triggers: [function-name, class-name, request-or-action-type-name, creation-method, prose-comment, docstring, builder-class]

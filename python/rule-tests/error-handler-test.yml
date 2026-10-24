@@ -1,0 +1,49 @@
+id: error-handler
+valid:
+# try with only finally
+- |
+  try:
+      example_ledger.post(example_entry)
+  finally:
+      example_ledger.close()
+# raise outside a handler
+- |
+  def example_fail(example_order):
+      raise ExampleError(example_order.id)
+# with block of a context manager other than suppress
+- |
+  with example_lock:
+      example_ledger.post(example_entry)
+invalid:
+# except clause that passes
+- |
+  try:
+      example_ledger.post(example_entry)
+  except Exception:
+      pass
+# except clause that re-raises a domain error
+- |
+  try:
+      example_gateway.charge(example_order)
+  except ExampleDeclined as err:
+      raise ExamplePaymentFailed(example_order.id) from err
+# bare except
+- |
+  try:
+      example_ledger.post(example_entry)
+  except:
+      example_log.warning("failed")
+# except group clause
+- |
+  try:
+      example_run()
+  except* ExampleError:
+      pass
+# contextlib.suppress
+- |
+  with contextlib.suppress(FileNotFoundError):
+      os.remove(example_path)
+# imported suppress
+- |
+  with suppress(Exception):
+      example_ledger.post(example_entry)

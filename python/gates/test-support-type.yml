@@ -1,0 +1,21 @@
+id: test-support-type
+language: python
+rule:
+  any:
+  - kind: class_definition
+    not:
+      has:
+        field: name
+        regex: ^Test
+  - kind: decorated_definition
+    has:
+      field: definition
+      kind: class_definition
+      not:
+        has:
+          field: name
+          regex: ^Test
+  - kind: call
+    has:
+      field: function
+      regex: (^|\.)(namedtuple|NamedTuple|SimpleNamespace|make_dataclass|TypedDict)$

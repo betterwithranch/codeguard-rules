@@ -1,0 +1,31 @@
+id: no-empty-fixtures
+language: python
+severity: error
+message: Don't define a fixture that does nothing.
+note: |
+  A fixture whose body is only `pass`, `...`, a docstring, a bare `return` or `yield`,
+  or `return None` gives the tests that request it nothing and leaves a reader looking
+  for what it sets up. Delete it, and drop it from the tests and `usefixtures` marks
+  that name it.
+rule:
+  kind: function_definition
+  inside:
+    kind: decorated_definition
+    has:
+      kind: decorator
+      regex: ^@(pytest\.|pytest_asyncio\.)?fixture\b
+  has:
+    field: body
+    not:
+      has:
+        not:
+          any:
+          - kind: pass_statement
+          - kind: comment
+          - kind: expression_statement
+            regex: ^(\.\.\.|yield|yield\s+None)$
+          - kind: expression_statement
+            has:
+              kind: string
+          - kind: return_statement
+            regex: ^return(\s+None)?$

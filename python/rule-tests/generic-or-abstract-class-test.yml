@@ -1,9 +1,0 @@
-id: generic-or-abstract-class
-valid:
-- |
-  class Order(Base):
-      pass
-invalid:
-- |
-  class Validator(ABC, Generic[TRecord]):
-      pass

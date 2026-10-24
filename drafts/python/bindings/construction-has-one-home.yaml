@@ -1,0 +1,4 @@
+skill: python/skills/construction-has-one-home
+paths: ["**/*.py"]
+exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
+triggers: [class-construction, defaulted-value]
