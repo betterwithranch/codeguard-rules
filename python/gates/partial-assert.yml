@@ -5,12 +5,6 @@ rule:
     - inside: {stopBy: end, kind: assert_statement}
       any:
         - kind: comparison_operator
-          has:
-            any: [{kind: attribute}, {kind: subscript}]
-            has:
-              stopBy: end
-              kind: identifier
-              regex: ^[a-z_]
         - kind: call
           has: {field: function, regex: "^len$"}
         - kind: tuple
@@ -23,10 +17,6 @@ rule:
           any:
             - pattern: '[$A.$F, $A.$G]'
             - pattern: '[$A.$F, $A.$G, $$$REST]'
-        - kind: comparison_operator
-          any:
-            - pattern: $MEMBER in $VALUES
-            - pattern: $MEMBER not in $VALUES
         - kind: identifier
           regex: ^ANY$
         - kind: attribute
@@ -49,13 +39,4 @@ rule:
                 field: object
                 any: [{kind: attribute}, {kind: subscript}]
     - kind: call
-      all:
-        - has: {field: function, regex: ^self\.assert}
-        - has:
-            field: arguments
-            has:
-              any:
-                - kind: attribute
-                - kind: subscript
-                - kind: call
-                  has: {field: function, regex: "^len$"}
+      has: {field: function, regex: ^self\.assert}

@@ -1,18 +1,22 @@
 id: partial-assert
 valid:
 - |
+  result = issue_invoice(order)
+- |
   assert is_ready(order)
-- |
-  assert result == Invoice(number='42')
-- |
-  assert result == Status.ACTIVE
 - |
   count = len(items)
 - |
   pair = (result.number, result.total)
+invalid:
 - |
   self.assertEqual(result, Invoice(number='42'))
-invalid:
+- |
+  assert failures == []
+- |
+  assert name == 'small'
+- |
+  assert result == Invoice(number='42')
 - |
   assert ChangeKind.FUNCTION_BODY in kinds
 - |

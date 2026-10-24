@@ -557,18 +557,18 @@ cases:
             assert services.orders.cache is services.payments.cache
     expected_output:
       outcome: valid
-  - name: checks two fields of the built services by value
+  - name: checks two unrelated fields of the built orders service
     inputs:
       file: tests/test_services.py
       after: |
         from shop.services import build_services
 
 
-        def test_services_use_the_configured_limits(settings):
+        def test_build_services_names_the_orders_service(settings):
             services = build_services(settings)
 
+            assert services.orders.name == "orders"
             assert services.orders.max_connections == 10
-            assert services.orders.timeout_seconds == 5
     expected_output:
       outcome: invalid
   - name: checks each block's line span
@@ -676,7 +676,7 @@ cases:
 
             assert [parcel.sku for parcel in parcels] == ["A1", "B2"]
     expected_output:
-      outcome: skipped
+      outcome: valid
   - name: compares the full parcel list
     inputs:
       file: tests/test_shipments.py
@@ -695,7 +695,7 @@ cases:
 
             assert parcels == [Parcel(sku="A1"), Parcel(sku="B2")]
     expected_output:
-      outcome: skipped
+      outcome: valid
   - name: compares the whole order with its clock and ids fixed
     inputs:
       file: tests/test_orders.py
@@ -725,7 +725,7 @@ cases:
                 created_at=datetime(2026, 3, 1, 9, 30),
             )
     expected_output:
-      outcome: skipped
+      outcome: valid
   - name: changes the shipment weight
     inputs:
       file: tests/test_shipments.py
@@ -746,7 +746,7 @@ cases:
 
             assert shipment == Shipment(order_id="ord-1", carrier="ground", weight_kg=3)
     expected_output:
-      outcome: skipped
+      outcome: valid
   - name: changes the packed skus
     inputs:
       file: tests/test_shipments.py
@@ -766,5 +766,26 @@ cases:
             parcels = pack_items(["C3", "B2", "A1"])
 
             assert parcels == [Parcel(sku="A1"), Parcel(sku="B2"), Parcel(sku="C3")]
+    expected_output:
+      outcome: valid
+  - name: reorders the skus it packs
+    inputs:
+      file: tests/test_shipments.py
+      before: |
+        from shipping.shipments import Parcel, pack_items
+
+
+        def test_pack_items_orders_parcels_by_sku():
+            parcels = pack_items(["B2", "A1"])
+
+            assert parcels == [Parcel(sku="A1"), Parcel(sku="B2")]
+      after: |
+        from shipping.shipments import Parcel, pack_items
+
+
+        def test_pack_items_orders_parcels_by_sku():
+            parcels = pack_items(["A1", "B2"])
+
+            assert parcels == [Parcel(sku="A1"), Parcel(sku="B2")]
     expected_output:
       outcome: skipped
