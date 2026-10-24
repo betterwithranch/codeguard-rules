@@ -1,0 +1,141 @@
+id: boolean-state-field
+snapshots:
+  ? |
+    @dataclass
+    class Order:
+        is_shipped: bool = False
+  : labels:
+    - source: 'is_shipped: bool = False'
+      style: primary
+      start: 28
+      end: 52
+    - source: |-
+        class Order:
+            is_shipped: bool = False
+      style: secondary
+      start: 11
+      end: 52
+    - source: 'is_shipped: bool = False'
+      style: secondary
+      start: 28
+      end: 52
+    - source: 'is_shipped: bool = False'
+      style: secondary
+      start: 28
+      end: 52
+    - source: bool
+      style: secondary
+      start: 40
+      end: 44
+  ? |
+    class Order(Base):
+        is_paid = Column(Boolean, default=False)
+  : labels:
+    - source: Column(Boolean, default=False)
+      style: primary
+      start: 33
+      end: 63
+    - source: Boolean
+      style: secondary
+      start: 40
+      end: 47
+    - source: Boolean
+      style: secondary
+      start: 40
+      end: 47
+  ? |
+    class Order(Base):
+        is_paid: Mapped[bool] = mapped_column(default=False)
+  : labels:
+    - source: 'is_paid: Mapped[bool] = mapped_column(default=False)'
+      style: primary
+      start: 23
+      end: 75
+    - source: |-
+        class Order(Base):
+            is_paid: Mapped[bool] = mapped_column(default=False)
+      style: secondary
+      start: 0
+      end: 75
+    - source: 'is_paid: Mapped[bool] = mapped_column(default=False)'
+      style: secondary
+      start: 23
+      end: 75
+    - source: 'is_paid: Mapped[bool] = mapped_column(default=False)'
+      style: secondary
+      start: 23
+      end: 75
+    - source: Mapped[bool]
+      style: secondary
+      start: 32
+      end: 44
+  ? |
+    class Order(BaseModel):
+        is_paid: bool | None = None
+  : labels:
+    - source: 'is_paid: bool | None = None'
+      style: primary
+      start: 28
+      end: 55
+    - source: |-
+        class Order(BaseModel):
+            is_paid: bool | None = None
+      style: secondary
+      start: 0
+      end: 55
+    - source: 'is_paid: bool | None = None'
+      style: secondary
+      start: 28
+      end: 55
+    - source: 'is_paid: bool | None = None'
+      style: secondary
+      start: 28
+      end: 55
+    - source: bool | None
+      style: secondary
+      start: 37
+      end: 48
+  ? |
+    class Order(models.Model):
+        is_paid = models.BooleanField(default=False)
+  : labels:
+    - source: models.BooleanField(default=False)
+      style: primary
+      start: 41
+      end: 75
+    - source: models.BooleanField
+      style: secondary
+      start: 41
+      end: 60
+  ? |
+    class Order:
+        def cancel(self):
+            self.is_active = False
+  : labels:
+    - source: self.is_active = False
+      style: primary
+      start: 43
+      end: 65
+    - source: self.is_active
+      style: secondary
+      start: 43
+      end: 57
+    - source: 'False'
+      style: secondary
+      start: 60
+      end: 65
+  ? |
+    order.is_shipped = True
+  : labels:
+    - source: order.is_shipped = True
+      style: primary
+      start: 0
+      end: 23
+    - source: order.is_shipped
+      style: secondary
+      start: 0
+      end: 16
+    - source: 'True'
+      style: secondary
+      start: 19
+      end: 23

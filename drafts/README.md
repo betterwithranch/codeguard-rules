@@ -31,6 +31,7 @@ against the rule's skill). `no-foreign-reexports` runs on `__init__.py` files on
 | `constructor-dependencies` | Methods don't take collaborators as parameters; the class gets them at construction |
 | `context-types-live-with-consumer` | Dependency and context classes live with the stage that reads them |
 | `docstrings-add-information` | A docstring tells the reader something the name, signature and body don't |
+| `domain-in-data-structures` | A domain rule is stated once in a declared structure: no repeated type switches, branches on a `Literal` value set, anonymous multi-answer results, silent key overwrites, helpers differing by one value, or flags mirroring another field |
 | `enum-usage` | No `.value` on a `StrEnum`, `IntEnum` or `TextChoices` member |
 | `factory-methods-by-product` | Factory methods named for the product or input, not the caller |
 | `factory-on-built-type` | Code that decides a type's field values is on the type, in its module, or in a mapper for one source |
@@ -40,7 +41,6 @@ against the rule's skill). `no-foreign-reexports` runs on `__init__.py` files on
 | `interfaces-earn-existence` | A Protocol or ABC has two implementers, or prevents an import cycle |
 | `names-match-behavior` | Every word of a function or class name is true of its body, and one names what it does |
 | `narrow-collaborator-params` | No bundle parameter (context, settings, request) when only a few of its fields are read |
-| `no-anonymous-tuples` | No tuple or fixed-key dict returning answers to different questions |
 | `no-attribute-mirror-protocols` | No Protocol that copies one class's data attributes |
 | `no-bare-identity-wrappers` | No class that only wraps one identifier |
 | `no-branch-and-accumulate` | No loop that branches per item to pick what it appends, with no state between items |
@@ -51,9 +51,7 @@ against the rule's skill). `no-foreign-reexports` runs on `__init__.py` files on
 | `no-overlapping-responsibility` | No overlapping responsibility |
 | `no-pre-derived-arguments` | No call to the program's own code passing both a value and the input it was derived from |
 | `no-reimplemented-orchestration` | No calling a pipeline's stages in sequence when a component already runs them |
-| `no-repeated-type-switches` | No two functions in a file switch on the same types |
 | `no-shared-stateful-generics` | No shared instance of a class that stores a use's results on itself |
-| `no-silent-key-overwrites` | A dict built from items doesn't silently drop items with a shared key |
 | `no-single-use-map-wrappers` | No function that only maps a named function over a collection and has one call site |
 | `no-single-use-shape-modules` | A shape only one type uses lives in that type's module |
 | `no-unpacked-argument-groups` | No object built only to have its fields read back out as one call's arguments |
@@ -62,10 +60,8 @@ against the rule's skill). `no-foreign-reexports` runs on `__init__.py` files on
 | `one-responsibility-per-function` | A function does one job's logic or coordinates calls, never a job's logic alongside other jobs |
 | `one-responsibility-per-type` | A class's methods serve one concern, not unrelated groups |
 | `one-verb-per-operation` | Collaborating functions and methods use one verb for one operation |
-| `parameterized-helper` | No private sibling helpers that differ only by one literal or enum member |
 | `queue-messages-carry-ids` | Stored records cross queues and workflows by id |
 | `state-model-own-module` | A threaded state model gets its own module |
-| `strenum-vs-literal` | No branching on, or keying a table by, a several-value `Literal` |
 | `types-live-with-producer` | Types live in the package that constructs them |
 | `trust-the-boundary` | A guarantee is made once, where data enters or its type is built, and trusted after: no re-checks, parsed unions decide their variant, model validators use only the model's own values |
 | `union-variants-together` | A union's variants are defined together, directly before its alias |
