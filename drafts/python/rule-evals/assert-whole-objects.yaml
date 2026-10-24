@@ -638,8 +638,8 @@ cases:
         from shop.cache import PriceCache
 
 
-        def test_a_changed_price_misses_the_cache(capture):
-            cache = PriceCache()
+        def test_a_changed_price_misses_the_cache(capture, fixed_clock):
+            cache = PriceCache(clock=fixed_clock)
             cache.price("A1")
             cache.invalidate("A1")
 
