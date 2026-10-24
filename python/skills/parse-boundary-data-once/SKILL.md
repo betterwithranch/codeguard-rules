@@ -17,7 +17,8 @@ parse returns.
 ## The test
 
 A shape read picks out a part of the data by something the outside source's format
-defines: a key (`error["carrier"]`), an index or position (`events[-1]`), or a
+defines: a key, read or tested for (`error["carrier"]`, `error.get("carrier")`,
+`"carrier" in error`), an index or position (`events[-1]`), or a
 delimiter-separated field (`line.split(":")[0]` on grep output). Treating text only as
 text is not a shape read: splitting it into lines to number, window, count or show
 them, hashing it, storing or passing it on.
