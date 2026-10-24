@@ -1,0 +1,51 @@
+id: forwarding-method
+valid:
+# Method that works on its own attributes
+- |
+  class ExampleCart:
+      def total(self) -> int:
+          return sum(self.items)
+# Method with more statements than a forward
+- |
+  class ExampleClient:
+      def get(self, key):
+          value = self._store.get(key)
+          self._hits += 1
+          return value
+# Module function forwarding to a collaborator
+- |
+  def fetch(client, key):
+      return client.store.get(key)
+# Method calling its own method
+- |
+  class ExampleService:
+      def run(self):
+          return self.prepare()
+invalid:
+# Method returning a collaborator's call
+- |
+  class ExampleRepository:
+      def get(self, key):
+          return self._store.get(key)
+# Method calling a collaborator as a statement
+- |
+  class ExampleNotifier:
+      def send(self, message):
+          self.sender.send(message)
+# Awaited forward
+- |
+  class ExampleGateway:
+      async def fetch(self, key):
+          return await self._client.fetch(key)
+# Forward with a docstring
+- |
+  class ExampleRepository:
+      def get(self, key):
+          """Get one."""
+          return self._store.get(key)
+# Decorated method forwarding
+- |
+  class ExampleSettings:
+      @property
+      def region(self):
+          return self._config.region_name()

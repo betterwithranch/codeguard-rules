@@ -1,0 +1,489 @@
+cases:
+- name: shares a module-level validator instance
+  inputs:
+    file: orders/validation.py
+    after: |
+      class OrderValidator:
+          def __init__(self, region: str) -> None:
+              self.region = region
+              self.issues: list[str] = []
+
+          def check(self, order_total: int, country: str) -> None:
+              if order_total <= 0:
+                  self.issues.append("order total must be positive")
+              if country != self.region:
+                  self.issues.append(f"order ships outside {self.region}")
+
+
+      validator = OrderValidator(region="eu")
+  expected_output:
+    outcome: invalid
+- name: replaces the auditor factory with a global
+  inputs:
+    file: invoices/audit.py
+    before: |
+      class InvoiceAuditor:
+          def __init__(self) -> None:
+              self.findings: list[str] = []
+
+          def audit(self, invoice_number: str, total: int) -> None:
+              if total < 0:
+                  self.findings.append(f"{invoice_number} has a negative total")
+
+
+      def create_invoice_auditor() -> InvoiceAuditor:
+          return InvoiceAuditor()
+    after: |
+      class InvoiceAuditor:
+          def __init__(self) -> None:
+              self.findings: list[str] = []
+
+          def audit(self, invoice_number: str, total: int) -> None:
+              if total < 0:
+                  self.findings.append(f"{invoice_number} has a negative total")
+
+
+      auditor = InvoiceAuditor()
+  expected_output:
+    outcome: invalid
+- name: shares a stateless price calculator at module level
+  inputs:
+    file: orders/pricing.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class PriceCalculator:
+          tax_percent: int
+
+          def total_cents(self, subtotal_cents: int) -> int:
+              return subtotal_cents * (100 + self.tax_percent) // 100
+
+
+      calculator = PriceCalculator(tax_percent=20)
+  expected_output:
+    outcome: valid
+- name: shares an imported totals accumulator at module level
+  inputs:
+    file: reports/daily_report.py
+    unchanged:
+      reports/totals.py: |
+        class RunningTotals:
+            def __init__(self) -> None:
+                self.revenue_cents = 0
+                self.order_count = 0
+
+            def add(self, order_total_cents: int) -> None:
+                self.revenue_cents += order_total_cents
+                self.order_count += 1
+    after: |
+      from .totals import RunningTotals
+
+      totals = RunningTotals()
+
+
+      def summarize(order_totals: list[int]) -> str:
+          for total in order_totals:
+              totals.add(total)
+          return f"{totals.order_count} orders, {totals.revenue_cents / 100:.2f}"
+  expected_output:
+    outcome: invalid
+- name: shares an imported stateless formatter at module level
+  inputs:
+    file: reports/daily_report.py
+    unchanged:
+      reports/formatting.py: |
+        class MoneyFormatter:
+            def __init__(self, currency: str) -> None:
+                self.currency = currency
+
+            def format(self, cents: int) -> str:
+                return f"{cents / 100:.2f} {self.currency}"
+    after: |
+      from .formatting import MoneyFormatter
+
+      formatter = MoneyFormatter(currency="EUR")
+
+
+      def summarize(order_totals: list[int]) -> str:
+          return ", ".join(formatter.format(total) for total in order_totals)
+  expected_output:
+    outcome: valid
+- name: defaults a parameter to a collecting validator
+  inputs:
+    file: orders/import_orders.py
+    unchanged:
+      orders/validation.py: |
+        class OrderValidator:
+            def __init__(self) -> None:
+                self.issues: list[str] = []
+
+            def check(self, order_total: int) -> None:
+                if order_total <= 0:
+                    self.issues.append("order total must be positive")
+    after: |
+      from .validation import OrderValidator
+
+
+      def import_orders(
+          totals: list[int], validator: OrderValidator = OrderValidator()
+      ) -> list[str]:
+          for total in totals:
+              validator.check(total)
+          return validator.issues
+  expected_output:
+    outcome: invalid
+- name: creates a collecting validator per call
+  inputs:
+    file: orders/import_orders.py
+    unchanged:
+      orders/validation.py: |
+        class OrderValidator:
+            def __init__(self) -> None:
+                self.issues: list[str] = []
+
+            def check(self, order_total: int) -> None:
+                if order_total <= 0:
+                    self.issues.append("order total must be positive")
+    after: |
+      from .validation import OrderValidator
+
+      MAX_ORDERS = 500
+
+
+      def import_orders(totals: list[int], validator: OrderValidator | None = None) -> list[str]:
+          validator = validator or OrderValidator()
+          for total in totals[:MAX_ORDERS]:
+              validator.check(total)
+          return validator.issues
+  expected_output:
+    outcome: skipped
+- name: holds a collecting parser as a class attribute
+  inputs:
+    file: imports/csv_import.py
+    unchanged:
+      imports/row_parser.py: |
+        class RowParser:
+            def __init__(self) -> None:
+                self.errors: list[str] = []
+                self.rows: list[dict[str, str]] = []
+
+            def feed(self, line: str) -> None:
+                cells = line.split(",")
+                if len(cells) != 3:
+                    self.errors.append(f"bad row: {line}")
+                else:
+                    self.rows.append(dict(zip(["sku", "name", "price"], cells)))
+    after: |
+      from .row_parser import RowParser
+
+
+      class ProductImport:
+          parser = RowParser()
+
+          def run(self, text: str) -> list[str]:
+              for line in text.splitlines():
+                  self.parser.feed(line)
+              return self.parser.errors
+  expected_output:
+    outcome: invalid
+- name: caches a collecting auditor in a factory
+  inputs:
+    file: invoices/audit_factory.py
+    unchanged:
+      invoices/audit.py: |
+        class InvoiceAuditor:
+            def __init__(self) -> None:
+                self.findings: list[str] = []
+
+            def audit(self, invoice_number: str, total: int) -> None:
+                if total < 0:
+                    self.findings.append(f"{invoice_number} has a negative total")
+    after: |
+      from functools import cache
+
+      from .audit import InvoiceAuditor
+
+
+      @cache
+      def get_invoice_auditor() -> InvoiceAuditor:
+          return InvoiceAuditor()
+  expected_output:
+    outcome: invalid
+- name: registers routes on a module-level router
+  inputs:
+    file: orders/routes.py
+    after: |
+      from fastapi import APIRouter
+
+      from .schemas import OrderOut
+      from .service import find_order
+
+      router = APIRouter(prefix="/orders")
+
+
+      @router.get("/{order_id}")
+      def get_order(order_id: int) -> OrderOut:
+          return OrderOut.model_validate(find_order(order_id))
+  expected_output:
+    outcome: valid
+- name: shares a cache keyed by currency at module level
+  inputs:
+    file: billing/exchange.py
+    after: |
+      from .rates_client import RatesClient
+
+
+      class RateCache:
+          def __init__(self, client: RatesClient) -> None:
+              self._client = client
+              self._rates: dict[str, float] = {}
+
+          def rate(self, currency: str) -> float:
+              if currency not in self._rates:
+                  self._rates[currency] = self._client.fetch_rate(currency)
+              return self._rates[currency]
+
+
+      rates = RateCache(RatesClient())
+  expected_output:
+    outcome: valid
+- name: shares a validator built by a factory function at module level
+  inputs:
+    file: orders/checkout.py
+    unchanged:
+      orders/validation.py: |
+        class OrderValidator:
+            def __init__(self, region: str) -> None:
+                self.region = region
+                self.issues: list[str] = []
+
+            def check(self, country: str) -> None:
+                if country != self.region:
+                    self.issues.append(f"order ships outside {self.region}")
+
+
+        def create_order_validator() -> OrderValidator:
+            return OrderValidator(region="eu")
+    after: |
+      from .validation import create_order_validator
+
+      validator = create_order_validator()
+
+
+      def checkout_issues(country: str) -> list[str]:
+          validator.check(country)
+          return validator.issues
+  expected_output:
+    outcome: invalid
+- name: rewords a validation issue message
+  inputs:
+    file: orders/validation.py
+    before: |
+      class OrderValidator:
+          def __init__(self, region: str) -> None:
+              self.region = region
+              self.issues: list[str] = []
+
+          def check(self, order_total: int) -> None:
+              if order_total <= 0:
+                  self.issues.append("order total must be positive")
+
+
+      def create_order_validator() -> OrderValidator:
+          return OrderValidator(region="eu")
+    after: |
+      class OrderValidator:
+          def __init__(self, region: str) -> None:
+              self.region = region
+              self.issues: list[str] = []
+
+          def check(self, order_total: int) -> None:
+              if order_total <= 0:
+                  self.issues.append("order total must be greater than zero")
+
+
+      def create_order_validator() -> OrderValidator:
+          return OrderValidator(region="eu")
+  expected_output:
+    outcome: skipped
+- name: collects one call's validation errors in a module-level list
+  inputs:
+    file: orders/checks.py
+    after: |
+      from .models import Order
+
+      _errors: list[str] = []
+
+
+      def validate_order(order: Order) -> list[str]:
+          _errors.clear()
+          if order.total_cents <= 0:
+              _errors.append("total must be positive")
+          if not order.lines:
+              _errors.append("order has no lines")
+          return list(_errors)
+  expected_output:
+    outcome: invalid
+- name: memoizes exchange rates in a module-level dict one function owns
+  inputs:
+    file: billing/rates.py
+    after: |
+      from .rates_client import fetch_rate
+
+      _rates: dict[str, float] = {}
+
+
+      def rate(currency: str) -> float:
+          if currency not in _rates:
+              _rates[currency] = fetch_rate(currency)
+          return _rates[currency]
+  expected_output:
+    outcome: valid
+- name: collects one call's validation errors in a local list
+  inputs:
+    file: orders/checks.py
+    after: |
+      from .models import Order
+
+
+      def validate_order(order: Order) -> list[str]:
+          errors: list[str] = []
+          if order.total_cents <= 0:
+              errors.append("total must be positive")
+          if not order.lines:
+              errors.append("order has no lines")
+          return errors
+  expected_output:
+    outcome: skipped
+- name: appends invoice lines to a class-level list
+  inputs:
+    file: billing/invoice.py
+    after: |
+      from .lines import InvoiceLine
+
+
+      class Invoice:
+          lines: list[InvoiceLine] = []
+
+          def __init__(self, number: str) -> None:
+              self.number = number
+
+          def add_line(self, line: InvoiceLine) -> None:
+              self.lines.append(line)
+
+          def total_cents(self) -> int:
+              return sum(line.amount_cents for line in self.lines)
+  expected_output:
+    outcome: invalid
+- name: registers export formats in a class-level dict at import
+  inputs:
+    file: exports/formats.py
+    after: |
+      class ExportFormat:
+          formats: dict[str, type["ExportFormat"]] = {}
+
+          def __init_subclass__(cls, name: str, **kwargs: object) -> None:
+              super().__init_subclass__(**kwargs)
+              cls.formats[name] = cls
+
+          def render(self, rows: list[dict[str, str]]) -> str:
+              raise NotImplementedError
+
+
+      class CsvFormat(ExportFormat, name="csv"):
+          def render(self, rows: list[dict[str, str]]) -> str:
+              return "\n".join(",".join(row.values()) for row in rows)
+  expected_output:
+    outcome: valid
+- name: opens and closes sessions in a module-level dict from two functions
+  inputs:
+    file: accounts/sessions.py
+    after: |
+      import secrets
+
+      from .models import Session, User
+
+      _sessions: dict[str, Session] = {}
+
+
+      def open_session(user: User) -> str:
+          token = secrets.token_urlsafe(32)
+          _sessions[token] = Session(user_id=user.id)
+          return token
+
+
+      def close_session(token: str) -> None:
+          _sessions.pop(token, None)
+
+
+      def current_session(token: str) -> Session | None:
+          return _sessions.get(token)
+  expected_output:
+    outcome: invalid
+- name: registers webhook handlers in a module-level dict by decorator
+  inputs:
+    file: webhooks/handlers.py
+    after: |
+      from collections.abc import Callable
+
+      from .events import WebhookEvent
+
+      Handler = Callable[[WebhookEvent], None]
+      _handlers: dict[str, Handler] = {}
+
+
+      def handles(kind: str) -> Callable[[Handler], Handler]:
+          def register(handler: Handler) -> Handler:
+              _handlers[kind] = handler
+              return handler
+
+          return register
+
+
+      @handles("charge.succeeded")
+      def record_charge(event: WebhookEvent) -> None:
+          print(event.payload["id"])
+
+
+      def dispatch(event: WebhookEvent) -> None:
+          _handlers[event.kind](event)
+  expected_output:
+    outcome: valid
+- name: rebinds the current user global in login and logout
+  inputs:
+    file: accounts/auth.py
+    after: |
+      from .models import User
+
+      _current_user: User | None = None
+
+
+      def login(user: User) -> None:
+          global _current_user
+          _current_user = user
+
+
+      def logout() -> None:
+          global _current_user
+          _current_user = None
+
+
+      def current_user() -> User | None:
+          return _current_user
+  expected_output:
+    outcome: invalid
+- name: advances an id counter global in one function
+  inputs:
+    file: orders/numbering.py
+    after: |
+      _last_number = 0
+
+
+      def next_order_number() -> str:
+          global _last_number
+          _last_number += 1
+          return f"ORD-{_last_number:06d}"
+  expected_output:
+    outcome: valid

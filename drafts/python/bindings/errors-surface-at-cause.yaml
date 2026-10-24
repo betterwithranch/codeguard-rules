@@ -1,0 +1,4 @@
+skill: python/skills/errors-surface-at-cause
+paths: ["**/*.py"]
+exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
+triggers: [error-handler, fallback-default, clamp-call]

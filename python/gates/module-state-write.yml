@@ -1,0 +1,131 @@
+id: module-state-write
+language: python
+rule:
+  any:
+  - kind: global_statement
+  - any:
+    - kind: assignment
+    - kind: augmented_assignment
+    all:
+    - has:
+        field: left
+        kind: subscript
+        has:
+          field: value
+          kind: identifier
+          pattern: $N
+    - inside:
+        kind: function_definition
+        stopBy: end
+    - inside:
+        kind: module
+        stopBy: end
+        has:
+          kind: expression_statement
+          has:
+            kind: assignment
+            has:
+              field: left
+              pattern: $N
+  - kind: call
+    all:
+    - has:
+        field: function
+        kind: attribute
+        all:
+        - has:
+            field: object
+            kind: identifier
+            pattern: $N
+        - has:
+            field: attribute
+            regex: ^(append|extend|insert|add|update|setdefault|pop|popitem|clear|remove|discard|appendleft)$
+    - inside:
+        kind: function_definition
+        stopBy: end
+    - inside:
+        kind: module
+        stopBy: end
+        has:
+          kind: expression_statement
+          has:
+            kind: assignment
+            has:
+              field: left
+              pattern: $N
+  - any:
+    - kind: assignment
+    - kind: augmented_assignment
+    all:
+    - has:
+        field: left
+        kind: subscript
+        has:
+          field: value
+          kind: attribute
+          regex: ^(self|cls)\.
+          has:
+            field: attribute
+            pattern: $N
+    - inside:
+        kind: class_definition
+        stopBy: end
+        has:
+          field: body
+          has:
+            kind: expression_statement
+            has:
+              kind: assignment
+              all:
+              - has:
+                  field: left
+                  pattern: $N
+              - has:
+                  field: right
+                  any:
+                  - kind: list
+                  - kind: dictionary
+                  - kind: set
+                  - kind: call
+                    has:
+                      field: function
+                      regex: ^(\w+\.)?(list|dict|set|defaultdict|OrderedDict|Counter|deque)$
+  - kind: call
+    all:
+    - has:
+        field: function
+        kind: attribute
+        all:
+        - has:
+            field: object
+            kind: attribute
+            regex: ^(self|cls)\.
+            has:
+              field: attribute
+              pattern: $N
+        - has:
+            field: attribute
+            regex: ^(append|extend|insert|add|update|setdefault|pop|popitem|clear|remove|discard|appendleft)$
+    - inside:
+        kind: class_definition
+        stopBy: end
+        has:
+          field: body
+          has:
+            kind: expression_statement
+            has:
+              kind: assignment
+              all:
+              - has:
+                  field: left
+                  pattern: $N
+              - has:
+                  field: right
+                  any:
+                  - kind: list
+                  - kind: dictionary
+                  - kind: set
+                  - kind: call
+                    has:
+                      field: function
+                      regex: ^(\w+\.)?(list|dict|set|defaultdict|OrderedDict|Counter|deque)$

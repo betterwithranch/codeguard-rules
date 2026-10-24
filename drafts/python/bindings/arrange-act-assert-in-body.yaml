@@ -1,0 +1,3 @@
+skill: python/skills/arrange-act-assert-in-body
+paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
+triggers: [test-with-parameters, test-using-self-state, fixture, returning-helper, test-fixture-request, test-support-type, helper-with-default]

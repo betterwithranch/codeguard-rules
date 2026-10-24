@@ -1,0 +1,150 @@
+id: module-collection
+snapshots:
+  ? |
+    ALL_KINDS = [ExampleKind.CARD, ExampleKind.BANK]
+  : labels:
+    - source: ALL_KINDS = [ExampleKind.CARD, ExampleKind.BANK]
+      style: primary
+      start: 0
+      end: 48
+    - source: |
+        ALL_KINDS = [ExampleKind.CARD, ExampleKind.BANK]
+      style: secondary
+      start: 0
+      end: 49
+    - source: ALL_KINDS = [ExampleKind.CARD, ExampleKind.BANK]
+      style: secondary
+      start: 0
+      end: 48
+    - source: '[ExampleKind.CARD, ExampleKind.BANK]'
+      style: secondary
+      start: 12
+      end: 48
+  ? |
+    HANDLERS = {"card": handle_card, "bank": handle_bank}
+  : labels:
+    - source: 'HANDLERS = {"card": handle_card, "bank": handle_bank}'
+      style: primary
+      start: 0
+      end: 53
+    - source: |
+        HANDLERS = {"card": handle_card, "bank": handle_bank}
+      style: secondary
+      start: 0
+      end: 54
+    - source: 'HANDLERS = {"card": handle_card, "bank": handle_bank}'
+      style: secondary
+      start: 0
+      end: 53
+    - source: '{"card": handle_card, "bank": handle_bank}'
+      style: secondary
+      start: 11
+      end: 53
+  ? |
+    REFUNDABLE = {"card"}
+  : labels:
+    - source: REFUNDABLE = {"card"}
+      style: primary
+      start: 0
+      end: 21
+    - source: |
+        REFUNDABLE = {"card"}
+      style: secondary
+      start: 0
+      end: 22
+    - source: REFUNDABLE = {"card"}
+      style: secondary
+      start: 0
+      end: 21
+    - source: '{"card"}'
+      style: secondary
+      start: 13
+      end: 21
+  ? |
+    SUPPORTED = "card", "bank"
+  : labels:
+    - source: SUPPORTED = "card", "bank"
+      style: primary
+      start: 0
+      end: 26
+    - source: |
+        SUPPORTED = "card", "bank"
+      style: secondary
+      start: 0
+      end: 27
+    - source: SUPPORTED = "card", "bank"
+      style: secondary
+      start: 0
+      end: 26
+    - source: '"card", "bank"'
+      style: secondary
+      start: 12
+      end: 26
+  ? |
+    SUPPORTED = ("card", "bank")
+  : labels:
+    - source: SUPPORTED = ("card", "bank")
+      style: primary
+      start: 0
+      end: 28
+    - source: |
+        SUPPORTED = ("card", "bank")
+      style: secondary
+      start: 0
+      end: 29
+    - source: SUPPORTED = ("card", "bank")
+      style: secondary
+      start: 0
+      end: 28
+    - source: ("card", "bank")
+      style: secondary
+      start: 12
+      end: 28
+  ? |
+    SUPPORTED = frozenset({"card", "bank"})
+  : labels:
+    - source: SUPPORTED = frozenset({"card", "bank"})
+      style: primary
+      start: 0
+      end: 39
+    - source: |
+        SUPPORTED = frozenset({"card", "bank"})
+      style: secondary
+      start: 0
+      end: 40
+    - source: SUPPORTED = frozenset({"card", "bank"})
+      style: secondary
+      start: 0
+      end: 39
+    - source: '{"card", "bank"}'
+      style: secondary
+      start: 22
+      end: 38
+    - source: '{"card", "bank"}'
+      style: secondary
+      start: 22
+      end: 38
+    - source: frozenset({"card", "bank"})
+      style: secondary
+      start: 12
+      end: 39
+  ? |
+    SUPPORTED: tuple[str, ...] = ("card", "bank")
+  : labels:
+    - source: 'SUPPORTED: tuple[str, ...] = ("card", "bank")'
+      style: primary
+      start: 0
+      end: 45
+    - source: |
+        SUPPORTED: tuple[str, ...] = ("card", "bank")
+      style: secondary
+      start: 0
+      end: 46
+    - source: 'SUPPORTED: tuple[str, ...] = ("card", "bank")'
+      style: secondary
+      start: 0
+      end: 45
+    - source: ("card", "bank")
+      style: secondary
+      start: 29
+      end: 45

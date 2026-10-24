@@ -2,28 +2,41 @@ id: partial-assert
 language: python
 rule:
   any:
-  - kind: assert_statement
-    has:
-      nthChild: 1
+    - inside: {stopBy: end, kind: assert_statement}
       any:
-      - kind: attribute
-      - kind: subscript
-      - kind: not_operator
-        has: {field: argument, any: [{kind: attribute}, {kind: subscript}]}
-      - kind: comparison_operator
-        has:
+        - kind: comparison_operator
+        - kind: call
+          has: {field: function, regex: "^len$"}
+        - kind: tuple
           any:
+            - pattern: ($A.$F, $A.$G)
+            - pattern: ($A.$F, $A.$G, $$$REST)
+            - pattern: ($A[$F], $A[$G])
+            - pattern: ($A[$F], $A[$G], $$$REST)
+        - kind: list
+          any:
+            - pattern: '[$A.$F, $A.$G]'
+            - pattern: '[$A.$F, $A.$G, $$$REST]'
+        - kind: identifier
+          regex: ^ANY$
+        - kind: attribute
+          regex: \.ANY$
+    - kind: assert_statement
+      has:
+        nthChild: 1
+        any:
+          - kind: identifier
           - kind: attribute
           - kind: subscript
-  - kind: call
-    all:
-    - has:
-        field: function
-        kind: attribute
-        has: {field: attribute, regex: "^assert[A-Z]\\w*$"}
-    - has:
-        field: arguments
-        has:
-          any:
-          - kind: attribute
-          - kind: subscript
+          - kind: not_operator
+            has:
+              any: [{kind: identifier}, {kind: attribute}, {kind: subscript}]
+          - kind: call
+            has:
+              field: function
+              kind: attribute
+              has:
+                field: object
+                any: [{kind: attribute}, {kind: subscript}]
+    - kind: call
+      has: {field: function, regex: ^self\.assert}

@@ -1,0 +1,356 @@
+cases:
+- name: passes on any error from posting a ledger entry
+  inputs:
+    file: ledger/posting.py
+    after: |
+      from ledger.models import Entry
+      from ledger.store import LedgerStore
+
+
+      class Poster:
+          def __init__(self, store: LedgerStore) -> None:
+              self._store = store
+
+          def post(self, entry: Entry) -> None:
+              try:
+                  self._store.append(entry)
+              except Exception:
+                  pass
+  expected_output:
+    outcome: invalid
+- name: translates a declined card into a payment error
+  inputs:
+    file: payments/charge.py
+    after: |
+      from payments.errors import PaymentDeclined
+      from payments.gateway import CardDeclined, Gateway
+      from payments.models import Order, Receipt
+
+
+      def charge(gateway: Gateway, order: Order) -> Receipt:
+          try:
+              return gateway.charge(order.card_token, order.total_cents)
+          except CardDeclined as err:
+              raise PaymentDeclined(order.id, reason=err.code) from err
+  expected_output:
+    outcome: valid
+- name: returns none when a card charge fails
+  inputs:
+    file: payments/charge.py
+    after: |
+      from payments.gateway import Gateway
+      from payments.models import Order, Receipt
+
+
+      def charge(gateway: Gateway, order: Order) -> Receipt | None:
+          try:
+              return gateway.charge(order.card_token, order.total_cents)
+          except Exception:
+              return None
+  expected_output:
+    outcome: invalid
+- name: skips invoice lines whose sku has no price
+  inputs:
+    file: invoices/totals.py
+    after: |
+      from invoices.models import Invoice
+
+
+      def total_cents(invoice: Invoice, prices: dict[str, int]) -> int:
+          total = 0
+          for line in invoice.lines:
+              try:
+                  total += prices[line.sku] * line.quantity
+              except KeyError:
+                  continue
+          return total
+  expected_output:
+    outcome: invalid
+- name: raises an unknown sku error for an invoice line with no price
+  inputs:
+    file: invoices/totals.py
+    after: |
+      from invoices.errors import UnknownSku
+      from invoices.models import Invoice
+
+
+      def total_cents(invoice: Invoice, prices: dict[str, int]) -> int:
+          total = 0
+          for line in invoice.lines:
+              try:
+                  total += prices[line.sku] * line.quantity
+              except KeyError:
+                  raise UnknownSku(line.sku) from None
+          return total
+  expected_output:
+    outcome: valid
+- name: logs a failed order save and reports success
+  inputs:
+    file: orders/service.py
+    after: |
+      import logging
+
+      from orders.models import Order
+      from orders.repository import OrderRepository
+
+      logger = logging.getLogger(__name__)
+
+
+      class OrderService:
+          def __init__(self, orders: OrderRepository) -> None:
+              self._orders = orders
+
+          def place(self, order: Order) -> bool:
+              try:
+                  self._orders.save(order)
+              except Exception:
+                  logger.exception("could not save order %s", order.id)
+              return True
+  expected_output:
+    outcome: invalid
+- name: retries a timed out rate fetch then raises
+  inputs:
+    file: shipping/rates.py
+    after: |
+      import httpx
+
+      from shipping.errors import RatesUnavailable
+
+
+      def fetch_rates(client: httpx.Client, zone: str) -> dict[str, int]:
+          for attempt in range(3):
+              try:
+                  response = client.get(f"/rates/{zone}", timeout=5)
+                  response.raise_for_status()
+                  return response.json()
+              except httpx.TimeoutException:
+                  continue
+          raise RatesUnavailable(zone)
+  expected_output:
+    outcome: valid
+- name: prints an import error and exits non-zero in a CLI main
+  inputs:
+    file: imports/cli.py
+    after: |
+      import sys
+
+      from imports.errors import ImportFailed
+      from imports.runner import run_import
+
+
+      def main(argv: list[str]) -> int:
+          try:
+              run_import(argv[1])
+          except ImportFailed as err:
+              print(f"import failed: {err}", file=sys.stderr)
+              return 1
+          return 0
+  expected_output:
+    outcome: valid
+- name: prints nothing and exits zero when a CLI import fails
+  inputs:
+    file: imports/cli.py
+    after: |
+      from imports.runner import run_import
+
+
+      def main(argv: list[str]) -> int:
+          try:
+              run_import(argv[1])
+          except Exception:
+              pass
+          return 0
+  expected_output:
+    outcome: invalid
+- name: suppresses a missing temporary export file on cleanup
+  inputs:
+    file: reports/export.py
+    after: |
+      import contextlib
+      import os
+      import tempfile
+
+      from reports.models import Report
+      from reports.storage import upload
+
+
+      def export(report: Report) -> str:
+          fd, path = tempfile.mkstemp(suffix=".csv")
+          try:
+              with os.fdopen(fd, "w") as handle:
+                  handle.write(report.to_csv())
+              return upload(path)
+          finally:
+              with contextlib.suppress(FileNotFoundError):
+                  os.remove(path)
+  expected_output:
+    outcome: valid
+- name: suppresses every error from posting a ledger entry
+  inputs:
+    file: ledger/posting.py
+    after: |
+      import contextlib
+
+      from ledger.models import Entry
+      from ledger.store import LedgerStore
+
+
+      def post(store: LedgerStore, entry: Entry) -> None:
+          with contextlib.suppress(Exception):
+              store.append(entry)
+  expected_output:
+    outcome: invalid
+- name: defaults the payments service url to an empty string
+  inputs:
+    file: payments/client.py
+    after: |
+      import httpx
+
+
+      class PaymentsClient:
+          def __init__(self, config: dict[str, str]) -> None:
+              self._http = httpx.Client(base_url=config.get("payments_url", ""))
+
+          def refund(self, payment_id: str, amount_cents: int) -> None:
+              self._http.post(f"/payments/{payment_id}/refunds", json={"amount_cents": amount_cents}).raise_for_status()
+  expected_output:
+    outcome: invalid
+- name: defaults an optional page size query parameter
+  inputs:
+    file: catalog/listing.py
+    after: |
+      from catalog.models import Product
+      from catalog.repository import ProductRepository
+
+
+      def list_products(products: ProductRepository, params: dict[str, str]) -> list[Product]:
+          page_size = int(params.get("page_size", 20))
+          return products.page(limit=page_size)
+  expected_output:
+    outcome: valid
+- name: defaults the stripe secret key to an empty string
+  inputs:
+    file: payments/settings.py
+    after: |
+      import os
+
+      STRIPE_SECRET_KEY = os.environ.get("STRIPE_SECRET_KEY", "")
+      LOG_LEVEL = "INFO"
+  expected_output:
+    outcome: invalid
+- name: defaults the log level setting to info
+  inputs:
+    file: payments/settings.py
+    after: |
+      import os
+
+      STRIPE_SECRET_KEY = os.environ["STRIPE_SECRET_KEY"]
+      LOG_LEVEL = os.environ.get("LOG_LEVEL", "INFO")
+  expected_output:
+    outcome: valid
+- name: falls back to a rate of one for the order's currency
+  inputs:
+    file: billing/conversion.py
+    after: |
+      from billing.models import Order
+
+      RATES_TO_EUR = {"EUR": 1.0, "USD": 0.92, "GBP": 1.17}
+
+
+      def total_in_eur(order: Order) -> float:
+          rate = RATES_TO_EUR.get(order.currency) or 1.0
+          return order.total / rate
+  expected_output:
+    outcome: invalid
+- name: greets a customer without a nickname as guest
+  inputs:
+    file: accounts/greeting.py
+    after: |
+      from accounts.models import Customer
+
+
+      def greeting(customer: Customer) -> str:
+          name = customer.nickname or "Guest"
+          return f"Welcome back, {name}"
+  expected_output:
+    outcome: valid
+- name: clamps an account balance at zero after a withdrawal
+  inputs:
+    file: banking/accounts.py
+    after: |
+      from banking.models import Account
+
+
+      def withdraw(account: Account, amount_cents: int) -> None:
+          account.balance_cents = max(0, account.balance_cents - amount_cents)
+          account.save()
+  expected_output:
+    outcome: invalid
+- name: refuses a withdrawal larger than the balance
+  inputs:
+    file: banking/accounts.py
+    after: |
+      from banking.errors import InsufficientFunds
+      from banking.models import Account
+
+
+      def withdraw(account: Account, amount_cents: int) -> None:
+          if amount_cents > account.balance_cents:
+              raise InsufficientFunds(account.id, amount_cents)
+          account.balance_cents = account.balance_cents - amount_cents
+          account.save()
+  expected_output:
+    outcome: skipped
+- name: clamps a requested page number from the query string
+  inputs:
+    file: catalog/pages.py
+    after: |
+      def page_offset(requested_page: int, page_size: int) -> int:
+          page = max(1, requested_page)
+          return (page - 1) * page_size
+  expected_output:
+    outcome: valid
+- name: clamps a product's stock at zero after a sale
+  inputs:
+    file: inventory/sales.py
+    after: |
+      from inventory.models import Product
+
+
+      def record_sale(product: Product, quantity: int) -> None:
+          product.stock = max(product.stock - quantity, 0)
+          product.save()
+  expected_output:
+    outcome: invalid
+- name: caps a coupon at the cart subtotal
+  inputs:
+    file: checkout/coupons.py
+    after: |
+      from checkout.models import Cart, Coupon
+
+
+      def discount_cents(cart: Cart, coupon: Coupon) -> int:
+          return min(coupon.amount_cents, cart.subtotal_cents)
+  expected_output:
+    outcome: valid
+- name: renames a local in a withdrawal
+  inputs:
+    file: banking/accounts.py
+    before: |
+      from banking.models import Account
+
+
+      def withdraw(account: Account, amount_cents: int) -> None:
+          new_balance = account.balance_cents - amount_cents
+          account.balance_cents = new_balance
+          account.save()
+    after: |
+      from banking.models import Account
+
+
+      def withdraw(account: Account, amount_cents: int) -> None:
+          remaining = account.balance_cents - amount_cents
+          account.balance_cents = remaining
+          account.save()
+  expected_output:
+    outcome: skipped

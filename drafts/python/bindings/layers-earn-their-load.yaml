@@ -1,0 +1,4 @@
+skill: python/skills/layers-earn-their-load
+paths: ["**/*.py"]
+exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
+triggers: [interface-class, comprehension-wrapper, unpacked-argument-group, small-class-body, forwarding-method]

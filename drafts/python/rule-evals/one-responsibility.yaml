@@ -1,0 +1,1127 @@
+cases:
+- name: fetches, decides, and emails a refund
+  inputs:
+    file: orders/refunds.py
+    before: |
+      from dataclasses import dataclass
+
+      REFUND_WINDOW_DAYS = 30
+
+
+      @dataclass(frozen=True)
+      class Order:
+          order_id: str
+          is_delivered: bool
+          days_since_delivery: int
+    after: |
+      from dataclasses import dataclass
+      from typing import Protocol
+
+      REFUND_WINDOW_DAYS = 30
+
+
+      @dataclass(frozen=True)
+      class Order:
+          order_id: str
+          is_delivered: bool
+          days_since_delivery: int
+
+
+      class OrderRepository(Protocol):
+          def get(self, order_id: str) -> Order: ...
+
+
+      class Mailer(Protocol):
+          def send(self, order_id: str, message: str) -> None: ...
+
+
+      def process_refund_request(orders: OrderRepository, mailer: Mailer, order_id: str) -> bool:
+          order = orders.get(order_id)
+          approved = order.is_delivered and order.days_since_delivery <= REFUND_WINDOW_DAYS
+          mailer.send(order_id, "Refund approved" if approved else "Refund declined")
+          return approved
+  expected_output:
+    outcome: invalid
+- name: coordinates fetching, deciding, and emailing a refund
+  inputs:
+    file: orders/refunds.py
+    before: |
+      from dataclasses import dataclass
+
+      REFUND_WINDOW_DAYS = 30
+
+
+      @dataclass(frozen=True)
+      class Order:
+          order_id: str
+          is_delivered: bool
+          days_since_delivery: int
+
+
+      def is_refundable(order: Order) -> bool:
+          return order.is_delivered and order.days_since_delivery <= REFUND_WINDOW_DAYS
+
+
+      def refund_notice(approved: bool) -> str:
+          return "Refund approved" if approved else "Refund declined"
+    after: |
+      from dataclasses import dataclass
+      from typing import Protocol
+
+      REFUND_WINDOW_DAYS = 30
+
+
+      @dataclass(frozen=True)
+      class Order:
+          order_id: str
+          is_delivered: bool
+          days_since_delivery: int
+
+
+      class OrderRepository(Protocol):
+          def get(self, order_id: str) -> Order: ...
+
+
+      class Mailer(Protocol):
+          def send(self, order_id: str, message: str) -> None: ...
+
+
+      def is_refundable(order: Order) -> bool:
+          return order.is_delivered and order.days_since_delivery <= REFUND_WINDOW_DAYS
+
+
+      def refund_notice(approved: bool) -> str:
+          return "Refund approved" if approved else "Refund declined"
+
+
+      def process_refund_request(orders: OrderRepository, mailer: Mailer, order_id: str) -> bool:
+          order = orders.get(order_id)
+          approved = is_refundable(order)
+          mailer.send(order_id, refund_notice(approved))
+          return approved
+  expected_output:
+    outcome: valid
+- name: splits a CSV line and queries the customer table in one function
+  inputs:
+    file: imports/customers.py
+    after: |
+      import sqlite3
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class ImportedOrder:
+          number: str
+          customer_name: str
+          total_cents: int
+
+
+      def import_line(connection: sqlite3.Connection, line: str) -> ImportedOrder:
+          number, customer_id, total = line.strip().split(",")
+          row = connection.execute(
+              "SELECT name FROM customers WHERE id = ?", (int(customer_id),)
+          ).fetchone()
+          return ImportedOrder(number=number, customer_name=row[0], total_cents=int(total))
+  expected_output:
+    outcome: invalid
+- name: splits a CSV line into an order row
+  inputs:
+    file: imports/customers.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class OrderRow:
+          number: str
+          customer_id: int
+          total_cents: int
+
+
+      def parse_order_line(line: str) -> OrderRow:
+          number, customer_id, total = line.strip().split(",")
+          return OrderRow(number=number, customer_id=int(customer_id), total_cents=int(total))
+  expected_output:
+    outcome: valid
+- name: queries and totals orders inline in a Django view
+  inputs:
+    file: shop/views.py
+    after: |
+      from django.http import HttpRequest, HttpResponse
+      from django.shortcuts import render
+
+      from shop.models import Order
+
+
+      def monthly_sales(request: HttpRequest, year: int, month: int) -> HttpResponse:
+          orders = Order.objects.filter(
+              placed_at__year=year, placed_at__month=month, status="paid"
+          ).select_related("customer")
+          total_cents = 0
+          for order in orders:
+              total_cents += order.subtotal_cents - order.discount_cents
+          return render(request, "shop/sales.html", {"orders": orders, "total_cents": total_cents})
+  expected_output:
+    outcome: invalid
+- name: renders sales from a query function in a Django view
+  inputs:
+    file: shop/views.py
+    unchanged:
+      shop/sales.py: |
+        from dataclasses import dataclass
+
+        from shop.models import Order
+
+
+        @dataclass(frozen=True)
+        class MonthlySales:
+            orders: list[Order]
+            total_cents: int
+
+
+        def monthly_sales_for(year: int, month: int) -> MonthlySales:
+            orders = list(Order.objects.filter(placed_at__year=year, placed_at__month=month, status="paid"))
+            return MonthlySales(orders=orders, total_cents=sum(order.net_cents for order in orders))
+    after: |
+      from django.http import HttpRequest, HttpResponse
+      from django.shortcuts import render
+
+      from shop.sales import monthly_sales_for
+
+
+      def monthly_sales(request: HttpRequest, year: int, month: int) -> HttpResponse:
+          sales = monthly_sales_for(year, month)
+          return render(request, "shop/sales.html", {"sales": sales})
+  expected_output:
+    outcome: valid
+- name: totals an invoice and formats and sends the reminder text in one method
+  inputs:
+    file: billing/reminders.py
+    after: |
+      from dataclasses import dataclass
+      from typing import Protocol
+
+
+      @dataclass(frozen=True)
+      class Line:
+          quantity: int
+          unit_price_cents: int
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          number: str
+          customer_email: str
+          lines: list[Line]
+
+
+      class Mailer(Protocol):
+          def send(self, to: str, subject: str, body: str) -> None: ...
+
+
+      class ReminderSender:
+          def __init__(self, mailer: Mailer) -> None:
+              self.mailer = mailer
+
+          def remind(self, invoice: Invoice) -> None:
+              total_cents = sum(line.quantity * line.unit_price_cents for line in invoice.lines)
+              body = f"Invoice {invoice.number} for {total_cents / 100:.2f} EUR is overdue."
+              self.mailer.send(invoice.customer_email, "Payment reminder", body)
+  expected_output:
+    outcome: invalid
+- name: totals invoice lines and rounds the tax
+  inputs:
+    file: billing/totals.py
+    after: |
+      from dataclasses import dataclass
+
+      TAX_RATE = 0.2
+
+
+      class EmptyInvoice(ValueError):
+          pass
+
+
+      @dataclass(frozen=True)
+      class Line:
+          quantity: int
+          unit_price_cents: int
+
+
+      def total_with_tax_cents(lines: list[Line]) -> int:
+          if not lines:
+              raise EmptyInvoice()
+          subtotal = sum(line.quantity * line.unit_price_cents for line in lines)
+          return subtotal + round(subtotal * TAX_RATE)
+  expected_output:
+    outcome: valid
+- name: fetches and decides in one return
+  inputs:
+    file: orders/eligibility.py
+    after: |
+      from dataclasses import dataclass
+      from typing import Protocol
+
+      REFUND_WINDOW_DAYS = 30
+
+
+      @dataclass(frozen=True)
+      class Order:
+          is_delivered: bool
+          days_since_delivery: int
+
+
+      class OrderRepository(Protocol):
+          def get(self, order_id: str) -> Order: ...
+
+
+      def can_refund(orders: OrderRepository, order_id: str) -> bool:
+          return orders.get(order_id).is_delivered and orders.get(order_id).days_since_delivery <= REFUND_WINDOW_DAYS
+  expected_output:
+    outcome: invalid
+- name: downloads rates, parses them, and writes the cache in one coroutine
+  inputs:
+    file: rates/refresh.py
+    after: |
+      import json
+      from pathlib import Path
+
+      import httpx
+
+      RATES_URL = "https://rates.example.com/v1/rates"
+
+
+      async def refresh_rates(client: httpx.AsyncClient, cache_path: Path) -> dict[str, float]:
+          response = await client.get(RATES_URL)
+          response.raise_for_status()
+          rates = {item["currency"]: float(item["rate"]) for item in response.json()["rates"]}
+          cache_path.write_text(json.dumps(rates, sort_keys=True))
+          return rates
+  expected_output:
+    outcome: invalid
+- name: adds a protocol method stub
+  inputs:
+    file: orders/ports.py
+    before: |
+      from typing import Protocol
+
+
+      class OrderRepository(Protocol):
+          def get(self, order_id: str) -> object: ...
+    after: |
+      from typing import Protocol
+
+
+      class OrderRepository(Protocol):
+          def get(self, order_id: str) -> object: ...
+
+          def delete(self, order_id: str) -> None: ...
+  expected_output:
+    outcome: valid
+- name: adds a carrier to the table
+  inputs:
+    file: shipments/carriers.py
+    before: |
+      CARRIERS_BY_COUNTRY = {
+          "DE": "DHL",
+          "FR": "Colissimo",
+      }
+
+
+      def carrier_for(country: str) -> str:
+          return CARRIERS_BY_COUNTRY.get(country, "FedEx")
+    after: |
+      CARRIERS_BY_COUNTRY = {
+          "DE": "DHL",
+          "FR": "Colissimo",
+          "US": "UPS",
+      }
+
+
+      def carrier_for(country: str) -> str:
+          return CARRIERS_BY_COUNTRY.get(country, "FedEx")
+  expected_output:
+    outcome: skipped
+- name: adds marketing campaigns to the order service
+  inputs:
+    file: orders/order_service.py
+    after: |
+      from marketing import Campaign, Mailer
+
+      from .order import Order
+      from .repository import OrderRepository
+
+
+      class OrderService:
+          def __init__(self, orders: OrderRepository, mailer: Mailer) -> None:
+              self._orders = orders
+              self._mailer = mailer
+
+          def place(self, order: Order) -> Order:
+              return self._orders.save(order)
+
+          def send_campaign(self, campaign: Campaign) -> None:
+              for subscriber in campaign.subscribers:
+                  self._mailer.send(subscriber.email, campaign.subject, campaign.body)
+  expected_output:
+    outcome: invalid
+- name: adds warehouse restocking to the order service
+  inputs:
+    file: orders/order_service.py
+    before: |
+      from .order import Order, OrderStatus
+      from .repository import OrderRepository
+
+
+      class OrderService:
+          def __init__(self, orders: OrderRepository) -> None:
+              self._orders = orders
+
+          def place(self, order: Order) -> Order:
+              return self._orders.save(order)
+
+          def cancel(self, order: Order) -> Order:
+              return self._orders.save(order.with_status(OrderStatus.CANCELLED))
+    after: |
+      from warehouse import StockLevels, SupplierClient
+
+      from .order import Order, OrderStatus
+      from .repository import OrderRepository
+
+
+      class OrderService:
+          def __init__(
+              self, orders: OrderRepository, supplier: SupplierClient
+          ) -> None:
+              self._orders = orders
+              self._supplier = supplier
+
+          def place(self, order: Order) -> Order:
+              return self._orders.save(order)
+
+          def cancel(self, order: Order) -> Order:
+              return self._orders.save(order.with_status(OrderStatus.CANCELLED))
+
+          def restock_warehouse(self, stock: StockLevels) -> None:
+              for sku in stock.below_reorder_point():
+                  self._supplier.purchase(sku, stock.reorder_quantity(sku))
+  expected_output:
+    outcome: invalid
+- name: groups arithmetic and formatting on money
+  inputs:
+    file: billing/money.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Money:
+          cents: int
+          currency: str
+
+          def add(self, other: "Money") -> "Money":
+              return Money(self.cents + other.cents, self.currency)
+
+          def is_zero(self) -> bool:
+              return self.cents == 0
+
+          def formatted(self) -> str:
+              return f"{self.cents / 100:.2f} {self.currency}"
+  expected_output:
+    outcome: valid
+- name: adds a password reset action to the invoice viewset
+  inputs:
+    file: billing/invoice_views.py
+    after: |
+      from django.contrib.auth import get_user_model
+      from rest_framework import viewsets
+      from rest_framework.decorators import action
+      from rest_framework.response import Response
+
+      from .models import Invoice
+      from .serializers import InvoiceSerializer
+
+
+      class InvoiceViewSet(viewsets.ModelViewSet):
+          queryset = Invoice.objects.all()
+          serializer_class = InvoiceSerializer
+
+          @action(detail=True, methods=["post"])
+          def mark_paid(self, request, pk=None):
+              invoice = self.get_object()
+              invoice.mark_paid()
+              return Response(InvoiceSerializer(invoice).data)
+
+          @action(detail=False, methods=["post"])
+          def reset_user_password(self, request):
+              user = get_user_model().objects.get(email=request.data["email"])
+              user.set_password(request.data["new_password"])
+              user.save()
+              return Response(status=204)
+  expected_output:
+    outcome: invalid
+- name: adds invoice actions to the invoice viewset
+  inputs:
+    file: billing/invoice_views.py
+    after: |
+      from rest_framework import viewsets
+      from rest_framework.decorators import action
+      from rest_framework.response import Response
+
+      from .models import Invoice
+      from .serializers import InvoiceSerializer
+
+
+      class InvoiceViewSet(viewsets.ModelViewSet):
+          queryset = Invoice.objects.all()
+          serializer_class = InvoiceSerializer
+
+          @action(detail=True, methods=["post"])
+          def mark_paid(self, request, pk=None):
+              invoice = self.get_object()
+              invoice.mark_paid()
+              return Response(InvoiceSerializer(invoice).data)
+
+          @action(detail=True, methods=["post"])
+          def void(self, request, pk=None):
+              invoice = self.get_object()
+              invoice.void()
+              return Response(InvoiceSerializer(invoice).data)
+  expected_output:
+    outcome: valid
+- name: schedules reports and converts currency in one small class
+  inputs:
+    file: reports/report_scheduler.py
+    after: |
+      from datetime import datetime, timedelta
+
+      from fx import ExchangeRates
+
+
+      class ReportScheduler:
+          def __init__(self, interval: timedelta, rates: ExchangeRates) -> None:
+              self._interval = interval
+              self._rates = rates
+
+          def next_run(self, last_run: datetime) -> datetime:
+              return last_run + self._interval
+
+          def to_euro_cents(self, cents: int, currency: str) -> int:
+              return round(cents * self._rates.rate(currency, "EUR"))
+  expected_output:
+    outcome: invalid
+- name: records logins in the order repository
+  inputs:
+    file: orders/order_repository.py
+    after: |
+      from datetime import datetime
+
+      from sqlalchemy import select
+      from sqlalchemy.orm import Session
+
+      from accounts.models import LoginEvent
+
+      from .models import Order
+
+
+      class OrderRepository:
+          def __init__(self, session: Session) -> None:
+              self._session = session
+
+          def find(self, order_id: int) -> Order | None:
+              return self._session.get(Order, order_id)
+
+          def open_orders(self, customer_id: int) -> list[Order]:
+              query = select(Order).where(
+                  Order.customer_id == customer_id, Order.status == "open"
+              )
+              return list(self._session.scalars(query))
+
+          def record_login(self, user_id: int, at: datetime) -> None:
+              self._session.add(LoginEvent(user_id=user_id, logged_in_at=at))
+  expected_output:
+    outcome: invalid
+- name: queries orders several ways in the order repository
+  inputs:
+    file: orders/order_repository.py
+    after: |
+      from sqlalchemy import func, select
+      from sqlalchemy.orm import Session
+
+      from .models import Order
+
+
+      class OrderRepository:
+          def __init__(self, session: Session) -> None:
+              self._session = session
+
+          def find(self, order_id: int) -> Order | None:
+              return self._session.get(Order, order_id)
+
+          def open_orders(self, customer_id: int) -> list[Order]:
+              query = select(Order).where(
+                  Order.customer_id == customer_id, Order.status == "open"
+              )
+              return list(self._session.scalars(query))
+
+          def count_for_customer(self, customer_id: int) -> int:
+              query = select(func.count()).where(Order.customer_id == customer_id)
+              return self._session.scalar(query) or 0
+
+          def add(self, order: Order) -> None:
+              self._session.add(order)
+  expected_output:
+    outcome: valid
+- name: runs checkout steps through several collaborators
+  inputs:
+    file: checkout/checkout_service.py
+    after: |
+      from inventory import StockReservations
+      from notifications import ReceiptMailer
+      from payments import PaymentGateway
+
+      from .cart import Cart, Receipt
+
+
+      class CheckoutService:
+          def __init__(
+              self,
+              stock: StockReservations,
+              payments: PaymentGateway,
+              mailer: ReceiptMailer,
+          ) -> None:
+              self._stock = stock
+              self._payments = payments
+              self._mailer = mailer
+
+          def checkout(self, cart: Cart) -> Receipt:
+              self._reserve(cart)
+              receipt = self._charge(cart)
+              self._mailer.send(cart.customer_email, receipt)
+              return receipt
+
+          def _reserve(self, cart: Cart) -> None:
+              for line in cart.lines:
+                  self._stock.reserve(line.sku, line.quantity)
+
+          def _charge(self, cart: Cart) -> Receipt:
+              charge_id = self._payments.charge(cart.payment_token, cart.total_cents)
+              return Receipt(charge_id=charge_id, total_cents=cart.total_cents)
+  expected_output:
+    outcome: valid
+- name: adds display and pricing methods to a product model
+  inputs:
+    file: catalog/models.py
+    after: |
+      from decimal import Decimal
+
+      from django.db import models
+
+
+      class Product(models.Model):
+          name = models.CharField(max_length=200)
+          price = models.DecimalField(max_digits=10, decimal_places=2)
+          discount_percent = models.PositiveIntegerField(default=0)
+
+          def __str__(self) -> str:
+              return self.name
+
+          def sale_price(self) -> Decimal:
+              return self.price * (100 - self.discount_percent) / 100
+
+          def is_discounted(self) -> bool:
+              return self.discount_percent > 0
+  expected_output:
+    outcome: valid
+- name: adds a shipping label printer to a product model
+  inputs:
+    file: catalog/models.py
+    after: |
+      from decimal import Decimal
+
+      from django.db import models
+
+      from shipping.labels import LabelPrinter, ShipmentAddress
+
+
+      class Product(models.Model):
+          name = models.CharField(max_length=200)
+          price = models.DecimalField(max_digits=10, decimal_places=2)
+          discount_percent = models.PositiveIntegerField(default=0)
+
+          def sale_price(self) -> Decimal:
+              return self.price * (100 - self.discount_percent) / 100
+
+          def is_discounted(self) -> bool:
+              return self.discount_percent > 0
+
+          @staticmethod
+          def print_shipping_label(printer: LabelPrinter, address: ShipmentAddress) -> None:
+              printer.print_label(address.street, address.city, address.postcode)
+  expected_output:
+    outcome: invalid
+- name: widens the order number padding
+  inputs:
+    file: orders/order_number.py
+    before: |
+      def format_order_number(sequence: int) -> str:
+          return f"ORD-{sequence:06d}"
+    after: |
+      def format_order_number(sequence: int) -> str:
+          return f"ORD-{sequence:08d}"
+  expected_output:
+    outcome: skipped
+- name: changes the only method of a formatter
+  inputs:
+    file: orders/order_formatter.py
+    before: |
+      class OrderFormatter:
+          prefix = "ORD"
+
+          def format(self, sequence: int) -> str:
+              return f"{self.prefix}-{sequence:06d}"
+    after: |
+      class OrderFormatter:
+          prefix = "ORD"
+
+          def format(self, sequence: int) -> str:
+              return f"{self.prefix}-{sequence:08d}"
+  expected_output:
+    outcome: skipped
+- name: skips voided lines and branches on refunds before appending
+  inputs:
+    file: invoices/lines.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class InvoiceLine:
+          amount: int
+          is_refund: bool
+          is_voided: bool
+
+
+      def line_amounts(lines: list[InvoiceLine]) -> list[int]:
+          return [line.amount for line in lines]
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class InvoiceLine:
+          amount: int
+          is_refund: bool
+          is_voided: bool
+
+
+      def line_amounts(lines: list[InvoiceLine]) -> list[int]:
+          amounts = []
+          for line in lines:
+              if line.is_voided:
+                  continue
+              if line.is_refund:
+                  amounts.append(-line.amount)
+              else:
+                  amounts.append(line.amount)
+          return amounts
+  expected_output:
+    outcome: invalid
+- name: skips voided lines before appending each amount
+  inputs:
+    file: invoices/lines.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class InvoiceLine:
+          amount: int
+          is_voided: bool
+
+
+      def line_amounts(lines: list[InvoiceLine]) -> list[int]:
+          amounts = []
+          for line in lines:
+              if line.is_voided:
+                  continue
+              amounts.append(line.amount)
+          return amounts
+  expected_output:
+    outcome: valid
+- name: picks a label in branches and appends it after the if
+  inputs:
+    file: shipments/labels.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          tracking_number: str
+          is_international: bool
+          is_express: bool
+
+
+      def shipping_labels(shipments: list[Shipment]) -> list[str]:
+          labels = []
+          for shipment in shipments:
+              if shipment.is_international:
+                  prefix = "INTL"
+              elif shipment.is_express:
+                  prefix = "EXPRESS"
+              else:
+                  prefix = "STANDARD"
+              labels.append(f"{prefix} {shipment.tracking_number}")
+          return labels
+  expected_output:
+    outcome: invalid
+- name: appends a running balance after each payment
+  inputs:
+    file: invoices/balance.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Payment:
+          amount: int
+          is_refund: bool
+
+
+      def running_balances(payments: list[Payment]) -> list[int]:
+          balances = []
+          balance = 0
+          for payment in payments:
+              if payment.is_refund:
+                  balance -= payment.amount
+              else:
+                  balance += payment.amount
+              balances.append(balance)
+          return balances
+  expected_output:
+    outcome: valid
+- name: appends a signed amount chosen by a conditional expression
+  inputs:
+    file: invoices/lines.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class InvoiceLine:
+          amount: int
+          is_refund: bool
+
+
+      def signed_amounts(lines: list[InvoiceLine]) -> list[int]:
+          amounts = []
+          for line in lines:
+              amounts.append(-line.amount if line.is_refund else line.amount)
+          return amounts
+  expected_output:
+    outcome: invalid
+- name: keeps the first order per customer with a seen set
+  inputs:
+    file: orders/firsts.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Order:
+          number: str
+          customer_id: str
+          is_test: bool
+
+
+      def first_orders(orders: list[Order]) -> list[Order]:
+          seen: set[str] = set()
+          firsts = []
+          for order in orders:
+              if order.is_test or order.customer_id in seen:
+                  continue
+              seen.add(order.customer_id)
+              firsts.append(order)
+          return firsts
+  expected_output:
+    outcome: valid
+- name: matches each event kind to a code and appends it
+  inputs:
+    file: tracking/codes.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class TrackingEvent:
+          kind: str
+          location: str
+
+
+      def event_codes(events: list[TrackingEvent]) -> list[str]:
+          codes = []
+          for event in events:
+              match event.kind:
+                  case "picked_up":
+                      code = f"PU-{event.location}"
+                  case "delivered":
+                      code = f"DL-{event.location}"
+                  case _:
+                      code = f"EV-{event.location}"
+              codes.append(code)
+          return codes
+  expected_output:
+    outcome: invalid
+- name: splits orders into paid and unpaid lists
+  inputs:
+    file: orders/partition.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Order:
+          number: str
+          paid: bool
+
+
+      def split_by_payment(orders: list[Order]) -> tuple[list[Order], list[Order]]:
+          paid = []
+          unpaid = []
+          for order in orders:
+              if order.paid:
+                  paid.append(order)
+              else:
+                  unpaid.append(order)
+          return paid, unpaid
+  expected_output:
+    outcome: valid
+- name: chooses a priority per message in an async loop
+  inputs:
+    file: inbox/priorities.py
+    after: |
+      from collections.abc import AsyncIterator
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Message:
+          sender: str
+          subject: str
+
+
+      async def priorities(messages: AsyncIterator[Message], vip_senders: frozenset[str]) -> list[int]:
+          result = []
+          async for message in messages:
+              if message.sender in vip_senders:
+                  priority = 1
+              elif "urgent" in message.subject.lower():
+                  priority = 2
+              else:
+                  priority = 3
+              result.append(priority)
+          return result
+  expected_output:
+    outcome: invalid
+- name: emails overdue invoices and records which were reminded
+  inputs:
+    file: billing/reminders.py
+    after: |
+      from dataclasses import dataclass
+      from typing import Protocol
+
+      from billing.reminder_text import reminder_text
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          number: str
+          customer_email: str
+          overdue: bool
+
+
+      class Mailer(Protocol):
+          def send(self, to: str, text: str) -> None: ...
+
+
+      def send_reminders(mailer: Mailer, invoices: list[Invoice]) -> list[str]:
+          reminded = []
+          for invoice in invoices:
+              if invoice.overdue:
+                  mailer.send(invoice.customer_email, reminder_text(invoice.number))
+                  reminded.append(invoice.number)
+          return reminded
+    unchanged:
+      billing/reminder_text.py: |
+        def reminder_text(invoice_number: str) -> str:
+            return f"Invoice {invoice_number} is overdue."
+  expected_output:
+    outcome: valid
+- name: takes orders until the weight limit is reached
+  inputs:
+    file: shipments/loading.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Parcel:
+          number: str
+          weight_grams: int
+
+
+      def load_truck(parcels: list[Parcel], limit_grams: int) -> list[Parcel]:
+          loaded = []
+          weight = 0
+          for parcel in parcels:
+              if weight + parcel.weight_grams > limit_grams:
+                  break
+              weight += parcel.weight_grams
+              loaded.append(parcel)
+          return loaded
+  expected_output:
+    outcome: valid
+- name: adds a list per branch with augmented assignment
+  inputs:
+    file: catalog/tags.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Product:
+          sku: str
+          price_cents: int
+
+
+      def price_tags(products: list[Product]) -> list[str]:
+          tags: list[str] = []
+          for product in products:
+              if product.price_cents >= 10000:
+                  tag = "premium"
+              else:
+                  tag = "standard"
+              tags += [f"{product.sku}:{tag}"]
+          return tags
+  expected_output:
+    outcome: invalid
+- name: appends to the same list in every branch
+  inputs:
+    file: shipments/labels.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          tracking_number: str
+          is_international: bool
+
+
+      def shipping_labels(shipments: list[Shipment]) -> list[str]:
+          labels = []
+          for shipment in shipments:
+              if shipment.is_international:
+                  labels.append(f"INTL {shipment.tracking_number}")
+              else:
+                  labels.append(shipment.tracking_number)
+          return labels
+  expected_output:
+    outcome: invalid
+- name: rewords the tracking label
+  inputs:
+    file: shipments/labels.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          tracking_number: str
+
+
+      def label(shipment: Shipment) -> str:
+          return f"Tracking {shipment.tracking_number}"
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          tracking_number: str
+
+
+      def label(shipment: Shipment) -> str:
+          return f"Tracking number {shipment.tracking_number}"
+  expected_output:
+    outcome: skipped
+- name: coordinates a customer import through three step functions
+  inputs:
+    file: customers/import_command.py
+    after: |
+      from customers.import_steps import read_rows, save_customers, to_customer
+
+
+      def import_customers(path: str, session) -> int:
+          rows = read_rows(path)
+          customers = [to_customer(row) for row in rows]
+          return save_customers(session, customers)
+    unchanged:
+      customers/import_steps.py: |
+        import csv
+
+        from customers.models import Customer
+
+
+        def read_rows(path: str) -> list[dict[str, str]]:
+            with open(path, newline="") as handle:
+                return list(csv.DictReader(handle))
+
+
+        def to_customer(row: dict[str, str]) -> Customer:
+            return Customer(email=row["email"].strip().lower(), name=row["name"].strip())
+
+
+        def save_customers(session, customers: list[Customer]) -> int:
+            session.add_all(customers)
+            session.commit()
+            return len(customers)
+  expected_output:
+    outcome: valid
+- name: reads and filters the CSV inline beside calls to the other import steps
+  inputs:
+    file: customers/import_command.py
+    after: |
+      import csv
+
+      from customers.import_steps import save_customers, to_customer
+
+
+      def import_customers(path: str, session) -> int:
+          with open(path, newline="") as handle:
+              rows = [row for row in csv.DictReader(handle) if row["email"].strip()]
+          customers = [to_customer(row) for row in rows]
+          return save_customers(session, customers)
+    unchanged:
+      customers/import_steps.py: |
+        import csv
+
+        from customers.models import Customer
+
+
+        def read_rows(path: str) -> list[dict[str, str]]:
+            with open(path, newline="") as handle:
+                return list(csv.DictReader(handle))
+
+
+        def to_customer(row: dict[str, str]) -> Customer:
+            return Customer(email=row["email"].strip().lower(), name=row["name"].strip())
+
+
+        def save_customers(session, customers: list[Customer]) -> int:
+            session.add_all(customers)
+            session.commit()
+            return len(customers)
+  expected_output:
+    outcome: invalid

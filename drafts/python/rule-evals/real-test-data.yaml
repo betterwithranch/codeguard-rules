@@ -1,0 +1,1196 @@
+cases:
+- name: assembles the shipment service graph by hand in a helper
+  inputs:
+    file: tests/test_shipment_service.py
+    unchanged:
+      shipping/service.py: |
+        from shipping.carriers import Carrier, UpsCarrier
+        from shipping.labels import LabelPrinter
+        from shipping.rates import RateTable
+
+
+        class ShipmentService:
+            def __init__(self, rates: RateTable, printer: LabelPrinter, carrier: Carrier) -> None:
+                self._rates = rates
+                self._printer = printer
+                self._carrier = carrier
+
+
+        def build_shipment_service(carrier: Carrier | None = None) -> ShipmentService:
+            carrier = carrier or UpsCarrier()
+            return ShipmentService(RateTable.default(), LabelPrinter(carrier), carrier)
+    after: |
+      from shipping.labels import LabelPrinter
+      from shipping.parcels import Parcel
+      from shipping.rates import RateTable
+      from shipping.service import ShipmentService
+      from tests.fakes import FakeCarrier
+
+
+      def make_shipment_service(carrier):
+          return ShipmentService(RateTable.default(), LabelPrinter(carrier), carrier)
+
+
+      def test_ship_prints_label():
+          service = make_shipment_service(FakeCarrier(rate=12))
+          weight_kg = 2
+
+          label = service.ship(Parcel(reference="P-1", weight_kg=weight_kg))
+
+          assert label == "P-1/2kg"
+  expected_output:
+    outcome: invalid
+- name: builds the shipment service through its factory with a fake carrier
+  inputs:
+    file: tests/test_shipment_service.py
+    unchanged:
+      shipping/service.py: |
+        from shipping.carriers import Carrier, UpsCarrier
+        from shipping.labels import LabelPrinter
+        from shipping.rates import RateTable
+
+
+        class ShipmentService:
+            def __init__(self, rates: RateTable, printer: LabelPrinter, carrier: Carrier) -> None:
+                self._rates = rates
+                self._printer = printer
+                self._carrier = carrier
+
+
+        def build_shipment_service(carrier: Carrier | None = None) -> ShipmentService:
+            carrier = carrier or UpsCarrier()
+            return ShipmentService(RateTable.default(), LabelPrinter(carrier), carrier)
+    after: |
+      from shipping.parcels import Parcel
+      from shipping.service import build_shipment_service
+      from tests.fakes import FakeCarrier
+
+
+      def test_ship_prints_label():
+          service = build_shipment_service(carrier=FakeCarrier(rate=12))
+          weight_kg = 2
+
+          label = service.ship(Parcel(reference="P-1", weight_kg=weight_kg))
+
+          assert label == "P-1/2kg"
+  expected_output:
+    outcome: valid
+- name: re-derives invoice lines from an order in a helper
+  inputs:
+    file: tests/test_invoice_mailer.py
+    unchanged:
+      billing/invoices.py: |
+        from dataclasses import dataclass
+
+        from orders.models import Order
+
+
+        @dataclass(frozen=True)
+        class InvoiceLine:
+            sku: str
+            amount: int
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            order_id: str
+            lines: list[InvoiceLine]
+            total: int
+
+
+        def invoice_from_order(order: Order) -> Invoice:
+            lines = [InvoiceLine(sku=item.sku, amount=item.price * item.quantity) for item in order.items]
+            return Invoice(order_id=order.id, lines=lines, total=sum(line.amount for line in lines))
+    after: |
+      from billing.invoices import Invoice, InvoiceLine
+      from billing.mailer import InvoiceMailer
+      from orders.models import Order, OrderItem
+      from tests.fakes import FakeMailbox
+
+
+      def make_invoice(order):
+          lines = [InvoiceLine(sku=item.sku, amount=item.price * item.quantity) for item in order.items]
+          return Invoice(order_id=order.id, lines=lines, total=sum(line.amount for line in lines))
+
+
+      def test_send_mails_invoice_total():
+          mailbox = FakeMailbox()
+          order = Order(id="ord-2", items=[OrderItem(sku="B2", price=5, quantity=2)])
+
+          InvoiceMailer(mailbox).send(make_invoice(order))
+
+          assert mailbox.sent == [("ord-2", 10)]
+  expected_output:
+    outcome: invalid
+- name: derives the invoice through its factory and compares to a built expected invoice
+  inputs:
+    file: tests/test_invoices.py
+    unchanged:
+      billing/invoices.py: |
+        from dataclasses import dataclass
+
+        from orders.models import Order
+
+
+        @dataclass(frozen=True)
+        class InvoiceLine:
+            sku: str
+            amount: int
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            order_id: str
+            lines: list[InvoiceLine]
+            total: int
+
+
+        def invoice_from_order(order: Order) -> Invoice:
+            lines = [InvoiceLine(sku=item.sku, amount=item.price * item.quantity) for item in order.items]
+            return Invoice(order_id=order.id, lines=lines, total=sum(line.amount for line in lines))
+    after: |
+      from billing.invoices import Invoice, InvoiceLine, invoice_from_order
+      from orders.models import Order, OrderItem
+
+
+      def test_invoice_from_order_sums_lines():
+          order = Order(id="ord-2", items=[OrderItem(sku="B2", price=5, quantity=2)])
+
+          invoice = invoice_from_order(order)
+
+          assert invoice == Invoice(order_id=order.id, lines=[InvoiceLine(sku="B2", amount=10)], total=10)
+  expected_output:
+    outcome: valid
+- name: wires the plugin runtime by hand in a fixture
+  inputs:
+    file: tests/conftest.py
+    unchanged:
+      plugins/runtime.py: |
+        from plugins.bus import EventBus
+        from plugins.config import RuntimeConfig
+        from plugins.registry import PluginRegistry
+
+
+        class Runtime:
+            def __init__(self, registry: PluginRegistry, bus: EventBus, config: RuntimeConfig) -> None:
+                self.registry = registry
+                self.bus = bus
+                self.config = config
+
+
+        def build_runtime(config: RuntimeConfig) -> Runtime:
+            bus = EventBus()
+            return Runtime(PluginRegistry.load(config.plugins, bus), bus, config)
+    after: |
+      import pytest
+
+      from plugins.bus import EventBus
+      from plugins.config import RuntimeConfig
+      from plugins.registry import PluginRegistry
+      from plugins.runtime import Runtime
+
+
+      @pytest.fixture
+      def runtime():
+          config = RuntimeConfig(plugins=["audit"])
+          bus = EventBus()
+          return Runtime(PluginRegistry.load(config.plugins, bus), bus, config)
+  expected_output:
+    outcome: invalid
+- name: builds the plugin runtime through its factory in a fixture
+  inputs:
+    file: tests/conftest.py
+    unchanged:
+      plugins/runtime.py: |
+        from plugins.bus import EventBus
+        from plugins.config import RuntimeConfig
+        from plugins.registry import PluginRegistry
+
+
+        class Runtime:
+            def __init__(self, registry: PluginRegistry, bus: EventBus, config: RuntimeConfig) -> None:
+                self.registry = registry
+                self.bus = bus
+                self.config = config
+
+
+        def build_runtime(config: RuntimeConfig) -> Runtime:
+            bus = EventBus()
+            return Runtime(PluginRegistry.load(config.plugins, bus), bus, config)
+    after: |
+      import pytest
+
+      from plugins.config import RuntimeConfig
+      from plugins.runtime import build_runtime
+
+
+      @pytest.fixture
+      def runtime():
+          return build_runtime(RuntimeConfig(plugins=["audit"]))
+  expected_output:
+    outcome: valid
+- name: assembles a report pipeline by hand in a test body
+  inputs:
+    file: tests/test_report_pipeline.py
+    unchanged:
+      reports/pipeline.py: |
+        from pathlib import Path
+
+        from reports.aggregate import Aggregator, Rules
+        from reports.io import CsvReader, CsvWriter
+
+
+        class ReportPipeline:
+            def __init__(self, reader: CsvReader, aggregator: Aggregator, writer: CsvWriter) -> None:
+                self._reader = reader
+                self._aggregator = aggregator
+                self._writer = writer
+
+            @classmethod
+            def from_paths(cls, source: Path, target: Path) -> "ReportPipeline":
+                return cls(CsvReader(source), Aggregator(Rules.monthly()), CsvWriter(target))
+    after: |
+      from reports.aggregate import Aggregator, Rules
+      from reports.io import CsvReader, CsvWriter
+      from reports.pipeline import ReportPipeline
+
+
+      def test_pipeline_writes_one_row_per_month(tmp_path):
+          source = tmp_path / "in.csv"
+          source.write_text("month,total\n2026-09,5\n2026-09,7\n")
+          pipeline = ReportPipeline(CsvReader(source), Aggregator(Rules.monthly()), CsvWriter(tmp_path / "out.csv"))
+
+          pipeline.run()
+
+          assert (tmp_path / "out.csv").read_text() == "month,total\n2026-09,12\n"
+  expected_output:
+    outcome: invalid
+- name: builds the report pipeline through its classmethod in a test body
+  inputs:
+    file: tests/test_report_pipeline.py
+    unchanged:
+      reports/pipeline.py: |
+        from pathlib import Path
+
+        from reports.aggregate import Aggregator, Rules
+        from reports.io import CsvReader, CsvWriter
+
+
+        class ReportPipeline:
+            def __init__(self, reader: CsvReader, aggregator: Aggregator, writer: CsvWriter) -> None:
+                self._reader = reader
+                self._aggregator = aggregator
+                self._writer = writer
+
+            @classmethod
+            def from_paths(cls, source: Path, target: Path) -> "ReportPipeline":
+                return cls(CsvReader(source), Aggregator(Rules.monthly()), CsvWriter(target))
+    after: |
+      from pathlib import Path
+
+      from reports.pipeline import ReportPipeline
+
+
+      def test_pipeline_writes_one_row_per_month(tmp_path):
+          source = Path(tmp_path, "in.csv")
+          source.write_text("month,total\n2026-09,5\n2026-09,7\n")
+          pipeline = ReportPipeline.from_paths(source, Path(tmp_path, "out.csv"))
+
+          pipeline.run()
+
+          assert (tmp_path / "out.csv").read_text() == "month,total\n2026-09,12\n"
+  expected_output:
+    outcome: valid
+- name: creates a Django order and its lines one by one in a fixture
+  inputs:
+    file: shop/tests/conftest.py
+    unchanged:
+      shop/ordering.py: |
+        from dataclasses import dataclass
+
+        from django.db import transaction
+
+        from shop.models import Customer, Order, OrderLine
+
+
+        @dataclass(frozen=True)
+        class LineItem:
+            sku: str
+            quantity: int
+
+
+        @transaction.atomic
+        def create_order(customer: Customer, items: list[LineItem]) -> Order:
+            order = Order.objects.create(customer=customer, number=Order.next_number())
+            for item in items:
+                OrderLine.objects.create(order=order, sku=item.sku, quantity=item.quantity)
+            order.recalculate_total()
+            return order
+    after: |
+      import pytest
+
+      from shop.models import Order, OrderLine
+
+
+      @pytest.fixture
+      def order(db, customer, book):
+          order = Order(customer=customer, number="A-0001")
+          order.save()
+          OrderLine(order=order, sku=book.sku, quantity=2).save()
+          order.recalculate_total()
+          return order
+  expected_output:
+    outcome: invalid
+- name: creates the Django order through its production factory in a fixture
+  inputs:
+    file: shop/tests/conftest.py
+    unchanged:
+      shop/ordering.py: |
+        from dataclasses import dataclass
+
+        from django.db import transaction
+
+        from shop.models import Customer, Order, OrderLine
+
+
+        @dataclass(frozen=True)
+        class LineItem:
+            sku: str
+            quantity: int
+
+
+        @transaction.atomic
+        def create_order(customer: Customer, items: list[LineItem]) -> Order:
+            order = Order.objects.create(customer=customer, number=Order.next_number())
+            for item in items:
+                OrderLine.objects.create(order=order, sku=item.sku, quantity=item.quantity)
+            order.recalculate_total()
+            return order
+    after: |
+      import pytest
+
+      from shop.models import Order
+      from shop.ordering import LineItem, create_order
+
+
+      @pytest.fixture
+      def order(db, customer, book) -> Order:
+          return create_order(customer, [LineItem(sku=book.sku, quantity=2)])
+  expected_output:
+    outcome: valid
+- name: builds a money value from derived amounts when no factory exists
+  inputs:
+    file: tests/test_money.py
+    unchanged:
+      billing/money.py: |
+        from dataclasses import dataclass
+        from decimal import Decimal
+
+
+        @dataclass(frozen=True)
+        class Money:
+            amount: Decimal
+            currency: str
+
+            def __add__(self, other: "Money") -> "Money":
+                return Money(self.amount + other.amount, self.currency)
+    after: |
+      from decimal import Decimal
+
+      from billing.money import Money
+
+
+      def test_adding_money_sums_amounts():
+          price = Decimal("9.99")
+          quantity = 3
+
+          total = Money(price * quantity, "EUR") + Money(Decimal("0.03"), "EUR")
+
+          assert total == Money(Decimal("30.00"), "EUR")
+  expected_output:
+    outcome: valid
+- name: changes a literal in a constructor call
+  inputs:
+    file: tests/test_prices.py
+    before: |
+      from catalog.prices import Price
+
+
+      def test_price_keeps_currency():
+          assert Price(amount_cents=100, currency="EUR").currency == "EUR"
+    after: |
+      from catalog.prices import Price
+
+
+      def test_price_keeps_currency():
+          assert Price(amount_cents=100, currency="USD").currency == "USD"
+  expected_output:
+    outcome: skipped
+- name: changes a factory call's keyword
+  inputs:
+    file: tests/test_shipment_service.py
+    before: |
+      from shipping.service import build_shipment_service
+
+
+      def test_quote_uses_default_carrier():
+          assert build_shipment_service().quote(weight_kg=2) == 24
+    after: |
+      from shipping.service import build_shipment_service
+
+
+      def test_quote_uses_default_carrier():
+          assert build_shipment_service().quote(weight_kg=3) == 36
+  expected_output:
+    outcome: skipped
+- name: adds an invoice to the session while importing its service
+  inputs:
+    file: tests/conftest.py
+    unchanged:
+      billing/invoices.py: |
+        from decimal import Decimal
+
+        from sqlalchemy.orm import Session
+
+        from billing.models import Invoice
+        from billing.numbering import InvoiceNumberAllocator
+
+
+        class InvoiceService:
+            def __init__(self, session: Session) -> None:
+                self._session = session
+
+            def create(self, account_id: str, amount: Decimal) -> Invoice:
+                number = InvoiceNumberAllocator(self._session).next()
+                invoice = Invoice(number=number, account_id=account_id, amount=amount, status="open")
+                self._session.add(invoice)
+                self._session.flush()
+                return invoice
+    after: |
+      from decimal import Decimal
+
+      import pytest
+
+      from billing.invoices import InvoiceService
+      from billing.models import Invoice
+
+
+      @pytest.fixture
+      def invoice_service(db_session):
+          return InvoiceService(db_session)
+
+
+      @pytest.fixture
+      def invoice(db_session, account):
+          invoice = Invoice(number="INV-0001", account_id=account.id, amount=Decimal("120.00"), status="open")
+          db_session.add(invoice)
+          db_session.flush()
+          return invoice
+  expected_output:
+    outcome: invalid
+- name: creates the invoice through its service in a fixture
+  inputs:
+    file: tests/conftest.py
+    unchanged:
+      billing/invoices.py: |
+        from decimal import Decimal
+
+        from sqlalchemy.orm import Session
+
+        from billing.models import Invoice
+        from billing.numbering import InvoiceNumberAllocator
+
+
+        class InvoiceService:
+            def __init__(self, session: Session) -> None:
+                self._session = session
+
+            def create(self, account_id: str, amount: Decimal) -> Invoice:
+                number = InvoiceNumberAllocator(self._session).next()
+                invoice = Invoice(number=number, account_id=account_id, amount=amount, status="open")
+                self._session.add(invoice)
+                self._session.flush()
+                return invoice
+    after: |
+      from decimal import Decimal
+
+      import pytest
+
+      from billing.invoices import InvoiceService
+
+
+      @pytest.fixture
+      def invoice(db_session, account):
+          return InvoiceService(db_session).create(account_id=account.id, amount=Decimal("120.00"))
+  expected_output:
+    outcome: valid
+- name: creates a Django customer directly when sign-up creates customers
+  inputs:
+    file: accounts/tests/test_profile.py
+    unchanged:
+      accounts/signup.py: |
+        from django.contrib.auth.hashers import make_password
+        from django.db import transaction
+
+        from accounts.models import Customer, Profile
+
+
+        @transaction.atomic
+        def sign_up(email: str, password: str) -> Customer:
+            customer = Customer.objects.create(email=email.lower(), password=make_password(password))
+            Profile.objects.create(customer=customer, display_name=email.split("@")[0])
+            return customer
+    after: |
+      import pytest
+
+      from accounts.models import Customer
+      from accounts.profile import display_name
+      from accounts.signup import sign_up
+
+
+      @pytest.mark.django_db
+      def test_display_name_defaults_to_email_name():
+          customer = Customer.objects.create(email="ana@example.com", password="x")
+
+          assert display_name(customer) == "ana"
+
+
+      @pytest.mark.django_db
+      def test_sign_up_lowercases_email():
+          assert sign_up("Ana@Example.com", "s3cret-pass").email == "ana@example.com"
+  expected_output:
+    outcome: invalid
+- name: signs the Django customer up through the production creator
+  inputs:
+    file: accounts/tests/test_profile.py
+    unchanged:
+      accounts/signup.py: |
+        from django.contrib.auth.hashers import make_password
+        from django.db import transaction
+
+        from accounts.models import Customer, Profile
+
+
+        @transaction.atomic
+        def sign_up(email: str, password: str) -> Customer:
+            customer = Customer.objects.create(email=email.lower(), password=make_password(password))
+            Profile.objects.create(customer=customer, display_name=email.split("@")[0])
+            return customer
+    after: |
+      import pytest
+
+      from accounts.profile import display_name
+      from accounts.signup import sign_up
+
+
+      @pytest.mark.django_db
+      def test_display_name_uses_the_edited_profile_name():
+          customer = sign_up("ana@example.com", "s3cret-pass")
+          profile = customer.profile
+          profile.display_name = "Ana B"
+          profile.save()
+
+          assert display_name(customer) == "Ana B"
+  expected_output:
+    outcome: valid
+- name: inserts order rows with raw SQL when the repository creates orders
+  inputs:
+    file: tests/test_order_report.py
+    unchanged:
+      shop/orders.py: |
+        import sqlite3
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Order:
+            number: str
+            total_cents: int
+
+
+        class OrderRepository:
+            def __init__(self, connection: sqlite3.Connection) -> None:
+                self._connection = connection
+
+            def create(self, order: Order) -> Order:
+                self._connection.execute(
+                    "INSERT INTO orders (number, total_cents, created_at) VALUES (?, ?, datetime('now'))",
+                    (order.number, order.total_cents),
+                )
+                return order
+    after: |
+      from shop.orders import Order, OrderRepository
+      from shop.reports import monthly_total
+
+
+      def seed_orders(connection, totals):
+          connection.executemany(
+              "INSERT INTO orders (number, total_cents) VALUES (?, ?)",
+              [(f"A-{index}", total) for index, total in enumerate(totals)],
+          )
+
+
+      def test_monthly_total_sums_orders(connection):
+          seed_orders(connection, [4999, 1001])
+
+          assert monthly_total(connection) == 6000
+  expected_output:
+    outcome: invalid
+- name: seeds orders through the repository from a helper
+  inputs:
+    file: tests/test_order_report.py
+    unchanged:
+      shop/orders.py: |
+        import sqlite3
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Order:
+            number: str
+            total_cents: int
+
+
+        class OrderRepository:
+            def __init__(self, connection: sqlite3.Connection) -> None:
+                self._connection = connection
+
+            def create(self, order: Order) -> Order:
+                self._connection.execute(
+                    "INSERT INTO orders (number, total_cents, created_at) VALUES (?, ?, datetime('now'))",
+                    (order.number, order.total_cents),
+                )
+                return order
+    after: |
+      from shop.orders import Order, OrderRepository
+      from shop.reports import monthly_total
+
+
+      def seed_orders(connection, totals):
+          repository = OrderRepository(connection)
+          for index, total in enumerate(totals):
+              repository.create(Order(number=f"A-{index}", total_cents=total))
+
+
+      def test_monthly_total_sums_orders(connection):
+          seed_orders(connection, [4999, 1001])
+
+          assert monthly_total(connection) == 6000
+  expected_output:
+    outcome: valid
+- name: inserts a reference country that nothing in production creates
+  inputs:
+    file: tests/conftest.py
+    unchanged:
+      shop/models.py: |
+        from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+
+        class Base(DeclarativeBase):
+            pass
+
+
+        class Country(Base):
+            __tablename__ = "countries"
+            code: Mapped[str] = mapped_column(primary_key=True)
+            name: Mapped[str]
+    after: |
+      import pytest
+
+      from shop.models import Country
+
+
+      @pytest.fixture
+      def france(db_session):
+          country = Country(code="FR", name="France")
+          db_session.add(country)
+          db_session.flush()
+          return country
+  expected_output:
+    outcome: valid
+- name: saves a constructed planned shipment when the planner creates shipments
+  inputs:
+    file: shipping/tests/test_dispatch.py
+    unchanged:
+      shipping/planner.py: |
+        from shipping.models import Shipment
+
+
+        class ShipmentPlanner:
+            def plan(self, order, carrier: str) -> Shipment:
+                shipment = Shipment(order=order, carrier=carrier, status=Shipment.Status.PLANNED)
+                shipment.weight_kg = sum(line.weight_kg for line in order.lines.all())
+                shipment.save()
+                return shipment
+    after: |
+      import pytest
+
+      from shipping.dispatch import dispatch_due
+      from shipping.models import Shipment
+      from shipping.planner import ShipmentPlanner
+      from shop.ordering import OrderService
+
+
+      @pytest.mark.django_db
+      def test_dispatch_due_marks_planned_shipments_sent(customer):
+          order = OrderService().create(customer=customer, sku="BOOK-1", quantity=2)
+          shipment = Shipment(order=order, carrier="ups", status=Shipment.Status.PLANNED, weight_kg=2)
+          shipment.save()
+
+          dispatch_due()
+
+          shipment.refresh_from_db()
+          assert shipment.status == Shipment.Status.SENT
+  expected_output:
+    outcome: invalid
+- name: plans the shipment through the planner before dispatching
+  inputs:
+    file: shipping/tests/test_dispatch.py
+    unchanged:
+      shipping/planner.py: |
+        from shipping.models import Shipment
+
+
+        class ShipmentPlanner:
+            def plan(self, order, carrier: str) -> Shipment:
+                shipment = Shipment(order=order, carrier=carrier, status=Shipment.Status.PLANNED)
+                shipment.weight_kg = sum(line.weight_kg for line in order.lines.all())
+                shipment.save()
+                return shipment
+    after: |
+      import pytest
+
+      from shipping.dispatch import dispatch_due
+      from shipping.models import Shipment
+      from shipping.planner import ShipmentPlanner
+      from shop.ordering import OrderService
+
+
+      @pytest.mark.django_db
+      def test_dispatch_due_marks_planned_shipments_sent(customer):
+          order = OrderService().create(customer=customer, sku="BOOK-1", quantity=2)
+          shipment = ShipmentPlanner().plan(order, carrier="ups")
+
+          dispatch_due()
+
+          shipment.refresh_from_db()
+          assert shipment.status == Shipment.Status.SENT
+  expected_output:
+    outcome: valid
+- name: bulk creates Django customers when sign-up creates customers
+  inputs:
+    file: accounts/tests/test_newsletter.py
+    unchanged:
+      accounts/signup.py: |
+        from django.contrib.auth.hashers import make_password
+        from django.db import transaction
+
+        from accounts.models import Customer, Profile
+
+
+        @transaction.atomic
+        def sign_up(email: str, password: str) -> Customer:
+            customer = Customer.objects.create(email=email.lower(), password=make_password(password))
+            Profile.objects.create(customer=customer, display_name=email.split("@")[0])
+            return customer
+    after: |
+      import pytest
+
+      from accounts.models import Customer
+      from accounts.newsletter import recipients
+      from accounts.signup import sign_up
+
+
+      @pytest.fixture
+      def customers(db):
+          return Customer.objects.bulk_create(
+              [Customer(email="ana@example.com", password="x"), Customer(email="bo@example.com", password="x")]
+          )
+
+
+      def test_recipients_lists_every_customer(customers):
+          assert recipients() == ["ana@example.com", "bo@example.com"]
+  expected_output:
+    outcome: invalid
+- name: changes an expected total
+  inputs:
+    file: tests/test_order_report.py
+    before: |
+      from shop.reports import monthly_total
+
+
+      def test_monthly_total_of_empty_month(connection):
+          assert monthly_total(connection) == 0
+    after: |
+      from shop.reports import monthly_total
+
+
+      def test_monthly_total_of_empty_month(connection):
+          assert monthly_total(connection, month="2026-09") == 0
+  expected_output:
+    outcome: skipped
+- name: changes a query in a test
+  inputs:
+    file: tests/test_order_report.py
+    before: |
+      def test_orders_table_is_empty(db_session):
+          assert db_session.query(Order).count() == 0
+    after: |
+      def test_orders_table_is_empty(db_session):
+          assert db_session.query(Order).filter_by(status="open").count() == 0
+  expected_output:
+    outcome: skipped
+- name: seeds an invoice with a fixed account id
+  inputs:
+    file: tests/conftest.py
+    after: |
+      from decimal import Decimal
+      from uuid import UUID
+
+      import pytest
+
+      from billing.invoices import InvoiceService
+
+
+      @pytest.fixture
+      def invoice(db_session):
+          return InvoiceService(db_session).create(
+              account_id=UUID("8f14e45f-ceea-4672-9c3d-1b2a5f7e6d10"),
+              amount=Decimal("120.00"),
+          )
+  expected_output:
+    outcome: invalid
+- name: seeds an invoice for the account fixture
+  inputs:
+    file: tests/conftest.py
+    after: |
+      from decimal import Decimal
+
+      import pytest
+
+      from billing.invoices import InvoiceService
+
+
+      @pytest.fixture
+      def invoice(db_session, account):
+          return InvoiceService(db_session).create(account_id=account.id, amount=Decimal("120.00"))
+  expected_output:
+    outcome: valid
+- name: ships an order that was never created
+  inputs:
+    file: tests/test_shipments.py
+    before: |
+      from shop.customers import CustomerService
+      from shop.orders import OrderService
+      from shop.shipments import ShipmentService
+
+
+      def test_ship_order_sets_tracking_number(db_session):
+          customer = CustomerService(db_session).register(email="ana@example.com")
+          order = OrderService(db_session).place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+          shipment = ShipmentService(db_session).ship(order_id=order.id, carrier="UPS")
+
+          assert shipment.tracking_number.startswith("1Z")
+    after: |
+      from uuid import uuid4
+
+      from shop.shipments import ShipmentService
+
+
+      def test_ship_order_sets_tracking_number(db_session):
+          shipment = ShipmentService(db_session).ship(order_id=uuid4(), carrier="UPS")
+
+          assert shipment.tracking_number.startswith("1Z")
+  expected_output:
+    outcome: invalid
+- name: ships an order created through services
+  inputs:
+    file: tests/test_shipments.py
+    after: |
+      from shop.customers import CustomerService
+      from shop.orders import OrderService
+      from shop.shipments import ShipmentService
+
+
+      def test_ship_order_links_the_shipment_to_the_order(db_session):
+          customer = CustomerService(db_session).register(email="ana@example.com")
+          order = OrderService(db_session).place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+          shipment = ShipmentService(db_session).ship(order_id=order.id, carrier="UPS")
+
+          assert shipment.order_id == order.id
+  expected_output:
+    outcome: valid
+- name: asserts shipping a missing order raises
+  inputs:
+    file: tests/test_shipments.py
+    after: |
+      from uuid import uuid4
+
+      import pytest
+
+      from shop.shipments import OrderNotFound, ShipmentService
+
+
+      def test_ship_unknown_order_raises(db_session):
+          with pytest.raises(OrderNotFound):
+              ShipmentService(db_session).ship(order_id=uuid4(), carrier="UPS")
+  expected_output:
+    outcome: valid
+- name: posts a shipment for an order id no order has
+  inputs:
+    file: shop/tests/test_shipment_api.py
+    after: |
+      import pytest
+
+
+      @pytest.mark.django_db
+      def test_create_shipment_returns_tracking_number(api_client):
+          response = api_client.post("/shipments/", {"order_id": 999, "carrier": "UPS"}, format="json")
+
+          assert response.status_code == 201
+          assert response.json()["tracking_number"].startswith("1Z")
+  expected_output:
+    outcome: invalid
+- name: posts a shipment for an order the test creates
+  inputs:
+    file: shop/tests/test_shipment_api.py
+    after: |
+      import pytest
+
+      from shop.models import Order
+
+
+      @pytest.mark.django_db
+      def test_create_shipment_returns_tracking_number(api_client, customer):
+          order = Order.objects.create(customer=customer, number="A-1")
+
+          response = api_client.post("/shipments/", {"order_id": order.pk, "carrier": "UPS"}, format="json")
+
+          assert response.status_code == 201
+          assert response.json()["tracking_number"].startswith("1Z")
+  expected_output:
+    outcome: valid
+- name: matches a literal customer id to a customer built in the test
+  inputs:
+    file: tests/test_order_emails.py
+    after: |
+      from notifications.order_emails import order_email_subject
+      from orders.models import Customer, Order
+
+
+      def test_subject_names_customer():
+          customer = Customer(id="cus-1", name="Ada")
+          order = Order(id="ord-1", customer_id="cus-1", total=120)
+
+          assert order_email_subject(order, customer) == "Ada, your order ord-1"
+  expected_output:
+    outcome: valid
+- name: points an order at a customer id no customer in the test has
+  inputs:
+    file: tests/test_order_emails.py
+    after: |
+      from notifications.order_emails import order_email_subject
+      from orders.models import Customer, Order
+
+
+      def test_subject_names_customer():
+          customer = Customer(id="cus-1", name="Ada")
+          order = Order(id="ord-1", customer_id="cus-9", total=120)
+
+          assert order_email_subject(order, customer) == "Ada, your order ord-1"
+  expected_output:
+    outcome: invalid
+- name: assigns a made-up invoice id to a line in a helper
+  inputs:
+    file: tests/test_invoice_lines.py
+    after: |
+      from billing.lines import InvoiceLine, LineRepository
+
+
+      def save_line(db_session, sku):
+          line = InvoiceLine(sku=sku, amount=10)
+          line.invoice_id = "inv-404"
+          return LineRepository(db_session).add(line)
+
+
+      def test_line_total_is_saved(db_session):
+          line = save_line(db_session, "A1")
+
+          assert LineRepository(db_session).get(line.id).amount == 10
+  expected_output:
+    outcome: invalid
+- name: gives a new category a generated own id
+  inputs:
+    file: tests/test_categories.py
+    after: |
+      from uuid import uuid4
+
+      from catalog.categories import Category, CategoryRepository
+
+
+      def test_saved_category_can_be_found(db_session):
+          category = Category(id=uuid4(), name="Shoes")
+          CategoryRepository(db_session).add(category)
+
+          assert CategoryRepository(db_session).get(category.id) == category
+  expected_output:
+    outcome: valid
+- name: links a child category to a random parent id
+  inputs:
+    file: tests/test_categories.py
+    after: |
+      from uuid import uuid4
+
+      from catalog.categories import Category, CategoryRepository
+
+
+      def test_child_category_lists_under_parent(db_session):
+          child = Category(id=uuid4(), name="Running shoes", parent_id=uuid4())
+          CategoryRepository(db_session).add(child)
+
+          assert CategoryRepository(db_session).children_of(child.parent_id) == [child]
+  expected_output:
+    outcome: invalid
+- name: switches the carrier to DHL
+  inputs:
+    file: tests/test_shipments.py
+    before: |
+      from shop.shipments import ShipmentService
+
+
+      def test_ship_order_sets_tracking_number(db_session, order):
+          shipment = ShipmentService(db_session).ship(order, carrier="UPS")
+
+          assert shipment.tracking_number.startswith("1Z")
+    after: |
+      from shop.shipments import ShipmentService
+
+
+      def test_ship_order_sets_tracking_number(db_session, order):
+          shipment = ShipmentService(db_session).ship(order, carrier="DHL")
+
+          assert shipment.tracking_number.startswith("JD")
+  expected_output:
+    outcome: valid
+- name: gives a job fixture a generated kind the runner matches on
+  inputs:
+    file: tests/conftest.py
+    unchanged:
+      jobs/runner.py: |
+        from jobs.models import Job
+        from reports.exports import run_export
+        from reports.imports import run_import
+
+
+        def run(job: Job) -> None:
+            match job.kind:
+                case "export":
+                    run_export(job)
+                case "import":
+                    run_import(job)
+                case _:
+                    raise ValueError(f"unknown job kind {job.kind}")
+    after: |
+      from uuid import uuid4
+
+      import pytest
+
+      from jobs.models import Job
+
+
+      @pytest.fixture
+      def nightly_job():
+          return Job(id=uuid4(), kind=uuid4().hex, cron="0 2 * * *")
+  expected_output:
+    outcome: invalid
+- name: gives a job fixture a literal kind the runner matches on
+  inputs:
+    file: tests/conftest.py
+    unchanged:
+      jobs/runner.py: |
+        from jobs.models import Job
+        from reports.exports import run_export
+        from reports.imports import run_import
+
+
+        def run(job: Job) -> None:
+            match job.kind:
+                case "export":
+                    run_export(job)
+                case "import":
+                    run_import(job)
+                case _:
+                    raise ValueError(f"unknown job kind {job.kind}")
+    after: |
+      from uuid import uuid4
+
+      import pytest
+
+      from jobs.models import Job
+
+
+      @pytest.fixture
+      def nightly_job():
+          return Job(id=uuid4(), kind="export", cron="0 2 * * *")
+  expected_output:
+    outcome: valid
+- name: sends a notification on a randomly chosen channel
+  inputs:
+    file: tests/test_sender.py
+    unchanged:
+      notifications/sender.py: |
+        from notifications.channels import EmailChannel, SmsChannel
+        from notifications.models import Notification
+
+        CHANNELS = {"email": EmailChannel(), "sms": SmsChannel()}
+
+
+        def send(session, notification: Notification) -> None:
+            CHANNELS[notification.channel].deliver(notification)
+            notification.mark_sent()
+            session.flush()
+    after: |
+      import random
+
+      from notifications.models import Notification
+      from notifications.sender import send
+
+
+      def test_send_marks_notification_sent(db_session, customer):
+          notification = Notification(customer_id=customer.id, channel=random.choice(["email", "sms"]), body="Your order shipped")
+
+          send(db_session, notification)
+
+          assert notification.sent_at is not None
+  expected_output:
+    outcome: invalid
+- name: sends a notification on a literal channel
+  inputs:
+    file: tests/test_sender.py
+    unchanged:
+      notifications/sender.py: |
+        from notifications.channels import EmailChannel, SmsChannel
+        from notifications.models import Notification
+
+        CHANNELS = {"email": EmailChannel(), "sms": SmsChannel()}
+
+
+        def send(session, notification: Notification) -> None:
+            CHANNELS[notification.channel].deliver(notification)
+            notification.mark_sent()
+            session.flush()
+    after: |
+      from notifications.models import Notification
+      from notifications.sender import send
+
+
+      def test_send_marks_notification_sent(db_session, customer):
+          notification = Notification(customer_id=customer.id, channel="email", body="Your order shipped")
+
+          send(db_session, notification)
+
+          assert notification.sent_at is not None
+  expected_output:
+    outcome: valid

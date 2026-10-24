@@ -1,0 +1,9 @@
+id: error-handler
+language: python
+rule:
+  any:
+  - kind: except_clause
+  - kind: call
+    has:
+      field: function
+      regex: (^|\.)suppress$

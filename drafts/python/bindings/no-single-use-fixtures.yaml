@@ -1,4 +1,0 @@
-skill: python/skills/no-single-use-fixtures
-paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py"]
-exclude_paths: ["**/conftest.py"]
-triggers: [fixture, test-fixture-request]

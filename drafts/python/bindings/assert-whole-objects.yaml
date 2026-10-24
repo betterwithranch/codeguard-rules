@@ -1,3 +1,0 @@
-skill: python/skills/assert-whole-objects
-paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
-triggers: [partial-assert, membership-assert]

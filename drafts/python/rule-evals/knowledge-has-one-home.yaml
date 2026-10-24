@@ -1,0 +1,2112 @@
+cases:
+- name: copies a total with reordered parameters
+  inputs:
+    file: invoices/totals.py
+    after: |
+      def invoice_total(subtotal: int, tax_rate: float, discount: int) -> int:
+          taxed = round((subtotal - discount) * (1 + tax_rate))
+          return max(taxed, 0)
+
+
+      def credit_note_total(discount: int, subtotal: int, tax_rate: float) -> int:
+          taxed = round((subtotal - discount) * (1 + tax_rate))
+          return max(taxed, 0)
+  expected_output:
+    outcome: invalid
+- name: adds a fee copy with swapped parameters
+  inputs:
+    file: shipments/fees.py
+    before: |
+      FREE_SHIPPING_THRESHOLD = 5000
+
+
+      def domestic_fee(order_total: int, weight_grams: int) -> int:
+          if order_total >= FREE_SHIPPING_THRESHOLD:
+              return 0
+          return 500 + weight_grams // 100
+    after: |
+      FREE_SHIPPING_THRESHOLD = 5000
+
+
+      def domestic_fee(order_total: int, weight_grams: int) -> int:
+          if order_total >= FREE_SHIPPING_THRESHOLD:
+              return 0
+          return 500 + weight_grams // 100
+
+
+      def return_fee(weight_grams: int, order_total: int) -> int:
+          if order_total >= FREE_SHIPPING_THRESHOLD:
+              return 0
+          return 500 + weight_grams // 100
+  expected_output:
+    outcome: invalid
+- name: builds one fee on top of another
+  inputs:
+    file: shipments/fees.py
+    after: |
+      FREE_SHIPPING_THRESHOLD = 5000
+      INTERNATIONAL_SURCHARGE = 1500
+
+
+      def domestic_fee(order_total: int, weight_grams: int) -> int:
+          if order_total >= FREE_SHIPPING_THRESHOLD:
+              return 0
+          return 500 + weight_grams // 100
+
+
+      def international_fee(order_total: int, weight_grams: int) -> int:
+          return domestic_fee(order_total, weight_grams) + INTERNATIONAL_SURCHARGE
+  expected_output:
+    outcome: valid
+- name: copies the fee from an imported module
+  inputs:
+    file: returns/fees.py
+    unchanged:
+      shipments/fees.py: |
+        FREE_SHIPPING_THRESHOLD = 5000
+
+
+        def domestic_fee(order_total: int, weight_grams: int) -> int:
+            if order_total >= FREE_SHIPPING_THRESHOLD:
+                return 0
+            return 500 + weight_grams // 100
+    after: |
+      from shipments.fees import FREE_SHIPPING_THRESHOLD
+
+
+      def return_label_fee(order_total: int, weight_grams: int) -> int:
+          if order_total >= FREE_SHIPPING_THRESHOLD:
+              return 0
+          return 500 + weight_grams // 100
+  expected_output:
+    outcome: invalid
+- name: calls the fee from an imported module
+  inputs:
+    file: returns/fees.py
+    unchanged:
+      shipments/fees.py: |
+        FREE_SHIPPING_THRESHOLD = 5000
+
+
+        def domestic_fee(order_total: int, weight_grams: int) -> int:
+            if order_total >= FREE_SHIPPING_THRESHOLD:
+                return 0
+            return 500 + weight_grams // 100
+    after: |
+      from shipments.fees import domestic_fee
+
+      RETURN_HANDLING_FEE = 200
+
+
+      def return_label_fee(order_total: int, weight_grams: int) -> int:
+          return domestic_fee(order_total, weight_grams) + RETURN_HANDLING_FEE
+  expected_output:
+    outcome: valid
+- name: adds a fee with a different threshold test
+  inputs:
+    file: returns/fees.py
+    unchanged:
+      shipments/fees.py: |
+        FREE_SHIPPING_THRESHOLD = 5000
+
+
+        def domestic_fee(order_total: int, weight_grams: int) -> int:
+            if order_total >= FREE_SHIPPING_THRESHOLD:
+                return 0
+            return 500 + weight_grams // 100
+    after: |
+      from shipments.fees import domestic_fee
+
+      FREE_RETURN_WEIGHT_GRAMS = 1000
+
+
+      def return_label_fee(order_total: int, weight_grams: int) -> int:
+          if weight_grams <= FREE_RETURN_WEIGHT_GRAMS:
+              return 0
+          return domestic_fee(order_total, weight_grams)
+  expected_output:
+    outcome: valid
+- name: repeats a line total property on a second document class
+  inputs:
+    file: billing/documents.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Line:
+          quantity: int
+          unit_price_cents: int
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          lines: list[Line]
+
+          @property
+          def total_cents(self) -> int:
+              subtotal = sum(line.quantity * line.unit_price_cents for line in self.lines)
+              return max(subtotal, 0)
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Line:
+          quantity: int
+          unit_price_cents: int
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          lines: list[Line]
+
+          @property
+          def total_cents(self) -> int:
+              subtotal = sum(line.quantity * line.unit_price_cents for line in self.lines)
+              return max(subtotal, 0)
+
+
+      @dataclass(frozen=True)
+      class Quote:
+          items: list[Line]
+
+          @property
+          def total_cents(self) -> int:
+              subtotal = sum(item.quantity * item.unit_price_cents for item in self.items)
+              return max(subtotal, 0)
+  expected_output:
+    outcome: invalid
+- name: embeds an imported total's steps in a longer function
+  inputs:
+    file: billing/statements.py
+    unchanged:
+      invoices/totals.py: |
+        def invoice_total(subtotal: int, tax_rate: float, discount: int) -> int:
+            taxed = round((subtotal - discount) * (1 + tax_rate))
+            return max(taxed, 0)
+    after: |
+      from invoices.totals import invoice_total
+
+
+      def statement_line(number: str, subtotal: int, tax_rate: float, discount: int) -> str:
+          taxed = round((subtotal - discount) * (1 + tax_rate))
+          total = max(taxed, 0)
+          return f"{number}: {total / 100:.2f}"
+
+
+      def statement_total(subtotals: list[int], tax_rate: float) -> int:
+          return sum(invoice_total(subtotal, tax_rate, 0) for subtotal in subtotals)
+  expected_output:
+    outcome: invalid
+- name: calls an imported total in a longer function
+  inputs:
+    file: billing/statements.py
+    unchanged:
+      invoices/totals.py: |
+        def invoice_total(subtotal: int, tax_rate: float, discount: int) -> int:
+            taxed = round((subtotal - discount) * (1 + tax_rate))
+            return max(taxed, 0)
+    after: |
+      from invoices.totals import invoice_total
+
+
+      def statement_line(number: str, subtotal: int, tax_rate: float, discount: int) -> str:
+          total = invoice_total(subtotal, tax_rate, discount)
+          return f"{number}: {total / 100:.2f}"
+
+
+      def statement_total(subtotals: list[int], tax_rate: float) -> int:
+          return sum(invoice_total(subtotal, tax_rate, 0) for subtotal in subtotals)
+  expected_output:
+    outcome: valid
+- name: adds a pydantic validator that strips its own field
+  inputs:
+    file: accounts/schemas.py
+    before: |
+      from pydantic import BaseModel, field_validator
+
+
+      class Signup(BaseModel):
+          name: str
+          email: str
+
+          @field_validator("name")
+          @classmethod
+          def strip_name(cls, value: str) -> str:
+              return value.strip()
+    after: |
+      from pydantic import BaseModel, field_validator
+
+
+      class Signup(BaseModel):
+          name: str
+          email: str
+
+          @field_validator("name")
+          @classmethod
+          def strip_name(cls, value: str) -> str:
+              return value.strip()
+
+          @field_validator("email")
+          @classmethod
+          def lowercase_email(cls, value: str) -> str:
+              return value.strip().lower()
+  expected_output:
+    outcome: valid
+- name: adds a total with truncating instead of rounding
+  inputs:
+    file: invoices/totals.py
+    after: |
+      def invoice_total(subtotal: int, tax_rate: float, discount: int) -> int:
+          taxed = round((subtotal - discount) * (1 + tax_rate))
+          return max(taxed, 0)
+
+
+      def estimate_total(subtotal: int, tax_rate: float) -> int:
+          return int(subtotal * (1 + tax_rate))
+  expected_output:
+    outcome: valid
+- name: raises the free shipping threshold
+  inputs:
+    file: shipments/fees.py
+    before: |
+      FREE_SHIPPING_THRESHOLD = 5000
+
+
+      def domestic_fee(order_total: int, weight_grams: int) -> int:
+          if order_total >= FREE_SHIPPING_THRESHOLD:
+              return 0
+          return 500 + weight_grams // 100
+    after: |
+      FREE_SHIPPING_THRESHOLD = 7500
+
+
+      def domestic_fee(order_total: int, weight_grams: int) -> int:
+          if order_total >= FREE_SHIPPING_THRESHOLD:
+              return 0
+          return 500 + weight_grams // 100
+  expected_output:
+    outcome: skipped
+- name: adds a protocol method stub
+  inputs:
+    file: shipments/ports.py
+    before: |
+      from typing import Protocol
+
+
+      class FeeTable(Protocol):
+          def domestic_fee(self, order_total: int, weight_grams: int) -> int: ...
+    after: |
+      from typing import Protocol
+
+
+      class FeeTable(Protocol):
+          def domestic_fee(self, order_total: int, weight_grams: int) -> int: ...
+
+          def return_fee(self, order_total: int, weight_grams: int) -> int: ...
+  expected_output:
+    outcome: valid
+- name: creates invoices in factory and service
+  inputs:
+    file: billing/invoicing.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          order_id: str
+          total_cents: int
+
+
+      class InvoiceFactory:
+          def create_invoice(self, order_id: str, total_cents: int) -> Invoice:
+              return Invoice(order_id=order_id, total_cents=total_cents)
+
+
+      class InvoiceService:
+          def create_invoice(self, order_id: str, total_cents: int) -> Invoice:
+              return Invoice(order_id=order_id, total_cents=max(total_cents, 0))
+  expected_output:
+    outcome: invalid
+- name: adds invoice creation to the service
+  inputs:
+    file: billing/invoicing.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          order_id: str
+          total_cents: int
+
+
+      class InvoiceFactory:
+          def create_invoice(self, order_id: str, total_cents: int) -> Invoice:
+              return Invoice(order_id=order_id, total_cents=total_cents)
+
+
+      class InvoiceService:
+          def __init__(self, mailer) -> None:
+              self._mailer = mailer
+
+          def send(self, invoice: Invoice) -> None:
+              self._mailer.deliver(invoice)
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          order_id: str
+          total_cents: int
+
+
+      class InvoiceFactory:
+          def create_invoice(self, order_id: str, total_cents: int) -> Invoice:
+              return Invoice(order_id=order_id, total_cents=total_cents)
+
+
+      class InvoiceService:
+          def __init__(self, mailer) -> None:
+              self._mailer = mailer
+
+          def create_invoice(self, order_id: str, total_cents: int) -> Invoice:
+              return Invoice(order_id=order_id, total_cents=total_cents)
+
+          def send(self, invoice: Invoice) -> None:
+              self._mailer.deliver(invoice)
+  expected_output:
+    outcome: invalid
+- name: adds an issue method that delegates creation to the factory
+  inputs:
+    file: billing/invoicing.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          order_id: str
+          total_cents: int
+
+
+      class InvoiceFactory:
+          def create_invoice(self, order_id: str, total_cents: int) -> Invoice:
+              return Invoice(order_id=order_id, total_cents=total_cents)
+
+
+      class InvoiceService:
+          def __init__(self, factory: InvoiceFactory, mailer) -> None:
+              self._factory = factory
+              self._mailer = mailer
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          order_id: str
+          total_cents: int
+
+
+      class InvoiceFactory:
+          def create_invoice(self, order_id: str, total_cents: int) -> Invoice:
+              return Invoice(order_id=order_id, total_cents=total_cents)
+
+
+      class InvoiceService:
+          def __init__(self, factory: InvoiceFactory, mailer) -> None:
+              self._factory = factory
+              self._mailer = mailer
+
+          def issue(self, order_id: str, total_cents: int) -> Invoice:
+              invoice = self._factory.create_invoice(order_id, total_cents)
+              self._mailer.deliver(invoice)
+              return invoice
+  expected_output:
+    outcome: valid
+- name: adds an invoice sender beside the invoice factory
+  inputs:
+    file: billing/invoicing.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          order_id: str
+          total_cents: int
+
+
+      class InvoiceFactory:
+          def create_invoice(self, order_id: str, total_cents: int) -> Invoice:
+              return Invoice(order_id=order_id, total_cents=total_cents)
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          order_id: str
+          total_cents: int
+
+
+      class InvoiceFactory:
+          def create_invoice(self, order_id: str, total_cents: int) -> Invoice:
+              return Invoice(order_id=order_id, total_cents=total_cents)
+
+
+      class InvoiceSender:
+          def __init__(self, mailer) -> None:
+              self._mailer = mailer
+
+          def send(self, invoice: Invoice) -> None:
+              self._mailer.deliver(invoice)
+  expected_output:
+    outcome: valid
+- name: adds a refund factory beside the invoice factory
+  inputs:
+    file: billing/factories.py
+    before: |
+      from billing.documents import Invoice
+
+
+      class InvoiceFactory:
+          def create_invoice(self, order_id: str, total_cents: int) -> Invoice:
+              return Invoice(order_id=order_id, total_cents=total_cents)
+    after: |
+      from billing.documents import Invoice, Refund
+
+
+      class InvoiceFactory:
+          def create_invoice(self, order_id: str, total_cents: int) -> Invoice:
+              return Invoice(order_id=order_id, total_cents=total_cents)
+
+
+      class RefundFactory:
+          def create_refund(self, invoice: Invoice, cents: int) -> Refund:
+              return Refund(order_id=invoice.order_id, cents=min(cents, invoice.total_cents))
+  expected_output:
+    outcome: valid
+- name: adds a second monthly revenue report in another module
+  inputs:
+    file: reports/finance_dashboard.py
+    after: |
+      from collections import defaultdict
+
+
+      class FinanceDashboard:
+          def __init__(self, orders) -> None:
+              self._orders = orders
+
+          def revenue_by_month(self) -> dict[str, int]:
+              totals: defaultdict[str, int] = defaultdict(int)
+              for order in self._orders.paid():
+                  totals[order.paid_at.strftime("%Y-%m")] += order.total_cents
+              return dict(totals)
+    unchanged:
+      reports/monthly_revenue.py: |
+        from collections import Counter
+
+
+        class MonthlyRevenueReport:
+            def __init__(self, orders) -> None:
+                self._orders = orders
+
+            def by_month(self) -> dict[str, int]:
+                totals: Counter[str] = Counter()
+                for order in self._orders.paid():
+                    totals[order.paid_at.strftime("%Y-%m")] += order.total_cents
+                return dict(totals)
+  expected_output:
+    outcome: invalid
+- name: adds a dashboard that reads the monthly revenue report
+  inputs:
+    file: reports/finance_dashboard.py
+    after: |
+      from reports.monthly_revenue import MonthlyRevenueReport
+
+
+      class FinanceDashboard:
+          def __init__(self, revenue: MonthlyRevenueReport) -> None:
+              self._revenue = revenue
+
+          def best_month(self) -> str:
+              by_month = self._revenue.by_month()
+              return max(by_month, key=by_month.__getitem__)
+    unchanged:
+      reports/monthly_revenue.py: |
+        from collections import Counter
+
+
+        class MonthlyRevenueReport:
+            def __init__(self, orders) -> None:
+                self._orders = orders
+
+            def by_month(self) -> dict[str, int]:
+                totals: Counter[str] = Counter()
+                for order in self._orders.paid():
+                    totals[order.paid_at.strftime("%Y-%m")] += order.total_cents
+                return dict(totals)
+  expected_output:
+    outcome: valid
+- name: adds a second pydantic model of the same carrier rate response
+  inputs:
+    file: carriers/rate_response.py
+    after: |
+      from pydantic import BaseModel
+
+
+      class CarrierRateResponse(BaseModel):
+          service_code: str
+          total_cents: int
+          transit_days: int
+    unchanged:
+      carriers/rate_api.py: |
+        from pydantic import BaseModel
+
+
+        class RateApiResponse(BaseModel):
+            service_code: str
+            total_cents: int
+            transit_days: int
+
+
+        def fetch_rate(http, shipment_id: str) -> RateApiResponse:
+            return RateApiResponse.model_validate(http.get(f"/rates/{shipment_id}").json())
+      carriers/quotes.py: |
+        from carriers.rate_response import CarrierRateResponse
+
+
+        def fetch_quote(http, shipment_id: str) -> CarrierRateResponse:
+            return CarrierRateResponse.model_validate(http.get(f"/rates/{shipment_id}").json())
+  expected_output:
+    outcome: invalid
+- name: maps a row to a payload
+  inputs:
+    file: billing/invoice_sync.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class InvoiceRow:
+          invoice_id: str
+          total_cents: int
+
+
+      @dataclass(frozen=True)
+      class InvoicePayload:
+          invoice_id: str
+          total_cents: int
+
+
+      def to_payload(row: InvoiceRow) -> InvoicePayload:
+          return InvoicePayload(invoice_id=row.invoice_id, total_cents=row.total_cents)
+  expected_output:
+    outcome: valid
+- name: overrides the pricing method in a subclass
+  inputs:
+    file: pricing/wholesale.py
+    after: |
+      from pricing.price_list import PriceList
+
+
+      class WholesalePriceList(PriceList):
+          def price(self, sku: str, quantity: int) -> int:
+              return super().price(sku, quantity) * 80 // 100
+    unchanged:
+      pricing/price_list.py: |
+        class PriceList:
+            def __init__(self, cents_by_sku: dict[str, int]) -> None:
+                self._cents_by_sku = cents_by_sku
+
+            def price(self, sku: str, quantity: int) -> int:
+                return self._cents_by_sku[sku] * quantity
+  expected_output:
+    outcome: valid
+- name: adds retries to invoice delivery
+  inputs:
+    file: billing/invoicing.py
+    before: |
+      class InvoiceService:
+          def __init__(self, mailer) -> None:
+              self._mailer = mailer
+
+          def send(self, invoice) -> None:
+              self._mailer.deliver(invoice)
+    after: |
+      class InvoiceService:
+          def __init__(self, mailer) -> None:
+              self._mailer = mailer
+
+          def send(self, invoice) -> None:
+              self._mailer.deliver(invoice, retries=3)
+  expected_output:
+    outcome: valid
+- name: bumps the service retry count
+  inputs:
+    file: billing/invoicing.py
+    before: |
+      class InvoiceService:
+          retries = 1
+    after: |
+      class InvoiceService:
+          retries = 2
+  expected_output:
+    outcome: valid
+- name: chains the pipeline's stages from outside
+  inputs:
+    file: shipments/fulfillment.py
+    after: |
+      from typing import Protocol
+
+
+      class PickPlan(Protocol):
+          order_id: str
+
+
+      class Shipment(Protocol):
+          tracking_number: str
+
+
+      class PickPlanner(Protocol):
+          def plan(self, order_id: str) -> PickPlan: ...
+
+
+      class Packer(Protocol):
+          def pack(self, plan: PickPlan) -> Shipment: ...
+
+
+      class FulfillmentPipeline:
+          def __init__(self, planner: PickPlanner, packer: Packer) -> None:
+              self.planner = planner
+              self.packer = packer
+
+          def run(self, order_id: str) -> Shipment:
+              plan = self.planner.plan(order_id)
+              return self.packer.pack(plan)
+
+
+      class ReturnsDesk:
+          def __init__(self, pipeline: FulfillmentPipeline) -> None:
+              self._pipeline = pipeline
+
+          def reship(self, order_id: str) -> Shipment:
+              plan = self._pipeline.planner.plan(order_id)
+              return self._pipeline.packer.pack(plan)
+  expected_output:
+    outcome: invalid
+- name: calls the pipeline's run method
+  inputs:
+    file: shipments/fulfillment.py
+    after: |
+      from typing import Protocol
+
+
+      class PickPlan(Protocol):
+          order_id: str
+
+
+      class Shipment(Protocol):
+          tracking_number: str
+
+
+      class PickPlanner(Protocol):
+          def plan(self, order_id: str) -> PickPlan: ...
+
+
+      class Packer(Protocol):
+          def pack(self, plan: PickPlan) -> Shipment: ...
+
+
+      class FulfillmentPipeline:
+          def __init__(self, planner: PickPlanner, packer: Packer) -> None:
+              self._planner = planner
+              self._packer = packer
+
+          def run(self, order_id: str) -> Shipment:
+              plan = self._planner.plan(order_id)
+              return self._packer.pack(plan)
+
+
+      class ReturnsDesk:
+          def __init__(self, pipeline: FulfillmentPipeline) -> None:
+              self._pipeline = pipeline
+
+          def reship(self, order_id: str) -> Shipment:
+              return self._pipeline.run(order_id)
+  expected_output:
+    outcome: valid
+- name: replaces a pipeline call with its stages
+  inputs:
+    file: shipments/fulfillment.py
+    before: |
+      from typing import Protocol
+
+
+      class PickPlan(Protocol):
+          order_id: str
+
+
+      class Shipment(Protocol):
+          tracking_number: str
+
+
+      class PickPlanner(Protocol):
+          def plan(self, order_id: str) -> PickPlan: ...
+
+
+      class Packer(Protocol):
+          def pack(self, plan: PickPlan) -> Shipment: ...
+
+
+      class FulfillmentPipeline:
+          def __init__(self, planner: PickPlanner, packer: Packer) -> None:
+              self._planner = planner
+              self._packer = packer
+
+          def run(self, order_id: str) -> Shipment:
+              plan = self._planner.plan(order_id)
+              return self._packer.pack(plan)
+
+
+      class ReturnsDesk:
+          def __init__(self, pipeline: FulfillmentPipeline) -> None:
+              self._pipeline = pipeline
+
+          def reship(self, order_id: str) -> Shipment:
+              return self._pipeline.run(order_id)
+    after: |
+      from typing import Protocol
+
+
+      class PickPlan(Protocol):
+          order_id: str
+
+
+      class Shipment(Protocol):
+          tracking_number: str
+
+
+      class PickPlanner(Protocol):
+          def plan(self, order_id: str) -> PickPlan: ...
+
+
+      class Packer(Protocol):
+          def pack(self, plan: PickPlan) -> Shipment: ...
+
+
+      class FulfillmentPipeline:
+          def __init__(self, planner: PickPlanner, packer: Packer) -> None:
+              self._planner = planner
+              self._packer = packer
+
+          def run(self, order_id: str) -> Shipment:
+              plan = self._planner.plan(order_id)
+              return self._packer.pack(plan)
+
+
+      class ReturnsDesk:
+          def __init__(self, planner: PickPlanner, packer: Packer) -> None:
+              self._planner = planner
+              self._packer = packer
+
+          def reship(self, order_id: str) -> Shipment:
+              return self._packer.pack(self._planner.plan(order_id))
+  expected_output:
+    outcome: invalid
+- name: defines a pipeline that plans, reserves stock and packs
+  inputs:
+    file: shipments/fulfillment.py
+    after: |
+      from typing import Protocol
+
+
+      class PickPlan(Protocol):
+          order_id: str
+
+
+      class Shipment(Protocol):
+          tracking_number: str
+
+
+      class PickPlanner(Protocol):
+          def plan(self, order_id: str) -> PickPlan: ...
+
+
+      class Packer(Protocol):
+          def pack(self, plan: PickPlan) -> Shipment: ...
+
+
+      class StockLedger(Protocol):
+          def reserve(self, plan: PickPlan) -> None: ...
+
+
+      class FulfillmentPipeline:
+          def __init__(self, planner: PickPlanner, ledger: StockLedger, packer: Packer) -> None:
+              self._planner = planner
+              self._ledger = ledger
+              self._packer = packer
+
+          def run(self, order_id: str) -> Shipment:
+              plan = self._planner.plan(order_id)
+              self._ledger.reserve(plan)
+              return self._packer.pack(plan)
+  expected_output:
+    outcome: valid
+- name: chains an imported pipeline's stages through locals
+  inputs:
+    file: shipments/returns.py
+    unchanged:
+      shipments/pipeline.py: |
+        from typing import Protocol
+
+
+        class PickPlan(Protocol):
+            order_id: str
+
+
+        class Shipment(Protocol):
+            tracking_number: str
+
+
+        class PickPlanner(Protocol):
+            def plan(self, order_id: str) -> PickPlan: ...
+
+
+        class Packer(Protocol):
+            def pack(self, plan: PickPlan) -> Shipment: ...
+
+
+        class FulfillmentPipeline:
+            def __init__(self, planner: PickPlanner, packer: Packer) -> None:
+                self._planner = planner
+                self._packer = packer
+
+            def run(self, order_id: str) -> Shipment:
+                plan = self._planner.plan(order_id)
+                return self._packer.pack(plan)
+    after: |
+      from shipments.pipeline import Packer, PickPlanner, Shipment
+
+
+      class ReturnsDesk:
+          def __init__(self, planner: PickPlanner, packer: Packer) -> None:
+              self._planner = planner
+              self._packer = packer
+
+          def reship(self, order_id: str) -> Shipment:
+              plan = self._planner.plan(order_id)
+              shipment = self._packer.pack(plan)
+              return shipment
+  expected_output:
+    outcome: invalid
+- name: previews an imported planner's plan alone
+  inputs:
+    file: shipments/returns.py
+    unchanged:
+      shipments/pipeline.py: |
+        from typing import Protocol
+
+
+        class PickPlan(Protocol):
+            order_id: str
+
+            def summary(self) -> str: ...
+
+
+        class Shipment(Protocol):
+            tracking_number: str
+
+
+        class PickPlanner(Protocol):
+            def plan(self, order_id: str) -> PickPlan: ...
+
+
+        class Packer(Protocol):
+            def pack(self, plan: PickPlan) -> Shipment: ...
+
+
+        class FulfillmentPipeline:
+            def __init__(self, planner: PickPlanner, packer: Packer) -> None:
+                self._planner = planner
+                self._packer = packer
+
+            def run(self, order_id: str) -> Shipment:
+                plan = self._planner.plan(order_id)
+                return self._packer.pack(plan)
+    after: |
+      from shipments.pipeline import PickPlanner
+
+
+      class ReturnsDesk:
+          def __init__(self, planner: PickPlanner) -> None:
+              self._planner = planner
+
+          def reship_preview(self, order_id: str) -> str:
+              plan = self._planner.plan(order_id)
+              return plan.summary()
+  expected_output:
+    outcome: valid
+- name: chains two stages no visible component runs
+  inputs:
+    file: shipments/returns.py
+    unchanged:
+      shipments/stages.py: |
+        from typing import Protocol
+
+
+        class PickPlan(Protocol):
+            order_id: str
+
+
+        class Shipment(Protocol):
+            tracking_number: str
+
+
+        class PickPlanner(Protocol):
+            def plan(self, order_id: str) -> PickPlan: ...
+
+
+        class Packer(Protocol):
+            def pack(self, plan: PickPlan) -> Shipment: ...
+    after: |
+      from shipments.stages import Packer, PickPlanner, Shipment
+
+
+      class ReturnsDesk:
+          def __init__(self, planner: PickPlanner, packer: Packer) -> None:
+              self._planner = planner
+              self._packer = packer
+
+          def reship(self, order_id: str) -> Shipment:
+              plan = self._planner.plan(order_id)
+              return self._packer.pack(plan)
+  expected_output:
+    outcome: valid
+- name: validates extracted documents with imported functions an ingest function already chains
+  inputs:
+    file: documents/bulk.py
+    unchanged:
+      documents/ingest.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Extracted:
+            fields: dict[str, str]
+
+
+        @dataclass(frozen=True)
+        class Validated:
+            fields: dict[str, str]
+
+
+        def extract(document: bytes) -> Extracted:
+            return Extracted(fields={"size": str(len(document))})
+
+
+        def validate(extracted: Extracted) -> Validated:
+            return Validated(fields=dict(extracted.fields))
+
+
+        def ingest(document: bytes) -> Validated:
+            return validate(extract(document))
+    after: |
+      from documents.ingest import Validated, extract, validate
+
+
+      def ingest_all(documents: list[bytes]) -> list[Validated]:
+          return [validate(extract(document)) for document in documents]
+  expected_output:
+    outcome: invalid
+- name: indexes extracted documents where the ingest function validates them
+  inputs:
+    file: documents/bulk.py
+    unchanged:
+      documents/ingest.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Extracted:
+            fields: dict[str, str]
+
+
+        @dataclass(frozen=True)
+        class Validated:
+            fields: dict[str, str]
+
+
+        def extract(document: bytes) -> Extracted:
+            return Extracted(fields={"size": str(len(document))})
+
+
+        def validate(extracted: Extracted) -> Validated:
+            return Validated(fields=dict(extracted.fields))
+
+
+        def ingest(document: bytes) -> Validated:
+            return validate(extract(document))
+      documents/search.py: |
+        from documents.ingest import Extracted
+
+
+        def index(extracted: Extracted) -> str:
+            return ",".join(sorted(extracted.fields))
+    after: |
+      from documents.ingest import extract
+      from documents.search import index
+
+
+      def index_all(documents: list[bytes]) -> list[str]:
+          return [index(extract(document)) for document in documents]
+  expected_output:
+    outcome: valid
+- name: awaits an async pipeline's stages from a retry worker
+  inputs:
+    file: payments/settlement.py
+    after: |
+      from typing import Protocol
+
+
+      class Authorization(Protocol):
+          id: str
+
+
+      class Receipt(Protocol):
+          number: str
+
+
+      class Authorizer(Protocol):
+          async def authorize(self, payment_id: str) -> Authorization: ...
+
+
+      class Capturer(Protocol):
+          async def capture(self, authorization: Authorization) -> Receipt: ...
+
+
+      class SettlementPipeline:
+          def __init__(self, authorizer: Authorizer, capturer: Capturer) -> None:
+              self._authorizer = authorizer
+              self._capturer = capturer
+
+          async def settle(self, payment_id: str) -> Receipt:
+              authorization = await self._authorizer.authorize(payment_id)
+              return await self._capturer.capture(authorization)
+
+
+      class RetryWorker:
+          def __init__(self, authorizer: Authorizer, capturer: Capturer) -> None:
+              self._authorizer = authorizer
+              self._capturer = capturer
+
+          async def retry(self, payment_id: str) -> Receipt:
+              authorization = await self._authorizer.authorize(payment_id)
+              return await self._capturer.capture(authorization)
+  expected_output:
+    outcome: invalid
+- name: awaits an async pipeline's settle from a retry worker
+  inputs:
+    file: payments/settlement.py
+    after: |
+      from typing import Protocol
+
+
+      class Authorization(Protocol):
+          id: str
+
+
+      class Receipt(Protocol):
+          number: str
+
+
+      class Authorizer(Protocol):
+          async def authorize(self, payment_id: str) -> Authorization: ...
+
+
+      class Capturer(Protocol):
+          async def capture(self, authorization: Authorization) -> Receipt: ...
+
+
+      class SettlementPipeline:
+          def __init__(self, authorizer: Authorizer, capturer: Capturer) -> None:
+              self._authorizer = authorizer
+              self._capturer = capturer
+
+          async def settle(self, payment_id: str) -> Receipt:
+              authorization = await self._authorizer.authorize(payment_id)
+              return await self._capturer.capture(authorization)
+
+
+      class RetryWorker:
+          def __init__(self, pipeline: SettlementPipeline) -> None:
+              self._pipeline = pipeline
+
+          async def retry(self, payment_id: str) -> Receipt:
+              receipt = await self._pipeline.settle(payment_id)
+              return receipt
+  expected_output:
+    outcome: valid
+- name: raises the maximum reship attempts
+  inputs:
+    file: shipments/fulfillment.py
+    before: |
+      class ReturnsDesk:
+          max_reship_attempts = 3
+
+          def can_reship(self, attempts: int) -> bool:
+              return attempts < self.max_reship_attempts
+    after: |
+      class ReturnsDesk:
+          max_reship_attempts = 5
+
+          def can_reship(self, attempts: int) -> bool:
+              return attempts < self.max_reship_attempts
+  expected_output:
+    outcome: valid
+- name: passes a priority flag to the pipeline call
+  inputs:
+    file: shipments/returns.py
+    before: |
+      from shipments.pipeline import FulfillmentPipeline, Shipment
+
+
+      class ReturnsDesk:
+          def __init__(self, pipeline: FulfillmentPipeline) -> None:
+              self._pipeline = pipeline
+
+          def reship(self, order_id: str) -> Shipment:
+              return self._pipeline.run(order_id)
+    after: |
+      from shipments.pipeline import FulfillmentPipeline, Shipment
+
+
+      class ReturnsDesk:
+          def __init__(self, pipeline: FulfillmentPipeline) -> None:
+              self._pipeline = pipeline
+
+          def reship(self, order_id: str) -> Shipment:
+              return self._pipeline.run(order_id, priority=True)
+  expected_output:
+    outcome: valid
+- name: computes a sort key in a staticmethod
+  inputs:
+    file: invoices/summary.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class InvoiceLine:
+          sku: str
+          position: int
+
+
+      class InvoiceSummaryComposer:
+          def __init__(self, lines: list[InvoiceLine]) -> None:
+              self._lines = lines
+
+          def ordered_skus(self) -> list[str]:
+              return [line.sku for line in sorted(self._lines, key=self._sort_key)]
+
+          @staticmethod
+          def _sort_key(line: InvoiceLine) -> tuple[str, int]:
+              return (line.sku.casefold(), line.position)
+  expected_output:
+    outcome: invalid
+- name: compares two lines in a staticmethod
+  inputs:
+    file: invoices/summary.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class InvoiceLine:
+          sku: str
+          amount_cents: int
+
+
+      @dataclass(frozen=True)
+      class LineChange:
+          sku: str
+          delta_cents: int
+
+
+      class InvoiceDiffComposer:
+          def __init__(self, before: list[InvoiceLine], after: list[InvoiceLine]) -> None:
+              self._pairs = list(zip(before, after))
+
+          def changes(self) -> list[LineChange]:
+              return [self._change(old, new) for old, new in self._pairs]
+
+          @staticmethod
+          def _change(old: InvoiceLine, new: InvoiceLine) -> LineChange:
+              return LineChange(sku=new.sku, delta_cents=new.amount_cents - old.amount_cents)
+  expected_output:
+    outcome: valid
+- name: adds a heaviness check that ignores self
+  inputs:
+    file: shipments/label_printer.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          tracking_number: str
+          weight_kg: float
+
+
+      class ShipmentLabelPrinter:
+          def __init__(self, carrier_name: str) -> None:
+              self._carrier_name = carrier_name
+
+          def label(self, shipment: Shipment) -> str:
+              return f"{self._carrier_name} {shipment.tracking_number}"
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          tracking_number: str
+          weight_kg: float
+
+
+      class ShipmentLabelPrinter:
+          def __init__(self, carrier_name: str) -> None:
+              self._carrier_name = carrier_name
+
+          def label(self, shipment: Shipment) -> str:
+              suffix = " HEAVY" if self._is_heavy(shipment) else ""
+              return f"{self._carrier_name} {shipment.tracking_number}{suffix}"
+
+          def _is_heavy(self, shipment: Shipment) -> bool:
+              return shipment.weight_kg > 30
+  expected_output:
+    outcome: invalid
+- name: adds a heaviness check against a given limit
+  inputs:
+    file: shipments/label_printer.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          tracking_number: str
+          weight_kg: float
+
+
+      class ShipmentLabelPrinter:
+          def __init__(self, carrier_name: str, heavy_limit_kg: float) -> None:
+              self._carrier_name = carrier_name
+              self._heavy_limit_kg = heavy_limit_kg
+
+          def label(self, shipment: Shipment) -> str:
+              return f"{self._carrier_name} {shipment.tracking_number}"
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          tracking_number: str
+          weight_kg: float
+
+
+      class ShipmentLabelPrinter:
+          def __init__(self, carrier_name: str, heavy_limit_kg: float) -> None:
+              self._carrier_name = carrier_name
+              self._heavy_limit_kg = heavy_limit_kg
+
+          def label(self, shipment: Shipment) -> str:
+              suffix = " HEAVY" if self._is_heavy(shipment, self._heavy_limit_kg) else ""
+              return f"{self._carrier_name} {shipment.tracking_number}{suffix}"
+
+          def _is_heavy(self, shipment: Shipment, limit_kg: float) -> bool:
+              return shipment.weight_kg > limit_kg
+  expected_output:
+    outcome: valid
+- name: formats a manifest line for a shipment in a module function
+  inputs:
+    file: shipments/manifest.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          tracking_number: str
+          destination: str
+          weight_kg: float
+
+
+      def manifest_line(shipment: Shipment) -> str:
+          return f"{shipment.tracking_number} -> {shipment.destination} ({shipment.weight_kg:.1f} kg)"
+
+
+      def manifest(shipments: list[Shipment]) -> str:
+          return "\n".join(manifest_line(shipment) for shipment in shipments)
+  expected_output:
+    outcome: valid
+- name: formats an ISO week label from a date
+  inputs:
+    file: shipments/manifest.py
+    after: |
+      from dataclasses import dataclass
+      from datetime import date
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          tracking_number: str
+          shipped_on: date
+
+
+      def week_label(day: date) -> str:
+          year, week, _ = day.isocalendar()
+          return f"{year}-W{week:02d}"
+
+
+      def manifest_header(shipments: list[Shipment]) -> str:
+          return f"Manifest {week_label(shipments[0].shipped_on)}: {len(shipments)} shipments"
+  expected_output:
+    outcome: valid
+- name: totals a pydantic order in a module function
+  inputs:
+    file: orders/totals.py
+    after: |
+      from pydantic import BaseModel
+
+
+      class OrderLine(BaseModel):
+          quantity: int
+          unit_price_cents: int
+
+
+      class Order(BaseModel):
+          number: str
+          lines: list[OrderLine]
+
+
+      def order_total_cents(order: Order) -> int:
+          return sum(line.quantity * line.unit_price_cents for line in order.lines)
+  expected_output:
+    outcome: invalid
+- name: converts a pydantic order total at a given rate
+  inputs:
+    file: orders/totals.py
+    after: |
+      from decimal import Decimal
+
+      from pydantic import BaseModel
+
+
+      class OrderLine(BaseModel):
+          quantity: int
+          unit_price_cents: int
+
+
+      class Order(BaseModel):
+          number: str
+          lines: list[OrderLine]
+
+
+      def order_total_in(order: Order, exchange_rate: Decimal) -> Decimal:
+          cents = sum(line.quantity * line.unit_price_cents for line in order.lines)
+          return Decimal(cents) * exchange_rate / 100
+  expected_output:
+    outcome: valid
+- name: checks VIP status of a Django customer in a nested function
+  inputs:
+    file: customers/campaigns.py
+    after: |
+      from django.db import models
+
+
+      class Customer(models.Model):
+          email = models.EmailField()
+          lifetime_spend_cents = models.IntegerField()
+
+
+      def vip_emails(customers: list[Customer]) -> list[str]:
+          def is_vip(customer: Customer) -> bool:
+              return customer.lifetime_spend_cents >= 100_000
+
+          return [customer.email for customer in customers if is_vip(customer)]
+  expected_output:
+    outcome: invalid
+- name: checks a Django customer against the caller's threshold in a nested function
+  inputs:
+    file: customers/campaigns.py
+    after: |
+      from django.db import models
+
+
+      class Customer(models.Model):
+          email = models.EmailField()
+          lifetime_spend_cents = models.IntegerField()
+
+
+      def emails_above(customers: list[Customer], threshold_cents: int) -> list[str]:
+          def is_above(customer: Customer) -> bool:
+              return customer.lifetime_spend_cents >= threshold_cents
+
+          return [customer.email for customer in customers if is_above(customer)]
+  expected_output:
+    outcome: valid
+- name: checks an imported invoice's age in a module function
+  inputs:
+    file: invoices/reminders.py
+    unchanged:
+      invoices/models.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            number: str
+            days_open: int
+            balance_cents: int
+    after: |
+      from invoices.models import Invoice
+
+
+      def needs_reminder(invoice: Invoice) -> bool:
+          return invoice.balance_cents > 0 and invoice.days_open > 30
+  expected_output:
+    outcome: invalid
+- name: checks an imported invoice's age against today's date
+  inputs:
+    file: invoices/reminders.py
+    unchanged:
+      invoices/models.py: |
+        from dataclasses import dataclass
+        from datetime import date
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            number: str
+            issued_on: date
+            balance_cents: int
+    after: |
+      from datetime import date
+
+      from invoices.models import Invoice
+
+
+      def needs_reminder(invoice: Invoice) -> bool:
+          return invoice.balance_cents > 0 and (date.today() - invoice.issued_on).days > 30
+  expected_output:
+    outcome: valid
+- name: builds an attrs event export row in a classmethod that ignores cls
+  inputs:
+    file: tracking/export.py
+    after: |
+      import attrs
+
+
+      @attrs.frozen
+      class ScanEvent:
+          tracking_number: str
+          location: str
+          status: str
+
+
+      class ScanExport:
+          @classmethod
+          def row(cls, event: ScanEvent) -> dict[str, str]:
+              return {
+                  "tracking_number": event.tracking_number,
+                  "location": event.location.title(),
+                  "status": event.status.upper(),
+              }
+  expected_output:
+    outcome: valid
+- name: reads a status code from a requests response
+  inputs:
+    file: carriers/client.py
+    after: |
+      import requests
+
+
+      def is_rate_limited(response: requests.Response) -> bool:
+          return response.status_code == 429
+
+
+      def fetch_rates(session: requests.Session, url: str) -> requests.Response:
+          response = session.get(url, timeout=10)
+          if is_rate_limited(response):
+              response = session.get(url, timeout=30)
+          return response
+  expected_output:
+    outcome: valid
+- name: implements the renderer interface's render method
+  inputs:
+    file: invoices/rendering.py
+    after: |
+      from abc import ABC, abstractmethod
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          number: str
+          total_cents: int
+
+
+      class InvoiceRenderer(ABC):
+          @abstractmethod
+          def render(self, invoice: Invoice) -> str: ...
+
+
+      class PlainTextInvoiceRenderer(InvoiceRenderer):
+          def render(self, invoice: Invoice) -> str:
+              return f"Invoice {invoice.number}: {invoice.total_cents / 100:.2f}"
+  expected_output:
+    outcome: valid
+- name: builds a shipment from an order in a module function
+  inputs:
+    file: shipments/from_orders.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Order:
+          number: str
+          shipping_address: str
+          total_weight_kg: float
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          order_number: str
+          destination: str
+          weight_kg: float
+
+
+      class ShipmentPlanner:
+          @staticmethod
+          def shipment_for(order: Order) -> Shipment:
+              return Shipment(
+                  order_number=order.number,
+                  destination=order.shipping_address,
+                  weight_kg=order.total_weight_kg,
+              )
+  expected_output:
+    outcome: valid
+- name: computes the volume of a SQLAlchemy parcel in a module function
+  inputs:
+    file: warehouse/parcels.py
+    after: |
+      from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+
+      class Base(DeclarativeBase):
+          pass
+
+
+      class Parcel(Base):
+          __tablename__ = "parcels"
+
+          id: Mapped[int] = mapped_column(primary_key=True)
+          length_cm: Mapped[int]
+          width_cm: Mapped[int]
+          height_cm: Mapped[int]
+
+
+      def volume_litres(parcel: Parcel) -> float:
+          return parcel.length_cm * parcel.width_cm * parcel.height_cm / 1000
+  expected_output:
+    outcome: invalid
+- name: changes a label method that reads the printer's carrier
+  inputs:
+    file: shipments/label_printer.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          tracking_number: str
+          weight_kg: float
+
+
+      class ShipmentLabelPrinter:
+          def __init__(self, carrier_name: str) -> None:
+              self._carrier_name = carrier_name
+
+          def label(self, shipment: Shipment) -> str:
+              return f"{self._carrier_name} {shipment.tracking_number}"
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          tracking_number: str
+          weight_kg: float
+
+
+      class ShipmentLabelPrinter:
+          def __init__(self, carrier_name: str) -> None:
+              self._carrier_name = carrier_name
+
+          def label(self, shipment: Shipment) -> str:
+              return f"{self._carrier_name.upper()} / {shipment.tracking_number}"
+  expected_output:
+    outcome: skipped
+- name: adds a field to a dataclass
+  inputs:
+    file: shipments/label_printer.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          tracking_number: str
+          weight_kg: float
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          tracking_number: str
+          weight_kg: float
+          fragile: bool = False
+  expected_output:
+    outcome: valid
+- name: copies the customer email into the mailer
+  inputs:
+    file: billing/invoice_mailer.py
+    before: |
+      class InvoiceMailer:
+          def __init__(self, customer, smtp) -> None:
+              self.customer = customer
+              self.smtp = smtp
+
+          def send(self, invoice) -> None:
+              self.smtp.send(to=self.customer.email, body=invoice.render())
+    after: |
+      class InvoiceMailer:
+          def __init__(self, customer, smtp) -> None:
+              self.customer = customer
+              self.smtp = smtp
+              self.email = customer.email
+
+          def send(self, invoice) -> None:
+              self.smtp.send(to=self.email, body=invoice.render())
+  expected_output:
+    outcome: invalid
+- name: reads the email from the customer
+  inputs:
+    file: billing/invoice_mailer.py
+    after: |
+      class InvoiceMailer:
+          def __init__(self, customer, smtp) -> None:
+              self.customer = customer
+              self.smtp = smtp
+
+          def send(self, invoice) -> None:
+              self.smtp.send(to=self.customer.email, body=invoice.render())
+  expected_output:
+    outcome: valid
+- name: stores the registry key as a kind
+  inputs:
+    file: shipping/strategies.py
+    before: |
+      class ExpressShippingStrategy:
+          def quote(self, weight_grams: int) -> int:
+              return 1500 + weight_grams // 100
+
+
+      SHIPPING_STRATEGIES = {"express": ExpressShippingStrategy()}
+    after: |
+      class ExpressShippingStrategy:
+          kind = "express"
+
+          def quote(self, weight_grams: int) -> int:
+              return 1500 + weight_grams // 100
+
+
+      SHIPPING_STRATEGIES = {"express": ExpressShippingStrategy()}
+  expected_output:
+    outcome: invalid
+- name: stores a rate that is not the registry key
+  inputs:
+    file: shipping/strategies.py
+    before: |
+      class ExpressShippingStrategy:
+          def quote(self, weight_grams: int) -> int:
+              return 1500 + weight_grams // 100
+
+
+      SHIPPING_STRATEGIES = {"express": ExpressShippingStrategy()}
+    after: |
+      class ExpressShippingStrategy:
+          base_cents = 1500
+
+          def quote(self, weight_grams: int) -> int:
+              return self.base_cents + weight_grams // 100
+
+
+      SHIPPING_STRATEGIES = {"express": ExpressShippingStrategy()}
+  expected_output:
+    outcome: valid
+- name: declares a customer and the customer's email as dataclass fields
+  inputs:
+    file: loyalty/statement.py
+    unchanged:
+      customers/customer.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Customer:
+            id: int
+            email: str
+            name: str
+    after: |
+      from dataclasses import dataclass
+
+      from customers.customer import Customer
+
+
+      @dataclass(frozen=True)
+      class LoyaltyStatement:
+          customer: Customer
+          customer_email: str
+          points: int
+
+          def subject(self) -> str:
+              return f"Your points, {self.customer.name}"
+  expected_output:
+    outcome: invalid
+- name: keeps the email a receipt was sent to without the customer
+  inputs:
+    file: billing/receipt.py
+    after: |
+      from datetime import datetime
+
+
+      class SentReceipt:
+          def __init__(self, sent_to: str, sent_at: datetime, total_cents: int) -> None:
+              self.sent_to = sent_to
+              self.sent_at = sent_at
+              self.total_cents = total_cents
+  expected_output:
+    outcome: valid
+- name: copies the warehouse code in post init
+  inputs:
+    file: inventory/stock_check.py
+    after: |
+      from dataclasses import dataclass, field
+
+      from .warehouse import Warehouse
+
+
+      @dataclass
+      class StockCheck:
+          warehouse: Warehouse
+          warehouse_code: str = field(init=False)
+
+          def __post_init__(self) -> None:
+              self.warehouse_code = self.warehouse.code
+
+          def label(self, sku: str) -> str:
+              return f"{self.warehouse_code}/{sku}"
+  expected_output:
+    outcome: invalid
+- name: keeps the customer id to look the customer up later
+  inputs:
+    file: billing/dunning.py
+    after: |
+      from .customers import CustomerRepository
+
+
+      class DunningReminder:
+          def __init__(self, customer_id: int, customers: CustomerRepository) -> None:
+              self.customer_id = customer_id
+              self._customers = customers
+
+          def recipient(self) -> str:
+              return self._customers.get(self.customer_id).email
+  expected_output:
+    outcome: valid
+- name: names a decorator-registered exporter with its registry key
+  inputs:
+    file: exports/csv_export.py
+    unchanged:
+      exports/registry.py: |
+        from typing import Callable
+
+        EXPORTERS: dict[str, type] = {}
+
+
+        def register(name: str) -> Callable[[type], type]:
+            def add(cls: type) -> type:
+                EXPORTERS[name] = cls
+                return cls
+
+            return add
+    after: |
+      import csv
+      import io
+
+      from .registry import register
+
+
+      @register("csv")
+      class CsvExporter:
+          format_name = "csv"
+
+          def export(self, rows: list[list[str]]) -> str:
+              buffer = io.StringIO()
+              csv.writer(buffer).writerows(rows)
+              return buffer.getvalue()
+  expected_output:
+    outcome: invalid
+- name: computes the order total from its lines
+  inputs:
+    file: orders/order_summary.py
+    after: |
+      from .order import OrderLine
+
+
+      class OrderSummary:
+          def __init__(self, lines: list[OrderLine]) -> None:
+              self.lines = lines
+              self.total_cents = sum(line.unit_cents * line.quantity for line in lines)
+  expected_output:
+    outcome: valid
+- name: copies the account currency into a pydantic statement
+  inputs:
+    file: banking/statement.py
+    unchanged:
+      banking/account.py: |
+        from pydantic import BaseModel
+
+
+        class Account(BaseModel):
+            number: str
+            currency: str
+            holder_name: str
+    after: |
+      from pydantic import BaseModel
+
+      from .account import Account
+
+
+      class Statement(BaseModel):
+          account: Account
+          currency: str
+          closing_balance_cents: int
+
+          @classmethod
+          def for_account(cls, account: Account, closing_balance_cents: int) -> "Statement":
+              return cls(
+                  account=account,
+                  currency=account.currency,
+                  closing_balance_cents=closing_balance_cents,
+              )
+  expected_output:
+    outcome: invalid
+- name: changes the mailer's send body
+  inputs:
+    file: billing/invoice_mailer.py
+    before: |
+      class InvoiceMailer:
+          def __init__(self, customer, smtp) -> None:
+              self.customer = customer
+              self.smtp = smtp
+
+          def send(self, invoice) -> None:
+              self.smtp.send(to=self.customer.email, body=invoice.render())
+    after: |
+      class InvoiceMailer:
+          def __init__(self, customer, smtp) -> None:
+              self.customer = customer
+              self.smtp = smtp
+
+          def send(self, invoice) -> None:
+              self.smtp.send(to=self.customer.email, body=invoice.render_html())
+  expected_output:
+    outcome: valid
+- name: checks a shipment's freight weight in a module function
+  inputs:
+    file: shipments/manifest.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          tracking_number: str
+          destination: str
+          weight_kg: float
+
+
+      def needs_freight(shipment: Shipment) -> bool:
+          return shipment.weight_kg > 30
+
+
+      def freight_shipments(shipments: list[Shipment]) -> list[Shipment]:
+          return [shipment for shipment in shipments if needs_freight(shipment)]
+  expected_output:
+    outcome: invalid
+- name: classifies an attrs event as delivered in a classmethod that ignores cls
+  inputs:
+    file: tracking/export.py
+    after: |
+      import attrs
+
+
+      @attrs.frozen
+      class ScanEvent:
+          tracking_number: str
+          location: str
+          status: str
+
+
+      class ScanExport:
+          @classmethod
+          def is_final(cls, event: ScanEvent) -> bool:
+              return event.status in ("delivered", "returned")
+  expected_output:
+    outcome: invalid
+- name: lists the supported methods beside the handlers keyed by them
+  inputs:
+    file: payments/methods.py
+    before: |
+      from payments.bank import settle_bank
+      from payments.card import settle_card
+
+      HANDLERS = {"card": settle_card, "bank": settle_bank}
+
+
+      def settle(method: str, amount_cents: int) -> None:
+          HANDLERS[method](amount_cents)
+    after: |
+      from payments.bank import settle_bank
+      from payments.card import settle_card
+
+      HANDLERS = {"card": settle_card, "bank": settle_bank}
+      SUPPORTED_METHODS = ("card", "bank")
+
+
+      def settle(method: str, amount_cents: int) -> None:
+          if method not in SUPPORTED_METHODS:
+              raise ValueError(method)
+          HANDLERS[method](amount_cents)
+  expected_output:
+    outcome: invalid
+- name: derives the supported methods from the handlers
+  inputs:
+    file: payments/methods.py
+    before: |
+      from payments.bank import settle_bank
+      from payments.card import settle_card
+
+      HANDLERS = {"card": settle_card, "bank": settle_bank}
+
+
+      def settle(method: str, amount_cents: int) -> None:
+          HANDLERS[method](amount_cents)
+    after: |
+      from payments.bank import settle_bank
+      from payments.card import settle_card
+
+      HANDLERS = {"card": settle_card, "bank": settle_bank}
+      SUPPORTED_METHODS = tuple(HANDLERS)
+
+
+      def settle(method: str, amount_cents: int) -> None:
+          if method not in SUPPORTED_METHODS:
+              raise ValueError(method)
+          HANDLERS[method](amount_cents)
+  expected_output:
+    outcome: valid
+- name: lists every method an imported registry handles
+  inputs:
+    file: payments/checkout_form.py
+    after: |
+      from payments.registry import HANDLERS
+
+      ACCEPTED_METHODS = ["card", "bank"]
+
+
+      def pay(method: str, amount_cents: int) -> None:
+          if method not in ACCEPTED_METHODS:
+              raise ValueError(f"unsupported method {method}")
+          HANDLERS[method](amount_cents)
+    unchanged: &id001
+      payments/registry.py: |
+        from payments.bank import settle_bank
+        from payments.card import settle_card
+
+        HANDLERS = {"card": settle_card, "bank": settle_bank}
+  expected_output:
+    outcome: invalid
+- name: selects the refundable methods of an imported registry
+  inputs:
+    file: payments/checkout_form.py
+    after: |
+      from payments.registry import HANDLERS
+
+      REFUNDABLE_METHODS = ["card"]
+
+
+      def refund(method: str, amount_cents: int) -> None:
+          if method not in REFUNDABLE_METHODS:
+              raise ValueError(f"cannot refund {method}")
+          HANDLERS[method](-amount_cents)
+    unchanged: *id001
+  expected_output:
+    outcome: valid
+- name: lists every member of an imported payment kind enum
+  inputs:
+    file: payments/reporting.py
+    after: |
+      from payments.kinds import PaymentKind
+
+      KNOWN_KINDS = frozenset({PaymentKind.CARD, PaymentKind.BANK, PaymentKind.WALLET})
+
+
+      def is_known_kind(value: str) -> bool:
+          return value in KNOWN_KINDS
+    unchanged: &id002
+      payments/kinds.py: |
+        from enum import StrEnum
+
+
+        class PaymentKind(StrEnum):
+            CARD = "card"
+            BANK = "bank"
+            WALLET = "wallet"
+  expected_output:
+    outcome: invalid
+- name: maps each member of an imported payment kind enum to its fee
+  inputs:
+    file: payments/reporting.py
+    after: |
+      from payments.kinds import PaymentKind
+
+      FEE_CENTS = {PaymentKind.CARD: 30, PaymentKind.BANK: 50, PaymentKind.WALLET: 20}
+
+
+      def fee_cents(kind: PaymentKind) -> int:
+          return FEE_CENTS[kind]
+    unchanged: *id002
+  expected_output:
+    outcome: valid

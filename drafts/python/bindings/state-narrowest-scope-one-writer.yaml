@@ -1,0 +1,4 @@
+skill: python/skills/state-narrowest-scope-one-writer
+paths: ["**/*.py"]
+exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
+triggers: [shared-instance, module-state-write]

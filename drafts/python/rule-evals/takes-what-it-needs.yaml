@@ -1,0 +1,1603 @@
+cases:
+- name: passes a rate provider to each method
+  inputs:
+    file: shipments/quoter.py
+    after: |
+      from dataclasses import dataclass
+
+      from shipments.rates import RateProvider
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          destination: str
+          weight_kg: float
+
+
+      class ShipmentQuoter:
+          def quote_cents(self, shipment: Shipment, rate_provider: RateProvider) -> int:
+              return rate_provider.rate_cents(shipment.destination, shipment.weight_kg)
+
+          def total_quote_cents(self, shipments: list[Shipment], rate_provider: RateProvider) -> int:
+              return sum(self.quote_cents(shipment, rate_provider) for shipment in shipments)
+  expected_output:
+    outcome: invalid
+- name: takes the rate provider in init
+  inputs:
+    file: shipments/quoter.py
+    after: |
+      from dataclasses import dataclass
+
+      from shipments.rates import RateProvider
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          destination: str
+          weight_kg: float
+
+
+      class ShipmentQuoter:
+          def __init__(self, rate_provider: RateProvider) -> None:
+              self._rate_provider = rate_provider
+
+          def quote_cents(self, shipment: Shipment) -> int:
+              return self._rate_provider.rate_cents(shipment.destination, shipment.weight_kg)
+
+          def total_quote_cents(self, shipments: list[Shipment]) -> int:
+              return sum(self.quote_cents(shipment) for shipment in shipments)
+  expected_output:
+    outcome: valid
+- name: adds a formatter parameter to methods
+  inputs:
+    file: invoices/renderer.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          number: str
+          total_cents: int
+
+
+      class InvoiceRenderer:
+          def render(self, invoice: Invoice) -> str:
+              return f"{invoice.number}: {invoice.total_cents}"
+
+          def render_all(self, invoices: list[Invoice]) -> list[str]:
+              return [self.render(invoice) for invoice in invoices]
+    after: |
+      from dataclasses import dataclass
+
+      from invoices.currency import CurrencyFormatter
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          number: str
+          total_cents: int
+
+
+      class InvoiceRenderer:
+          def render(self, invoice: Invoice, formatter: CurrencyFormatter) -> str:
+              return f"{invoice.number}: {formatter.format_cents(invoice.total_cents)}"
+
+          def render_all(self, invoices: list[Invoice], formatter: CurrencyFormatter) -> list[str]:
+              return [self.render(invoice, formatter) for invoice in invoices]
+  expected_output:
+    outcome: invalid
+- name: calls methods of the order it describes
+  inputs:
+    file: invoices/renderer.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class OrderLine:
+          quantity: int
+          unit_price_cents: int
+
+
+      @dataclass(frozen=True)
+      class Order:
+          number: str
+          lines: list[OrderLine]
+
+          def total_cents(self) -> int:
+              return sum(line.quantity * line.unit_price_cents for line in self.lines)
+
+
+      class OrderSummary:
+          def __init__(self, currency_symbol: str) -> None:
+              self._currency_symbol = currency_symbol
+
+          def describe(self, order: Order) -> str:
+              return f"{order.number}: {self._currency_symbol}{order.total_cents() / 100:.2f}"
+  expected_output:
+    outcome: valid
+- name: passes an untyped mailer to the reminder method
+  inputs:
+    file: invoices/reminders.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          number: str
+          customer_email: str
+          balance_cents: int
+
+
+      class ReminderRun:
+          def __init__(self, sender_address: str) -> None:
+              self._sender_address = sender_address
+
+          def send_reminders(self, invoices, mailer):
+              for invoice in invoices:
+                  if invoice.balance_cents > 0:
+                      mailer.send(
+                          sender=self._sender_address,
+                          to=invoice.customer_email,
+                          subject=f"Invoice {invoice.number} is unpaid",
+                      )
+  expected_output:
+    outcome: invalid
+- name: passes an HTTP client to an async refresh method
+  inputs:
+    file: accounts/sync.py
+    after: |
+      import httpx
+      from pydantic import BaseModel
+
+
+      class Account(BaseModel):
+          id: str
+          balance_cents: int
+
+
+      class AccountSync:
+          def __init__(self, base_url: str) -> None:
+              self._base_url = base_url
+
+          async def refresh(self, account_id: str, client: httpx.AsyncClient) -> Account:
+              response = await client.get(f"{self._base_url}/accounts/{account_id}")
+              return Account.model_validate_json(response.content)
+  expected_output:
+    outcome: invalid
+- name: builds the sync from settings and a client in a classmethod
+  inputs:
+    file: accounts/sync.py
+    after: |
+      from dataclasses import dataclass
+      from typing import Self
+
+      import httpx
+      from pydantic import BaseModel
+
+
+      class Account(BaseModel):
+          id: str
+          balance_cents: int
+
+
+      @dataclass(frozen=True)
+      class SyncSettings:
+          base_url: str
+
+
+      class AccountSync:
+          def __init__(self, base_url: str, client: httpx.AsyncClient) -> None:
+              self._base_url = base_url
+              self._client = client
+
+          @classmethod
+          def from_settings(cls, settings: SyncSettings, client: httpx.AsyncClient) -> Self:
+              return cls(base_url=settings.base_url, client=client)
+
+          async def refresh(self, account_id: str) -> Account:
+              response = await self._client.get(f"{self._base_url}/accounts/{account_id}")
+              return Account.model_validate_json(response.content)
+  expected_output:
+    outcome: valid
+- name: passes an exporter registry to the export method
+  inputs:
+    file: reports/export.py
+    after: |
+      from dataclasses import dataclass
+
+      from reports.exporters import ExporterRegistry
+
+
+      @dataclass(frozen=True)
+      class Report:
+          title: str
+          rows: list[dict[str, str]]
+
+
+      class ReportPublisher:
+          def __init__(self, bucket: str) -> None:
+              self._bucket = bucket
+
+          def publish(self, report: Report, file_format: str, exporters: ExporterRegistry) -> str:
+              body = exporters.exporter_for(file_format).export(report.rows)
+              return f"{self._bucket}/{report.title}.{file_format}:{len(body)}"
+  expected_output:
+    outcome: invalid
+- name: implements a handler interface that passes the event bus
+  inputs:
+    file: shipments/handlers.py
+    after: |
+      from abc import ABC, abstractmethod
+      from dataclasses import dataclass
+
+      from shipments.bus import EventBus
+
+
+      @dataclass(frozen=True)
+      class ShipmentShipped:
+          shipment_id: str
+          order_number: str
+
+
+      @dataclass(frozen=True)
+      class OrderFulfilled:
+          order_number: str
+
+
+      class ShipmentEventHandler(ABC):
+          @abstractmethod
+          def handle(self, event: ShipmentShipped, bus: EventBus) -> None: ...
+
+
+      class FulfillOrderOnShipment(ShipmentEventHandler):
+          def handle(self, event: ShipmentShipped, bus: EventBus) -> None:
+              bus.publish(OrderFulfilled(order_number=event.order_number))
+  expected_output:
+    outcome: valid
+- name: reads a Django order in a view method that takes the request
+  inputs:
+    file: orders/views.py
+    after: |
+      from django.http import HttpRequest, JsonResponse
+      from django.views import View
+
+      from orders.models import Order
+
+
+      class OrderDetailView(View):
+          def get(self, request: HttpRequest, order_number: str) -> JsonResponse:
+              order = Order.objects.get(number=order_number, customer=request.user)
+              return JsonResponse({"number": order.number, "status": order.status})
+  expected_output:
+    outcome: valid
+- name: passes a clock to a Django view helper method
+  inputs:
+    file: orders/views.py
+    after: |
+      from django.http import HttpRequest, JsonResponse
+      from django.views import View
+
+      from orders.clock import Clock
+      from orders.models import Order
+
+
+      class OpenOrdersView(View):
+          clock: Clock
+
+          def get(self, request: HttpRequest) -> JsonResponse:
+              return JsonResponse({"open": self._open_numbers(request, self.clock)})
+
+          def _open_numbers(self, request: HttpRequest, clock: Clock) -> list[str]:
+              orders = Order.objects.filter(customer=request.user, due_at__gt=clock.now())
+              return [order.number for order in orders]
+  expected_output:
+    outcome: invalid
+- name: filters orders placed since a given time
+  inputs:
+    file: orders/history.py
+    after: |
+      from datetime import datetime
+
+      from pydantic import BaseModel
+
+
+      class PlacedOrder(BaseModel):
+          number: str
+          placed_at: datetime
+
+
+      class OrderHistory(BaseModel):
+          orders: list[PlacedOrder]
+
+          def placed_since(self, since: datetime) -> list[PlacedOrder]:
+              return [order for order in self.orders if order.placed_at >= since]
+  expected_output:
+    outcome: valid
+- name: adds a module function that takes a rate provider
+  inputs:
+    file: shipments/quoting.py
+    after: |
+      from dataclasses import dataclass
+
+      from shipments.rates import RateProvider
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          destination: str
+          weight_kg: float
+
+
+      def quote_cents(shipment: Shipment, rate_provider: RateProvider) -> int:
+          return rate_provider.rate_cents(shipment.destination, shipment.weight_kg)
+  expected_output:
+    outcome: valid
+- name: adds a collaborator to the constructor
+  inputs:
+    file: shipments/quoter.py
+    before: |
+      from shipments.rates import RateProvider
+
+
+      class ShipmentQuoter:
+          def __init__(self, rate_provider: RateProvider) -> None:
+              self._rate_provider = rate_provider
+    after: |
+      from shipments.rates import RateProvider
+      from shipments.zones import ZoneMap
+
+
+      class ShipmentQuoter:
+          def __init__(self, rate_provider: RateProvider, zones: ZoneMap) -> None:
+              self._rate_provider = rate_provider
+              self._zones = zones
+  expected_output:
+    outcome: skipped
+- name: takes a whole checkout context for two fields
+  inputs:
+    file: checkout/tax.py
+    after: |
+      from dataclasses import dataclass
+
+      from checkout.cart import Cart
+      from customers.customer import Customer
+      from payments.method import PaymentMethod
+
+
+      @dataclass(frozen=True)
+      class CheckoutContext:
+          cart: Cart
+          customer: Customer
+          payment_method: PaymentMethod
+          coupon_code: str | None
+          shipping_region: str
+          subtotal_cents: int
+
+
+      class TaxCalculator:
+          def __init__(self, rates_by_region: dict[str, float]) -> None:
+              self._rates_by_region = rates_by_region
+
+          def tax_cents(self, context: CheckoutContext) -> int:
+              return round(context.subtotal_cents * self._rates_by_region[context.shipping_region])
+  expected_output:
+    outcome: invalid
+- name: widens tax arguments to an imported checkout context
+  inputs:
+    file: checkout/tax.py
+    unchanged:
+      checkout/context.py: |
+        from dataclasses import dataclass
+
+        from checkout.cart import Cart
+        from customers.customer import Customer
+        from payments.method import PaymentMethod
+
+
+        @dataclass(frozen=True)
+        class CheckoutContext:
+            cart: Cart
+            customer: Customer
+            payment_method: PaymentMethod
+            coupon_code: str | None
+            shipping_region: str
+            subtotal_cents: int
+    before: |
+      class TaxCalculator:
+          def __init__(self, rates_by_region: dict[str, float]) -> None:
+              self._rates_by_region = rates_by_region
+
+          def tax_cents(self, shipping_region: str, subtotal_cents: int) -> int:
+              return round(subtotal_cents * self._rates_by_region[shipping_region])
+    after: |
+      from checkout.context import CheckoutContext
+
+
+      class TaxCalculator:
+          def __init__(self, rates_by_region: dict[str, float]) -> None:
+              self._rates_by_region = rates_by_region
+
+          def tax_cents(self, context: CheckoutContext) -> int:
+              return round(context.subtotal_cents * self._rates_by_region[context.shipping_region])
+  expected_output:
+    outcome: invalid
+- name: passes the imported context on and calls its method
+  inputs:
+    file: checkout/receipt.py
+    unchanged:
+      checkout/context.py: |
+        from dataclasses import dataclass
+
+        from checkout.cart import Cart
+        from customers.customer import Customer
+
+
+        @dataclass(frozen=True)
+        class CheckoutContext:
+            cart: Cart
+            customer: Customer
+            coupon_code: str | None
+            shipping_region: str
+            subtotal_cents: int
+
+            def receipt_lines(self) -> list[str]:
+                return [f"{line.sku} {line.amount_cents}" for line in self.cart.lines]
+    after: |
+      from checkout.context import CheckoutContext
+      from checkout.printer import ReceiptPrinter
+
+
+      class ReceiptWriter:
+          def __init__(self, printer: ReceiptPrinter) -> None:
+              self._printer = printer
+
+          def write(self, context: CheckoutContext) -> None:
+              self._printer.print_header(context.customer.name)
+              self._printer.print_lines(context.receipt_lines())
+              self._printer.archive(context)
+  expected_output:
+    outcome: valid
+- name: reads two fields of an order to build its label
+  inputs:
+    file: shipments/labels.py
+    after: |
+      from dataclasses import dataclass
+      from datetime import date
+
+
+      @dataclass(frozen=True)
+      class Order:
+          number: str
+          customer_name: str
+          shipping_address: str
+          placed_on: date
+          total_cents: int
+          notes: str
+
+
+      class LabelPrinter:
+          def __init__(self, carrier_code: str) -> None:
+              self._carrier_code = carrier_code
+
+          def label(self, order: Order) -> str:
+              return f"{self._carrier_code}\n{order.customer_name}\n{order.shipping_address}"
+  expected_output:
+    outcome: valid
+- name: takes the request context to log a user id
+  inputs:
+    file: audit/log.py
+    after: |
+      from dataclasses import dataclass
+
+      from sqlalchemy.orm import Session
+
+
+      @dataclass(frozen=True)
+      class RequestContext:
+          user_id: str
+          tenant_id: str
+          locale: str
+          trace_id: str
+          feature_flags: frozenset[str]
+          db_session: Session
+
+
+      def audit_line(context: RequestContext, action: str) -> str:
+          return f"user={context.user_id} action={action}"
+  expected_output:
+    outcome: invalid
+- name: builds a carrier client from two of many pydantic settings
+  inputs:
+    file: carriers/client.py
+    after: |
+      import httpx
+      from pydantic_settings import BaseSettings
+
+
+      class AppSettings(BaseSettings):
+          database_url: str
+          redis_url: str
+          carrier_api_url: str
+          http_timeout_seconds: float
+          sentry_dsn: str
+          page_size: int
+          admin_email: str
+          debug: bool
+
+
+      def carrier_client(settings: AppSettings) -> httpx.Client:
+          return httpx.Client(base_url=settings.carrier_api_url, timeout=settings.http_timeout_seconds)
+  expected_output:
+    outcome: invalid
+- name: builds a carrier client from most of its pydantic settings
+  inputs:
+    file: carriers/client.py
+    after: |
+      import httpx
+      from pydantic_settings import BaseSettings
+
+
+      class CarrierSettings(BaseSettings):
+          carrier_api_url: str
+          carrier_api_key: str
+          http_timeout_seconds: float
+          debug: bool
+
+
+      def carrier_client(settings: CarrierSettings) -> httpx.Client:
+          return httpx.Client(
+              base_url=settings.carrier_api_url,
+              headers={"Authorization": f"Bearer {settings.carrier_api_key}"},
+              timeout=settings.http_timeout_seconds,
+          )
+  expected_output:
+    outcome: valid
+- name: reads one field of an attrs app state in a method
+  inputs:
+    file: catalog/listing.py
+    after: |
+      import attrs
+
+      from catalog.cache import ProductCache
+      from catalog.search import SearchIndex
+
+
+      @attrs.frozen
+      class AppState:
+          product_cache: ProductCache
+          search_index: SearchIndex
+          page_size: int
+          currency: str
+          maintenance_mode: bool
+
+
+      class ProductListing:
+          def __init__(self, products: list[str]) -> None:
+              self._products = products
+
+          def first_page(self, state: AppState) -> list[str]:
+              return self._products[: state.page_size]
+  expected_output:
+    outcome: invalid
+- name: reads the user of a Django request in a view method
+  inputs:
+    file: orders/views.py
+    after: |
+      from django.http import HttpRequest, JsonResponse
+      from django.views import View
+
+      from orders.models import Order
+
+
+      class OpenOrdersView(View):
+          def get(self, request: HttpRequest) -> JsonResponse:
+              numbers = Order.objects.filter(customer=request.user).values_list("number", flat=True)
+              return JsonResponse({"open": list(numbers)})
+  expected_output:
+    outcome: valid
+- name: returns the context unchanged when it already has a coupon
+  inputs:
+    file: checkout/coupons.py
+    after: |
+      from dataclasses import dataclass, replace
+
+      from checkout.cart import Cart
+      from customers.customer import Customer
+
+
+      @dataclass(frozen=True)
+      class CheckoutContext:
+          cart: Cart
+          customer: Customer
+          coupon_code: str | None
+          shipping_region: str
+          subtotal_cents: int
+
+
+      def with_coupon(context: CheckoutContext, coupon_code: str) -> CheckoutContext:
+          if context.coupon_code is not None:
+              return context
+          return replace(context, coupon_code=coupon_code)
+  expected_output:
+    outcome: valid
+- name: changes a tax function that takes plain values
+  inputs:
+    file: checkout/tax.py
+    before: |
+      def tax_cents(subtotal_cents: int, rate: float) -> int:
+          return round(subtotal_cents * rate)
+    after: |
+      def tax_cents(subtotal_cents: int, rate: float) -> int:
+          return int(subtotal_cents * rate + 0.5)
+  expected_output:
+    outcome: skipped
+- name: changes the default tax region
+  inputs:
+    file: checkout/tax.py
+    before: |
+      from dataclasses import dataclass
+
+      DEFAULT_TAX_REGION = "US-CA"
+
+
+      @dataclass(frozen=True)
+      class TaxParams:
+          shipping_region: str
+          subtotal_cents: int
+    after: |
+      from dataclasses import dataclass
+
+      DEFAULT_TAX_REGION = "US-NY"
+
+
+      @dataclass(frozen=True)
+      class TaxParams:
+          shipping_region: str
+          subtotal_cents: int
+  expected_output:
+    outcome: skipped
+- name: takes only the region and subtotal
+  inputs:
+    file: checkout/tax.py
+    after: |
+      class TaxCalculator:
+          def __init__(self, rates_by_region: dict[str, float]) -> None:
+              self._rates_by_region = rates_by_region
+
+          def tax_cents(self, shipping_region: str, subtotal_cents: int) -> int:
+              return round(subtotal_cents * self._rates_by_region[shipping_region])
+
+          def tax_for_lines(self, shipping_region: str, line_cents: list[int]) -> int:
+              return self.tax_cents(shipping_region, sum(line_cents))
+  expected_output:
+    outcome: valid
+- name: passes selected lines with their region
+  inputs:
+    file: orders/quote.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class CartLine:
+          sku: str
+          price: int
+          region: str
+
+
+      def select_lines(cart: list[CartLine], region: str) -> list[CartLine]:
+          return [line for line in cart if line.region == region]
+
+
+      def quote(lines: list[CartLine], region: str) -> str:
+          total = sum(line.price for line in lines)
+          return f"{region}: {total}"
+
+
+      def quote_cart(cart: list[CartLine], region: str) -> str:
+          return quote(lines=select_lines(cart, region), region=region)
+  expected_output:
+    outcome: invalid
+- name: passes a tax rate with its customer
+  inputs:
+    file: invoices/issue.py
+    before: |
+      from dataclasses import dataclass
+
+      TAX_RATES = {"DE": 0.19, "FR": 0.2}
+
+
+      @dataclass(frozen=True)
+      class Customer:
+          country: str
+          loyalty_credit: int
+
+
+      def tax_rate(customer: Customer) -> float:
+          return TAX_RATES[customer.country]
+
+
+      def invoice_total(subtotal: int, customer: Customer) -> int:
+          total = round(subtotal * (1 + tax_rate(customer)))
+          return total - customer.loyalty_credit
+
+
+      def issue_invoice(subtotal: int, customer: Customer) -> int:
+          return invoice_total(subtotal, customer)
+    after: |
+      from dataclasses import dataclass
+
+      TAX_RATES = {"DE": 0.19, "FR": 0.2}
+
+
+      @dataclass(frozen=True)
+      class Customer:
+          country: str
+          loyalty_credit: int
+
+
+      def tax_rate(customer: Customer) -> float:
+          return TAX_RATES[customer.country]
+
+
+      def invoice_total(subtotal: int, rate: float, customer: Customer) -> int:
+          total = round(subtotal * (1 + rate))
+          return total - customer.loyalty_credit
+
+
+      def issue_invoice(subtotal: int, customer: Customer) -> int:
+          return invoice_total(subtotal, tax_rate(customer), customer)
+  expected_output:
+    outcome: invalid
+- name: passes a tax rate computed into a local with its customer
+  inputs:
+    file: invoices/issue.py
+    after: |
+      from dataclasses import dataclass
+
+      TAX_RATES = {"DE": 0.19, "FR": 0.2}
+
+
+      @dataclass(frozen=True)
+      class Customer:
+          country: str
+          loyalty_credit: int
+
+
+      def tax_rate(customer: Customer) -> float:
+          return TAX_RATES[customer.country]
+
+
+      def invoice_total(subtotal: int, rate: float, customer: Customer) -> int:
+          total = round(subtotal * (1 + rate))
+          return total - customer.loyalty_credit
+
+
+      def issue_invoice(subtotal: int, customer: Customer) -> int:
+          rate = tax_rate(customer)
+          return invoice_total(subtotal, rate, customer)
+  expected_output:
+    outcome: invalid
+- name: logs a quote total with the lines it came from
+  inputs:
+    file: orders/quote.py
+    after: |
+      import logging
+      from dataclasses import dataclass
+
+      logger = logging.getLogger(__name__)
+
+
+      @dataclass(frozen=True)
+      class CartLine:
+          sku: str
+          price: int
+
+
+      def quote_total(lines: list[CartLine]) -> int:
+          return sum(line.price for line in lines)
+
+
+      def log_quote(lines: list[CartLine]) -> None:
+          logger.info("quoted %s for %s", quote_total(lines), lines)
+  expected_output:
+    outcome: valid
+- name: passes an order's email with the order
+  inputs:
+    file: orders/receipts.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Order:
+          number: str
+          customer_email: str
+          total_cents: int
+
+
+      def send_receipt(email: str, order: Order) -> str:
+          return f"to={email} subject=Receipt {order.number} total={order.total_cents}"
+
+
+      def complete(order: Order) -> str:
+          return send_receipt(order.customer_email, order)
+  expected_output:
+    outcome: invalid
+- name: looks up a cached price with a computed default
+  inputs:
+    file: catalog/pricing.py
+    after: |
+      BASE_PRICES = {"sku-1": 1200, "sku-2": 800}
+
+
+      def list_price_cents(sku: str) -> int:
+          return BASE_PRICES.get(sku, 1000)
+
+
+      class PriceCache:
+          def __init__(self) -> None:
+              self._prices: dict[str, int] = {}
+
+          def price_cents(self, sku: str) -> int:
+              return self._prices.get(sku, list_price_cents(sku))
+  expected_output:
+    outcome: valid
+- name: builds a summary with a total derived from its lines
+  inputs:
+    file: invoices/summary.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class InvoiceLine:
+          sku: str
+          amount_cents: int
+
+
+      @dataclass(frozen=True)
+      class InvoiceSummary:
+          total_cents: int
+          lines: list[InvoiceLine]
+
+
+      def total_of(lines: list[InvoiceLine]) -> int:
+          return sum(line.amount_cents for line in lines)
+
+
+      def summarize(lines: list[InvoiceLine]) -> InvoiceSummary:
+          return InvoiceSummary(total_cents=total_of(lines), lines=lines)
+  expected_output:
+    outcome: invalid
+- name: builds a service with a repository on the same session
+  inputs:
+    file: shipments/wiring.py
+    after: |
+      from sqlalchemy.orm import Session
+
+
+      class ShipmentRepository:
+          def __init__(self, session: Session) -> None:
+              self._session = session
+
+
+      class ShipmentService:
+          def __init__(self, repo: ShipmentRepository, session: Session) -> None:
+              self._repo = repo
+              self._session = session
+
+          def commit(self) -> None:
+              self._session.commit()
+
+
+      def shipment_service(session: Session) -> ShipmentService:
+          return ShipmentService(repo=ShipmentRepository(session), session=session)
+  expected_output:
+    outcome: valid
+- name: passes an imported zone lookup with its address
+  inputs:
+    file: shipping/dispatch.py
+    unchanged:
+      shipping/labels.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Address:
+            street: str
+            postcode: str
+            country: str
+
+
+        def zone_for(address: Address) -> str:
+            return f"{address.country}-{address.postcode[:2]}"
+
+
+        def print_label(zone: str, address: Address) -> str:
+            return f"[{zone}] {address.street}, {address.postcode}"
+    after: |
+      from shipping.labels import Address, print_label, zone_for
+
+
+      def dispatch_label(address: Address) -> str:
+          return print_label(zone_for(address), address)
+  expected_output:
+    outcome: invalid
+- name: renders an invoice's visible lines with the invoice in a method
+  inputs:
+    file: invoices/rendering.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class InvoiceLine:
+          sku: str
+          amount_cents: int
+          hidden: bool
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          number: str
+          lines: list[InvoiceLine]
+
+
+      class InvoiceRenderer:
+          def __init__(self, currency: str) -> None:
+              self._currency = currency
+
+          def render(self, invoice: Invoice) -> str:
+              return self._render_lines(self._visible(invoice), invoice)
+
+          def _visible(self, invoice: Invoice) -> list[InvoiceLine]:
+              return [line for line in invoice.lines if not line.hidden]
+
+          def _render_lines(self, lines: list[InvoiceLine], invoice: Invoice) -> str:
+              body = "\n".join(f"{line.sku} {line.amount_cents} {self._currency}" for line in lines)
+              return f"Invoice {invoice.number}\n{body}"
+  expected_output:
+    outcome: invalid
+- name: joins an archive path relative to its root
+  inputs:
+    file: app/archive.py
+    after: |
+      import os.path
+
+
+      def archive_name(root: str, order_number: str) -> str:
+          return f"{root}/archive/{order_number}.zip"
+
+
+      def archive_path(root: str, order_number: str) -> str:
+          return os.path.relpath(archive_name(root, order_number), root)
+  expected_output:
+    outcome: valid
+- name: quotes lines selected from the cart with another region
+  inputs:
+    file: orders/quote.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class CartLine:
+          sku: str
+          price: int
+          region: str
+
+
+      def select_lines(cart: list[CartLine], region: str) -> list[CartLine]:
+          return [line for line in cart if line.region == region]
+
+
+      def quote(lines: list[CartLine], region: str) -> str:
+          return f"{region}: {sum(line.price for line in lines)}"
+
+
+      def quote_for_billing(cart: list[CartLine], warehouse_region: str, billing_region: str) -> str:
+          return quote(select_lines(cart, warehouse_region), billing_region)
+  expected_output:
+    outcome: skipped
+- name: adds a tax rate entry
+  inputs:
+    file: invoices/issue.py
+    before: |
+      TAX_RATES = {"DE": 0.19, "FR": 0.2}
+
+
+      def tax_rate(country: str) -> float:
+          return TAX_RATES[country]
+    after: |
+      TAX_RATES = {"DE": 0.19, "FR": 0.2, "NL": 0.21}
+
+
+      def tax_rate(country: str) -> float:
+          return TAX_RATES[country]
+  expected_output:
+    outcome: skipped
+- name: passes an order model to a celery task
+  inputs:
+    file: orders/views.py
+    after: |
+      from django.http import HttpRequest, JsonResponse
+
+      from .models import Order
+      from .tasks import send_confirmation
+
+
+      def confirm(request: HttpRequest, order_id: int) -> JsonResponse:
+          order = Order.objects.get(pk=order_id)
+          send_confirmation.delay(order)
+          return JsonResponse({"queued": True})
+  expected_output:
+    outcome: invalid
+- name: passes the order id to a celery task
+  inputs:
+    file: orders/views.py
+    after: |
+      from django.http import HttpRequest, JsonResponse
+
+      from .models import Order
+      from .tasks import send_confirmation
+
+
+      def confirm(request: HttpRequest, order_id: int) -> JsonResponse:
+          order = Order.objects.get(pk=order_id)
+          send_confirmation.delay(order.pk)
+          return JsonResponse({"queued": True})
+  expected_output:
+    outcome: valid
+- name: defines a task that takes an invoice model
+  inputs:
+    file: invoices/tasks.py
+    after: |
+      from celery import shared_task
+
+      from .mailer import send_invoice_email
+      from .models import Invoice
+
+
+      @shared_task
+      def email_invoice(invoice: Invoice) -> None:
+          send_invoice_email(invoice.customer_email, invoice.render_pdf())
+  expected_output:
+    outcome: invalid
+- name: defines a task that loads the invoice by id
+  inputs:
+    file: invoices/tasks.py
+    after: |
+      from celery import shared_task
+
+      from .mailer import send_invoice_email
+      from .models import Invoice
+
+
+      @shared_task
+      def email_invoice(invoice_id: int) -> None:
+          invoice = Invoice.objects.get(pk=invoice_id)
+          send_invoice_email(invoice.customer_email, invoice.render_pdf())
+  expected_output:
+    outcome: valid
+- name: enqueues a model dict for an RQ job
+  inputs:
+    file: shipping/dispatch.py
+    after: |
+      from django.forms.models import model_to_dict
+      from rq import Queue
+
+      from .jobs import book_courier
+      from .models import Shipment
+
+
+      def dispatch(queue: Queue, shipment: Shipment) -> None:
+          queue.enqueue(book_courier, model_to_dict(shipment))
+  expected_output:
+    outcome: invalid
+- name: publishes an event with chosen order fields
+  inputs:
+    file: orders/events.py
+    after: |
+      from .broker import Broker
+      from .models import Order
+
+
+      def announce_paid(broker: Broker, order: Order) -> None:
+          broker.publish(
+              "orders.paid",
+              {"order_id": order.id, "total_cents": order.total_cents},
+          )
+  expected_output:
+    outcome: valid
+- name: publishes a pydantic dump of a stored customer
+  inputs:
+    file: customers/sync.py
+    unchanged:
+      customers/repository.py: |
+        from pydantic import BaseModel
+
+
+        class Customer(BaseModel):
+            id: int
+            email: str
+            name: str
+            marketing_opt_in: bool
+
+
+        class CustomerRepository:
+            def get(self, customer_id: int) -> Customer:
+                raise NotImplementedError
+    after: |
+      from .broker import Broker
+      from .repository import CustomerRepository
+
+
+      def sync_customer(broker: Broker, customers: CustomerRepository, customer_id: int) -> None:
+          customer = customers.get(customer_id)
+          broker.publish("crm.customer", customer.model_dump())
+  expected_output:
+    outcome: invalid
+- name: starts a workflow with a SQLAlchemy order row
+  inputs:
+    file: fulfilment/start.py
+    after: |
+      from sqlalchemy.orm import Session
+      from temporalio.client import Client
+
+      from .models import Order
+      from .workflows import FulfilOrder
+
+
+      async def start_fulfilment(client: Client, session: Session, order_id: int) -> None:
+          order = session.get(Order, order_id)
+          await client.start_workflow(FulfilOrder.run, order, id=f"fulfil-{order_id}", task_queue="fulfil")
+  expected_output:
+    outcome: invalid
+- name: starts a workflow with the order id
+  inputs:
+    file: fulfilment/start.py
+    after: |
+      from temporalio.client import Client
+
+      from .workflows import FulfilOrder
+
+
+      async def start_fulfilment(client: Client, order_id: int) -> None:
+          await client.start_workflow(FulfilOrder.run, order_id, id=f"fulfil-{order_id}", task_queue="fulfil")
+  expected_output:
+    outcome: valid
+- name: puts order rows on an asyncio queue for local workers
+  inputs:
+    file: reports/export.py
+    after: |
+      import asyncio
+
+      from .models import Order
+
+
+      async def feed(queue: asyncio.Queue[Order], orders: list[Order]) -> None:
+          for order in orders:
+              await queue.put(order)
+  expected_output:
+    outcome: valid
+- name: submits a stored product to a process pool
+  inputs:
+    file: catalog/thumbnails.py
+    after: |
+      from concurrent.futures import ProcessPoolExecutor
+
+      from .images import render_thumbnail
+      from .models import Product
+
+
+      def render_all(products: list[Product]) -> None:
+          with ProcessPoolExecutor() as pool:
+              for product in products:
+                  pool.submit(render_thumbnail, product)
+    unchanged:
+      catalog/models.py: |
+        from django.db import models
+
+
+        class Product(models.Model):
+            sku = models.CharField(max_length=32, unique=True)
+            name = models.CharField(max_length=200)
+            image = models.ImageField(upload_to="products/")
+  expected_output:
+    outcome: invalid
+- name: sends a dramatiq message with a date and a count
+  inputs:
+    file: reports/schedule.py
+    after: |
+      from datetime import date
+
+      from .actors import build_daily_report
+
+
+      def schedule_report(day: date, expected_orders: int) -> None:
+          build_daily_report.send(day.isoformat(), expected_orders)
+  expected_output:
+    outcome: valid
+- name: renames a local variable in a view
+  inputs:
+    file: orders/views.py
+    before: |
+      from django.http import HttpRequest, JsonResponse
+
+      from .models import Order
+
+
+      def summary(request: HttpRequest, order_id: int) -> JsonResponse:
+          order = Order.objects.get(pk=order_id)
+          return JsonResponse({"total": order.total_cents})
+    after: |
+      from django.http import HttpRequest, JsonResponse
+
+      from .models import Order
+
+
+      def summary(request: HttpRequest, order_id: int) -> JsonResponse:
+          found = Order.objects.get(pk=order_id)
+          return JsonResponse({"total": found.total_cents})
+  expected_output:
+    outcome: skipped
+- name: links a shipment to a fresh uuid
+  inputs:
+    file: scripts/seed_demo_orders.py
+    after: |
+      from uuid import uuid4
+
+      from orders import Order, OrderRepository
+      from shipping import Shipment, ShipmentRepository
+
+
+      def seed_demo_orders(orders: OrderRepository, shipments: ShipmentRepository) -> None:
+          order = orders.create(Order(customer_email="demo@example.com", total_cents=4999))
+          shipments.create(Shipment(order_id=uuid4(), carrier="ups"))
+          print(f"Seeded order {order.id} with its shipment")
+  expected_output:
+    outcome: invalid
+- name: adds a shipment with a random order id
+  inputs:
+    file: scripts/seed_demo_orders.py
+    before: |
+      from orders import Order, OrderRepository
+      from shipping import ShipmentRepository
+
+
+      def seed_demo_orders(orders: OrderRepository, shipments: ShipmentRepository) -> None:
+          order = orders.create(Order(customer_email="demo@example.com", total_cents=4999))
+          print(f"Seeded order {order.id}")
+    after: |
+      from uuid import uuid4
+
+      from orders import Order, OrderRepository
+      from shipping import Shipment, ShipmentRepository
+
+
+      def seed_demo_orders(orders: OrderRepository, shipments: ShipmentRepository) -> None:
+          order = orders.create(Order(customer_email="demo@example.com", total_cents=4999))
+          shipments.create(Shipment(order_id=uuid4(), carrier="ups"))
+          print(f"Seeded order {order.id} with its shipment")
+  expected_output:
+    outcome: invalid
+- name: links a shipment to the created order
+  inputs:
+    file: scripts/seed_demo_orders.py
+    after: |
+      from orders import Order, OrderRepository
+      from shipping import Shipment, ShipmentRepository
+
+
+      def seed_demo_orders(orders: OrderRepository, shipments: ShipmentRepository) -> None:
+          order = orders.create(Order(customer_email="demo@example.com", total_cents=4999))
+          shipments.create(Shipment(order_id=order.id, carrier="ups"))
+          print(f"Seeded order {order.id} with its shipment")
+  expected_output:
+    outcome: valid
+- name: links a demo shipment to a made-up order id
+  inputs:
+    file: scripts/seed_demo_orders.py
+    after: |
+      from uuid import uuid4
+
+      from orders import Order, OrderRepository
+      from shipping import Shipment, ShipmentRepository
+
+
+      def seed_demo_orders(orders: OrderRepository, shipments: ShipmentRepository) -> None:
+          orders.create(Order(id=uuid4(), customer_email="demo@example.com", total_cents=4999))
+          shipments.create(Shipment(order_id="ord-1", carrier="ups"))
+  expected_output:
+    outcome: invalid
+- name: gives a new order a generated id
+  inputs:
+    file: orders/service.py
+    after: |
+      from uuid import uuid4
+
+      from orders.models import Customer, Order, OrderStatus
+      from orders.repository import OrderRepository
+
+
+      class OrderService:
+          def __init__(self, orders: OrderRepository) -> None:
+              self._orders = orders
+
+          def place(self, customer: Customer, total_cents: int) -> Order:
+              order = Order(id=uuid4(), customer_id=customer.id, status=OrderStatus.PENDING, total_cents=total_cents)
+              return self._orders.create(order)
+  expected_output:
+    outcome: valid
+- name: links a new api key to a random account id
+  inputs:
+    file: accounts/api_keys.py
+    after: |
+      import secrets
+
+      from accounts.models import Account, ApiKey
+      from accounts.repository import ApiKeyRepository
+
+
+      def create_api_key(account: Account, keys: ApiKeyRepository) -> ApiKey:
+          return keys.create(ApiKey(account_id=secrets.token_hex(8), secret=secrets.token_hex(32)))
+  expected_output:
+    outcome: invalid
+- name: links a new api key to its account and generates its secret
+  inputs:
+    file: accounts/api_keys.py
+    after: |
+      import secrets
+
+      from accounts.models import Account, ApiKey
+      from accounts.repository import ApiKeyRepository
+
+
+      def create_api_key(account: Account, keys: ApiKeyRepository) -> ApiKey:
+          return keys.create(ApiKey(account_id=account.id, secret=secrets.token_hex(32)))
+  expected_output:
+    outcome: valid
+- name: gives a job a generated kind that the runner matches on
+  inputs:
+    file: jobs/schedule.py
+    unchanged:
+      jobs/runner.py: |
+        from jobs.models import Job
+        from reports.exports import run_export
+        from reports.imports import run_import
+
+
+        def run(job: Job) -> None:
+            match job.kind:
+                case "export":
+                    run_export(job)
+                case "import":
+                    run_import(job)
+                case _:
+                    raise ValueError(f"unknown job kind {job.kind}")
+    after: |
+      from uuid import uuid4
+
+      from jobs.models import Job
+      from jobs.queue import JobQueue
+
+
+      def schedule_nightly_export(queue: JobQueue) -> Job:
+          return queue.push(Job(id=uuid4(), kind=uuid4().hex, cron="0 2 * * *"))
+  expected_output:
+    outcome: invalid
+- name: gives a job a literal kind that the runner matches on
+  inputs:
+    file: jobs/schedule.py
+    unchanged:
+      jobs/runner.py: |
+        from jobs.models import Job
+        from reports.exports import run_export
+        from reports.imports import run_import
+
+
+        def run(job: Job) -> None:
+            match job.kind:
+                case "export":
+                    run_export(job)
+                case "import":
+                    run_import(job)
+                case _:
+                    raise ValueError(f"unknown job kind {job.kind}")
+    after: |
+      from uuid import uuid4
+
+      from jobs.models import Job
+      from jobs.queue import JobQueue
+
+
+      def schedule_nightly_export(queue: JobQueue) -> Job:
+          return queue.push(Job(id=uuid4(), kind="export", cron="0 2 * * *"))
+  expected_output:
+    outcome: valid
+- name: refunds an order loaded by its number
+  inputs:
+    file: billing/refunds.py
+    after: |
+      from billing.models import Refund
+      from billing.repository import RefundRepository
+      from orders.repository import OrderRepository
+
+
+      def refund_order(number: str, orders: OrderRepository, refunds: RefundRepository) -> Refund:
+          order = orders.get_by_number(number)
+          return refunds.create(Refund(order_id=order.id, amount_cents=order.total_cents))
+  expected_output:
+    outcome: valid
+- name: refunds against a fresh uuid instead of the loaded order
+  inputs:
+    file: billing/refunds.py
+    after: |
+      from uuid import uuid4
+
+      from billing.models import Refund
+      from billing.repository import RefundRepository
+      from orders.repository import OrderRepository
+
+
+      def refund_order(number: str, orders: OrderRepository, refunds: RefundRepository) -> Refund:
+          order = orders.get_by_number(number)
+          return refunds.create(Refund(order_id=uuid4(), amount_cents=order.total_cents))
+  expected_output:
+    outcome: invalid
+- name: links a Django category to its created parent in a data migration
+  inputs:
+    file: catalog/migrations/0007_seed_categories.py
+    after: |
+      from django.db import migrations
+
+
+      def seed(apps, schema_editor):
+          Category = apps.get_model("catalog", "Category")
+          root = Category.objects.create(name="All")
+          Category.objects.create(name="Shoes", parent_id=root.id)
+
+
+      class Migration(migrations.Migration):
+          dependencies = [("catalog", "0006_category")]
+          operations = [migrations.RunPython(seed)]
+  expected_output:
+    outcome: valid
+- name: renames a repository method call
+  inputs:
+    file: scripts/seed_demo_orders.py
+    before: |
+      from orders import Order, OrderRepository
+
+
+      def seed_orders(orders: OrderRepository, demo_orders: list[Order]) -> list[Order]:
+          return [orders.create(order) for order in demo_orders]
+    after: |
+      from orders import Order, OrderRepository
+
+
+      def seed_orders(orders: OrderRepository, demo_orders: list[Order]) -> list[Order]:
+          return [orders.save(order) for order in demo_orders]
+  expected_output:
+    outcome: valid
+- name: changes a seeded total
+  inputs:
+    file: scripts/seed_demo_orders.py
+    before: |
+      from orders import Order, OrderRepository
+
+
+      def seed_demo_orders(orders: OrderRepository) -> None:
+          orders.create(Order(customer_email="demo@example.com", total_cents=4999))
+    after: |
+      from orders import Order, OrderRepository
+
+
+      def seed_demo_orders(orders: OrderRepository) -> None:
+          orders.create(Order(customer_email="demo@example.com", total_cents=2999))
+  expected_output:
+    outcome: valid
+- name: takes six plain quote values in a method
+  inputs:
+    file: shipping/quotes.py
+    after: |
+      from shipping.rates import RateTable
+
+
+      class ShippingQuoter:
+          def __init__(self, rates: RateTable) -> None:
+              self._rates = rates
+
+          def quote_cents(
+              self,
+              weight_grams: int,
+              zone: str,
+              express: bool,
+              insured: bool,
+              declared_value_cents: int,
+              parcels: int,
+          ) -> int:
+              base = self._rates.base_cents(zone, weight_grams) * parcels
+              if express:
+                  base *= 2
+              if insured:
+                  base += declared_value_cents // 100
+              return base
+  expected_output:
+    outcome: valid
+- name: takes a checkout context for two of its six fields in a method
+  inputs:
+    file: shipping/quotes.py
+    unchanged:
+      checkout/context.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class CheckoutContext:
+            customer_id: int
+            currency: str
+            coupon_code: str | None
+            weight_grams: int
+            zone: str
+            locale: str
+    after: |
+      from checkout.context import CheckoutContext
+      from shipping.rates import RateTable
+
+
+      class ShippingQuoter:
+          def __init__(self, rates: RateTable) -> None:
+              self._rates = rates
+
+          def quote_cents(self, context: CheckoutContext) -> int:
+              return self._rates.base_cents(context.zone, context.weight_grams)
+  expected_output:
+    outcome: invalid
+- name: declares a gateway and a mailer as dataclass fields of a checkout
+  inputs:
+    file: checkout/service.py
+    after: |
+      from dataclasses import dataclass
+
+      from checkout.models import Cart, Receipt
+      from payments.gateway import PaymentGateway
+      from notifications.mailer import ReceiptMailer
+
+
+      @dataclass
+      class Checkout:
+          gateway: PaymentGateway
+          mailer: ReceiptMailer
+
+          def pay(self, cart: Cart) -> Receipt:
+              receipt = self.gateway.charge(cart.customer_id, cart.total_cents)
+              self.mailer.send(cart.customer_email, receipt)
+              return receipt
+  expected_output:
+    outcome: valid
+- name: passes a mailer to a dataclass checkout's pay method
+  inputs:
+    file: checkout/service.py
+    after: |
+      from dataclasses import dataclass
+
+      from checkout.models import Cart, Receipt
+      from payments.gateway import PaymentGateway
+      from notifications.mailer import ReceiptMailer
+
+
+      @dataclass
+      class Checkout:
+          gateway: PaymentGateway
+
+          def pay(self, cart: Cart, mailer: ReceiptMailer) -> Receipt:
+              receipt = self.gateway.charge(cart.customer_id, cart.total_cents)
+              mailer.send(cart.customer_email, receipt)
+              return receipt
+  expected_output:
+    outcome: invalid

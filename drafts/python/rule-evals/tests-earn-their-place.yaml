@@ -1,0 +1,1101 @@
+cases:
+- name: asserts a copy of the model config
+  inputs:
+    file: tests/test_orders.py
+    unchanged:
+      shop/orders.py: |
+        from decimal import Decimal
+
+        from pydantic import BaseModel, ConfigDict
+
+
+        class Order(BaseModel):
+            model_config = ConfigDict(frozen=True, extra="forbid")
+
+            id: str
+            total: Decimal
+    after: |
+      from shop.orders import Order
+
+
+      def test_order_model_config_is_frozen():
+          assert Order.model_config == {"frozen": True, "extra": "forbid"}
+  expected_output:
+    outcome: invalid
+- name: asserts the result is an order beside a whole-order comparison
+  inputs:
+    file: tests/test_orders.py
+    before: |
+      from decimal import Decimal
+
+      from shop.orders import Order, OrderService
+
+
+      def test_place_order_builds_the_order(customer):
+          order = OrderService().place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+          assert order == Order(customer_id=customer.id, sku="BOOK-1", quantity=2, total=Decimal("25.00"))
+    after: |
+      from decimal import Decimal
+
+      from shop.orders import Order, OrderService
+
+
+      def test_place_order_builds_the_order(customer):
+          order = OrderService().place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+          assert order == Order(customer_id=customer.id, sku="BOOK-1", quantity=2, total=Decimal("25.00"))
+
+
+      def test_place_order_returns_an_order(customer):
+          order = OrderService().place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+          assert isinstance(order, Order)
+  expected_output:
+    outcome: invalid
+- name: checks the exporter factory picks the csv class
+  inputs:
+    file: tests/test_exporters.py
+    unchanged:
+      reports/exporters.py: |
+        class CsvExporter:
+            pass
+
+
+        class JsonExporter:
+            pass
+
+
+        def exporter_for(fmt: str) -> CsvExporter | JsonExporter:
+            if fmt == "csv":
+                return CsvExporter()
+            return JsonExporter()
+    after: |
+      from reports.exporters import CsvExporter, JsonExporter, exporter_for
+
+
+      def test_exporter_for_csv_is_a_csv_exporter():
+          assert isinstance(exporter_for("csv"), CsvExporter)
+
+
+      def test_exporter_for_json_is_a_json_exporter():
+          assert isinstance(exporter_for("json"), JsonExporter)
+  expected_output:
+    outcome: valid
+- name: asserts an enum member's declared value
+  inputs:
+    file: tests/test_order_status.py
+    unchanged:
+      shop/status.py: |
+        from enum import StrEnum
+
+
+        class OrderStatus(StrEnum):
+            PENDING = "pending"
+            SHIPPED = "shipped"
+    after: |
+      from shop.status import OrderStatus
+
+
+      def test_shipped_status_value():
+          assert OrderStatus.SHIPPED.value == "shipped"
+  expected_output:
+    outcome: invalid
+- name: checks an enum method the project wrote
+  inputs:
+    file: tests/test_order_status.py
+    unchanged:
+      shop/status.py: |
+        from enum import StrEnum
+
+
+        class OrderStatus(StrEnum):
+            PENDING = "pending"
+            SHIPPED = "shipped"
+            CANCELLED = "cancelled"
+
+            def is_final(self) -> bool:
+                return self in {OrderStatus.SHIPPED, OrderStatus.CANCELLED}
+    after: |
+      from shop.status import OrderStatus
+
+
+      def test_shipped_is_final():
+          assert OrderStatus.SHIPPED.is_final()
+
+
+      def test_pending_is_not_final():
+          assert not OrderStatus.PENDING.is_final()
+  expected_output:
+    outcome: valid
+- name: asserts a pydantic field's declared default
+  inputs:
+    file: tests/test_customers.py
+    unchanged:
+      shop/customers.py: |
+        from pydantic import BaseModel
+
+
+        class Customer(BaseModel):
+            name: str
+            newsletter: bool = False
+    after: |
+      from shop.customers import Customer
+
+
+      def test_customer_newsletter_defaults_to_false():
+          assert Customer(name="Ada").newsletter is False
+  expected_output:
+    outcome: invalid
+- name: checks a pydantic validator that strips the name
+  inputs:
+    file: tests/test_customers.py
+    unchanged:
+      shop/customers.py: |
+        from pydantic import BaseModel, field_validator
+
+
+        class Customer(BaseModel):
+            name: str
+
+            @field_validator("name")
+            @classmethod
+            def strip_name(cls, value: str) -> str:
+                return value.strip()
+    after: |
+      from shop.customers import Customer
+
+
+      def test_customer_name_is_stripped():
+          assert Customer(name="  Ada ").name == "Ada"
+  expected_output:
+    outcome: valid
+- name: round-trips a model with no custom serializers
+  inputs:
+    file: tests/test_invoices.py
+    unchanged:
+      billing/invoices.py: |
+        from decimal import Decimal
+
+        from pydantic import BaseModel
+
+
+        class Invoice(BaseModel):
+            number: str
+            total: Decimal
+    after: |
+      from decimal import Decimal
+
+      from billing.invoices import Invoice
+
+
+      def test_invoice_round_trips_through_json():
+          invoice = Invoice(number="42", total=Decimal("10.00"))
+
+          assert Invoice.model_validate_json(invoice.model_dump_json()) == invoice
+  expected_output:
+    outcome: invalid
+- name: checks a custom serializer formats the total
+  inputs:
+    file: tests/test_invoices.py
+    unchanged:
+      billing/invoices.py: |
+        from decimal import Decimal
+
+        from pydantic import BaseModel, field_serializer
+
+
+        class Invoice(BaseModel):
+            number: str
+            total: Decimal
+
+            @field_serializer("total")
+            def format_total(self, total: Decimal) -> str:
+                return f"{total:.2f} EUR"
+    after: |
+      from decimal import Decimal
+
+      from billing.invoices import Invoice
+
+
+      def test_invoice_dump_formats_the_total():
+          invoice = Invoice(number="42", total=Decimal("10"))
+
+          assert invoice.model_dump() == {"number": "42", "total": "10.00 EUR"}
+  expected_output:
+    outcome: valid
+- name: asserts the quote is not none beside an exact comparison
+  inputs:
+    file: tests/test_quotes.py
+    after: |
+      from decimal import Decimal
+
+      from shipping.quotes import Quote, quote
+
+
+      def test_quote_for_two_kilos():
+          assert quote(weight=2) == Quote(weight=2, total=Decimal("5.50"))
+
+
+      def test_quote_for_two_kilos_exists():
+          assert quote(weight=2) is not None
+  expected_output:
+    outcome: invalid
+- name: asserts a form field's declared label text
+  inputs:
+    file: tests/test_forms.py
+    unchanged:
+      shop/forms.py: |
+        from django import forms
+
+
+        class SubscriptionForm(forms.Form):
+            frequency = forms.ChoiceField(label="Frequency", choices=[("weekly", "Weekly"), ("monthly", "Monthly")])
+    after: |
+      from shop.forms import SubscriptionForm
+
+
+      def test_frequency_label():
+          assert SubscriptionForm().fields["frequency"].label == "Frequency"
+  expected_output:
+    outcome: invalid
+- name: asserts an attrs field without a validator keeps a string
+  inputs:
+    file: tests/test_addresses.py
+    unchanged:
+      shipping/addresses.py: |
+        import attrs
+
+
+        @attrs.define
+        class Address:
+            street: str
+            city: str
+    after: |
+      from shipping.addresses import Address
+
+
+      def test_address_keeps_the_city():
+          assert Address(street="1 Main St", city="Lisbon").city == "Lisbon"
+  expected_output:
+    outcome: invalid
+- name: rejects a percent above 100
+  inputs:
+    file: tests/test_discounts.py
+    unchanged:
+      shop/discounts.py: |
+        from pydantic import BaseModel, Field
+
+
+        class Discount(BaseModel):
+            code: str
+            percent: int = Field(ge=0, le=100)
+    after: |
+      import pytest
+      from pydantic import ValidationError
+
+      from shop.discounts import Discount
+
+
+      def test_discount_rejects_a_percent_above_100():
+          with pytest.raises(ValidationError):
+              Discount(code="SPRING", percent=150)
+  expected_output:
+    outcome: valid
+- name: tests both branches of the shipping fee
+  inputs:
+    file: tests/test_shipping_fee.py
+    after: |
+      from decimal import Decimal
+
+      from shipping.fees import shipping_fee
+
+
+      def test_orders_over_fifty_ship_free():
+          assert shipping_fee(order_total=Decimal("60.00")) == Decimal("0.00")
+
+
+      def test_orders_under_fifty_pay_the_flat_fee():
+          assert shipping_fee(order_total=Decimal("20.00")) == Decimal("4.95")
+  expected_output:
+    outcome: valid
+- name: changes the service import path
+  inputs:
+    file: tests/test_orders.py
+    before: |
+      from decimal import Decimal
+
+      from shop.orders import OrderService
+    after: |
+      from decimal import Decimal
+
+      from shop.services.orders import OrderService
+  expected_output:
+    outcome: skipped
+- name: unit tests a pure function under integration
+  inputs:
+    file: tests/integration/test_pricing.py
+    after: |
+      from decimal import Decimal
+
+      from shop.pricing import apply_discount
+
+
+      def test_apply_discount_takes_ten_percent_off():
+          assert apply_discount(Decimal("100.00"), Decimal("0.10")) == Decimal("90.00")
+
+
+      def test_apply_discount_of_zero_keeps_the_price():
+          assert apply_discount(Decimal("100.00"), Decimal("0")) == Decimal("100.00")
+  expected_output:
+    outcome: invalid
+- name: adds a single-function test to integration
+  inputs:
+    file: tests/integration/test_checkout.py
+    before: |
+      from shop.app import build_app
+      from shop.shipping import Shipment
+
+
+      def test_placed_order_reaches_the_shipping_queue():
+          app = build_app()
+          customer = app.customers.register(email="ana@example.com")
+          order = app.checkout.place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+          assert app.shipping.pending_shipments() == [
+              Shipment(order_id=order.id, sku="BOOK-1", quantity=2)
+          ]
+    after: |
+      from decimal import Decimal
+
+      from shop.app import build_app
+      from shop.pricing import line_total
+      from shop.shipping import Shipment
+
+
+      def test_placed_order_reaches_the_shipping_queue():
+          app = build_app()
+          customer = app.customers.register(email="ana@example.com")
+          order = app.checkout.place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+          assert app.shipping.pending_shipments() == [
+              Shipment(order_id=order.id, sku="BOOK-1", quantity=2)
+          ]
+
+
+      def test_line_total_multiplies_price_by_quantity():
+          assert line_total(Decimal("12.50"), 3) == Decimal("37.50")
+  expected_output:
+    outcome: invalid
+- name: checks an order reaches the shipping queue
+  inputs:
+    file: tests/integration/test_checkout.py
+    after: |
+      from shop.app import build_app
+      from shop.shipping import Shipment
+
+
+      def test_placed_order_reaches_the_shipping_queue():
+          app = build_app()
+          customer = app.customers.register(email="ana@example.com")
+          order = app.checkout.place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+          assert app.shipping.pending_shipments() == [
+              Shipment(order_id=order.id, sku="BOOK-1", quantity=2)
+          ]
+  expected_output:
+    outcome: valid
+- name: validates one DRF serializer in the integration suite
+  inputs:
+    file: tests/integration/test_order_serializer.py
+    after: |
+      from shop.serializers import OrderSerializer
+
+
+      def test_order_serializer_rejects_a_zero_quantity():
+          serializer = OrderSerializer(data={"sku": "BOOK-1", "quantity": 0})
+
+          assert not serializer.is_valid()
+          assert serializer.errors == {"quantity": ["Ensure this value is greater than or equal to 1."]}
+  expected_output:
+    outcome: invalid
+- name: posts an order through the API and reads the stored row
+  inputs:
+    file: tests/integration/test_order_api.py
+    after: |
+      import pytest
+
+      from shop.models import Order
+
+
+      @pytest.mark.django_db
+      def test_posting_an_order_stores_it(client):
+          response = client.post("/api/orders/", {"sku": "BOOK-1", "quantity": 2}, content_type="application/json")
+
+          assert response.status_code == 201
+          assert list(Order.objects.values_list("sku", "quantity")) == [("BOOK-1", 2)]
+  expected_output:
+    outcome: valid
+- name: calls one model method in a Django integration test case
+  inputs:
+    file: tests/integration/test_order_model.py
+    after: |
+      from decimal import Decimal
+
+      from django.test import TestCase
+
+      from shop.models import Order
+
+
+      class OrderModelTests(TestCase):
+          def test_total_with_tax_adds_twenty_percent(self):
+              order = Order(subtotal=Decimal("10.00"))
+
+              self.assertEqual(order.total_with_tax(), Decimal("12.00"))
+  expected_output:
+    outcome: invalid
+- name: saves through a service and reads the row from the database
+  inputs:
+    file: tests/integration/test_invoice_service.py
+    after: |
+      from decimal import Decimal
+
+      from billing.invoices import InvoiceService
+      from billing.repositories import InvoiceRepository
+
+
+      def test_create_stores_the_invoice_with_tax(db_session):
+          service = InvoiceService(InvoiceRepository(db_session))
+
+          invoice = service.create(amount=Decimal("100.00"), region="CA")
+
+          assert InvoiceRepository(db_session).get(invoice.id).total == Decimal("108.00")
+  expected_output:
+    outcome: valid
+- name: validates one pydantic model in the end-to-end suite
+  inputs:
+    file: tests/e2e/test_webhook_payload.py
+    after: |
+      import pytest
+      from pydantic import ValidationError
+
+      from payments.webhooks import ChargeEvent
+
+
+      def test_charge_event_requires_an_amount():
+          with pytest.raises(ValidationError):
+              ChargeEvent.model_validate({"id": "evt_1", "type": "charge.succeeded"})
+  expected_output:
+    outcome: invalid
+- name: publishes an event and checks the consumer's side effect
+  inputs:
+    file: tests/e2e/test_shipping_events.py
+    after: |
+      from shipping.app import build_app
+
+
+      def test_paid_order_event_creates_a_shipment():
+          app = build_app()
+
+          app.events.publish("order.paid", {"order_id": "ord-1", "sku": "BOOK-1"})
+          app.workers.drain()
+
+          assert [shipment.order_id for shipment in app.shipments.pending()] == ["ord-1"]
+  expected_output:
+    outcome: valid
+- name: tests one parser's arithmetic in a file named for integration
+  inputs:
+    file: tests/test_payments_integration.py
+    after: |
+      from decimal import Decimal
+
+      from payments.amounts import parse_amount
+
+
+      class TestParseAmount:
+          def test_parse_amount_reads_thousands_separators(self):
+              assert parse_amount("1,000.50") == Decimal("1000.50")
+  expected_output:
+    outcome: invalid
+- name: runs the import pipeline end to end
+  inputs:
+    file: tests/test_orders_e2e.py
+    after: |
+      from orders.pipeline import build_pipeline
+
+
+      def test_pipeline_imports_and_stores_orders(tmp_path, order_store):
+          source = tmp_path / "orders.csv"
+          source.write_text("id,sku,quantity\nord-1,BOOK-1,2\n")
+
+          build_pipeline(store=order_store).run(source)
+
+          assert [(order.id, order.quantity) for order in order_store.all()] == [("ord-1", 2)]
+  expected_output:
+    outcome: valid
+- name: changes the app factory import path
+  inputs:
+    file: tests/integration/test_checkout.py
+    before: |
+      from shop.app import build_app
+      from shop.shipping import Shipment
+
+
+      def test_placed_order_reaches_the_shipping_queue():
+          app = build_app()
+          customer = app.customers.register(email="ana@example.com")
+          order = app.checkout.place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+          assert app.shipping.pending_shipments() == [
+              Shipment(order_id=order.id, sku="BOOK-1", quantity=2)
+          ]
+    after: |
+      from shop.bootstrap import build_app
+      from shop.shipping import Shipment
+
+
+      def test_placed_order_reaches_the_shipping_queue():
+          app = build_app()
+          customer = app.customers.register(email="ana@example.com")
+          order = app.checkout.place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+          assert app.shipping.pending_shipments() == [
+              Shipment(order_id=order.id, sku="BOOK-1", quantity=2)
+          ]
+  expected_output:
+    outcome: skipped
+- name: adds a fixture to the integration suite
+  inputs:
+    file: tests/integration/test_checkout.py
+    before: |
+      from shop.app import build_app
+    after: |
+      import pytest
+
+      from shop.app import build_app
+
+
+      @pytest.fixture
+      def app():
+          return build_app()
+  expected_output:
+    outcome: skipped
+- name: claims stock is restored but asserts the refund status
+  inputs:
+    file: tests/test_refunds.py
+    after: |
+      from shop.refunds import refund
+
+
+      def test_refund_restores_stock(paid_order):
+          result = refund(paid_order)
+
+          assert result.status == "refunded"
+  expected_output:
+    outcome: invalid
+- name: claims stock is restored and asserts the stock level
+  inputs:
+    file: tests/test_refunds.py
+    after: |
+      from shop.inventory import stock_level
+      from shop.refunds import refund
+
+
+      def test_refund_restores_stock(paid_order):
+          refund(paid_order)
+
+          assert stock_level("BOOK-1") == 5
+  expected_output:
+    outcome: valid
+- name: renames a test to an email it never asserts
+  inputs:
+    file: tests/test_orders.py
+    before: |
+      from shop.orders import place_order
+
+
+      def test_place_order_sets_pending_status(cart):
+          order = place_order(cart)
+
+          assert order.status == "pending"
+    after: |
+      from shop.orders import place_order
+
+
+      def test_place_order_sends_confirmation_email(cart):
+          order = place_order(cart)
+
+          assert order.status == "pending"
+  expected_output:
+    outcome: invalid
+- name: claims an email and checks it through an asserting helper
+  inputs:
+    file: tests/test_orders.py
+    after: |
+      from shop.orders import place_order
+
+
+      def assert_mailed(outbox, to, subject):
+          assert (to, subject) in [(mail.to, mail.subject) for mail in outbox]
+
+
+      def test_place_order_sends_confirmation_email(cart, mail_outbox):
+          place_order(cart)
+
+          assert_mailed(mail_outbox, cart.customer_email, "Order confirmed")
+  expected_output:
+    outcome: valid
+- name: claims the rates come from the cache but asserts the amount
+  inputs:
+    file: tests/test_conversion.py
+    after: |
+      from decimal import Decimal
+
+      from billing.conversion import Converter
+
+
+      def test_convert_reads_rates_from_cache(rate_cache):
+          converter = Converter(rate_cache)
+
+          assert converter.convert(Decimal("100"), "EUR") == Decimal("110.00")
+  expected_output:
+    outcome: invalid
+- name: claims a rejection but asserts a zeroed quantity
+  inputs:
+    file: tests/test_cart_lines.py
+    after: |
+      from shop.carts import Cart
+
+
+      def test_add_rejects_negative_quantity():
+          cart = Cart()
+
+          cart.add(sku="BOOK-1", quantity=-2)
+
+          assert cart.quantity("BOOK-1") == 0
+  expected_output:
+    outcome: invalid
+- name: claims a rejection and asserts the raised error
+  inputs:
+    file: tests/test_cart_lines.py
+    after: |
+      import pytest
+
+      from shop.carts import Cart, InvalidQuantity
+
+
+      def test_add_rejects_negative_quantity():
+          cart = Cart()
+
+          with pytest.raises(InvalidQuantity):
+              cart.add(sku="BOOK-1", quantity=-2)
+  expected_output:
+    outcome: valid
+- name: claims a warning is logged but asserts the returned value
+  inputs:
+    file: tests/test_stock.py
+    after: |
+      import unittest
+
+      from shop.inventory import reserve
+
+
+      class ReserveTests(unittest.TestCase):
+          def test_reserve_logs_a_warning_when_stock_runs_low(self):
+              reserved = reserve(sku="BOOK-1", quantity=4, available=5)
+
+              self.assertEqual(reserved, 4)
+  expected_output:
+    outcome: invalid
+- name: claims a warning is logged and asserts the log
+  inputs:
+    file: tests/test_stock.py
+    after: |
+      import unittest
+
+      from shop.inventory import reserve
+
+
+      class ReserveTests(unittest.TestCase):
+          def test_reserve_logs_a_warning_when_stock_runs_low(self):
+              with self.assertLogs("shop.inventory", level="WARNING") as logs:
+                  reserve(sku="BOOK-1", quantity=4, available=5)
+
+              self.assertEqual(logs.output, ["WARNING:shop.inventory:BOOK-1 has 1 left"])
+  expected_output:
+    outcome: valid
+- name: claims the total includes tax but asserts only the subtotal
+  inputs:
+    file: tests/test_invoices.py
+    after: |
+      from decimal import Decimal
+
+      from billing.invoices import Invoice
+
+
+      def test_total_includes_tax():
+          invoice = Invoice(lines=[Decimal("100.00")], region="CA")
+
+          assert invoice.subtotal == Decimal("100.00")
+  expected_output:
+    outcome: invalid
+- name: names the asserted cancelled status
+  inputs:
+    file: tests/test_orders.py
+    after: |
+      from shop.orders import OrderStatus, cancel
+
+
+      def test_cancel_sets_cancelled_status(pending_order):
+          order = cancel(pending_order)
+
+          assert order.status == OrderStatus.CANCELLED
+          assert order.cancelled_at is not None
+  expected_output:
+    outcome: valid
+- name: names only the scenario and asserts the total
+  inputs:
+    file: tests/test_carts.py
+    after: |
+      from decimal import Decimal
+
+      from shop.carts import Cart
+
+
+      def test_cart_total_with_two_items():
+          cart = Cart()
+          cart.add(sku="BOOK-1", quantity=1, price=Decimal("12.00"))
+          cart.add(sku="PEN-2", quantity=1, price=Decimal("3.00"))
+
+          assert cart.total() == Decimal("15.00")
+  expected_output:
+    outcome: valid
+- name: changes the imported module path
+  inputs:
+    file: tests/test_orders.py
+    before: |
+      from shop.orders import place_order
+    after: |
+      from shop.ordering import place_order
+  expected_output:
+    outcome: skipped
+- name: calls dependency resolution injection
+  inputs:
+    file: tests/test_dependencies.py
+    unchanged:
+      plugins/dependencies.py: |
+        def resolve_dependencies(plugins: list[str], requires: dict[str, list[str]]) -> list[str]:
+            ordered: list[str] = []
+            for plugin in plugins:
+                for required in requires.get(plugin, []):
+                    if required not in ordered:
+                        ordered.append(required)
+                if plugin not in ordered:
+                    ordered.append(plugin)
+            return ordered
+    after: |
+      from plugins.dependencies import resolve_dependencies
+
+
+      def test_inject_dependencies_lists_fonts_before_pdf():
+          assert resolve_dependencies(["pdf"], {"pdf": ["fonts"]}) == ["fonts", "pdf"]
+  expected_output:
+    outcome: invalid
+- name: names dependency resolution by its function's term
+  inputs:
+    file: tests/test_dependencies.py
+    unchanged:
+      plugins/dependencies.py: |
+        def resolve_dependencies(plugins: list[str], requires: dict[str, list[str]]) -> list[str]:
+            ordered: list[str] = []
+            for plugin in plugins:
+                for required in requires.get(plugin, []):
+                    if required not in ordered:
+                        ordered.append(required)
+                if plugin not in ordered:
+                    ordered.append(plugin)
+            return ordered
+    after: |
+      from plugins.dependencies import resolve_dependencies
+
+
+      def test_resolve_dependencies_lists_fonts_before_pdf():
+          assert resolve_dependencies(["pdf"], {"pdf": ["fonts"]}) == ["fonts", "pdf"]
+  expected_output:
+    outcome: valid
+- name: calls building a report assembling it
+  inputs:
+    file: tests/test_reports.py
+    unchanged:
+      reports/monthly.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class MonthlyReport:
+            month: str
+            order_count: int
+
+
+        def build_report(month: str, order_ids: list[str]) -> MonthlyReport:
+            return MonthlyReport(month=month, order_count=len(order_ids))
+    after: |
+      from reports.monthly import MonthlyReport, build_report
+
+
+      def test_assemble_report_counts_the_orders():
+          assert build_report("2026-03", ["ord-1", "ord-2"]) == MonthlyReport(month="2026-03", order_count=2)
+  expected_output:
+    outcome: invalid
+- name: names building a report by its function's term
+  inputs:
+    file: tests/test_reports.py
+    unchanged:
+      reports/monthly.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class MonthlyReport:
+            month: str
+            order_count: int
+
+
+        def build_report(month: str, order_ids: list[str]) -> MonthlyReport:
+            return MonthlyReport(month=month, order_count=len(order_ids))
+    after: |
+      from reports.monthly import MonthlyReport, build_report
+
+
+      def test_build_report_counts_the_orders():
+          assert build_report("2026-03", ["ord-1", "ord-2"]) == MonthlyReport(month="2026-03", order_count=2)
+  expected_output:
+    outcome: valid
+- name: coins no reaction for the empty result
+  inputs:
+    file: tests/test_search.py
+    unchanged:
+      shop/search.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class EmptyResult:
+            query: str
+
+
+        @dataclass(frozen=True)
+        class Matches:
+            skus: list[str]
+
+
+        def search(catalog: dict[str, str], query: str) -> EmptyResult | Matches:
+            skus = [sku for sku, name in catalog.items() if query in name]
+            return Matches(skus=skus) if skus else EmptyResult(query=query)
+    after: |
+      from shop.search import EmptyResult, search
+
+
+      def test_search_gives_no_reaction_when_no_name_matches_the_query():
+          assert search({"BOOK-1": "Atlas"}, "Globe") == EmptyResult(query="Globe")
+  expected_output:
+    outcome: invalid
+- name: names the empty result by its class's term
+  inputs:
+    file: tests/test_search.py
+    unchanged:
+      shop/search.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class EmptyResult:
+            query: str
+
+
+        @dataclass(frozen=True)
+        class Matches:
+            skus: list[str]
+
+
+        def search(catalog: dict[str, str], query: str) -> EmptyResult | Matches:
+            skus = [sku for sku, name in catalog.items() if query in name]
+            return Matches(skus=skus) if skus else EmptyResult(query=query)
+    after: |
+      from shop.search import EmptyResult, search
+
+
+      def test_search_returns_an_empty_result_when_no_name_matches_the_query():
+          assert search({"BOOK-1": "Atlas"}, "Globe") == EmptyResult(query="Globe")
+  expected_output:
+    outcome: valid
+- name: calls a cancelled order voided
+  inputs:
+    file: tests/test_orders.py
+    unchanged:
+      shop/orders.py: |
+        from enum import StrEnum
+
+
+        class OrderStatus(StrEnum):
+            PENDING = "pending"
+            CANCELLED = "cancelled"
+
+
+        class Order:
+            def __init__(self, status: OrderStatus = OrderStatus.PENDING) -> None:
+                self.status = status
+
+            def refundable(self) -> bool:
+                return self.status is not OrderStatus.CANCELLED
+    after: |
+      from shop.orders import Order, OrderStatus
+
+
+      def test_voided_order_is_not_refundable():
+          assert not Order(status=OrderStatus.CANCELLED).refundable()
+  expected_output:
+    outcome: invalid
+- name: names a cancelled order by its status member
+  inputs:
+    file: tests/test_orders.py
+    unchanged:
+      shop/orders.py: |
+        from enum import StrEnum
+
+
+        class OrderStatus(StrEnum):
+            PENDING = "pending"
+            CANCELLED = "cancelled"
+
+
+        class Order:
+            def __init__(self, status: OrderStatus = OrderStatus.PENDING) -> None:
+                self.status = status
+
+            def refundable(self) -> bool:
+                return self.status is not OrderStatus.CANCELLED
+    after: |
+      from shop.orders import Order, OrderStatus
+
+
+      def test_cancelled_order_is_not_refundable():
+          assert not Order(status=OrderStatus.CANCELLED).refundable()
+  expected_output:
+    outcome: valid
+- name: calls evicting expired sessions purging them
+  inputs:
+    file: tests/test_sessions.py
+    unchanged:
+      accounts/sessions.py: |
+        class SessionStore:
+            def __init__(self) -> None:
+                self.expiry: dict[str, float] = {}
+
+            def add(self, token: str, expires_at: float) -> None:
+                self.expiry[token] = expires_at
+
+            def evict_expired(self, now: float) -> None:
+                self.expiry = {token: at for token, at in self.expiry.items() if at > now}
+
+            def tokens(self) -> list[str]:
+                return list(self.expiry)
+    after: |
+      from accounts.sessions import SessionStore
+
+
+      class TestSessionStore:
+          def test_purge_stale_sessions_keeps_live_ones(self):
+              store = SessionStore()
+              store.add("old", expires_at=10.0)
+              store.add("live", expires_at=99.0)
+
+              store.evict_expired(now=50.0)
+
+              assert store.tokens() == ["live"]
+  expected_output:
+    outcome: invalid
+- name: names evicting expired sessions by the method's terms
+  inputs:
+    file: tests/test_sessions.py
+    unchanged:
+      accounts/sessions.py: |
+        class SessionStore:
+            def __init__(self) -> None:
+                self.expiry: dict[str, float] = {}
+
+            def add(self, token: str, expires_at: float) -> None:
+                self.expiry[token] = expires_at
+
+            def evict_expired(self, now: float) -> None:
+                self.expiry = {token: at for token, at in self.expiry.items() if at > now}
+
+            def tokens(self) -> list[str]:
+                return list(self.expiry)
+    after: |
+      from accounts.sessions import SessionStore
+
+
+      class TestSessionStore:
+          def test_evict_expired_keeps_live_sessions(self):
+              store = SessionStore()
+              store.add("old", expires_at=10.0)
+              store.add("live", expires_at=99.0)
+
+              store.evict_expired(now=50.0)
+
+              assert store.tokens() == ["live"]
+  expected_output:
+    outcome: valid
+- name: describes the scenario in words the code doesn't name
+  inputs:
+    file: tests/test_reports.py
+    unchanged:
+      reports/monthly.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class MonthlyReport:
+            month: str
+            order_count: int
+
+
+        def build_report(month: str, order_ids: list[str]) -> MonthlyReport:
+            return MonthlyReport(month=month, order_count=len(order_ids))
+    after: |
+      from reports.monthly import MonthlyReport, build_report
+
+
+      def test_build_report_for_a_month_without_orders():
+          assert build_report("2026-02", []) == MonthlyReport(month="2026-02", order_count=0)
+  expected_output:
+    outcome: valid
+- name: changes the expected order count
+  inputs:
+    file: tests/test_reports.py
+    before: |
+      from reports.monthly import MonthlyReport, build_report
+
+
+      def test_build_report_counts_the_orders():
+          assert build_report("2026-03", ["ord-1"]) == MonthlyReport(month="2026-03", order_count=1)
+    after: |
+      from reports.monthly import MonthlyReport, build_report
+
+
+      def test_build_report_counts_the_orders():
+          assert build_report("2026-03", ["ord-1", "ord-2"]) == MonthlyReport(month="2026-03", order_count=2)
+  expected_output:
+    outcome: valid
+- name: renames a helper function
+  inputs:
+    file: tests/test_reports.py
+    before: |
+      def order_ids(count):
+          return [f"ord-{n}" for n in range(count)]
+    after: |
+      def make_order_ids(count):
+          return [f"ord-{n}" for n in range(count)]
+  expected_output:
+    outcome: skipped

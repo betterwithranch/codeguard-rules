@@ -1,0 +1,2804 @@
+cases:
+- name: defines a backoff policy beside the dispatcher
+  inputs:
+    file: notifications/dispatcher.py
+    after: |
+      class RetryBackoffPolicy:
+          def __init__(self, base_seconds: float) -> None:
+              self._base_seconds = base_seconds
+
+          def delay(self, attempt: int) -> float:
+              return self._base_seconds * 2**attempt
+
+
+      class NotificationDispatcher:
+          def __init__(self, transport) -> None:
+              self._transport = transport
+              self._backoff = RetryBackoffPolicy(base_seconds=0.5)
+
+          def send(self, message: str) -> None:
+              self._transport.deliver(message)
+  expected_output:
+    outcome: invalid
+- name: adds an unrelated invoice class
+  inputs:
+    file: notifications/dispatcher.py
+    before: |
+      class NotificationDispatcher:
+          def __init__(self, transport) -> None:
+              self._transport = transport
+
+          def send(self, message: str) -> None:
+              self._transport.deliver(message)
+    after: |
+      class NotificationDispatcher:
+          def __init__(self, transport) -> None:
+              self._transport = transport
+
+          def send(self, message: str) -> None:
+              self._transport.deliver(message)
+
+
+      class InvoiceTotals:
+          def __init__(self, line_amounts: list[int]) -> None:
+              self.line_amounts = line_amounts
+
+          def total(self) -> int:
+              return sum(self.line_amounts)
+  expected_output:
+    outcome: invalid
+- name: edits a backoff policy kept beside the dispatcher
+  inputs:
+    file: notifications/dispatcher.py
+    before: |
+      class NotificationDispatcher:
+          def __init__(self, transport) -> None:
+              self._transport = transport
+
+          def send(self, message: str) -> None:
+              self._transport.deliver(message)
+
+
+      class RetryBackoffPolicy:
+          def delay(self, attempt: int) -> float:
+              return 0.5 * 2**attempt
+    after: |
+      class NotificationDispatcher:
+          def __init__(self, transport) -> None:
+              self._transport = transport
+
+          def send(self, message: str) -> None:
+              self._transport.deliver(message)
+
+
+      class RetryBackoffPolicy:
+          def delay(self, attempt: int) -> float:
+              return min(0.5 * 2**attempt, 30.0)
+  expected_output:
+    outcome: invalid
+- name: keeps a service's request and result dataclasses with it
+  inputs:
+    file: shipping/rate_quoter.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class QuoteRequest:
+          origin_zip: str
+          destination_zip: str
+          weight_grams: int
+
+
+      @dataclass(frozen=True)
+      class Quote:
+          carrier: str
+          cents: int
+
+
+      class RateQuoter:
+          def __init__(self, carriers) -> None:
+              self._carriers = carriers
+
+          def cheapest(self, request: QuoteRequest) -> Quote:
+              quotes = [carrier.quote(request) for carrier in self._carriers]
+              return min(quotes, key=lambda quote: quote.cents)
+  expected_output:
+    outcome: valid
+- name: groups unrelated enums in one module
+  inputs:
+    file: shipping/enums.py
+    after: |
+      from enum import StrEnum
+
+
+      class CarrierCode(StrEnum):
+          UPS = "ups"
+          FEDEX = "fedex"
+
+
+      class RefundReason(StrEnum):
+          DAMAGED = "damaged"
+          LATE = "late"
+
+
+      class InvoiceStatus(StrEnum):
+          DRAFT = "draft"
+          PAID = "paid"
+  expected_output:
+    outcome: invalid
+- name: keeps a status enum with the model that uses it
+  inputs:
+    file: orders/order.py
+    after: |
+      from dataclasses import dataclass
+      from enum import StrEnum
+
+
+      class OrderStatus(StrEnum):
+          OPEN = "open"
+          SHIPPED = "shipped"
+
+
+      @dataclass
+      class Order:
+          number: str
+          status: OrderStatus = OrderStatus.OPEN
+
+          def ship(self) -> None:
+              self.status = OrderStatus.SHIPPED
+  expected_output:
+    outcome: valid
+- name: keeps a pydantic address model with the customer that holds it
+  inputs:
+    file: customers/customer.py
+    after: |
+      from pydantic import BaseModel
+
+
+      class PostalAddress(BaseModel):
+          street: str
+          city: str
+          postal_code: str
+
+
+      class Customer(BaseModel):
+          customer_id: str
+          name: str
+          billing_address: PostalAddress
+  expected_output:
+    outcome: valid
+- name: adds an unrelated pydantic rate model beside the customer
+  inputs:
+    file: customers/customer.py
+    before: |
+      from pydantic import BaseModel
+
+
+      class Customer(BaseModel):
+          customer_id: str
+          name: str
+    after: |
+      from pydantic import BaseModel
+
+
+      class Customer(BaseModel):
+          customer_id: str
+          name: str
+
+
+      class ShippingRate(BaseModel):
+          carrier: str
+          zone: int
+          cents: int
+  expected_output:
+    outcome: invalid
+- name: adds an audit logger beside a pydantic request model
+  inputs:
+    file: refunds/refund_request.py
+    before: |
+      from pydantic import BaseModel
+
+
+      class RefundRequest(BaseModel):
+          order_id: str
+          cents: int
+    after: |
+      import logging
+
+      from pydantic import BaseModel
+
+
+      class RefundRequest(BaseModel):
+          order_id: str
+          cents: int
+
+
+      class AuditLogger:
+          def __init__(self, logger: logging.Logger) -> None:
+              self._logger = logger
+
+          def record(self, actor: str, action: str) -> None:
+              self._logger.info("%s %s", actor, action)
+  expected_output:
+    outcome: invalid
+- name: groups one exception family in a module
+  inputs:
+    file: notifications/errors.py
+    after: |
+      class NotificationError(Exception):
+          pass
+
+
+      class DeliveryFailedError(NotificationError):
+          pass
+
+
+      class RecipientRejectedError(NotificationError):
+          pass
+  expected_output:
+    outcome: valid
+- name: groups pricing rules under their abstract base
+  inputs:
+    file: pricing/rules.py
+    after: |
+      from abc import ABC, abstractmethod
+
+
+      class PricingRule(ABC):
+          @abstractmethod
+          def apply(self, cents: int, quantity: int) -> int: ...
+
+
+      class PercentOffRule(PricingRule):
+          def __init__(self, percent: int) -> None:
+              self._percent = percent
+
+          def apply(self, cents: int, quantity: int) -> int:
+              return cents * (100 - self._percent) // 100
+
+
+      class BulkRule(PricingRule):
+          def __init__(self, minimum: int, cents_off: int) -> None:
+              self._minimum = minimum
+              self._cents_off = cents_off
+
+          def apply(self, cents: int, quantity: int) -> int:
+              return cents - self._cents_off if quantity >= self._minimum else cents
+  expected_output:
+    outcome: valid
+- name: groups attrs channel variants with their union
+  inputs:
+    file: alerts/channels.py
+    after: |
+      import attrs
+
+
+      @attrs.frozen
+      class EmailChannel:
+          address: str
+
+
+      @attrs.frozen
+      class SmsChannel:
+          phone: str
+
+
+      type Channel = EmailChannel | SmsChannel
+  expected_output:
+    outcome: valid
+- name: strips the outgoing message
+  inputs:
+    file: notifications/dispatcher.py
+    before: |
+      class NotificationDispatcher:
+          def send(self, message: str) -> str:
+              return message
+    after: |
+      class NotificationDispatcher:
+          def send(self, message: str) -> str:
+              return message.strip()
+  expected_output:
+    outcome: skipped
+- name: adds a private helper class
+  inputs:
+    file: notifications/dispatcher.py
+    before: |
+      class NotificationDispatcher:
+          def send(self, message: str) -> str:
+              return message
+    after: |
+      class NotificationDispatcher:
+          def send(self, message: str) -> str:
+              return message
+
+
+      class _Attempt:
+          number = 1
+  expected_output:
+    outcome: valid
+- name: edits a function beside two classes
+  inputs:
+    file: notifications/dispatcher.py
+    before: |
+      class NotificationDispatcher:
+          pass
+
+
+      class RetryBackoffPolicy:
+          pass
+
+
+      def dispatch(message: str) -> str:
+          return message
+    after: |
+      class NotificationDispatcher:
+          pass
+
+
+      class RetryBackoffPolicy:
+          pass
+
+
+      def dispatch(message: str) -> str:
+          return message.strip()
+  expected_output:
+    outcome: skipped
+- name: imports params and result from their own modules
+  inputs:
+    file: retry/retry_attempt_policy.py
+    after: |
+      from retry.retry_attempt import RetryAttempt
+      from retry.retry_attempt_params import RetryAttemptParams
+
+
+      class RetryAttemptPolicy:
+          def next_attempt(self, params: RetryAttemptParams) -> RetryAttempt:
+              delay = min(2**params.attempt, params.max_delay_seconds)
+              return RetryAttempt(number=params.attempt + 1, delay_seconds=delay)
+    unchanged:
+      retry/retry_attempt.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class RetryAttempt:
+            number: int
+            delay_seconds: int
+      retry/retry_attempt_params.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class RetryAttemptParams:
+            attempt: int
+            max_delay_seconds: int
+  expected_output:
+    outcome: invalid
+- name: moves params and result out to separate modules
+  inputs:
+    file: retry/retry_attempt_policy.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class RetryAttemptParams:
+          attempt: int
+          max_delay_seconds: int
+
+
+      @dataclass(frozen=True)
+      class RetryAttempt:
+          number: int
+          delay_seconds: int
+
+
+      class RetryAttemptPolicy:
+          def next_attempt(self, params: RetryAttemptParams) -> RetryAttempt:
+              delay = min(2**params.attempt, params.max_delay_seconds)
+              return RetryAttempt(number=params.attempt + 1, delay_seconds=delay)
+    after: |
+      from retry.retry_attempt import RetryAttempt
+      from retry.retry_attempt_params import RetryAttemptParams
+
+
+      class RetryAttemptPolicy:
+          def next_attempt(self, params: RetryAttemptParams) -> RetryAttempt:
+              delay = min(2**params.attempt, params.max_delay_seconds)
+              return RetryAttempt(number=params.attempt + 1, delay_seconds=delay)
+    unchanged:
+      retry/retry_attempt.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class RetryAttempt:
+            number: int
+            delay_seconds: int
+      retry/retry_attempt_params.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class RetryAttemptParams:
+            attempt: int
+            max_delay_seconds: int
+  expected_output:
+    outcome: invalid
+- name: keeps params and result with the policy
+  inputs:
+    file: retry/retry_attempt_policy.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class RetryAttemptParams:
+          attempt: int
+          max_delay_seconds: int
+
+
+      @dataclass(frozen=True)
+      class RetryAttempt:
+          number: int
+          delay_seconds: int
+
+
+      class RetryAttemptPolicy:
+          def next_attempt(self, params: RetryAttemptParams) -> RetryAttempt:
+              delay = min(2**params.attempt, params.max_delay_seconds)
+              return RetryAttempt(number=params.attempt + 1, delay_seconds=delay)
+  expected_output:
+    outcome: valid
+- name: adds a pydantic result module only the quoter uses
+  inputs:
+    file: shipping/quote_result.py
+    after: |
+      from pydantic import BaseModel
+
+
+      class QuoteResult(BaseModel):
+          carrier: str
+          cents: int
+          transit_days: int
+    unchanged:
+      shipping/rate_quoter.py: |
+        from shipping.quote_result import QuoteResult
+
+
+        class RateQuoter:
+            def __init__(self, carriers) -> None:
+                self._carriers = carriers
+
+            def cheapest(self, weight_grams: int) -> QuoteResult:
+                quotes = [carrier.quote(weight_grams) for carrier in self._carriers]
+                best = min(quotes, key=lambda quote: quote.cents)
+                return QuoteResult(carrier=best.name, cents=best.cents, transit_days=best.days)
+  expected_output:
+    outcome: invalid
+- name: adds a pydantic result module the quoter and a report use
+  inputs:
+    file: shipping/quote_result.py
+    after: |
+      from pydantic import BaseModel
+
+
+      class QuoteResult(BaseModel):
+          carrier: str
+          cents: int
+          transit_days: int
+    unchanged:
+      shipping/rate_quoter.py: |
+        from shipping.quote_result import QuoteResult
+
+
+        class RateQuoter:
+            def __init__(self, carriers) -> None:
+                self._carriers = carriers
+
+            def cheapest(self, weight_grams: int) -> QuoteResult:
+                quotes = [carrier.quote(weight_grams) for carrier in self._carriers]
+                best = min(quotes, key=lambda quote: quote.cents)
+                return QuoteResult(carrier=best.name, cents=best.cents, transit_days=best.days)
+      reports/shipping_costs.py: |
+        from shipping.quote_result import QuoteResult
+
+
+        class ShippingCostReport:
+            def line(self, quote: QuoteResult) -> str:
+                return f"{quote.carrier}: {quote.cents / 100:.2f} in {quote.transit_days} days"
+  expected_output:
+    outcome: valid
+- name: imports a sync summary TypedDict only the syncer uses
+  inputs:
+    file: inventory/stock_syncer.py
+    before: |
+      class StockSyncer:
+          def __init__(self, warehouse) -> None:
+              self._warehouse = warehouse
+    after: |
+      from inventory.sync_summary import SyncSummary
+
+
+      class StockSyncer:
+          def __init__(self, warehouse) -> None:
+              self._warehouse = warehouse
+
+          def sync(self, skus: list[str]) -> SyncSummary:
+              changed = [sku for sku in skus if self._warehouse.refresh(sku)]
+              return SyncSummary(checked=len(skus), changed=len(changed))
+    unchanged:
+      inventory/sync_summary.py: |
+        from typing import TypedDict
+
+
+        class SyncSummary(TypedDict):
+            checked: int
+            changed: int
+  expected_output:
+    outcome: invalid
+- name: imports a sync summary TypedDict a command also prints
+  inputs:
+    file: inventory/stock_syncer.py
+    before: |
+      class StockSyncer:
+          def __init__(self, warehouse) -> None:
+              self._warehouse = warehouse
+    after: |
+      from inventory.sync_summary import SyncSummary
+
+
+      class StockSyncer:
+          def __init__(self, warehouse) -> None:
+              self._warehouse = warehouse
+
+          def sync(self, skus: list[str]) -> SyncSummary:
+              changed = [sku for sku in skus if self._warehouse.refresh(sku)]
+              return SyncSummary(checked=len(skus), changed=len(changed))
+    unchanged:
+      inventory/sync_summary.py: |
+        from typing import TypedDict
+
+
+        class SyncSummary(TypedDict):
+            checked: int
+            changed: int
+      inventory/commands/print_sync.py: |
+        from inventory.sync_summary import SyncSummary
+
+
+        def print_summary(summary: SyncSummary) -> None:
+            print(f"checked {summary['checked']}, changed {summary['changed']}")
+  expected_output:
+    outcome: valid
+- name: imports an attrs window shape only the limiter uses
+  inputs:
+    file: throttling/rate_limiter.py
+    after: |
+      from throttling.window import Window
+
+
+      class RateLimiter:
+          def __init__(self, limit: int) -> None:
+              self._limit = limit
+
+          def allows(self, window: Window) -> bool:
+              return window.count < self._limit
+    unchanged:
+      throttling/window.py: |
+        import attrs
+
+
+        @attrs.frozen
+        class Window:
+            started_at: float
+            count: int
+  expected_output:
+    outcome: invalid
+- name: imports a clock class with behavior that only the limiter uses
+  inputs:
+    file: throttling/rate_limiter.py
+    after: |
+      from throttling.window_clock import WindowClock
+
+
+      class RateLimiter:
+          def __init__(self, limit: int, clock: WindowClock) -> None:
+              self._limit = limit
+              self._clock = clock
+
+          def allows(self, count: int) -> bool:
+              return self._clock.window_open() and count < self._limit
+    unchanged:
+      throttling/window_clock.py: |
+        import time
+
+
+        class WindowClock:
+            def __init__(self, seconds: float) -> None:
+                self._seconds = seconds
+                self._started_at = time.monotonic()
+
+            def window_open(self) -> bool:
+                return time.monotonic() - self._started_at < self._seconds
+  expected_output:
+    outcome: valid
+- name: reads max delay from params
+  inputs:
+    file: retry/retry_attempt_policy.py
+    before: |
+      class RetryAttemptPolicy:
+          def next_attempt(self, params):
+              return min(2**params.attempt, 60)
+    after: |
+      class RetryAttemptPolicy:
+          def next_attempt(self, params):
+              return min(2**params.attempt, params.max_delay_seconds)
+  expected_output:
+    outcome: skipped
+- name: adds a field to a result shape
+  inputs:
+    file: shipping/quote_result.py
+    before: |
+      from pydantic import BaseModel
+
+
+      class QuoteResult(BaseModel):
+          carrier: str
+          cents: int
+    after: |
+      from pydantic import BaseModel
+
+
+      class QuoteResult(BaseModel):
+          carrier: str
+          cents: int
+          transit_days: int
+  expected_output:
+    outcome: skipped
+- name: defines threaded state inside the workflow module
+  inputs:
+    file: checkout/workflow.py
+    after: |
+      from dataclasses import dataclass, replace
+
+
+      @dataclass(frozen=True)
+      class CheckoutState:
+          completed_steps: tuple[str, ...] = ()
+          errors: tuple[str, ...] = ()
+
+
+      def record_step(state: CheckoutState, step: str) -> CheckoutState:
+          return replace(state, completed_steps=(*state.completed_steps, step))
+
+
+      def record_error(state: CheckoutState, error: str) -> CheckoutState:
+          return replace(state, errors=(*state.errors, error))
+
+
+      def run_checkout(steps) -> CheckoutState:
+          state = CheckoutState()
+          for step in steps:
+              state = record_step(state, step.run())
+          return state
+  expected_output:
+    outcome: invalid
+- name: introduces a state model in the workflow
+  inputs:
+    file: checkout/workflow.py
+    before: |
+      def run_checkout(steps) -> list[str]:
+          completed: list[str] = []
+          for step in steps:
+              completed.append(step.run())
+          return completed
+    after: |
+      from dataclasses import dataclass, replace
+
+
+      @dataclass(frozen=True)
+      class CheckoutState:
+          completed_steps: tuple[str, ...] = ()
+
+
+      def run_checkout(steps) -> CheckoutState:
+          state = CheckoutState()
+          for step in steps:
+              state = replace(state, completed_steps=(*state.completed_steps, step.run()))
+          return state
+  expected_output:
+    outcome: invalid
+- name: gives checkout state its own module
+  inputs:
+    file: checkout/checkout_state.py
+    after: |
+      from dataclasses import dataclass, replace
+
+
+      @dataclass(frozen=True)
+      class CheckoutState:
+          completed_steps: tuple[str, ...] = ()
+          errors: tuple[str, ...] = ()
+
+          def with_step(self, step: str) -> "CheckoutState":
+              return replace(self, completed_steps=(*self.completed_steps, step))
+
+          def with_error(self, error: str) -> "CheckoutState":
+              return replace(self, errors=(*self.errors, error))
+    unchanged:
+      checkout/workflow.py: |
+        from checkout.checkout_state import CheckoutState
+
+
+        def run_checkout(steps) -> CheckoutState:
+            state = CheckoutState()
+            for step in steps:
+                state = state.with_step(step.run())
+            return state
+  expected_output:
+    outcome: valid
+- name: adds a step to a workflow that imports its state
+  inputs:
+    file: checkout/workflow.py
+    before: |
+      from checkout.checkout_state import CheckoutState
+
+
+      def run_checkout(steps) -> CheckoutState:
+          state = CheckoutState()
+          for step in steps:
+              state = state.with_step(step.run())
+          return state
+    after: |
+      from checkout.checkout_state import CheckoutState
+
+
+      def charge_card(state: CheckoutState, gateway) -> CheckoutState:
+          return state.with_step(gateway.charge())
+
+
+      def run_checkout(steps) -> CheckoutState:
+          state = CheckoutState()
+          for step in steps:
+              state = state.with_step(step.run())
+          return state
+    unchanged:
+      checkout/checkout_state.py: |
+        from dataclasses import dataclass, replace
+
+
+        @dataclass(frozen=True)
+        class CheckoutState:
+            completed_steps: tuple[str, ...] = ()
+
+            def with_step(self, step: str) -> "CheckoutState":
+                return replace(self, completed_steps=(*self.completed_steps, step))
+  expected_output:
+    outcome: valid
+- name: adds a step function to the state's own module
+  inputs:
+    file: checkout/checkout_state.py
+    before: |
+      from dataclasses import dataclass, replace
+
+
+      @dataclass(frozen=True)
+      class CheckoutState:
+          completed_steps: tuple[str, ...] = ()
+
+          def with_step(self, step: str) -> "CheckoutState":
+              return replace(self, completed_steps=(*self.completed_steps, step))
+    after: |
+      from dataclasses import dataclass, replace
+
+
+      @dataclass(frozen=True)
+      class CheckoutState:
+          completed_steps: tuple[str, ...] = ()
+
+          def with_step(self, step: str) -> "CheckoutState":
+              return replace(self, completed_steps=(*self.completed_steps, step))
+
+
+      def run_checkout(steps) -> CheckoutState:
+          state = CheckoutState()
+          for step in steps:
+              state = state.with_step(step.run())
+          return state
+  expected_output:
+    outcome: invalid
+- name: defines a LangGraph state beside the graph's nodes
+  inputs:
+    file: review/graph.py
+    after: |
+      import operator
+      from typing import Annotated, TypedDict
+
+      from langgraph.graph import END, StateGraph
+
+
+      class ReviewState(TypedDict):
+          document: str
+          findings: Annotated[list[str], operator.add]
+
+
+      def lint(state: ReviewState) -> dict[str, list[str]]:
+          return {"findings": [line for line in state["document"].splitlines() if "TODO" in line]}
+
+
+      def summarize(state: ReviewState) -> dict[str, list[str]]:
+          return {"findings": [f"{len(state['findings'])} findings"]}
+
+
+      def build_graph():
+          graph = StateGraph(ReviewState)
+          graph.add_node("lint", lint)
+          graph.add_node("summarize", summarize)
+          graph.set_entry_point("lint")
+          graph.add_edge("lint", "summarize")
+          graph.add_edge("summarize", END)
+          return graph.compile()
+  expected_output:
+    outcome: invalid
+- name: gives a LangGraph state and its reducer their own module
+  inputs:
+    file: review/review_state.py
+    after: |
+      from typing import Annotated, TypedDict
+
+
+      def keep_unique(current: list[str], update: list[str]) -> list[str]:
+          return current + [item for item in update if item not in current]
+
+
+      class ReviewState(TypedDict):
+          document: str
+          findings: Annotated[list[str], keep_unique]
+    unchanged:
+      review/graph.py: |
+        from langgraph.graph import END, StateGraph
+
+        from review.review_state import ReviewState
+
+
+        def lint(state: ReviewState) -> dict[str, list[str]]:
+            return {"findings": [line for line in state["document"].splitlines() if "TODO" in line]}
+
+
+        def build_graph():
+            graph = StateGraph(ReviewState)
+            graph.add_node("lint", lint)
+            graph.set_entry_point("lint")
+            graph.add_edge("lint", END)
+            return graph.compile()
+  expected_output:
+    outcome: valid
+- name: adds a threaded state to a module of other models
+  inputs:
+    file: orders/models.py
+    before: |
+      from pydantic import BaseModel
+
+
+      class Customer(BaseModel):
+          customer_id: str
+          email: str
+
+
+      class Product(BaseModel):
+          sku: str
+          cents: int
+    after: |
+      from pydantic import BaseModel
+
+
+      class Customer(BaseModel):
+          customer_id: str
+          email: str
+
+
+      class Product(BaseModel):
+          sku: str
+          cents: int
+
+
+      class FulfillmentState(BaseModel):
+          picked_skus: list[str] = []
+          packed: bool = False
+          label_id: str | None = None
+    unchanged:
+      orders/fulfillment.py: |
+        from orders.models import FulfillmentState
+
+
+        def pick(state: FulfillmentState, sku: str) -> FulfillmentState:
+            return state.model_copy(update={"picked_skus": [*state.picked_skus, sku]})
+
+
+        def pack(state: FulfillmentState) -> FulfillmentState:
+            return state.model_copy(update={"packed": True})
+
+
+        def fulfill(skus: list[str]) -> FulfillmentState:
+            state = FulfillmentState()
+            for sku in skus:
+                state = pick(state, sku)
+            return pack(state)
+  expected_output:
+    outcome: invalid
+- name: mutates an attrs state inside the pipeline runner's module
+  inputs:
+    file: imports/pipeline.py
+    after: |
+      import attrs
+
+
+      @attrs.define
+      class ImportState:
+          rows_read: int = 0
+          rows_rejected: int = 0
+
+
+      class ImportPipeline:
+          def __init__(self, stages) -> None:
+              self._stages = stages
+
+          def run(self, rows) -> ImportState:
+              state = ImportState()
+              for stage in self._stages:
+                  stage.process(rows, state)
+              return state
+  expected_output:
+    outcome: invalid
+- name: keeps a state module named state inside its package
+  inputs:
+    file: checkout/state.py
+    after: |
+      from dataclasses import dataclass, replace
+
+
+      @dataclass(frozen=True)
+      class CheckoutState:
+          completed_steps: tuple[str, ...] = ()
+
+          def with_step(self, step: str) -> "CheckoutState":
+              return replace(self, completed_steps=(*self.completed_steps, step))
+    unchanged:
+      checkout/workflow.py: |
+        from checkout.state import CheckoutState
+
+
+        def run_checkout(steps) -> CheckoutState:
+            state = CheckoutState()
+            for step in steps:
+                state = state.with_step(step.run())
+            return state
+  expected_output:
+    outcome: valid
+- name: defines a request shape beside the client that sends it once
+  inputs:
+    file: carriers/label_client.py
+    after: |
+      from dataclasses import asdict, dataclass
+
+
+      @dataclass(frozen=True)
+      class LabelRequest:
+          order_id: str
+          weight_grams: int
+
+
+      def request_label(http, order_id: str, weight_grams: int) -> str:
+          request = LabelRequest(order_id=order_id, weight_grams=weight_grams)
+          return http.post("/labels", json=asdict(request)).json()["label_id"]
+  expected_output:
+    outcome: valid
+- name: makes last_step handle no steps
+  inputs:
+    file: checkout/checkout_state.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class CheckoutState:
+          completed_steps: tuple[str, ...] = ()
+
+          def last_step(self) -> str:
+              return self.completed_steps[-1]
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class CheckoutState:
+          completed_steps: tuple[str, ...] = ()
+
+          def last_step(self) -> str | None:
+              return self.completed_steps[-1] if self.completed_steps else None
+  expected_output:
+    outcome: skipped
+- name: adds an errors field to the state
+  inputs:
+    file: checkout/workflow.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class CheckoutState:
+          completed_steps: tuple[str, ...] = ()
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class CheckoutState:
+          completed_steps: tuple[str, ...] = ()
+          errors: tuple[str, ...] = ()
+  expected_output:
+    outcome: skipped
+- name: defines an invoice in the package that only reads it
+  inputs:
+    file: shipping/invoice.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          number: str
+          total_cents: int
+    unchanged:
+      billing/invoicing.py: |
+        from shipping.invoice import Invoice
+
+
+        def issue_invoice(number: str, line_cents: list[int]) -> Invoice:
+            return Invoice(number=number, total_cents=sum(line_cents))
+      shipping/packing_slip.py: |
+        from shipping.invoice import Invoice
+
+
+        def slip_footer(invoice: Invoice) -> str:
+            return f"Invoice {invoice.number}"
+  expected_output:
+    outcome: invalid
+- name: defines an invoice in the package that builds it
+  inputs:
+    file: billing/invoice.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          number: str
+          total_cents: int
+    unchanged:
+      billing/invoicing.py: |
+        from billing.invoice import Invoice
+
+
+        def issue_invoice(number: str, line_cents: list[int]) -> Invoice:
+            return Invoice(number=number, total_cents=sum(line_cents))
+      shipping/packing_slip.py: |
+        from billing.invoice import Invoice
+
+
+        def slip_footer(invoice: Invoice) -> str:
+            return f"Invoice {invoice.number}"
+      reports/revenue.py: |
+        from billing.invoice import Invoice
+
+
+        def revenue(invoices: list[Invoice]) -> int:
+            return sum(invoice.total_cents for invoice in invoices)
+  expected_output:
+    outcome: valid
+- name: defines a payment error in the api package that only catches it
+  inputs:
+    file: api/errors.py
+    after: |
+      class CardDeclinedError(Exception):
+          def __init__(self, reason: str) -> None:
+              super().__init__(reason)
+              self.reason = reason
+    unchanged:
+      payments/charges.py: |
+        from api.errors import CardDeclinedError
+
+
+        def charge(gateway, cents: int) -> str:
+            result = gateway.charge(cents)
+            if not result.approved:
+                raise CardDeclinedError(result.reason)
+            return result.charge_id
+      api/checkout_view.py: |
+        from api.errors import CardDeclinedError
+        from payments.charges import charge
+
+
+        def checkout(gateway, cents: int) -> dict[str, str]:
+            try:
+                return {"charge_id": charge(gateway, cents)}
+            except CardDeclinedError as error:
+                return {"error": error.reason}
+  expected_output:
+    outcome: invalid
+- name: defines a payment error in the package that raises it
+  inputs:
+    file: payments/errors.py
+    after: |
+      class CardDeclinedError(Exception):
+          def __init__(self, reason: str) -> None:
+              super().__init__(reason)
+              self.reason = reason
+    unchanged:
+      payments/charges.py: |
+        from payments.errors import CardDeclinedError
+
+
+        def charge(gateway, cents: int) -> str:
+            result = gateway.charge(cents)
+            if not result.approved:
+                raise CardDeclinedError(result.reason)
+            return result.charge_id
+      api/checkout_view.py: |
+        from payments.charges import charge
+        from payments.errors import CardDeclinedError
+
+
+        def checkout(gateway, cents: int) -> dict[str, str]:
+            try:
+                return {"charge_id": charge(gateway, cents)}
+            except CardDeclinedError as error:
+                return {"error": error.reason}
+  expected_output:
+    outcome: valid
+- name: defines a pydantic summary in the reports package that orders builds
+  inputs:
+    file: reports/order_summary.py
+    after: |
+      from pydantic import BaseModel
+
+
+      class OrderSummary(BaseModel):
+          order_id: str
+          item_count: int
+          total_cents: int
+    unchanged:
+      orders/summaries.py: |
+        from reports.order_summary import OrderSummary
+
+
+        def summarize(order) -> OrderSummary:
+            return OrderSummary(
+                order_id=order.id,
+                item_count=len(order.lines),
+                total_cents=sum(line.cents for line in order.lines),
+            )
+      reports/daily.py: |
+        from reports.order_summary import OrderSummary
+
+
+        def daily_total(summaries: list[OrderSummary]) -> int:
+            return sum(summary.total_cents for summary in summaries)
+  expected_output:
+    outcome: invalid
+- name: defines shared money that imports a sibling package
+  inputs:
+    file: billing/money.py
+    after: |
+      from dataclasses import dataclass
+
+      from shipping.currency_table import RATES
+
+
+      @dataclass(frozen=True)
+      class Money:
+          cents: int
+          currency: str
+
+          def in_usd(self) -> "Money":
+              return Money(cents=round(self.cents * RATES[self.currency]), currency="USD")
+    unchanged:
+      shipping/currency_table.py: |
+        RATES = {"USD": 1.0, "EUR": 1.08}
+      shipping/quotes.py: |
+        from billing.money import Money
+
+
+        def quote(weight_grams: int) -> Money:
+            return Money(cents=weight_grams // 10, currency="USD")
+      billing/invoicing.py: |
+        from billing.money import Money
+
+
+        def invoice_total(line_cents: list[int]) -> Money:
+            return Money(cents=sum(line_cents), currency="USD")
+  expected_output:
+    outcome: invalid
+- name: defines shared money in a package that imports no sibling
+  inputs:
+    file: core/money.py
+    after: |
+      from dataclasses import dataclass
+      from decimal import Decimal
+
+
+      @dataclass(frozen=True)
+      class Money:
+          cents: int
+          currency: str
+
+          def converted(self, rate: Decimal, currency: str) -> "Money":
+              return Money(cents=round(self.cents * rate), currency=currency)
+    unchanged:
+      shipping/quotes.py: |
+        from core.money import Money
+
+
+        def quote(weight_grams: int) -> Money:
+            return Money(cents=weight_grams // 10, currency="USD")
+      billing/invoicing.py: |
+        from core.money import Money
+
+
+        def invoice_total(line_cents: list[int]) -> Money:
+            return Money(cents=sum(line_cents), currency="USD")
+  expected_output:
+    outcome: valid
+- name: imports a sibling package into the shared money module
+  inputs:
+    file: core/money.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Money:
+          cents: int
+          currency: str
+    after: |
+      from dataclasses import dataclass
+
+      from billing.rounding import round_half_even
+
+
+      @dataclass(frozen=True)
+      class Money:
+          cents: int
+          currency: str
+
+          def rounded(self) -> "Money":
+              return Money(cents=round_half_even(self.cents), currency=self.currency)
+    unchanged:
+      billing/rounding.py: |
+        def round_half_even(cents: int) -> int:
+            return cents
+      shipping/quotes.py: |
+        from core.money import Money
+
+
+        def quote(weight_grams: int) -> Money:
+            return Money(cents=weight_grams // 10, currency="USD")
+      billing/invoicing.py: |
+        from core.money import Money
+
+
+        def invoice_total(line_cents: list[int]) -> Money:
+            return Money(cents=sum(line_cents), currency="USD")
+  expected_output:
+    outcome: invalid
+- name: defines an invoice status enum in the package that sets it
+  inputs:
+    file: billing/invoice_status.py
+    after: |
+      from enum import StrEnum
+
+
+      class InvoiceStatus(StrEnum):
+          DRAFT = "draft"
+          PAID = "paid"
+    unchanged:
+      billing/payments.py: |
+        from billing.invoice_status import InvoiceStatus
+
+
+        def mark_paid(invoice) -> None:
+            invoice.status = InvoiceStatus.PAID
+      reports/unpaid.py: |
+        from billing.invoice_status import InvoiceStatus
+
+
+        def unpaid(invoices) -> list:
+            return [invoice for invoice in invoices if invoice.status is not InvoiceStatus.PAID]
+  expected_output:
+    outcome: valid
+- name: defines an attrs carrier quote in the package that builds it
+  inputs:
+    file: carriers/carrier_quote.py
+    after: |
+      import attrs
+
+
+      @attrs.frozen
+      class CarrierQuote:
+          carrier: str
+          cents: int
+    unchanged:
+      carriers/ups.py: |
+        from carriers.carrier_quote import CarrierQuote
+
+
+        def quote(weight_grams: int) -> CarrierQuote:
+            return CarrierQuote(carrier="ups", cents=weight_grams // 8)
+      checkout/shipping_choice.py: |
+        from carriers.carrier_quote import CarrierQuote
+
+
+        def cheapest(quotes: list[CarrierQuote]) -> CarrierQuote:
+            return min(quotes, key=lambda quote: quote.cents)
+  expected_output:
+    outcome: valid
+- name: skips negative invoice lines in the total
+  inputs:
+    file: billing/invoice.py
+    before: |
+      def invoice_total(line_cents: list[int]) -> int:
+          return sum(line_cents)
+    after: |
+      def invoice_total(line_cents: list[int]) -> int:
+          return sum(cents for cents in line_cents if cents > 0)
+  expected_output:
+    outcome: skipped
+- name: adds a field to an invoice
+  inputs:
+    file: billing/invoice.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          number: str
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          number: str
+          total_cents: int = 0
+  expected_output:
+    outcome: skipped
+- name: defines agent deps beside the review output schemas
+  inputs:
+    file: review/schemas.py
+    after: |
+      from dataclasses import dataclass
+
+      import httpx
+      from pydantic import BaseModel
+
+
+      class Finding(BaseModel):
+          line: int
+          message: str
+
+
+      class ReviewResult(BaseModel):
+          findings: list[Finding]
+
+
+      @dataclass
+      class ReviewDeps:
+          http: httpx.AsyncClient
+          repository_url: str
+    unchanged:
+      review/agent.py: |
+        from pydantic_ai import Agent, RunContext
+
+        from review.schemas import ReviewDeps, ReviewResult
+
+        agent = Agent("anthropic:claude-sonnet-4-5", deps_type=ReviewDeps, output_type=ReviewResult)
+
+
+        @agent.tool
+        async def fetch_file(ctx: RunContext[ReviewDeps], path: str) -> str:
+            response = await ctx.deps.http.get(f"{ctx.deps.repository_url}/{path}")
+            return response.text
+  expected_output:
+    outcome: invalid
+- name: defines agent deps beside the agent that reads them
+  inputs:
+    file: review/agent.py
+    after: |
+      from dataclasses import dataclass
+
+      import httpx
+      from pydantic_ai import Agent, RunContext
+
+      from review.schemas import ReviewResult
+
+
+      @dataclass
+      class ReviewDeps:
+          http: httpx.AsyncClient
+          repository_url: str
+
+
+      agent = Agent("anthropic:claude-sonnet-4-5", deps_type=ReviewDeps, output_type=ReviewResult)
+
+
+      @agent.tool
+      async def fetch_file(ctx: RunContext[ReviewDeps], path: str) -> str:
+          response = await ctx.deps.http.get(f"{ctx.deps.repository_url}/{path}")
+          return response.text
+    unchanged:
+      review/schemas.py: |
+        from pydantic import BaseModel
+
+
+        class Finding(BaseModel):
+            line: int
+            message: str
+
+
+        class ReviewResult(BaseModel):
+            findings: list[Finding]
+  expected_output:
+    outcome: valid
+- name: defines the review output schemas on their own
+  inputs:
+    file: review/schemas.py
+    after: |
+      from pydantic import BaseModel
+
+
+      class Finding(BaseModel):
+          line: int
+          message: str
+
+
+      class ReviewResult(BaseModel):
+          findings: list[Finding]
+  expected_output:
+    outcome: valid
+- name: defines an import context in a shared package only the import stages read
+  inputs:
+    file: shared/context.py
+    after: |
+      from dataclasses import dataclass
+      from datetime import datetime
+
+
+      @dataclass(frozen=True)
+      class ImportContext:
+          tenant_id: str
+          started_at: datetime
+          dry_run: bool
+    unchanged:
+      imports/stages.py: |
+        from shared.context import ImportContext
+
+
+        class ValidateStage:
+            def run(self, rows: list[dict[str, str]], context: ImportContext) -> list[dict[str, str]]:
+                return [row for row in rows if row.get("tenant") == context.tenant_id]
+
+
+        class WriteStage:
+            def __init__(self, repository) -> None:
+                self._repository = repository
+
+            def run(self, rows: list[dict[str, str]], context: ImportContext) -> None:
+                if not context.dry_run:
+                    self._repository.save_all(rows)
+  expected_output:
+    outcome: invalid
+- name: defines an import context in its own module of the imports package
+  inputs:
+    file: imports/context.py
+    after: |
+      from dataclasses import dataclass
+      from datetime import datetime
+
+
+      @dataclass(frozen=True)
+      class ImportContext:
+          tenant_id: str
+          started_at: datetime
+          dry_run: bool
+    unchanged:
+      imports/stages.py: |
+        from imports.context import ImportContext
+
+
+        class WriteStage:
+            def __init__(self, repository) -> None:
+                self._repository = repository
+
+            def run(self, rows: list[dict[str, str]], context: ImportContext) -> None:
+                if not context.dry_run:
+                    self._repository.save_all(rows)
+  expected_output:
+    outcome: valid
+- name: adds a handler context to the response models module
+  inputs:
+    file: notifications/responses.py
+    before: |
+      from pydantic import BaseModel
+
+
+      class SendResponse(BaseModel):
+          message_id: str
+          queued: bool
+    after: |
+      from pydantic import BaseModel
+
+
+      class SendResponse(BaseModel):
+          message_id: str
+          queued: bool
+
+
+      class SendContext(BaseModel):
+          model_config = {"arbitrary_types_allowed": True}
+
+          user_id: str
+          request_id: str
+          mailer: object
+    unchanged:
+      notifications/handlers.py: |
+        from notifications.responses import SendContext, SendResponse
+
+
+        def send_welcome(context: SendContext) -> SendResponse:
+            message_id = context.mailer.send(to=context.user_id, template="welcome")
+            return SendResponse(message_id=message_id, queued=True)
+  expected_output:
+    outcome: invalid
+- name: adds a handler context beside the handler that reads it
+  inputs:
+    file: notifications/handlers.py
+    before: |
+      from notifications.responses import SendResponse
+
+
+      def send_welcome(mailer, user_id: str) -> SendResponse:
+          message_id = mailer.send(to=user_id, template="welcome")
+          return SendResponse(message_id=message_id, queued=True)
+    after: |
+      from typing import NamedTuple
+
+      from notifications.responses import SendResponse
+
+
+      class SendContext(NamedTuple):
+          user_id: str
+          request_id: str
+          mailer: object
+
+
+      def send_welcome(context: SendContext) -> SendResponse:
+          message_id = context.mailer.send(to=context.user_id, template="welcome")
+          return SendResponse(message_id=message_id, queued=True)
+    unchanged:
+      notifications/responses.py: |
+        from pydantic import BaseModel
+
+
+        class SendResponse(BaseModel):
+            message_id: str
+            queued: bool
+  expected_output:
+    outcome: valid
+- name: defines an attrs sync context in the results module
+  inputs:
+    file: inventory/results.py
+    after: |
+      import attrs
+
+
+      @attrs.frozen
+      class SyncResult:
+          checked: int
+          changed: int
+
+
+      @attrs.frozen
+      class SyncContext:
+          warehouse_client: object
+          batch_size: int
+    unchanged:
+      inventory/syncer.py: |
+        from inventory.results import SyncContext, SyncResult
+
+
+        def sync(skus: list[str], context: SyncContext) -> SyncResult:
+            changed = 0
+            for start in range(0, len(skus), context.batch_size):
+                changed += context.warehouse_client.refresh(skus[start : start + context.batch_size])
+            return SyncResult(checked=len(skus), changed=changed)
+  expected_output:
+    outcome: invalid
+- name: defines program settings read by several packages
+  inputs:
+    file: config/settings.py
+    after: |
+      from pydantic_settings import BaseSettings
+
+
+      class Settings(BaseSettings):
+          database_url: str
+          mail_from: str
+          batch_size: int = 100
+    unchanged:
+      inventory/syncer.py: |
+        from config.settings import Settings
+
+
+        def batch_size(settings: Settings) -> int:
+            return settings.batch_size
+      notifications/mailer.py: |
+        from config.settings import Settings
+
+
+        def sender(settings: Settings) -> str:
+            return settings.mail_from
+  expected_output:
+    outcome: valid
+- name: adds a deadline field to the import context
+  inputs:
+    file: imports/context.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class ImportContext:
+          tenant_id: str
+    after: |
+      from dataclasses import dataclass
+      from datetime import datetime
+
+
+      @dataclass(frozen=True)
+      class ImportContext:
+          tenant_id: str
+          deadline: datetime | None = None
+  expected_output:
+    outcome: valid
+- name: changes how the write stage saves rows
+  inputs:
+    file: imports/stages.py
+    before: |
+      class WriteStage:
+          def __init__(self, repository) -> None:
+              self._repository = repository
+
+          def run(self, rows, context) -> None:
+              self._repository.save_all(rows)
+    after: |
+      class WriteStage:
+          def __init__(self, repository) -> None:
+              self._repository = repository
+
+          def run(self, rows, context) -> None:
+              self._repository.save_all(rows, batch=True)
+  expected_output:
+    outcome: skipped
+- name: defines a notifier ABC beside its implementer for checkout to use
+  inputs:
+    file: notifications/base.py
+    unchanged:
+      notifications/sms.py: |
+        from notifications.base import Notifier
+        from notifications.twilio import TwilioClient
+
+
+        class SmsNotifier(Notifier):
+            def __init__(self, client: TwilioClient) -> None:
+                self._client = client
+
+            def notify(self, recipient: str, text: str) -> None:
+                self._client.send_sms(recipient, text)
+      orders/checkout.py: |
+        from notifications.base import Notifier
+
+
+        class Checkout:
+            def __init__(self, notifier: Notifier) -> None:
+                self._notifier = notifier
+
+            def complete(self, phone: str, order_number: str) -> None:
+                self._notifier.notify(phone, f"Order {order_number} confirmed")
+    after: |
+      from abc import ABC, abstractmethod
+
+
+      class Notifier(ABC):
+          @abstractmethod
+          def notify(self, recipient: str, text: str) -> None: ...
+  expected_output:
+    outcome: invalid
+- name: defines a notifier ABC in the checkout package
+  inputs:
+    file: orders/ports.py
+    unchanged:
+      notifications/sms.py: |
+        from notifications.twilio import TwilioClient
+        from orders.ports import Notifier
+
+
+        class SmsNotifier(Notifier):
+            def __init__(self, client: TwilioClient) -> None:
+                self._client = client
+
+            def notify(self, recipient: str, text: str) -> None:
+                self._client.send_sms(recipient, text)
+      orders/checkout.py: |
+        from orders.ports import Notifier
+
+
+        class Checkout:
+            def __init__(self, notifier: Notifier) -> None:
+                self._notifier = notifier
+
+            def complete(self, phone: str, order_number: str) -> None:
+                self._notifier.notify(phone, f"Order {order_number} confirmed")
+    after: |
+      from abc import ABC, abstractmethod
+
+
+      class Notifier(ABC):
+          @abstractmethod
+          def notify(self, recipient: str, text: str) -> None: ...
+  expected_output:
+    outcome: valid
+- name: defines a gateway protocol in the payments package for billing to use
+  inputs:
+    file: payments/protocols.py
+    unchanged:
+      payments/stripe_gateway.py: |
+        from payments.stripe_client import StripeClient
+
+
+        class StripeGateway:
+            def __init__(self, client: StripeClient) -> None:
+                self._client = client
+
+            def charge(self, token: str, amount_cents: int) -> str:
+                return self._client.create_charge(token, amount_cents)
+      billing/invoicing.py: |
+        from payments.protocols import Gateway
+
+
+        def settle(gateway: Gateway, token: str, total_cents: int) -> str:
+            return gateway.charge(token, total_cents)
+    after: |
+      from typing import Protocol
+
+
+      class Gateway(Protocol):
+          def charge(self, token: str, amount_cents: int) -> str: ...
+  expected_output:
+    outcome: invalid
+- name: defines a gateway protocol beside the function that takes it
+  inputs:
+    file: billing/invoicing.py
+    unchanged:
+      payments/stripe_gateway.py: |
+        from payments.stripe_client import StripeClient
+
+
+        class StripeGateway:
+            def __init__(self, client: StripeClient) -> None:
+                self._client = client
+
+            def charge(self, token: str, amount_cents: int) -> str:
+                return self._client.create_charge(token, amount_cents)
+    after: |
+      from typing import Protocol
+
+
+      class Gateway(Protocol):
+          def charge(self, token: str, amount_cents: int) -> str: ...
+
+
+      def settle(gateway: Gateway, token: str, total_cents: int) -> str:
+          return gateway.charge(token, total_cents)
+  expected_output:
+    outcome: valid
+- name: defines a storage ABC in a shared interfaces module used by reports
+  inputs:
+    file: interfaces/storage.py
+    unchanged:
+      storage/s3_store.py: |
+        from interfaces.storage import BlobStore
+        from storage.s3 import S3Client
+
+
+        class S3Store(BlobStore):
+            def __init__(self, client: S3Client) -> None:
+                self._client = client
+
+            def put(self, key: str, data: bytes) -> None:
+                self._client.upload(key, data)
+      reports/archive.py: |
+        from interfaces.storage import BlobStore
+
+
+        def archive_report(store: BlobStore, name: str, body: bytes) -> None:
+            store.put(f"reports/{name}", body)
+    after: |
+      from abc import ABC, abstractmethod
+
+
+      class BlobStore(ABC):
+          @abstractmethod
+          def put(self, key: str, data: bytes) -> None: ...
+  expected_output:
+    outcome: invalid
+- name: defines a storage ABC used both in its package and in reports
+  inputs:
+    file: storage/blob_store.py
+    unchanged:
+      storage/s3_store.py: |
+        from storage.blob_store import BlobStore
+        from storage.s3 import S3Client
+
+
+        class S3Store(BlobStore):
+            def __init__(self, client: S3Client) -> None:
+                self._client = client
+
+            def put(self, key: str, data: bytes) -> None:
+                self._client.upload(key, data)
+      storage/mirroring.py: |
+        from storage.blob_store import BlobStore
+
+
+        def mirror(primary: BlobStore, backup: BlobStore, key: str, data: bytes) -> None:
+            primary.put(key, data)
+            backup.put(key, data)
+      reports/archive.py: |
+        from storage.blob_store import BlobStore
+
+
+        def archive_report(store: BlobStore, name: str, body: bytes) -> None:
+            store.put(f"reports/{name}", body)
+    after: |
+      from abc import ABC, abstractmethod
+
+
+      class BlobStore(ABC):
+          @abstractmethod
+          def put(self, key: str, data: bytes) -> None: ...
+  expected_output:
+    outcome: valid
+- name: defines a clock protocol in a subpackage used only by its parent
+  inputs:
+    file: scheduling/clocks/protocol.py
+    unchanged:
+      scheduling/clocks/system.py: |
+        from datetime import datetime, timezone
+
+
+        class SystemClock:
+            def now(self) -> datetime:
+                return datetime.now(timezone.utc)
+      scheduling/planner.py: |
+        from datetime import timedelta
+
+        from scheduling.clocks.protocol import Clock
+
+
+        class Planner:
+            def __init__(self, clock: Clock) -> None:
+                self._clock = clock
+
+            def due_in(self, days: int):
+                return self._clock.now() + timedelta(days=days)
+    after: |
+      from datetime import datetime
+      from typing import Protocol
+
+
+      class Clock(Protocol):
+          def now(self) -> datetime: ...
+  expected_output:
+    outcome: invalid
+- name: defines a clock protocol in the package of the planner that uses it
+  inputs:
+    file: scheduling/clock.py
+    unchanged:
+      infrastructure/system_clock.py: |
+        from datetime import datetime, timezone
+
+
+        class SystemClock:
+            def now(self) -> datetime:
+                return datetime.now(timezone.utc)
+      scheduling/planner.py: |
+        from datetime import timedelta
+
+        from scheduling.clock import Clock
+
+
+        class Planner:
+            def __init__(self, clock: Clock) -> None:
+                self._clock = clock
+
+            def due_in(self, days: int):
+                return self._clock.now() + timedelta(days=days)
+    after: |
+      from datetime import datetime
+      from typing import Protocol
+
+
+      class Clock(Protocol):
+          def now(self) -> datetime: ...
+  expected_output:
+    outcome: valid
+- name: changes a function in a module without interfaces
+  inputs:
+    file: billing/invoicing.py
+    before: |
+      def settle_note(total_cents: int) -> str:
+          return f"Settled {total_cents / 100:.2f}"
+    after: |
+      def settle_note(total_cents: int) -> str:
+          return f"Settled {total_cents / 100:.2f} EUR"
+  expected_output:
+    outcome: skipped
+- name: defines an unrelated model between payment variants
+  inputs:
+    file: payments/methods.py
+    after: |
+      from typing import Annotated, Literal
+
+      from pydantic import BaseModel, Field
+
+
+      class CardPayment(BaseModel):
+          kind: Literal["card"] = "card"
+          card_token: str
+
+
+      class Receipt(BaseModel):
+          order_id: str
+          emailed_to: str
+
+
+      class BankTransfer(BaseModel):
+          kind: Literal["bank_transfer"] = "bank_transfer"
+          iban: str
+
+
+      PaymentMethod = Annotated[CardPayment | BankTransfer, Field(discriminator="kind")]
+  expected_output:
+    outcome: invalid
+- name: defines payment variants directly before their alias
+  inputs:
+    file: payments/methods.py
+    after: |
+      from typing import Annotated, Literal
+
+      from pydantic import BaseModel, Field
+
+
+      class CardPayment(BaseModel):
+          kind: Literal["card"] = "card"
+          card_token: str
+
+
+      class BankTransfer(BaseModel):
+          kind: Literal["bank_transfer"] = "bank_transfer"
+          iban: str
+
+
+      PaymentMethod = Annotated[CardPayment | BankTransfer, Field(discriminator="kind")]
+  expected_output:
+    outcome: valid
+- name: adds a helper function between a variant and the alias
+  inputs:
+    file: pricing/adjustments.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class PercentOff:
+          percent: int
+
+
+      @dataclass(frozen=True)
+      class FixedOff:
+          cents: int
+
+
+      type Adjustment = PercentOff | FixedOff
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class PercentOff:
+          percent: int
+
+
+      @dataclass(frozen=True)
+      class FixedOff:
+          cents: int
+
+
+      def clamp(cents: int) -> int:
+          return max(cents, 0)
+
+
+      type Adjustment = PercentOff | FixedOff
+  expected_output:
+    outcome: invalid
+- name: adds a helper function after the alias
+  inputs:
+    file: pricing/adjustments.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class PercentOff:
+          percent: int
+
+
+      @dataclass(frozen=True)
+      class FixedOff:
+          cents: int
+
+
+      type Adjustment = PercentOff | FixedOff
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class PercentOff:
+          percent: int
+
+
+      @dataclass(frozen=True)
+      class FixedOff:
+          cents: int
+
+
+      type Adjustment = PercentOff | FixedOff
+
+
+      def clamp(cents: int) -> int:
+          return max(cents, 0)
+  expected_output:
+    outcome: valid
+- name: imports one variant of the alias from another module
+  inputs:
+    file: shipping/legs.py
+    after: |
+      from dataclasses import dataclass
+
+      from shipping.air import AirLeg
+
+
+      @dataclass(frozen=True)
+      class TruckLeg:
+          plate: str
+          hours: float
+
+
+      type Leg = AirLeg | TruckLeg
+    unchanged:
+      shipping/air.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class AirLeg:
+            flight_number: str
+            hours: float
+  expected_output:
+    outcome: invalid
+- name: declares the alias above its attrs variants
+  inputs:
+    file: alerts/channels.py
+    after: |
+      import attrs
+
+      type Channel = EmailChannel | SmsChannel
+
+
+      @attrs.frozen
+      class EmailChannel:
+          address: str
+
+
+      @attrs.frozen
+      class SmsChannel:
+          phone: str
+  expected_output:
+    outcome: invalid
+- name: puts a constant between the last TypedDict variant and the alias
+  inputs:
+    file: webhooks/events.py
+    after: |
+      from typing import Literal, TypedDict
+
+
+      class ItemCreated(TypedDict):
+          type: Literal["item.created"]
+          item_id: str
+
+
+      class ItemDeleted(TypedDict):
+          type: Literal["item.deleted"]
+          item_id: str
+
+
+      WEBHOOK_VERSION = "2024-06"
+
+      type ItemEvent = ItemCreated | ItemDeleted
+  expected_output:
+    outcome: invalid
+- name: shares a base class and uses the union after the alias
+  inputs:
+    file: pricing/adjustments.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class AdjustmentBase:
+          reason: str
+
+
+      @dataclass(frozen=True)
+      class PercentOff(AdjustmentBase):
+          percent: int
+
+
+      @dataclass(frozen=True)
+      class FixedOff(AdjustmentBase):
+          cents: int
+
+
+      type Adjustment = PercentOff | FixedOff
+
+
+      def apply(adjustment: Adjustment, total_cents: int) -> int:
+          match adjustment:
+              case PercentOff(percent=percent):
+                  return total_cents * (100 - percent) // 100
+              case FixedOff(cents=cents):
+                  return max(total_cents - cents, 0)
+  expected_output:
+    outcome: valid
+- name: nests an inner union run inside the outer run
+  inputs:
+    file: orders/events.py
+    after: |
+      from typing import NamedTuple
+
+
+      class OrderPlaced(NamedTuple):
+          order_id: str
+
+
+      class OrderShipped(NamedTuple):
+          order_id: str
+          carrier: str
+
+
+      type OrderEvent = OrderPlaced | OrderShipped
+
+
+      class RefundIssued(NamedTuple):
+          order_id: str
+          cents: int
+
+
+      type StoreEvent = OrderEvent | RefundIssued
+  expected_output:
+    outcome: valid
+- name: declares the inner union after the outer alias
+  inputs:
+    file: orders/events.py
+    after: |
+      from typing import NamedTuple
+
+
+      class RefundIssued(NamedTuple):
+          order_id: str
+          cents: int
+
+
+      type StoreEvent = OrderEvent | RefundIssued
+
+
+      class OrderPlaced(NamedTuple):
+          order_id: str
+
+
+      class OrderShipped(NamedTuple):
+          order_id: str
+          carrier: str
+
+
+      type OrderEvent = OrderPlaced | OrderShipped
+  expected_output:
+    outcome: invalid
+- name: defines msgspec variants together before the alias
+  inputs:
+    file: telemetry/samples.py
+    after: |+
+      import msgspec
+
+
+      class CpuSample(msgspec.Struct, tag="cpu"):
+          percent: float
+
+
+      class MemorySample(msgspec.Struct, tag="memory"):
+          used_bytes: int
+
+
+      Sample = CpuSample | MemorySample
+
+  expected_output:
+    outcome: valid
+- name: adds a field to a model that annotates an inline union
+  inputs:
+    file: checkout/request.py
+    before: |
+      from pydantic import BaseModel
+
+      from payments.methods import BankTransfer, CardPayment
+
+
+      class CheckoutRequest(BaseModel):
+          payment: CardPayment | BankTransfer
+    after: |
+      from pydantic import BaseModel
+
+      from payments.methods import BankTransfer, CardPayment
+
+
+      class CheckoutRequest(BaseModel):
+          payment: CardPayment | BankTransfer
+          coupon: str | None = None
+  expected_output:
+    outcome: skipped
+- name: edits a method body in a module with no union alias
+  inputs:
+    file: pricing/totals.py
+    before: |
+      class Totals:
+          def gross(self, cents: int) -> int:
+              return cents
+    after: |
+      class Totals:
+          def gross(self, cents: int) -> int:
+              return cents * 2
+  expected_output:
+    outcome: skipped
+- name: imports from a package that imports back
+  inputs:
+    file: billing/invoice.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          number: str
+          subtotal_cents: int
+    after: |
+      from dataclasses import dataclass
+
+      from shipping import shipping_rate_cents
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          number: str
+          subtotal_cents: int
+          weight_kg: int
+
+          def total_cents(self) -> int:
+              return self.subtotal_cents + shipping_rate_cents(self.weight_kg)
+    unchanged:
+      billing/__init__.py: |
+        from .invoice import Invoice
+        from .invoice_total import InvoiceTotal
+
+        __all__ = ["Invoice", "InvoiceTotal"]
+      shipping/__init__.py: |
+        from .rates import shipping_rate_cents
+
+        __all__ = ["shipping_rate_cents"]
+      shipping/rates.py: |
+        def shipping_rate_cents(weight_kg: int) -> int:
+            return 500 + 100 * weight_kg
+      shipping/packing_slip.py: |
+        from billing import InvoiceTotal
+
+
+        def packing_slip_footer(total: InvoiceTotal) -> str:
+            return f"Total: {total.grand_total_cents()} cents"
+  expected_output:
+    outcome: invalid
+- name: imports from a package that doesn't import back
+  inputs:
+    file: billing/invoice.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          number: str
+          subtotal_cents: int
+    after: |
+      from dataclasses import dataclass
+
+      from shipping import shipping_rate_cents
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          number: str
+          subtotal_cents: int
+          weight_kg: int
+
+          def total_cents(self) -> int:
+              return self.subtotal_cents + shipping_rate_cents(self.weight_kg)
+    unchanged:
+      billing/__init__.py: |
+        from .invoice import Invoice
+
+        __all__ = ["Invoice"]
+      shipping/__init__.py: |
+        from .rates import shipping_rate_cents
+
+        __all__ = ["shipping_rate_cents"]
+      shipping/rates.py: |
+        from catalog import Product
+
+
+        def shipping_rate_cents(weight_kg: int) -> int:
+            return 500 + 100 * weight_kg
+
+
+        def product_rate_cents(product: Product) -> int:
+            return shipping_rate_cents(product.weight_kg)
+      catalog/__init__.py: |
+        from .product import Product
+
+        __all__ = ["Product"]
+  expected_output:
+    outcome: valid
+- name: imports a nested sibling module that imports back
+  inputs:
+    file: shop/billing/invoices/line.py
+    after: |
+      from dataclasses import dataclass
+
+      from shop.shipping.labels.slip import SlipReference
+
+
+      @dataclass(frozen=True)
+      class InvoiceLine:
+          sku: str
+          amount_cents: int
+          slip: SlipReference
+    unchanged:
+      shop/__init__.py: ''
+      shop/billing/__init__.py: ''
+      shop/billing/customer.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Customer:
+            email: str
+      shop/billing/invoices/__init__.py: ''
+      shop/shipping/__init__.py: ''
+      shop/shipping/labels/__init__.py: ''
+      shop/shipping/labels/slip.py: |
+        from dataclasses import dataclass
+
+        from shop.billing.customer import Customer
+
+
+        @dataclass(frozen=True)
+        class SlipReference:
+            code: str
+            recipient: Customer
+  expected_output:
+    outcome: invalid
+- name: imports a sibling with a relative import that imports back
+  inputs:
+    file: shop/billing/invoice.py
+    after: |
+      from dataclasses import dataclass
+
+      from ..shipping import rates
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          number: str
+          weight_kg: int
+
+          def shipping_cents(self) -> int:
+              return rates.shipping_rate_cents(self.weight_kg)
+    unchanged:
+      shop/__init__.py: ''
+      shop/billing/__init__.py: |
+        from .invoice import Invoice
+
+        __all__ = ["Invoice"]
+      shop/shipping/__init__.py: ''
+      shop/shipping/rates.py: |
+        def shipping_rate_cents(weight_kg: int) -> int:
+            return 500 + 100 * weight_kg
+      shop/shipping/manifest.py: |
+        from shop.billing import Invoice
+
+
+        def manifest_line(invoice: Invoice) -> str:
+            return f"INV-{invoice.number}"
+  expected_output:
+    outcome: invalid
+- name: imports a sibling module with a plain import that imports back
+  inputs:
+    file: billing/statements.py
+    after: |
+      import shipping.rates
+
+
+      def statement_shipping_line(weight_kg: int) -> str:
+          return f"Shipping: {shipping.rates.shipping_rate_cents(weight_kg)} cents"
+    unchanged:
+      billing/__init__.py: ''
+      billing/invoice.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            number: str
+      shipping/__init__.py: ''
+      shipping/rates.py: |
+        import billing.invoice
+
+
+        def shipping_rate_cents(weight_kg: int) -> int:
+            return 500 + 100 * weight_kg
+
+
+        def invoice_reference(invoice: billing.invoice.Invoice) -> str:
+            return invoice.number
+  expected_output:
+    outcome: invalid
+- name: both packages import a third package
+  inputs:
+    file: billing/invoice.py
+    after: |
+      from dataclasses import dataclass
+
+      from catalog import Product
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          number: str
+          products: tuple[Product, ...]
+    unchanged:
+      billing/__init__.py: ''
+      catalog/__init__.py: |
+        from .product import Product
+
+        __all__ = ["Product"]
+      catalog/product.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Product:
+            sku: str
+            weight_kg: int
+      shipping/__init__.py: ''
+      shipping/rates.py: |
+        from catalog import Product
+
+
+        def product_rate_cents(product: Product) -> int:
+            return 500 + 100 * product.weight_kg
+  expected_output:
+    outcome: valid
+- name: imports its own subpackage that imports the parent package
+  inputs:
+    file: billing/statements.py
+    after: |
+      from billing.invoices.line import InvoiceLine
+
+
+      def statement_line(line: InvoiceLine) -> str:
+          return f"{line.sku}: {line.amount_cents}"
+    unchanged:
+      billing/__init__.py: ''
+      billing/customer.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Customer:
+            email: str
+      billing/invoices/__init__.py: ''
+      billing/invoices/line.py: |
+        from dataclasses import dataclass
+
+        from billing.customer import Customer
+
+
+        @dataclass(frozen=True)
+        class InvoiceLine:
+            customer: Customer
+            sku: str
+            amount_cents: int
+  expected_output:
+    outcome: valid
+- name: imports library modules
+  inputs:
+    file: billing/exports.py
+    after: |
+      import csv
+      from pathlib import Path
+
+
+      def write_invoice_numbers(path: Path, numbers: list[str]) -> None:
+          with path.open("w", newline="") as handle:
+              csv.writer(handle).writerows([number] for number in numbers)
+    unchanged:
+      billing/__init__.py: ''
+  expected_output:
+    outcome: valid
+- name: adds a relative import of a sibling module
+  inputs:
+    file: billing/invoice.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          number: str
+    after: |
+      from dataclasses import dataclass
+
+      from .invoice_total import InvoiceTotal
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          number: str
+          total: InvoiceTotal
+    unchanged:
+      billing/__init__.py: ''
+      billing/invoice_total.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class InvoiceTotal:
+            net_cents: int
+            tax_cents: int
+      billing/statements.py: |
+        from .invoice_total import InvoiceTotal
+
+
+        def statement_line(total: InvoiceTotal) -> str:
+            return f"{(total.net_cents + total.tax_cents) / 100:.2f}"
+  expected_output:
+    outcome: valid
+- name: changes a method body
+  inputs:
+    file: billing/invoice.py
+    before: |
+      from dataclasses import dataclass
+
+      from shipping import shipping_rate_cents
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          subtotal_cents: int
+          weight_kg: int
+
+          def total_cents(self) -> int:
+              return self.subtotal_cents + shipping_rate_cents(self.weight_kg)
+    after: |
+      from dataclasses import dataclass
+
+      from shipping import shipping_rate_cents
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          subtotal_cents: int
+          weight_kg: int
+
+          def total_cents(self) -> int:
+              return self.subtotal_cents + 2 * shipping_rate_cents(self.weight_kg)
+  expected_output:
+    outcome: skipped
+- name: splits the age-of-majority rule across numbered signup steps
+  inputs:
+    file: signup/step2_validate.py
+    after: |
+      from signup.step1_load import SignupRow
+
+
+      def validate_signup(row: SignupRow, guardian_email: str | None) -> None:
+          if row.age < 13:
+              raise ValueError("too young to sign up")
+          if row.age < 18 and guardian_email is None:
+              raise ValueError("a guardian must confirm the signup")
+    unchanged:
+      signup/step1_load.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class SignupRow:
+            email: str
+            age: int
+            needs_guardian: bool
+
+
+        def load_signup(line: str) -> SignupRow:
+            email, age = line.split(";")
+            return SignupRow(email=email.strip().lower(), age=int(age), needs_guardian=int(age) < 18)
+      signup/step3_save.py: |
+        from signup.step1_load import SignupRow
+
+
+        def save_signup(db, row: SignupRow) -> None:
+            table = "minor_signups" if row.age < 18 else "adult_signups"
+            db.execute(f"INSERT INTO {table} (email, age) VALUES (?, ?)", (row.email, row.age))
+  expected_output:
+    outcome: invalid
+- name: numbers report stages that each own a distinct concept
+  inputs:
+    file: reports/step2_convert.py
+    after: |
+      from decimal import ROUND_HALF_EVEN, Decimal
+
+
+      def convert(amounts: list[tuple[str, Decimal]], rates: dict[str, Decimal]) -> list[Decimal]:
+          return [
+              (amount / rates[currency]).quantize(Decimal("0.01"), rounding=ROUND_HALF_EVEN)
+              for currency, amount in amounts
+          ]
+    unchanged:
+      reports/step1_fetch_rates.py: |
+        from decimal import Decimal
+
+
+        def fetch_rates(http, base: str) -> dict[str, Decimal]:
+            response = http.get("https://rates.example.com/latest", params={"base": base})
+            return {code: Decimal(str(rate)) for code, rate in response.json()["rates"].items()}
+      reports/step3_render.py: |
+        from decimal import Decimal
+
+
+        def render_report(title: str, totals: list[Decimal]) -> str:
+            lines = [title, "=" * len(title)]
+            lines.extend(f"{total:>12,.2f}" for total in totals)
+            return "\n".join(lines)
+  expected_output:
+    outcome: valid
+- name: splits email verification across before and after save hooks
+  inputs:
+    file: accounts/after_save.py
+    after: |
+      def after_account_save(account, mailer) -> None:
+          if not account.email_verified and account.verification_token:
+              mailer.send(account.email, template="verify-email", token=account.verification_token)
+    unchanged:
+      accounts/before_save.py: |
+        import secrets
+
+
+        def before_account_save(account, previous_email: str | None) -> None:
+            if account.email != previous_email:
+                account.email_verified = False
+                account.verification_token = secrets.token_urlsafe(16)
+  expected_output:
+    outcome: invalid
+- name: defines an import context in the stages package the command fills in
+  inputs:
+    file: imports/context.py
+    after: |
+      from dataclasses import dataclass
+      from datetime import datetime
+
+
+      @dataclass(frozen=True)
+      class ImportContext:
+          tenant_id: str
+          started_at: datetime
+          dry_run: bool
+    unchanged:
+      imports/stages.py: |
+        from imports.context import ImportContext
+
+
+        class WriteStage:
+            def __init__(self, repository) -> None:
+                self._repository = repository
+
+            def run(self, rows: list[dict[str, str]], context: ImportContext) -> None:
+                if not context.dry_run:
+                    self._repository.save_all(rows, tenant=context.tenant_id)
+      cli/run_import.py: |
+        from datetime import datetime, timezone
+
+        from imports.context import ImportContext
+        from imports.stages import WriteStage
+
+
+        def run_import(repository, tenant_id: str, rows: list[dict[str, str]], dry_run: bool) -> None:
+            context = ImportContext(tenant_id=tenant_id, started_at=datetime.now(timezone.utc), dry_run=dry_run)
+            WriteStage(repository).run(rows, context)
+  expected_output:
+    outcome: valid
+- name: defines an import context in the command package that fills it in
+  inputs:
+    file: cli/import_context.py
+    after: |
+      from dataclasses import dataclass
+      from datetime import datetime
+
+
+      @dataclass(frozen=True)
+      class ImportContext:
+          tenant_id: str
+          started_at: datetime
+          dry_run: bool
+    unchanged:
+      imports/stages.py: |
+        from cli.import_context import ImportContext
+
+
+        class WriteStage:
+            def __init__(self, repository) -> None:
+                self._repository = repository
+
+            def run(self, rows: list[dict[str, str]], context: ImportContext) -> None:
+                if not context.dry_run:
+                    self._repository.save_all(rows, tenant=context.tenant_id)
+      cli/run_import.py: |
+        from datetime import datetime, timezone
+
+        from cli.import_context import ImportContext
+        from imports.stages import WriteStage
+
+
+        def run_import(repository, tenant_id: str, rows: list[dict[str, str]], dry_run: bool) -> None:
+            context = ImportContext(tenant_id=tenant_id, started_at=datetime.now(timezone.utc), dry_run=dry_run)
+            WriteStage(repository).run(rows, context)
+  expected_output:
+    outcome: invalid

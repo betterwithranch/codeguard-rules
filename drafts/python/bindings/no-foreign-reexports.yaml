@@ -1,4 +1,0 @@
-skill: python/skills/no-foreign-reexports
-paths: ["**/__init__.py"]
-exclude_paths: ["**/tests/**/*.py"]
-triggers: [outside-package-import, module-statement]

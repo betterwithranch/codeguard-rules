@@ -1,0 +1,4 @@
+skill: python/skills/modules-own-knowledge
+paths: ["**/*.py"]
+exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
+triggers: [multi-class-module, definition-added-or-removed, class-import, class-header, class-module-import, interface-class, union-alias-module, outside-package-import]

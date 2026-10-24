@@ -1,0 +1,31 @@
+id: forwarding-method
+language: python
+rule:
+  kind: function_definition
+  any:
+  - inside:
+      kind: block
+      inside: {kind: class_definition, field: body}
+  - inside:
+      kind: decorated_definition
+      inside:
+        kind: block
+        inside: {kind: class_definition, field: body}
+  has:
+    field: body
+    kind: block
+    all:
+    - not:
+        has:
+          nthChild: 3
+    - has:
+        nthChild: {position: 1, reverse: true}
+        any:
+        - kind: return_statement
+        - kind: expression_statement
+        has:
+          stopBy: end
+          kind: call
+          has:
+            field: function
+            regex: ^self\.\w+\.\w+$

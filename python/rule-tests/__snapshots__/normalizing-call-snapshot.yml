@@ -1,0 +1,138 @@
+id: normalizing-call
+snapshots:
+  ? |
+    actual = copy.copy(order)
+    actual.id = None
+  : labels:
+    - source: copy.copy(order)
+      style: primary
+      start: 9
+      end: 25
+    - source: copy.copy
+      style: secondary
+      start: 9
+      end: 18
+  ? |
+    actual = result.model_dump(exclude={'id'})
+  : labels:
+    - source: exclude={'id'}
+      style: primary
+      start: 27
+      end: 41
+    - source: exclude
+      style: secondary
+      start: 27
+      end: 34
+  ? |
+    actual = result.model_dump(exclude_none=True)
+  : labels:
+    - source: exclude_none=True
+      style: primary
+      start: 27
+      end: 44
+    - source: exclude_none
+      style: secondary
+      start: 27
+      end: 39
+  ? |
+    actual = result.model_dump(include={'total'})
+  : labels:
+    - source: include={'total'}
+      style: primary
+      start: 27
+      end: 44
+    - source: include
+      style: secondary
+      start: 27
+      end: 34
+  ? |
+    actual = {key: value for key, value in vars(order).items() if key != 'id'}
+  : labels:
+    - source: '{key: value for key, value in vars(order).items() if key != ''id''}'
+      style: primary
+      start: 9
+      end: 74
+    - source: vars(order).items
+      style: secondary
+      start: 39
+      end: 56
+    - source: for key, value in vars(order).items()
+      style: secondary
+      start: 21
+      end: 58
+    - source: if key != 'id'
+      style: secondary
+      start: 59
+      end: 73
+  ? |
+    assert expected == result.model_copy(update={'id': None})
+  : labels:
+    - source: 'result.model_copy(update={''id'': None})'
+      style: primary
+      start: 19
+      end: 57
+    - source: result.model_copy
+      style: secondary
+      start: 19
+      end: 36
+  ? |
+    assert replace(result, id=None) == expected
+  : labels:
+    - source: replace(result, id=None)
+      style: primary
+      start: 7
+      end: 31
+    - source: replace
+      style: secondary
+      start: 7
+      end: 14
+  ? |
+    del actual['id']
+  : labels:
+    - source: del actual['id']
+      style: primary
+      start: 0
+      end: 16
+  ? |
+    errors = [d for d in review.diagnostics if d.is_error]
+  : labels:
+    - source: '[d for d in review.diagnostics if d.is_error]'
+      style: primary
+      start: 9
+      end: 54
+    - source: errors = [d for d in review.diagnostics if d.is_error]
+      style: secondary
+      start: 0
+      end: 54
+    - source: if d.is_error
+      style: secondary
+      start: 40
+      end: 53
+  ? |
+    order.id = None
+    assert order == Order(id=None, total=1)
+  : labels:
+    - source: order.id = None
+      style: primary
+      start: 0
+      end: 15
+    - source: order
+      style: secondary
+      start: 23
+      end: 28
+    - source: order == Order(id=None, total=1)
+      style: secondary
+      start: 23
+      end: 55
+    - source: assert order == Order(id=None, total=1)
+      style: secondary
+      start: 16
+      end: 55
+    - source: order.id = None
+      style: secondary
+      start: 0
+      end: 15
+    - source: order.id
+      style: secondary
+      start: 0
+      end: 8

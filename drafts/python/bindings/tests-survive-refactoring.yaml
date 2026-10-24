@@ -1,0 +1,3 @@
+skill: python/skills/tests-survive-refactoring
+paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
+triggers: [mock-use, call-assertion, subclass-override, class-header, fixture, helper-function]

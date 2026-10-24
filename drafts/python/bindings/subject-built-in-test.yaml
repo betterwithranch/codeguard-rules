@@ -1,3 +1,0 @@
-skill: python/skills/subject-built-in-test
-paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
-triggers: [test-with-parameters, test-using-self-state]

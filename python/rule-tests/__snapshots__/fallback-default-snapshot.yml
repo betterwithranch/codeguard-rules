@@ -1,0 +1,198 @@
+id: fallback-default
+snapshots:
+  ? |
+    example_items = example_order.items or []
+  : labels:
+    - source: example_order.items or []
+      style: primary
+      start: 16
+      end: 41
+    - source: or
+      style: secondary
+      start: 36
+      end: 38
+    - source: '[]'
+      style: secondary
+      start: 39
+      end: 41
+  ? |
+    example_key = os.environ.get("EXAMPLE_KEY", "")
+  : labels:
+    - source: os.environ.get("EXAMPLE_KEY", "")
+      style: primary
+      start: 14
+      end: 47
+    - source: os.environ.get
+      style: secondary
+      start: 14
+      end: 28
+    - source: '""'
+      style: secondary
+      start: 44
+      end: 46
+    - source: '""'
+      style: secondary
+      start: 44
+      end: 46
+  ? |
+    example_key = os.getenv("EXAMPLE_KEY", "")
+  : labels:
+    - source: os.getenv("EXAMPLE_KEY", "")
+      style: primary
+      start: 14
+      end: 42
+    - source: os.getenv
+      style: secondary
+      start: 14
+      end: 23
+    - source: '""'
+      style: secondary
+      start: 39
+      end: 41
+    - source: '""'
+      style: secondary
+      start: 39
+      end: 41
+  ? |
+    example_meta = example_order.meta or {}
+  : labels:
+    - source: example_order.meta or {}
+      style: primary
+      start: 15
+      end: 39
+    - source: or
+      style: secondary
+      start: 34
+      end: 36
+    - source: '{}'
+      style: secondary
+      start: 37
+      end: 39
+  ? |
+    example_name = example_user.nickname or "Guest"
+  : labels:
+    - source: example_user.nickname or "Guest"
+      style: primary
+      start: 15
+      end: 47
+    - source: or
+      style: secondary
+      start: 37
+      end: 39
+    - source: '"Guest"'
+      style: secondary
+      start: 40
+      end: 47
+  ? |
+    example_offset = example_value or -1
+  : labels:
+    - source: example_value or -1
+      style: primary
+      start: 17
+      end: 36
+    - source: or
+      style: secondary
+      start: 31
+      end: 33
+    - source: '-1'
+      style: secondary
+      start: 34
+      end: 36
+  ? |
+    example_quantity = example_line.quantity or 0
+  : labels:
+    - source: example_line.quantity or 0
+      style: primary
+      start: 19
+      end: 45
+    - source: or
+      style: secondary
+      start: 41
+      end: 43
+    - source: '0'
+      style: secondary
+      start: 44
+      end: 45
+  ? |
+    example_rate = EXAMPLE_RATES.get(example_currency) or 1.0
+  : labels:
+    - source: EXAMPLE_RATES.get(example_currency) or 1.0
+      style: primary
+      start: 15
+      end: 57
+    - source: or
+      style: secondary
+      start: 51
+      end: 53
+    - source: '1.0'
+      style: secondary
+      start: 54
+      end: 57
+  ? |
+    example_secret = getattr(example_settings, "EXAMPLE_SECRET", None)
+  : labels:
+    - source: getattr(example_settings, "EXAMPLE_SECRET", None)
+      style: primary
+      start: 17
+      end: 66
+    - source: getattr
+      style: secondary
+      start: 17
+      end: 24
+    - source: None
+      style: secondary
+      start: 61
+      end: 65
+    - source: None
+      style: secondary
+      start: 61
+      end: 65
+  ? |
+    example_total = example_order.total if example_order.total is not None else 0
+  : labels:
+    - source: example_order.total if example_order.total is not None else 0
+      style: primary
+      start: 16
+      end: 77
+    - source: example_order.total is not None
+      style: secondary
+      start: 39
+      end: 70
+  ? |
+    example_url = example_config.get("payments_url", "")
+  : labels:
+    - source: example_config.get("payments_url", "")
+      style: primary
+      start: 14
+      end: 52
+    - source: example_config.get
+      style: secondary
+      start: 14
+      end: 32
+    - source: '""'
+      style: secondary
+      start: 49
+      end: 51
+    - source: '""'
+      style: secondary
+      start: 49
+      end: 51
+  ? |
+    example_value = example_kwargs.pop("example", None)
+  : labels:
+    - source: example_kwargs.pop("example", None)
+      style: primary
+      start: 16
+      end: 51
+    - source: example_kwargs.pop
+      style: secondary
+      start: 16
+      end: 34
+    - source: None
+      style: secondary
+      start: 46
+      end: 50
+    - source: None
+      style: secondary
+      start: 46
+      end: 50

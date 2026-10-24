@@ -1,3 +1,0 @@
-skill: python/skills/mock-only-at-boundary
-paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
-triggers: [mock-use]

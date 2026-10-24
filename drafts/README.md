@@ -19,93 +19,51 @@ A pattern rule moves its rule, binding, test and snapshot, once
 Rules are added back highest value first: rules about architecture and design before
 rules about style.
 
+The drafts' judge rules each state one architectural intent with a yes/no test; the
+code shapes that intent allows or forbids are its forms, listed on both sides. They were
+regrouped from about 75 narrow drafts, each policing one code shape, and are refined one
+at a time as they're added back.
+
 Judge rules on every `.py` file except test files (Claude reads each changed file
-against the rule's skill). `no-foreign-reexports` runs on `__init__.py` files only.
+against the rule's skill):
 
 | Rule | Checks |
 |---|---|
-| `argument-group-names` | No `...Request`/`...Create` name on an in-process argument group |
-| `behavior-on-data-owner` | A function that reads only one value's own data is a method of that value's type |
-| `builder-names-step-builders` | `...Builder` only for step-by-step builders |
-| `comments-state-reasons` | A comment states a reason the code can't hold, never what it does, did or doesn't do |
-| `constructor-dependencies` | Methods don't take collaborators as parameters; the class gets them at construction |
-| `context-types-live-with-consumer` | Dependency and context classes live with the stage that reads them |
-| `docstrings-add-information` | A docstring tells the reader something the name, signature and body don't |
-| `domain-in-data-structures` | A domain rule is stated once in a declared structure: no repeated type switches, branches on a `Literal` value set, anonymous multi-answer results, silent key overwrites, helpers differing by one value, or flags mirroring another field |
-| `enum-usage` | No `.value` on a `StrEnum`, `IntEnum` or `TextChoices` member |
-| `factory-methods-by-product` | Factory methods named for the product or input, not the caller |
-| `factory-on-built-type` | Code that decides a type's field values is on the type, in its module, or in a mapper for one source |
-| `import-own-package-by-module` | Code inside a package imports from the defining module, never through a root that contains it |
-| `import-packages-from-root` | Code outside a package imports from the package root, unless the root import would form a cycle |
-| `interface-in-consumer-package` | An interface lives in the package of a consumer |
-| `interfaces-earn-existence` | A Protocol or ABC has two implementers, or prevents an import cycle |
-| `names-match-behavior` | Every word of a function or class name is true of its body, and one names what it does |
-| `narrow-collaborator-params` | No bundle parameter (context, settings, request) when only a few of its fields are read |
-| `no-attribute-mirror-protocols` | No Protocol that copies one class's data attributes |
-| `no-bare-identity-wrappers` | No class that only wraps one identifier |
-| `no-branch-and-accumulate` | No loop that branches per item to pick what it appends, with no state between items |
-| `no-copied-owner-values` | No stored copy of a held object's field or of the registry key |
-| `no-duplicate-logic` | No function body copies another in the same file or an imported module |
-| `no-foreign-reexports` | A package's `__init__.py` exports only names defined inside the package |
-| `no-mutual-package-imports` | Two sibling packages never import from each other |
-| `no-overlapping-responsibility` | No overlapping responsibility |
-| `no-pre-derived-arguments` | No call to the program's own code passing both a value and the input it was derived from |
-| `no-reimplemented-orchestration` | No calling a pipeline's stages in sequence when a component already runs them |
-| `no-shared-stateful-generics` | No shared instance of a class that stores a use's results on itself |
-| `no-single-use-map-wrappers` | No function that only maps a named function over a collection and has one call site |
-| `no-single-use-shape-modules` | A shape only one type uses lives in that type's module |
-| `no-unpacked-argument-groups` | No object built only to have its fields read back out as one call's arguments |
-| `one-concept-per-module` | One concept per module |
-| `one-home-for-defaults` | Code outside a type doesn't supply defaults for that type's fields |
-| `one-responsibility-per-function` | A function does one job's logic or coordinates calls, never a job's logic alongside other jobs |
-| `one-responsibility-per-type` | A class's methods serve one concern, not unrelated groups |
-| `one-verb-per-operation` | Collaborating functions and methods use one verb for one operation |
-| `queue-messages-carry-ids` | Stored records cross queues and workflows by id |
-| `state-model-own-module` | A threaded state model gets its own module |
-| `types-live-with-producer` | Types live in the package that constructs them |
 | `trust-the-boundary` | A guarantee is made once, where data enters or its type is built, and trusted after: no re-checks, parsed unions decide their variant, model validators use only the model's own values |
-| `union-variants-together` | A union's variants are defined together, directly before its alias |
-| `value-form-matches-role` | A supplied value's form fits its role: a reference carries an existing record's id, a matched value is fixed |
+| `domain-in-data-structures` | A domain rule is stated once in a declared structure: no repeated type switches, branches on a `Literal` value set, anonymous multi-answer results, silent key overwrites, helpers differing by one value, or flags mirroring another field |
+| `knowledge-has-one-home` | Each piece of knowledge (logic, a job on a concept, a pipeline's sequence, a domain answer about one object, a value an object holds, a set of things) has one home; no code copies what another place owns |
+| `construction-has-one-home` | A program type's field values are decided on the type, in its module, in a factory whose injected collaborators decide them, or in a mapper for one source; a field's default is declared by the type |
+| `layers-earn-their-load` | Every layer hides a real decision: no interface with one implementer, protocol mirroring one class's attributes, pass-through class, single-use map wrapper, argument group built only to be unpacked, or bare identity wrapper |
+| `state-narrowest-scope-one-writer` | Mutable state has the narrowest scope its use needs and one writer: no shared instance of a stateful class, and no module- or class-level container or global holding one call's or one instance's data or written by two functions |
+| `modules-own-knowledge` | Modules are organized around what they know, so what changes together lives together: no definition kept apart from the code it changes with, no module split by execution phase |
+| `one-responsibility` | A function or class has one responsibility, statable without "and": no job's logic inline beside another job, no class serving two unrelated concerns, no loop that works out each item's result and collects it |
+| `takes-what-it-needs` | A unit takes exactly what it needs, in the form its role needs: no collaborator passed per method call, no bundle taken to read a few fields, no value passed with the input it was derived from, no value in the wrong form for its role |
+| `errors-surface-at-cause` | An error surfaces where it's caused: no except/suppress that swallows an error it doesn't handle, no silent fallback default for data that should exist, no clamp hiding a state that should never exist |
+| `names-tell-the-truth` | Names, comments and docstrings say what the code does, in the domain's one word for it: no name that claims or hides behavior, second verb for one operation, request/action name on an in-process argument group, creation method named for its caller, one-shot `...Builder`, narrating comment, or repeating docstring |
 
 Judge rules on test files (`test_*.py`, `*_test.py`, `tests/**`, `conftest.py`):
 
 | Rule | Checks |
 |---|---|
-| `assert-whole-objects` | No assert on a part (field, item, key, slice, membership) of a value that compares by value |
-| `build-through-factory` | Build through the production factory |
-| `configure-shared-fakes` | A subclass of a shared fake only configures it; its overrides never assert, query another subsystem or record that they ran |
-| `deterministic-tests` | No assertion depends on the real clock, randomness, timing, set or listing order, or the machine's environment |
-| `equality-over-in` | No `in` fragment check on a string, except a whole line inserted into content the test supplies |
-| `helpers-only-set-up` | Helpers and fixtures never get a value from the production code that computes it |
-| `helpers-return-what-they-build` | Helpers and fixtures return what they build, not a value got by using it |
-| `integration-tests-catch-wiring` | A test in an integration or e2e suite runs two or more components together (files under `integration/` or `e2e/`, or named for them) |
-| `mock-only-at-boundary` | A mock or patch replaces only code that leaves the process |
-| `no-acting-fixtures` | The call a test asserts on runs in the test body, not in a fixture |
-| `no-alternative-helper-inputs` | A helper takes each value through one parameter, not two it picks between |
-| `no-dangling-parent-ids` | References in test data point at records the test created |
-| `no-default-valued-arguments` | No argument equal to its parameter's default |
-| `no-internal-call-assertions` | No assertion on the calls one of the program's components makes to another |
-| `no-scenario-fixtures` | Fixtures build and ready the environment; they never run operations that set a test's starting state |
-| `no-shared-test-class-state` | No test changes data stored on its test class |
-| `no-single-use-fixtures` | A fixture in a test module is requested by more than one test or fixture there |
-| `no-test-setup-bundles` | No test-only type that only carries built objects |
-| `reuse-test-helpers` | No fake, stub, fixture or helper that duplicates one a shared test module provides |
-| `seed-through-creator` | Test records are saved through their production creator |
-| `separate-setup-and-data-fixtures` | A fixture sets a condition or returns a value, never both |
-| `subject-built-in-test` | The object a test acts on is built in the test, not handed in by a fixture or setUp |
-| `test-has-signal` | Every test can fail for a plausible bug that no other test in its file also catches |
-| `test-isolation` | A test undoes every change to state that outlives it and releases every resource it acquires |
-| `test-names-match-assertions` | A test's name claims only outcomes its assertions check |
-| `test-names-use-production-terms` | A test's name uses the code under test's terms for its concepts |
-| `test-owns-asserted-ids` | Asserted ids are written in the test, not read from a shared constant |
-| `wide-scope-fixtures-share-no-state` | A fixture wider than function scope hands out nothing a test can change, and doesn't defer per-test cleanup |
+| `assertions-pin-the-contract` | Assertions check the behaviour the test names, no less and no more, against expected values the test states |
+| `tests-survive-refactoring` | Tests depend only on observable results: no test double inside the process, assertion on internal calls, shared fake made to check or record, or copy of shared test support |
+| `real-test-data` | Test data is made the way production makes it: no hand-built object a production factory builds, record saved around its production creator, reference to a record the test never created, or generated value where the receiver matches on fixed values |
+| `arrange-act-assert-in-body` | A test shows its arrange, act and assert in its body: no subject handed in by a fixture or setUp, act or scenario run in a fixture, helper returning what it got by using an object, fixture both setting a condition and returning a value, single-use module fixture, setup bundle type, or helper taking one input two ways |
+| `tests-dont-affect-each-other` | No test or fixture leaves state changed for the next test, changes data stored on its test class, or shares a changeable value or end-of-scope reset through a wide-scope fixture |
+| `tests-earn-their-place` | Every test can fail for a plausible bug no other test in its file catches; in integration/e2e files a test crosses a seam between components; a test's name claims only what its assertions check, in the code under test's own terms |
+| `no-default-valued-arguments` | No argument equal to its parameter's default (kept on its own: it's noise in a call, not setup hidden from the test body) |
+
+Pattern rules (ast-grep) on every `.py` file:
+
+| Rule | Checks |
+|---|---|
+| `no-kwargs-for-named-params` | No named key read out of `**kwargs` (`kw["x"]`, `.get/.pop/.setdefault("x")`, `"x" in kw`); iterating arbitrary keys is fine |
 
 Pattern rules (ast-grep) on app code:
 
 | Rule | Checks |
 |---|---|
 | `no-forwarding-wrappers` | No undecorated non-method function whose only statement passes all its parameters (up to 5) unchanged to one call |
-| `no-kwargs-for-named-params` | No named key read out of `**kwargs` (`kw["x"]`, `.get/.pop/.setdefault("x")`, `"x" in kw`) |
 | `no-literal-lookup-branches` | No `if`/`elif`, consecutive-`if` or `match` chain mapping one value's constants to returned constants |
 | `no-packing-helpers` | No function whose only statement returns its parameters packed into a same-name dict, `dict(...)` or tuple |
 | `no-restated-type-args` | No subclass attribute restating its base's type argument |
@@ -117,5 +75,16 @@ Pattern rules (ast-grep) on test files:
 | `no-attribute-set-after-build` | No attribute assignment on an object a test helper or fixture just constructed |
 | `no-conftest-imports` | No import from a `conftest.py` |
 | `no-empty-fixtures` | No fixture whose body is only `pass`, `...`, a docstring, a bare `return`/`yield` or `return None` |
-| `no-kwargs-reads` | No read of a `**kwargs` parameter other than passing it on (`no-pop-from-kwargs` covers `pop`) |
 | `no-stripped-result-copies` | No stripped copy of the result (dump with `exclude`, a `replace` that sets `None`, `del`/`pop` of a key, a filtered dict comprehension, a field set to `None`) that a later assert compares |
+
+## Import-graph tier candidates
+
+These claims were removed from the judge drafts: they're about the import graph, which an
+import linter checks across the whole project better than a per-file judge.
+
+- Code outside a package imports the package's names from the package root, never from a
+  module inside it, unless importing from the root would form an import cycle.
+- Code inside a package imports names from the module that holds them, never through the
+  root of a package that contains the file.
+- A package's `__init__.py` exports only names defined inside the package's directory,
+  never a name it imports from outside the package.

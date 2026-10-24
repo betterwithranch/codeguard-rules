@@ -1,4 +1,0 @@
-skill: python/skills/argument-group-names
-paths: ["**/*.py"]
-exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
-triggers: [request-or-action-type-name]

@@ -1,0 +1,893 @@
+cases:
+- name: builds a shipment on the order type
+  inputs:
+    file: orders/models.py
+    after: |
+      from dataclasses import dataclass
+
+      from shipping.models import Parcel, Shipment
+
+
+      @dataclass(frozen=True)
+      class OrderLine:
+          sku: str
+          weight_grams: int
+
+
+      @dataclass(frozen=True)
+      class Order:
+          id: str
+          address: str
+          lines: list[OrderLine]
+
+          def to_shipment(self) -> Shipment:
+              return Shipment(
+                  order_id=self.id,
+                  address=self.address,
+                  parcels=[Parcel(sku=line.sku, weight_grams=line.weight_grams) for line in self.lines],
+              )
+    unchanged:
+      shipping/models.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Parcel:
+            sku: str
+            weight_grams: int
+
+
+        @dataclass(frozen=True)
+        class Shipment:
+            order_id: str
+            address: str
+            parcels: list[Parcel]
+  expected_output:
+    outcome: invalid
+- name: builds a shipment in a classmethod on the shipment type
+  inputs:
+    file: shipping/models.py
+    after: |
+      from dataclasses import dataclass
+
+      from orders.models import Order
+
+
+      @dataclass(frozen=True)
+      class Parcel:
+          sku: str
+          weight_grams: int
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          order_id: str
+          address: str
+          parcels: list[Parcel]
+
+          @classmethod
+          def from_order(cls, order: Order) -> "Shipment":
+              return cls(
+                  order_id=order.id,
+                  address=order.address,
+                  parcels=[Parcel(sku=line.sku, weight_grams=line.weight_grams) for line in order.lines],
+              )
+  expected_output:
+    outcome: valid
+- name: builds a shipment inline in a service method
+  inputs:
+    file: shipping/services.py
+    after: |
+      from orders.repository import OrderRepository
+      from shipping.models import Parcel, Shipment
+      from shipping.repository import ShipmentRepository
+
+
+      class ShippingService:
+          def __init__(self, orders: OrderRepository, shipments: ShipmentRepository) -> None:
+              self._orders = orders
+              self._shipments = shipments
+
+          def ship(self, order_id: str) -> str:
+              order = self._orders.get(order_id)
+              shipment = Shipment(
+                  order_id=order.id,
+                  address=order.address,
+                  parcels=[Parcel(sku=line.sku, weight_grams=line.weight_grams) for line in order.lines],
+              )
+              self._shipments.add(shipment)
+              return shipment.order_id
+    unchanged:
+      shipping/models.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Parcel:
+            sku: str
+            weight_grams: int
+
+
+        @dataclass(frozen=True)
+        class Shipment:
+            order_id: str
+            address: str
+            parcels: list[Parcel]
+  expected_output:
+    outcome: invalid
+- name: ships an order through the shipment's alternative constructor
+  inputs:
+    file: shipping/services.py
+    after: |
+      from orders.repository import OrderRepository
+      from shipping.models import Shipment
+      from shipping.repository import ShipmentRepository
+
+
+      class ShippingService:
+          def __init__(self, orders: OrderRepository, shipments: ShipmentRepository) -> None:
+              self._orders = orders
+              self._shipments = shipments
+
+          def ship(self, order_id: str) -> str:
+              shipment = Shipment.from_order(self._orders.get(order_id))
+              self._shipments.add(shipment)
+              return shipment.order_id
+    unchanged:
+      shipping/models.py: |
+        from dataclasses import dataclass
+
+        from orders.models import Order
+
+
+        @dataclass(frozen=True)
+        class Shipment:
+            order_id: str
+            address: str
+
+            @classmethod
+            def from_order(cls, order: Order) -> "Shipment":
+                return cls(order_id=order.id, address=order.address)
+  expected_output:
+    outcome: valid
+- name: builds a shipment in a planning module among other planning functions
+  inputs:
+    file: shipping/planning.py
+    after: |
+      from orders.models import Order
+      from shipping.carriers import Carrier
+      from shipping.models import Shipment
+
+
+      def make_shipment(order: Order) -> Shipment:
+          return Shipment(order_id=order.id, address=order.address)
+
+
+      def choose_carrier(shipment: Shipment, carriers: list[Carrier]) -> Carrier:
+          return min(carriers, key=lambda carrier: carrier.price_for(shipment.address))
+    unchanged:
+      shipping/models.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Shipment:
+            order_id: str
+            address: str
+  expected_output:
+    outcome: invalid
+- name: builds a shipment in a function beside the shipment class
+  inputs:
+    file: shipping/models.py
+    after: |
+      from dataclasses import dataclass
+
+      from orders.models import Order
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          order_id: str
+          address: str
+
+
+      def shipment_for(order: Order) -> Shipment:
+          return Shipment(order_id=order.id, address=order.address)
+  expected_output:
+    outcome: valid
+- name: maps orders to shipments in a dedicated mapper class
+  inputs:
+    file: orders/shipping_mapping.py
+    after: |
+      from orders.models import Order
+      from shipping.models import Parcel, Shipment
+
+
+      class OrderShipmentMapper:
+          def shipment(self, order: Order) -> Shipment:
+              return Shipment(
+                  order_id=order.id,
+                  address=order.address,
+                  parcels=self.parcels(order),
+              )
+
+          def parcels(self, order: Order) -> list[Parcel]:
+              return [Parcel(sku=line.sku, weight_grams=line.weight_grams) for line in order.lines]
+    unchanged:
+      shipping/models.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Parcel:
+            sku: str
+            weight_grams: int
+
+
+        @dataclass(frozen=True)
+        class Shipment:
+            order_id: str
+            address: str
+            parcels: list[Parcel]
+  expected_output:
+    outcome: valid
+- name: builds a tracking event from a webhook body inline in a view
+  inputs:
+    file: tracking/views.py
+    after: |
+      import json
+      from datetime import datetime
+
+      from django.http import HttpRequest, HttpResponse
+
+      from tracking.models import TrackingEvent
+      from tracking.repository import events
+
+
+      def acme_webhook(request: HttpRequest) -> HttpResponse:
+          body = json.loads(request.body)
+          raw = body["events"][-1]
+          event = TrackingEvent(location=raw["loc"], occurred_at=datetime.fromisoformat(raw["ts"]))
+          events.add(event)
+          return HttpResponse(status=204)
+    unchanged:
+      tracking/models.py: |
+        from dataclasses import dataclass
+        from datetime import datetime
+
+
+        @dataclass(frozen=True)
+        class TrackingEvent:
+            location: str
+            occurred_at: datetime
+  expected_output:
+    outcome: invalid
+- name: translates carrier payloads in the carrier's client module
+  inputs:
+    file: carriers/acme.py
+    after: |
+      from datetime import datetime
+      from typing import Any
+
+      import requests
+
+      from tracking.models import TrackingEvent
+
+
+      class AcmeClient:
+          def __init__(self, base_url: str) -> None:
+              self._base_url = base_url
+
+          def latest_event(self, tracking_number: str) -> TrackingEvent:
+              response = requests.get(f"{self._base_url}/track/{tracking_number}", timeout=5)
+              return event_from_payload(response.json())
+
+
+      def event_from_payload(payload: dict[str, Any]) -> TrackingEvent:
+          raw = payload["events"][-1]
+          return TrackingEvent(location=raw["loc"], occurred_at=datetime.fromisoformat(raw["ts"]))
+    unchanged:
+      tracking/models.py: |
+        from dataclasses import dataclass
+        from datetime import datetime
+
+
+        @dataclass(frozen=True)
+        class TrackingEvent:
+            location: str
+            occurred_at: datetime
+  expected_output:
+    outcome: valid
+- name: hands a webhook body to the carrier mapper from a view
+  inputs:
+    file: tracking/views.py
+    after: |
+      import json
+
+      from django.http import HttpRequest, HttpResponse
+
+      from carriers import acme
+      from tracking.repository import events
+
+
+      def acme_webhook(request: HttpRequest) -> HttpResponse:
+          event = acme.event_from_payload(json.loads(request.body))
+          events.add(event)
+          return HttpResponse(status=204)
+  expected_output:
+    outcome: valid
+- name: builds report lines in a nested function of a report task
+  inputs:
+    file: reports/tasks.py
+    after: |
+      from reports.models import ReportLine
+      from reports.store import ReportStore
+
+
+      def nightly_report(store: ReportStore, rows: list[dict[str, str]]) -> None:
+          def to_line(row: dict[str, str]) -> ReportLine:
+              return ReportLine(sku=row["sku"], units=int(row["units"]))
+
+          store.save([to_line(row) for row in rows])
+    unchanged:
+      reports/models.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class ReportLine:
+            sku: str
+            units: int
+  expected_output:
+    outcome: invalid
+- name: builds a report line from a csv row on the report line type
+  inputs:
+    file: reports/models.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class ReportLine:
+          sku: str
+          units: int
+
+          @classmethod
+          def from_row(cls, row: dict[str, str]) -> "ReportLine":
+              return ReportLine(sku=row["sku"], units=int(row["units"]))
+  expected_output:
+    outcome: valid
+- name: caches handlers built by the handler's own constructor
+  inputs:
+    file: app/logging_setup.py
+    after: |
+      from app.handlers import Handler
+
+      _handlers: dict[str, Handler] = {}
+
+
+      def handler_for(name: str) -> Handler:
+          if name not in _handlers:
+              _handlers[name] = Handler.for_name(name.lower())
+          return _handlers[name]
+    unchanged:
+      app/handlers.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Handler:
+            name: str
+            level: str
+
+            @classmethod
+            def for_name(cls, name: str) -> "Handler":
+                return cls(name=name, level="debug" if name.startswith("dev") else "info")
+  expected_output:
+    outcome: valid
+- name: caches handlers it builds with its own level choice
+  inputs:
+    file: app/logging_setup.py
+    after: |
+      from app.handlers import Handler
+
+      _handlers: dict[str, Handler] = {}
+
+
+      def handler_for(name: str) -> Handler:
+          if name not in _handlers:
+              _handlers[name] = Handler(name=name, level="debug" if name.startswith("dev") else "info")
+          return _handlers[name]
+    unchanged:
+      app/handlers.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Handler:
+            name: str
+            level: str
+  expected_output:
+    outcome: invalid
+- name: builds an archive path from settings
+  inputs:
+    file: exports/archive.py
+    after: |
+      from pathlib import Path
+
+      from exports.settings import ExportSettings
+
+
+      def archive_path(settings: ExportSettings, name: str) -> Path:
+          return Path(settings.root, f"{name}.zip")
+  expected_output:
+    outcome: valid
+- name: validates a quote response with the model's own validator in a service
+  inputs:
+    file: quoting/services.py
+    after: |
+      import requests
+
+      from quoting.models import Quote
+
+
+      class QuoteService:
+          def __init__(self, base_url: str) -> None:
+              self._base_url = base_url
+
+          def quote(self, cart_id: str) -> Quote:
+              response = requests.get(f"{self._base_url}/quotes/{cart_id}", timeout=5)
+              return Quote.model_validate(response.json())
+  expected_output:
+    outcome: valid
+- name: adds two money values on the money type
+  inputs:
+    file: billing/money.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Money:
+          cents: int
+          currency: str
+
+          def __add__(self, other: "Money") -> "Money":
+              return Money(cents=self.cents + other.cents, currency=self.currency)
+  expected_output:
+    outcome: valid
+- name: copies an order with a new status
+  inputs:
+    file: orders/transitions.py
+    after: |
+      from dataclasses import replace
+
+      from orders.models import Order, OrderStatus
+
+
+      def mark_shipped(order: Order) -> Order:
+          return replace(order, status=OrderStatus.SHIPPED)
+  expected_output:
+    outcome: skipped
+- name: changes a timeout constant
+  inputs:
+    file: carriers/acme.py
+    before: |
+      TIMEOUT_SECONDS = 5
+    after: |
+      TIMEOUT_SECONDS = 10
+  expected_output:
+    outcome: skipped
+- name: falls back to a generated invoice id
+  inputs:
+    file: invoices/issue.py
+    after: |
+      from dataclasses import dataclass
+      from uuid import uuid4
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          invoice_id: str
+          total: int
+          currency: str = "EUR"
+
+
+      def issue_invoice(total: int, invoice_id: str | None = None) -> Invoice:
+          return Invoice(invoice_id=invoice_id or str(uuid4()), total=total)
+  expected_output:
+    outcome: invalid
+- name: issues an invoice whose type generates its id
+  inputs:
+    file: invoices/issue.py
+    after: |
+      from dataclasses import dataclass, field
+      from uuid import uuid4
+
+
+      def new_invoice_id() -> str:
+          return str(uuid4())
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          total: int
+          invoice_id: str = field(default_factory=new_invoice_id)
+          currency: str = "EUR"
+
+
+      def issue_invoice(total: int, *, draft: bool = False) -> Invoice | None:
+          if draft:
+              return None
+          return Invoice(total=total)
+  expected_output:
+    outcome: valid
+- name: duplicates the carrier default in a caller
+  inputs:
+    file: shipments/booking.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          order_id: str
+          carrier: str = "DHL"
+
+
+      def book_shipment(order_id: str) -> Shipment:
+          return Shipment(order_id=order_id)
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          order_id: str
+          carrier: str = "DHL"
+
+
+      def book_shipment(order_id: str, carrier: str | None = None) -> Shipment:
+          return Shipment(order_id=order_id, carrier=carrier if carrier is not None else "DHL")
+  expected_output:
+    outcome: invalid
+- name: falls back to the customer's preferred carrier
+  inputs:
+    file: shipments/booking.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Customer:
+          id: str
+          preferred_carrier: str
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          order_id: str
+          carrier: str = "DHL"
+
+
+      def book_shipment(order_id: str, customer: Customer, requested_carrier: str | None) -> Shipment:
+          return Shipment(order_id=order_id, carrier=requested_carrier or customer.preferred_carrier)
+  expected_output:
+    outcome: valid
+- name: defaults the currency of an imported pydantic account in a parameter
+  inputs:
+    file: accounts/opening.py
+    unchanged:
+      accounts/models.py: |
+        from pydantic import BaseModel
+
+
+        class Account(BaseModel):
+            owner: str
+            currency: str
+    after: |
+      from accounts.models import Account
+
+
+      def open_account(owner: str, currency: str = "EUR") -> Account:
+          return Account(owner=owner, currency=currency)
+  expected_output:
+    outcome: invalid
+- name: omits the currency an imported pydantic account defaults
+  inputs:
+    file: accounts/opening.py
+    unchanged:
+      accounts/models.py: |
+        from pydantic import BaseModel
+
+
+        class Account(BaseModel):
+            owner: str
+            currency: str = "EUR"
+    after: |
+      from accounts.models import Account
+
+
+      def open_account(owner: str, currency: str | None = None) -> Account:
+          if currency is None:
+              return Account(owner=owner)
+          return Account(owner=owner, currency=currency)
+  expected_output:
+    outcome: valid
+- name: assigns a default carrier before building an imported attrs parcel
+  inputs:
+    file: warehouse/intake.py
+    unchanged:
+      warehouse/parcels.py: |
+        import attrs
+
+
+        @attrs.frozen
+        class Parcel:
+            barcode: str
+            carrier: str
+    after: |
+      from warehouse.parcels import Parcel
+
+      DEFAULT_CARRIER = "UPS"
+
+
+      def receive_parcel(barcode: str, carrier: str | None) -> Parcel:
+          if carrier is None:
+              carrier = DEFAULT_CARRIER
+          return Parcel(barcode=barcode, carrier=carrier)
+  expected_output:
+    outcome: invalid
+- name: generates the id an imported invoice leaves required
+  inputs:
+    file: invoices/issue.py
+    unchanged:
+      invoices/models.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            invoice_id: str
+            total: int
+    after: |
+      from uuid import uuid4
+
+      from invoices.models import Invoice
+
+
+      def issue_invoice(total: int) -> Invoice:
+          return Invoice(invoice_id=str(uuid4()), total=total)
+  expected_output:
+    outcome: invalid
+- name: falls back to a timeout for a library client
+  inputs:
+    file: carriers/client.py
+    after: |
+      import httpx
+
+
+      def carrier_client(base_url: str, timeout: float | None = None) -> httpx.Client:
+          return httpx.Client(base_url=base_url, timeout=timeout or 10.0)
+  expected_output:
+    outcome: valid
+- name: duplicates a Django model's status default in a create call
+  inputs:
+    file: orders/services.py
+    unchanged:
+      orders/models.py: |
+        from django.db import models
+
+
+        class Order(models.Model):
+            number = models.CharField(max_length=20)
+            status = models.CharField(max_length=20, default="pending")
+    after: |
+      from orders.models import Order
+
+
+      def place_order(number: str, status: str | None = None) -> Order:
+          return Order.objects.create(number=number, status=status or "pending")
+  expected_output:
+    outcome: invalid
+- name: copies the status from the order being split beside the order model
+  inputs:
+    file: orders/models.py
+    after: |
+      from django.db import models
+
+
+      class Order(models.Model):
+          number = models.CharField(max_length=20)
+          status = models.CharField(max_length=20, default="pending")
+
+
+      def split_order(order: Order, suffix: str = "B") -> Order:
+          return Order.objects.create(number=f"{order.number}-{suffix}", status=order.status)
+  expected_output:
+    outcome: valid
+- name: defaults a page size used only to slice
+  inputs:
+    file: catalog/listing.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Product:
+          sku: str
+          name: str
+
+
+      def first_page(products: list[Product], page_size: int = 50) -> list[Product]:
+          return products[:page_size]
+  expected_output:
+    outcome: valid
+- name: changes the booking reference separator
+  inputs:
+    file: shipments/booking.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          order_id: str
+          carrier: str = "DHL"
+
+
+      def booking_reference(shipment: Shipment) -> str:
+          return f"{shipment.carrier}-{shipment.order_id}"
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          order_id: str
+          carrier: str = "DHL"
+
+
+      def booking_reference(shipment: Shipment) -> str:
+          return f"{shipment.carrier}/{shipment.order_id}"
+  expected_output:
+    outcome: skipped
+- name: changes the default carrier on the type
+  inputs:
+    file: shipments/booking.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          order_id: str
+          carrier: str = "DHL"
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          order_id: str
+          carrier: str = "UPS"
+  expected_output:
+    outcome: skipped
+- name: builds invoices in a factory with an injected clock and number sequence
+  inputs:
+    file: billing/factories.py
+    after: |
+      from billing.models import Invoice
+      from billing.numbering import NumberSequence
+      from orders.models import Order
+      from platform.clock import Clock
+
+
+      class InvoiceFactory:
+          def __init__(self, clock: Clock, numbers: NumberSequence) -> None:
+              self._clock = clock
+              self._numbers = numbers
+
+          def create(self, order: Order) -> Invoice:
+              return Invoice(
+                  number=self._numbers.next(),
+                  order_id=order.id,
+                  total_cents=order.total_cents,
+                  issued_at=self._clock.now(),
+              )
+    unchanged: &id001
+      billing/models.py: |
+        from dataclasses import dataclass
+        from datetime import datetime
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            number: str
+            order_id: str
+            total_cents: int
+            issued_at: datetime
+  expected_output:
+    outcome: valid
+- name: builds invoices inline in an invoicing service that also stores and sends them
+  inputs:
+    file: billing/invoicing.py
+    after: |
+      from billing.mailer import InvoiceMailer
+      from billing.models import Invoice
+      from billing.numbering import NumberSequence
+      from billing.repository import InvoiceRepository
+      from orders.models import Order
+      from platform.clock import Clock
+
+
+      class InvoicingService:
+          def __init__(self, clock: Clock, numbers: NumberSequence, invoices: InvoiceRepository, mailer: InvoiceMailer) -> None:
+              self._clock = clock
+              self._numbers = numbers
+              self._invoices = invoices
+              self._mailer = mailer
+
+          def invoice(self, order: Order) -> Invoice:
+              invoice = Invoice(
+                  number=self._numbers.next(),
+                  order_id=order.id,
+                  total_cents=order.total_cents,
+                  issued_at=self._clock.now(),
+              )
+              self._invoices.add(invoice)
+              self._mailer.send(invoice)
+              return invoice
+    unchanged: *id001
+  expected_output:
+    outcome: invalid
+- name: stores and sends invoices an injected factory builds
+  inputs:
+    file: billing/invoicing.py
+    after: |
+      from billing.factories import InvoiceFactory
+      from billing.mailer import InvoiceMailer
+      from billing.models import Invoice
+      from billing.repository import InvoiceRepository
+      from orders.models import Order
+
+
+      class InvoicingService:
+          def __init__(self, factory: InvoiceFactory, invoices: InvoiceRepository, mailer: InvoiceMailer) -> None:
+              self._factory = factory
+              self._invoices = invoices
+              self._mailer = mailer
+
+          def invoice(self, order: Order) -> Invoice:
+              invoice = self._factory.create(order)
+              self._invoices.add(invoice)
+              self._mailer.send(invoice)
+              return invoice
+    unchanged: *id001
+  expected_output:
+    outcome: skipped
+- name: stamps invoices with the current time in a factory
+  inputs:
+    file: billing/factories.py
+    after: |
+      from datetime import UTC, datetime
+
+      from billing.models import Invoice
+      from billing.numbering import NumberSequence
+      from orders.models import Order
+
+
+      class InvoiceFactory:
+          def __init__(self, numbers: NumberSequence) -> None:
+              self._numbers = numbers
+
+          def create(self, order: Order) -> Invoice:
+              return Invoice(
+                  number=self._numbers.next(),
+                  order_id=order.id,
+                  total_cents=order.total_cents,
+                  issued_at=datetime.now(UTC),
+              )
+    unchanged: *id001
+  expected_output:
+    outcome: invalid

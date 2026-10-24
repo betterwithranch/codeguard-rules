@@ -1,0 +1,218 @@
+id: forwarding-method
+snapshots:
+  ? |
+    class ExampleGateway:
+        async def fetch(self, key):
+            return await self._client.fetch(key)
+  : labels:
+    - source: |-
+        async def fetch(self, key):
+                return await self._client.fetch(key)
+      style: primary
+      start: 26
+      end: 98
+    - source: |-
+        class ExampleGateway:
+            async def fetch(self, key):
+                return await self._client.fetch(key)
+      style: secondary
+      start: 0
+      end: 98
+    - source: |-
+        async def fetch(self, key):
+                return await self._client.fetch(key)
+      style: secondary
+      start: 26
+      end: 98
+    - source: self._client.fetch
+      style: secondary
+      start: 75
+      end: 93
+    - source: self._client.fetch(key)
+      style: secondary
+      start: 75
+      end: 98
+    - source: return await self._client.fetch(key)
+      style: secondary
+      start: 62
+      end: 98
+    - source: return await self._client.fetch(key)
+      style: secondary
+      start: 62
+      end: 98
+  ? |
+    class ExampleNotifier:
+        def send(self, message):
+            self.sender.send(message)
+  : labels:
+    - source: |-
+        def send(self, message):
+                self.sender.send(message)
+      style: primary
+      start: 27
+      end: 85
+    - source: |-
+        class ExampleNotifier:
+            def send(self, message):
+                self.sender.send(message)
+      style: secondary
+      start: 0
+      end: 85
+    - source: |-
+        def send(self, message):
+                self.sender.send(message)
+      style: secondary
+      start: 27
+      end: 85
+    - source: self.sender.send
+      style: secondary
+      start: 60
+      end: 76
+    - source: self.sender.send(message)
+      style: secondary
+      start: 60
+      end: 85
+    - source: self.sender.send(message)
+      style: secondary
+      start: 60
+      end: 85
+    - source: self.sender.send(message)
+      style: secondary
+      start: 60
+      end: 85
+  ? |
+    class ExampleRepository:
+        def get(self, key):
+            """Get one."""
+            return self._store.get(key)
+  : labels:
+    - source: |-
+        def get(self, key):
+                """Get one."""
+                return self._store.get(key)
+      style: primary
+      start: 29
+      end: 107
+    - source: |-
+        class ExampleRepository:
+            def get(self, key):
+                """Get one."""
+                return self._store.get(key)
+      style: secondary
+      start: 0
+      end: 107
+    - source: |-
+        def get(self, key):
+                """Get one."""
+                return self._store.get(key)
+      style: secondary
+      start: 29
+      end: 107
+    - source: self._store.get
+      style: secondary
+      start: 87
+      end: 102
+    - source: self._store.get(key)
+      style: secondary
+      start: 87
+      end: 107
+    - source: return self._store.get(key)
+      style: secondary
+      start: 80
+      end: 107
+    - source: |-
+        """Get one."""
+                return self._store.get(key)
+      style: secondary
+      start: 57
+      end: 107
+  ? |
+    class ExampleRepository:
+        def get(self, key):
+            return self._store.get(key)
+  : labels:
+    - source: |-
+        def get(self, key):
+                return self._store.get(key)
+      style: primary
+      start: 29
+      end: 84
+    - source: |-
+        class ExampleRepository:
+            def get(self, key):
+                return self._store.get(key)
+      style: secondary
+      start: 0
+      end: 84
+    - source: |-
+        def get(self, key):
+                return self._store.get(key)
+      style: secondary
+      start: 29
+      end: 84
+    - source: self._store.get
+      style: secondary
+      start: 64
+      end: 79
+    - source: self._store.get(key)
+      style: secondary
+      start: 64
+      end: 84
+    - source: return self._store.get(key)
+      style: secondary
+      start: 57
+      end: 84
+    - source: return self._store.get(key)
+      style: secondary
+      start: 57
+      end: 84
+  ? |
+    class ExampleSettings:
+        @property
+        def region(self):
+            return self._config.region_name()
+  : labels:
+    - source: |-
+        def region(self):
+                return self._config.region_name()
+      style: primary
+      start: 41
+      end: 100
+    - source: |-
+        class ExampleSettings:
+            @property
+            def region(self):
+                return self._config.region_name()
+      style: secondary
+      start: 0
+      end: 100
+    - source: |-
+        @property
+            def region(self):
+                return self._config.region_name()
+      style: secondary
+      start: 27
+      end: 100
+    - source: |-
+        @property
+            def region(self):
+                return self._config.region_name()
+      style: secondary
+      start: 27
+      end: 100
+    - source: self._config.region_name
+      style: secondary
+      start: 74
+      end: 98
+    - source: self._config.region_name()
+      style: secondary
+      start: 74
+      end: 100
+    - source: return self._config.region_name()
+      style: secondary
+      start: 67
+      end: 100
+    - source: return self._config.region_name()
+      style: secondary
+      start: 67
+      end: 100

@@ -1,4 +1,0 @@
-skill: python/skills/factory-on-built-type
-paths: ["**/*.py"]
-exclude_paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
-triggers: [class-construction]

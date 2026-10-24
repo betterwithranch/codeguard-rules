@@ -1,3 +1,0 @@
-skill: python/skills/test-names-use-production-terms
-paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
-triggers: [test-name]

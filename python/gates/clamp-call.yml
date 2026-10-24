@@ -1,0 +1,17 @@
+id: clamp-call
+language: python
+rule:
+  kind: call
+  all:
+  - has:
+      field: function
+      regex: ^(max|min)$
+  - has:
+      field: arguments
+      has:
+        nthChild: 2
+  - not:
+      has:
+        field: arguments
+        has:
+          kind: keyword_argument

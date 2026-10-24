@@ -1,8 +1,0 @@
-id: test-name
-language: python
-rule:
-  kind: identifier
-  regex: ^test
-  inside:
-    kind: function_definition
-    field: name

@@ -1,0 +1,30 @@
+id: clamp-call
+valid:
+# max over a collection
+- |
+  example_latest = max(example_orders)
+# max with a key
+- |
+  example_latest = max(example_orders, key=lambda example: example.placed_at)
+# max over two values with a default keyword
+- |
+  example_top = max(example_scores, default=0)
+# abs is not a clamp
+- |
+  example_delta = abs(example_balance)
+invalid:
+# max with zero first
+- |
+  example_balance = max(0, example_account.balance_cents - example_amount)
+# max with zero last
+- |
+  example_stock = max(example_product.stock - example_quantity, 0)
+# min with a literal ceiling
+- |
+  example_percent = min(example_percent, 100)
+# min of two names
+- |
+  example_discount = min(example_coupon_cents, example_subtotal_cents)
+# max with a float
+- |
+  example_ratio = max(0.0, example_ratio)

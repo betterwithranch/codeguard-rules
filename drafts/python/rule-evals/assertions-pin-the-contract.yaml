@@ -1,0 +1,2775 @@
+cases:
+- name: asserts invoice fields one by one
+  inputs:
+    file: tests/test_invoices.py
+    after: |
+      from dataclasses import dataclass
+
+      from orders.models import Order
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          number: str
+          total: int
+
+
+      def issue_invoice(order: Order) -> Invoice:
+          return Invoice(number=order.id.removeprefix("ord-"), total=order.total)
+
+
+      def test_issue_invoice_copies_order_total():
+          invoice = issue_invoice(Order(id="ord-42", total=120))
+
+          assert invoice.number == "42"
+          assert invoice.total == 120
+  expected_output:
+    outcome: invalid
+- name: asserts every field of a class without equality
+  inputs:
+    file: tests/test_invoices.py
+    after: |
+      class Invoice:
+          def __init__(self, number: str, total: int) -> None:
+              self.number = number
+              self.total = total
+
+
+      def issue_invoice(order_id: str, total: int) -> Invoice:
+          return Invoice(number=order_id.removeprefix("ord-"), total=total)
+
+
+      def test_issue_invoice_copies_order_total():
+          invoice = issue_invoice("ord-42", 120)
+
+          assert invoice.number == "42"
+          assert invoice.total == 120
+  expected_output:
+    outcome: valid
+- name: checks only how many parcels were packed
+  inputs:
+    file: tests/test_shipments.py
+    after: |
+      from shipping.shipments import pack_items
+
+
+      def test_pack_items_packs_each_sku():
+          expected_count = 2
+
+          parcels = pack_items(["B2", "A1"])
+
+          assert len(parcels) == expected_count
+    unchanged:
+      shipping/shipments.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Parcel:
+            sku: str
+            quantity: int = 1
+
+
+        def pack_items(skus: list[str]) -> list[Parcel]:
+            counts: dict[str, int] = {}
+            for sku in skus:
+                counts[sku] = counts.get(sku, 0) + 1
+            return [Parcel(sku=sku, quantity=count) for sku, count in sorted(counts.items())]
+  expected_output:
+    outcome: invalid
+- name: compares a produced count with the length of the input
+  inputs:
+    file: tests/test_shipments.py
+    after: |
+      from shipping.shipments import count_items
+
+
+      def test_count_items_counts_every_sku():
+          skus = ["B2", "A1", "C3"]
+
+          assert count_items(skus) == len(skus)
+  expected_output:
+    outcome: valid
+- name: checks every group's size only
+  inputs:
+    file: tests/test_tables.py
+    after: |
+      from seating.tables import pair_guests
+
+
+      def test_pair_guests_seats_two_per_table():
+          tables = pair_guests(["ana", "bo", "cy", "di"])
+
+          assert all(len(table) == 2 for table in tables)
+    unchanged:
+      seating/tables.py: |
+        def pair_guests(guests: list[str]) -> list[tuple[str, ...]]:
+            return [tuple(guests[i : i + 2]) for i in range(0, len(guests), 2)]
+  expected_output:
+    outcome: invalid
+- name: compares a tuple of invoice fields
+  inputs:
+    file: tests/test_invoices.py
+    after: |
+      from billing.invoices import issue_invoice
+
+
+      def test_issue_invoice_copies_the_order():
+          invoice = issue_invoice(order_id="ord-42", total=120)
+
+          assert (invoice.number, invoice.total) == ("42", 120)
+    unchanged:
+      billing/invoices.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            number: str
+            total: int
+
+
+        def issue_invoice(order_id: str, total: int) -> Invoice:
+            return Invoice(number=order_id.removeprefix("ord-"), total=total)
+  expected_output:
+    outcome: invalid
+- name: compares a returned tuple with the expected split's fields
+  inputs:
+    file: tests/test_splits.py
+    after: |
+      from decimal import Decimal
+
+      from billing.splits import Split
+
+
+      def split_total(total: Decimal, ways: int) -> tuple[Decimal, Decimal]:
+          share = (total / ways).quantize(Decimal("0.01"))
+          return share, total - share * ways
+
+
+      def test_split_total_keeps_the_remainder():
+          expected = Split(share=Decimal("33.33"), remainder=Decimal("0.01"))
+
+          assert split_total(Decimal("100.00"), 3) == (expected.share, expected.remainder)
+  expected_output:
+    outcome: valid
+- name: blanks fields with dataclasses.replace before comparing
+  inputs:
+    file: tests/test_orders.py
+    after: |
+      import dataclasses
+      from decimal import Decimal
+
+      from shop.orders import Order, OrderStatus, place_order
+
+
+      def test_place_order_creates_a_pending_order(customer):
+          order = place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+          actual = dataclasses.replace(order, id=None, created_at=None)
+          assert actual == Order(
+              id=None,
+              customer_id=customer.id,
+              sku="BOOK-1",
+              quantity=2,
+              total=Decimal("25.00"),
+              status=OrderStatus.PENDING,
+              created_at=None,
+          )
+  expected_output:
+    outcome: invalid
+- name: compares a dump that excludes fields
+  inputs:
+    file: tests/test_invoices.py
+    before: |
+      from decimal import Decimal
+
+      from billing.invoices import issue_invoice
+
+
+      def test_issue_invoice_sets_amount_and_currency(account):
+          invoice = issue_invoice(account_id=account.id, amount=Decimal("120.00"))
+
+          assert invoice.amount == Decimal("120.00")
+          assert invoice.currency == "USD"
+    after: |
+      from decimal import Decimal
+
+      from billing.invoices import issue_invoice
+
+
+      def test_issue_invoice_sets_amount_and_currency(account):
+          invoice = issue_invoice(account_id=account.id, amount=Decimal("120.00"))
+
+          actual = invoice.model_dump(exclude={"id", "issued_at"})
+          assert actual == {
+              "account_id": account.id,
+              "amount": Decimal("120.00"),
+              "currency": "USD",
+          }
+  expected_output:
+    outcome: invalid
+- name: compares the expected order with a masked copy of the placed order
+  inputs:
+    file: tests/test_orders.py
+    after: |
+      from decimal import Decimal
+
+      from shop.orders import Order, OrderStatus, place_order
+
+
+      def test_place_order_creates_a_pending_order(customer):
+          expected = Order(
+              id=None,
+              customer_id=customer.id,
+              sku="BOOK-1",
+              quantity=2,
+              total=Decimal("25.00"),
+              status=OrderStatus.PENDING,
+              created_at=None,
+          )
+
+          order = place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+          assert expected == order.model_copy(update={"id": None, "created_at": None})
+  expected_output:
+    outcome: invalid
+- name: clears the placed order's id on a copy
+  inputs:
+    file: tests/test_orders.py
+    after: |
+      import copy
+      from decimal import Decimal
+
+      from shop.orders import Order, OrderStatus, place_order
+
+
+      def test_place_order_creates_a_pending_order(customer):
+          order = place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+          actual = copy.copy(order)
+          actual.id = None
+          assert actual == Order(
+              id=None,
+              customer_id=customer.id,
+              sku="BOOK-1",
+              quantity=2,
+              total=Decimal("25.00"),
+              status=OrderStatus.PENDING,
+          )
+  expected_output:
+    outcome: invalid
+- name: builds the expected order from a baseline copy
+  inputs:
+    file: tests/test_orders.py
+    after: |
+      from datetime import datetime
+      from decimal import Decimal
+
+      from shop.orders import FixedClock, FixedIds, Order, OrderStatus, place_order
+
+
+      def test_place_order_prices_each_unit(customer, pending_book_order):
+          order = place_order(
+              customer_id=customer.id,
+              sku="BOOK-1",
+              quantity=3,
+              ids=FixedIds("ord-1"),
+              clock=FixedClock(datetime(2026, 3, 1, 9, 30)),
+          )
+
+          assert order == pending_book_order.model_copy(
+              update={"quantity": 3, "total": Decimal("37.50")}
+          )
+  expected_output:
+    outcome: valid
+- name: checks the invoice number with the expected value first
+  inputs:
+    file: tests/test_invoices.py
+    after: |
+      from billing.invoices import Invoice, issue_invoice
+
+
+      def test_issue_invoice_strips_the_order_prefix():
+          invoice = issue_invoice(order_id="ord-42", total=120)
+
+          assert "42" == invoice.number
+    unchanged:
+      billing/invoices.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            number: str
+            total: int
+
+
+        def issue_invoice(order_id: str, total: int) -> Invoice:
+            return Invoice(number=order_id.removeprefix("ord-"), total=total)
+  expected_output:
+    outcome: valid
+- name: checks how many parcels with the expected count first
+  inputs:
+    file: tests/test_shipments.py
+    after: |
+      from shipping.shipments import pack_items
+
+
+      def test_pack_items_packs_each_sku():
+          expected_count = 2
+
+          parcels = pack_items(["B2", "A1"])
+
+          assert expected_count == len(parcels)
+    unchanged:
+      shipping/shipments.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Parcel:
+            sku: str
+            quantity: int = 1
+
+
+        def pack_items(skus: list[str]) -> list[Parcel]:
+            counts: dict[str, int] = {}
+            for sku in skus:
+                counts[sku] = counts.get(sku, 0) + 1
+            return [Parcel(sku=sku, quantity=count) for sku, count in sorted(counts.items())]
+  expected_output:
+    outcome: invalid
+- name: checks only that parcels were packed
+  inputs:
+    file: tests/test_shipments.py
+    after: |
+      from shipping.shipments import pack_items
+
+
+      def test_pack_items_packs_the_skus():
+          parcels = pack_items(["B2", "A1"])
+
+          assert parcels
+    unchanged:
+      shipping/shipments.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Parcel:
+            sku: str
+            quantity: int = 1
+
+
+        def pack_items(skus: list[str]) -> list[Parcel]:
+            counts: dict[str, int] = {}
+            for sku in skus:
+                counts[sku] = counts.get(sku, 0) + 1
+            return [Parcel(sku=sku, quantity=count) for sku, count in sorted(counts.items())]
+  expected_output:
+    outcome: invalid
+- name: asserts a produced bool
+  inputs:
+    file: tests/test_shipments.py
+    after: |
+      from shipping.shipments import Shipment, can_ship
+
+
+      def test_can_ship_a_paid_shipment():
+          ready = can_ship(Shipment(order_id="ord-1", carrier="ground", weight_kg=2, paid=True))
+
+          assert ready
+  expected_output:
+    outcome: valid
+- name: pops the generated id from a dump
+  inputs:
+    file: tests/test_invoices.py
+    after: |
+      from billing.invoices import issue_invoice
+
+
+      def test_issue_invoice_copies_order_total():
+          invoice = issue_invoice(order_id="ord-42", total=120)
+
+          payload = invoice.model_dump()
+          payload.pop("id")
+          assert payload == {"number": "42", "total": 120}
+  expected_output:
+    outcome: invalid
+- name: clears the placed order's id in place
+  inputs:
+    file: tests/test_orders.py
+    after: |
+      from decimal import Decimal
+
+      from shop.orders import Order, OrderStatus, place_order
+
+
+      def test_place_order_creates_a_pending_order(customer):
+          order = place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+          order.id = None
+          assert order == Order(
+              id=None,
+              customer_id=customer.id,
+              sku="BOOK-1",
+              quantity=2,
+              total=Decimal("25.00"),
+              status=OrderStatus.PENDING,
+          )
+  expected_output:
+    outcome: invalid
+- name: accepts any id in the expected order
+  inputs:
+    file: tests/test_orders.py
+    after: |
+      from decimal import Decimal
+      from unittest.mock import ANY
+
+      from shop.orders import Order, OrderStatus, place_order
+
+
+      def test_place_order_creates_a_pending_order(customer):
+          order = place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+          assert order == Order(
+              id=ANY,
+              customer_id=customer.id,
+              sku="BOOK-1",
+              quantity=2,
+              total=Decimal("25.00"),
+              status=OrderStatus.PENDING,
+          )
+  expected_output:
+    outcome: invalid
+- name: adds a line that clears the copy's id
+  inputs:
+    file: tests/test_orders.py
+    before: |
+      import copy
+      from decimal import Decimal
+
+      from shop.orders import Order, OrderStatus, place_order
+
+
+      def test_place_order_creates_a_pending_order(customer):
+          order = place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+          actual = copy.copy(order)
+          assert actual == Order(
+              id=None,
+              customer_id=customer.id,
+              sku="BOOK-1",
+              quantity=2,
+              total=Decimal("25.00"),
+              status=OrderStatus.PENDING,
+          )
+    after: |
+      import copy
+      from decimal import Decimal
+
+      from shop.orders import Order, OrderStatus, place_order
+
+
+      def test_place_order_creates_a_pending_order(customer):
+          order = place_order(customer_id=customer.id, sku="BOOK-1", quantity=2)
+
+          actual = copy.copy(order)
+          actual.id = None
+          assert actual == Order(
+              id=None,
+              customer_id=customer.id,
+              sku="BOOK-1",
+              quantity=2,
+              total=Decimal("25.00"),
+              status=OrderStatus.PENDING,
+          )
+  expected_output:
+    outcome: invalid
+- name: checks only the parcel count with unittest
+  inputs:
+    file: tests/test_shipments.py
+    after: |
+      import unittest
+
+      from shipping.shipments import pack_items
+
+
+      class PackItemsTest(unittest.TestCase):
+          def test_packs_each_sku(self):
+              parcels = pack_items(["B2", "A1"])
+
+              self.assertEqual(len(parcels), 2)
+    unchanged:
+      shipping/shipments.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Parcel:
+            sku: str
+            quantity: int = 1
+
+
+        def pack_items(skus: list[str]) -> list[Parcel]:
+            counts: dict[str, int] = {}
+            for sku in skus:
+                counts[sku] = counts.get(sku, 0) + 1
+            return [Parcel(sku=sku, quantity=count) for sku, count in sorted(counts.items())]
+  expected_output:
+    outcome: invalid
+- name: compares a produced count with the input's length with unittest
+  inputs:
+    file: tests/test_shipments.py
+    after: |
+      import unittest
+
+      from shipping.shipments import count_items
+
+
+      class CountItemsTest(unittest.TestCase):
+          def test_counts_every_sku(self):
+              skus = ["B2", "A1", "C3"]
+
+              self.assertEqual(count_items(skus), len(skus))
+  expected_output:
+    outcome: valid
+- name: checks two invoice fields with the expected values first
+  inputs:
+    file: tests/test_invoices.py
+    after: |
+      from billing.invoices import issue_invoice
+
+
+      def test_issue_invoice_copies_the_order():
+          invoice = issue_invoice(order_id="ord-42", total=120)
+
+          assert "42" == invoice.number
+          assert 120 == invoice.total
+    unchanged:
+      billing/invoices.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            number: str
+            total: int
+
+
+        def issue_invoice(order_id: str, total: int) -> Invoice:
+            return Invoice(number=order_id.removeprefix("ord-"), total=total)
+  expected_output:
+    outcome: invalid
+- name: checks every parcel's sku and quantity
+  inputs:
+    file: tests/test_shipments.py
+    after: |
+      from shipping.shipments import pack_items
+
+
+      def test_pack_items_counts_each_sku():
+          parcels = pack_items(["B2", "A1", "B2"])
+
+          assert [(parcel.sku, parcel.quantity) for parcel in parcels] == [("A1", 1), ("B2", 2)]
+    unchanged:
+      shipping/shipments.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Parcel:
+            sku: str
+            quantity: int = 1
+
+
+        def pack_items(skus: list[str]) -> list[Parcel]:
+            counts: dict[str, int] = {}
+            for sku in skus:
+                counts[sku] = counts.get(sku, 0) + 1
+            return [Parcel(sku=sku, quantity=count) for sku, count in sorted(counts.items())]
+  expected_output:
+    outcome: invalid
+- name: checks a command's exit code and output
+  inputs:
+    file: tests/test_cli.py
+    after: |
+      import subprocess
+      import sys
+
+
+      def test_report_prints_nothing_for_a_clean_tree(tmp_path):
+          result = subprocess.run(
+              [sys.executable, "-m", "linter", "report"],
+              cwd=tmp_path,
+              capture_output=True,
+              text=True,
+          )
+
+          assert result.returncode == 0
+          assert result.stdout == ""
+  expected_output:
+    outcome: valid
+- name: checks two fields of a run result that has equality
+  inputs:
+    file: tests/test_cli.py
+    after: |
+      from dataclasses import dataclass
+
+      from linter.cli import main
+
+
+      @dataclass(frozen=True)
+      class Run:
+          exit_code: int
+          output: str
+
+
+      def run(*args: str) -> Run:
+          return Run(*main(list(args)))
+
+
+      def test_report_prints_nothing_for_a_clean_tree():
+          result = run("report")
+
+          assert result.exit_code == 0
+          assert result.output == ""
+  expected_output:
+    outcome: invalid
+- name: checks that two services share one connection pool
+  inputs:
+    file: tests/test_services.py
+    after: |
+      from shop.services import build_services
+
+
+      def test_services_share_the_connection_pool(settings):
+          services = build_services(settings)
+
+          assert services.orders.pool is services.payments.pool
+          assert services.orders.cache is services.payments.cache
+  expected_output:
+    outcome: valid
+- name: checks two fields of the loaded settings
+  inputs:
+    file: tests/test_settings.py
+    after: |
+      from shop.settings import load_settings
+
+
+      def test_load_settings_reads_the_orders_section(tmp_path):
+          path = tmp_path / "shop.toml"
+          path.write_text('[orders]\nname = "orders"\nmax_connections = 10\n')
+
+          settings = load_settings(path)
+
+          assert settings.orders.name == "orders"
+          assert settings.orders.max_connections == 10
+    unchanged:
+      shop/settings.py: |
+        import tomllib
+        from pathlib import Path
+
+        from pydantic import BaseModel
+
+
+        class PoolSettings(BaseModel):
+            name: str
+            max_connections: int
+
+
+        class Settings(BaseModel):
+            orders: PoolSettings
+
+
+        def load_settings(path: Path) -> Settings:
+            return Settings.model_validate(tomllib.loads(path.read_text()))
+  expected_output:
+    outcome: invalid
+- name: checks each block's line span
+  inputs:
+    file: tests/test_blocks.py
+    after: |
+      from docs.blocks import split_blocks
+
+
+      def test_blocks_span_their_lines():
+          blocks = split_blocks("# Title\n\ntext\nmore\n")
+
+          assert [(block.first_line, block.last_line) for block in blocks] == [(1, 1), (3, 4)]
+  expected_output:
+    outcome: valid
+- name: checks which tags a post has one by one
+  inputs:
+    file: tests/test_tags.py
+    after: |
+      from blog.tags import tags_for
+
+
+      def test_a_draft_is_tagged_draft_and_not_published():
+          tags = tags_for(status="draft")
+
+          assert "draft" in tags
+          assert "published" not in tags
+    unchanged:
+      blog/tags.py: |
+        def tags_for(status: str) -> set[str]:
+            return {status} | ({"published"} if status == "live" else set())
+  expected_output:
+    outcome: invalid
+- name: checks a filtered subset and a derived outcome of a report
+  inputs:
+    file: tests/test_audit.py
+    after: |
+      from audit.checks import Status, run_checks, status_of
+
+
+      def test_run_checks_on_a_clean_config(clean_config):
+          report = run_checks(clean_config)
+
+          failures = [finding for finding in report.findings if finding.is_failure]
+          assert failures == []
+          assert status_of(report) is Status.PASSED
+    unchanged:
+      audit/checks.py: |
+        import enum
+        from dataclasses import dataclass
+
+
+        class Status(enum.Enum):
+            PASSED = "passed"
+            FAILED = "failed"
+
+
+        @dataclass(frozen=True)
+        class Finding:
+            rule: str
+            is_failure: bool
+
+
+        @dataclass(frozen=True)
+        class Report:
+            findings: list[Finding]
+
+
+        def run_checks(config: dict[str, object]) -> Report:
+            return Report(findings=[Finding(rule=key, is_failure=not value) for key, value in config.items()])
+
+
+        def status_of(report: Report) -> Status:
+            return Status.FAILED if any(f.is_failure for f in report.findings) else Status.PASSED
+  expected_output:
+    outcome: invalid
+- name: checks a response's keys and then the start of a message
+  inputs:
+    file: tests/test_hooks.py
+    after: |
+      from hooks.stop import run_stop_hook
+
+
+      def test_a_failed_check_warns_the_user(repo):
+          response = run_stop_hook(repo)
+
+          assert list(response) == ["message"]
+          assert response["message"].startswith("checks failed:")
+    unchanged:
+      hooks/stop.py: |
+        from pathlib import Path
+
+
+        def run_stop_hook(repo: Path) -> dict[str, str]:
+            failures = sorted(path.name for path in repo.glob("*.failed"))
+            if not failures:
+                return {}
+            return {"message": "checks failed: " + ", ".join(failures)}
+  expected_output:
+    outcome: invalid
+- name: checks two attributes of a span that also records durations
+  inputs:
+    file: tests/test_cache.py
+    after: |
+      from tracing.spans import finished_spans
+      from shop.cache import PriceCache
+
+
+      def test_a_changed_price_misses_the_cache(capture, fixed_clock):
+          cache = PriceCache(clock=fixed_clock)
+          cache.price("A1")
+          cache.invalidate("A1")
+
+          cache.price("A1")
+
+          attributes = finished_spans(capture)[-1].attributes
+          assert (attributes["cache_hit"], attributes["sku"]) == (False, "A1")
+    unchanged:
+      tracing/spans.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class FinishedSpan:
+            name: str
+            attributes: dict[str, object]
+
+
+        def finished_spans(capture: list[FinishedSpan]) -> list[FinishedSpan]:
+            return list(capture)
+      shop/cache.py: |
+        import time
+
+        from tracing.recorder import record_span
+
+
+        class PriceCache:
+            def __init__(self, clock) -> None:
+                self._clock = clock
+                self._prices: dict[str, int] = {}
+
+            def invalidate(self, sku: str) -> None:
+                self._prices.pop(sku, None)
+
+            def price(self, sku: str) -> int:
+                started = time.perf_counter()
+                hit = sku in self._prices
+                self._prices.setdefault(sku, 100)
+                record_span(
+                    "price",
+                    {"cache_hit": hit, "sku": sku, "duration_ms": (time.perf_counter() - started) * 1000},
+                )
+                return self._prices[sku]
+  expected_output:
+    outcome: invalid
+- name: checks parts of the request a fake recorded
+  inputs:
+    file: tests/test_client.py
+    after: |
+      from llm.client import FakeModel, ask
+
+
+      def test_ask_builds_the_request():
+          model = FakeModel(reply="ok")
+
+          ask(model, prompt="hello", system="be brief")
+
+          [request] = model.requests
+          assert request.model == "small"
+          assert request.config.system == "be brief"
+          assert [message.text for message in request.messages] == ["hello"]
+    unchanged:
+      llm/client.py: |
+        from dataclasses import dataclass, field
+        from typing import NamedTuple
+
+
+        @dataclass(frozen=True)
+        class Message:
+            text: str
+
+
+        @dataclass(frozen=True)
+        class Config:
+            system: str
+
+
+        class Request(NamedTuple):
+            model: str
+            messages: tuple[Message, ...]
+            config: Config
+
+
+        @dataclass
+        class FakeModel:
+            reply: str
+            requests: list[Request] = field(default_factory=list)
+
+            def send(self, request: Request) -> str:
+                self.requests.append(request)
+                return self.reply
+
+
+        def ask(model: FakeModel, prompt: str, system: str) -> str:
+            return model.send(Request(model="small", messages=(Message(prompt),), config=Config(system)))
+  expected_output:
+    outcome: invalid
+- name: checks every parcel's sku
+  inputs:
+    file: tests/test_shipments.py
+    after: |
+      from shipping.shipments import pack_items
+
+
+      def test_pack_items_orders_parcels_by_sku():
+          parcels = pack_items(["B2", "A1"])
+
+          assert [parcel.sku for parcel in parcels] == ["A1", "B2"]
+    unchanged:
+      shipping/shipments.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Parcel:
+            sku: str
+            quantity: int = 1
+
+
+        def pack_items(skus: list[str]) -> list[Parcel]:
+            counts: dict[str, int] = {}
+            for sku in skus:
+                counts[sku] = counts.get(sku, 0) + 1
+            return [Parcel(sku=sku, quantity=count) for sku, count in sorted(counts.items())]
+  expected_output:
+    outcome: valid
+- name: compares the full parcel list
+  inputs:
+    file: tests/test_shipments.py
+    after: |
+      from shipping.shipments import Parcel, Shipment, pack_items, plan_shipment
+
+
+      def test_plan_shipment_uses_ground_by_default():
+          shipment = plan_shipment(order_id="ord-1", weight_kg=2)
+
+          assert shipment == Shipment(order_id="ord-1", carrier="ground", weight_kg=2)
+
+
+      def test_pack_items_orders_parcels_by_sku():
+          parcels = pack_items(["B2", "A1"])
+
+          assert parcels == [Parcel(sku="A1"), Parcel(sku="B2")]
+  expected_output:
+    outcome: valid
+- name: compares the whole order with its clock and ids fixed
+  inputs:
+    file: tests/test_orders.py
+    after: |
+      from datetime import datetime
+      from decimal import Decimal
+
+      from shop.orders import FixedClock, FixedIds, Order, OrderStatus, place_order
+
+
+      def test_place_order_creates_a_pending_order(customer):
+          order = place_order(
+              customer_id=customer.id,
+              sku="BOOK-1",
+              quantity=2,
+              ids=FixedIds("ord-1"),
+              clock=FixedClock(datetime(2026, 3, 1, 9, 30)),
+          )
+
+          assert order == Order(
+              id="ord-1",
+              customer_id=customer.id,
+              sku="BOOK-1",
+              quantity=2,
+              total=Decimal("25.00"),
+              status=OrderStatus.PENDING,
+              created_at=datetime(2026, 3, 1, 9, 30),
+          )
+  expected_output:
+    outcome: valid
+- name: changes the shipment weight
+  inputs:
+    file: tests/test_shipments.py
+    before: |
+      from shipping.shipments import Shipment, plan_shipment
+
+
+      def test_plan_shipment_uses_ground_by_default():
+          shipment = plan_shipment(order_id="ord-1", weight_kg=2)
+
+          assert shipment == Shipment(order_id="ord-1", carrier="ground", weight_kg=2)
+    after: |
+      from shipping.shipments import Shipment, plan_shipment
+
+
+      def test_plan_shipment_uses_ground_by_default():
+          shipment = plan_shipment(order_id="ord-1", weight_kg=3)
+
+          assert shipment == Shipment(order_id="ord-1", carrier="ground", weight_kg=3)
+  expected_output:
+    outcome: valid
+- name: changes the packed skus
+  inputs:
+    file: tests/test_shipments.py
+    before: |
+      from shipping.shipments import Parcel, pack_items
+
+
+      def test_pack_items_orders_parcels_by_sku():
+          parcels = pack_items(["B2", "A1"])
+
+          assert parcels == [Parcel(sku="A1"), Parcel(sku="B2")]
+    after: |
+      from shipping.shipments import Parcel, pack_items
+
+
+      def test_pack_items_orders_parcels_by_sku():
+          parcels = pack_items(["C3", "B2", "A1"])
+
+          assert parcels == [Parcel(sku="A1"), Parcel(sku="B2"), Parcel(sku="C3")]
+  expected_output:
+    outcome: valid
+- name: reorders the skus it packs
+  inputs:
+    file: tests/test_shipments.py
+    before: |
+      from shipping.shipments import Parcel, pack_items
+
+
+      def test_pack_items_orders_parcels_by_sku():
+          parcels = pack_items(["B2", "A1"])
+
+          assert parcels == [Parcel(sku="A1"), Parcel(sku="B2")]
+    after: |
+      from shipping.shipments import Parcel, pack_items
+
+
+      def test_pack_items_orders_parcels_by_sku():
+          parcels = pack_items(["A1", "B2"])
+
+          assert parcels == [Parcel(sku="A1"), Parcel(sku="B2")]
+  expected_output:
+    outcome: skipped
+- name: checks the total of a pydantic summary in a test of the total
+  inputs:
+    file: tests/test_order_summary.py
+    after: |
+      from orders.summary import summarize
+
+
+      def test_summarize_adds_line_totals():
+          summary = summarize(order_id="ord-3", line_totals=[500, 700])
+
+          assert summary.total_cents == 1200
+    unchanged:
+      orders/summary.py: |
+        from pydantic import BaseModel
+
+
+        class OrderSummary(BaseModel):
+            order_id: str
+            line_count: int
+            total_cents: int
+
+
+        def summarize(order_id: str, line_totals: list[int]) -> OrderSummary:
+            return OrderSummary(
+                order_id=order_id, line_count=len(line_totals), total_cents=sum(line_totals)
+            )
+  expected_output:
+    outcome: valid
+- name: checks the status key of a serialized order in a test of the status
+  inputs:
+    file: tests/test_order_payloads.py
+    after: |
+      from orders.payloads import order_payload
+
+
+      def test_order_payload_marks_paid_orders():
+          payload = order_payload(order_id="ord-5", total_cents=900, paid=True)
+
+          assert payload["status"] == "paid"
+    unchanged:
+      orders/payloads.py: |
+        def order_payload(order_id: str, total_cents: int, paid: bool) -> dict[str, object]:
+            return {
+                "id": order_id,
+                "total_cents": total_cents,
+                "status": "paid" if paid else "open",
+            }
+  expected_output:
+    outcome: valid
+- name: checks the paid flag of an attrs order in a test of paying
+  inputs:
+    file: tests/test_payments.py
+    after: |
+      from orders.payments import settle
+
+
+      def test_settle_marks_order_paid(open_order):
+          settled = settle(open_order, amount_cents=open_order.total_cents)
+
+          assert settled.paid
+    unchanged:
+      orders/payments.py: |
+        from attrs import define, evolve
+
+
+        @define(frozen=True)
+        class PayableOrder:
+            order_id: str
+            total_cents: int
+            paid: bool
+
+
+        def settle(order: PayableOrder, amount_cents: int) -> PayableOrder:
+            return evolve(order, paid=amount_cents >= order.total_cents)
+  expected_output:
+    outcome: valid
+- name: checks a named tuple's height with assertEqual in a test of the height
+  inputs:
+    file: tests/test_geometry.py
+    after: |
+      import unittest
+
+      from shipping.geometry import box_for
+
+
+      class BoxForTests(unittest.TestCase):
+          def test_box_height_grows_with_item_count(self):
+              box = box_for(item_count=2)
+
+              self.assertEqual(box.height_cm, 10)
+    unchanged:
+      shipping/geometry.py: |
+        from typing import NamedTuple
+
+
+        class Box(NamedTuple):
+            width_cm: int
+            depth_cm: int
+            height_cm: int
+
+
+        def box_for(item_count: int) -> Box:
+            return Box(width_cm=30, depth_cm=20, height_cm=5 * item_count)
+  expected_output:
+    outcome: valid
+- name: checks the shipping line is among the invoice lines
+  inputs:
+    file: tests/test_invoice_lines.py
+    after: |
+      from billing.lines import InvoiceLine, build_lines
+
+
+      def test_build_lines_adds_shipping():
+          lines = build_lines(skus=["A1"], ship=True)
+
+          assert InvoiceLine(sku="SHIP", amount_cents=500) in lines
+  expected_output:
+    outcome: valid
+- name: checks a total is positive
+  inputs:
+    file: tests/test_quotes.py
+    after: |
+      from billing.quotes import quote
+
+
+      def test_quote_charges_for_shipping():
+          result = quote(skus=["A1"], ship=True)
+
+          assert result.total_cents > 0
+    unchanged:
+      billing/quotes.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Quote:
+            skus: tuple[str, ...]
+            total_cents: int
+
+
+        def quote(skus: list[str], ship: bool) -> Quote:
+            return Quote(skus=tuple(skus), total_cents=1000 + (500 if ship else 0))
+  expected_output:
+    outcome: invalid
+- name: checks the status of a Django model instance
+  inputs:
+    file: tests/test_order_views.py
+    after: |
+      from django.test import TestCase
+
+      from orders.models import Order
+
+
+      class PayOrderViewTests(TestCase):
+          def test_post_marks_order_paid(self):
+              order = Order.objects.create(number="ord-9", total_cents=1200)
+
+              self.client.post(f"/orders/{order.pk}/pay/")
+
+              order.refresh_from_db()
+              self.assertEqual(order.status, Order.Status.PAID)
+    unchanged:
+      orders/models.py: |
+        from django.db import models
+
+
+        class Order(models.Model):
+            class Status(models.TextChoices):
+                OPEN = "open"
+                PAID = "paid"
+
+            number = models.CharField(max_length=20)
+            total_cents = models.IntegerField()
+            status = models.CharField(max_length=10, choices=Status.choices, default=Status.OPEN)
+  expected_output:
+    outcome: valid
+- name: checks the status code of a response
+  inputs:
+    file: tests/test_order_api.py
+    after: |
+      def test_pay_rejects_unknown_order(client):
+          response = client.post("/api/orders/missing/pay/")
+
+          assert response.status_code == 404
+  expected_output:
+    outcome: valid
+- name: compares what a plain fake mailer sent
+  inputs:
+    file: tests/test_receipts.py
+    after: |
+      from notifications.receipts import send_receipt
+      from tests.fakes import FakeMailer, SentEmail
+
+
+      def test_send_receipt_emails_customer():
+          mailer = FakeMailer()
+
+          send_receipt(mailer, order_number="ord-4", email="ada@example.com")
+
+          assert mailer.sent == [SentEmail(to="ada@example.com", subject="Receipt for ord-4")]
+    unchanged:
+      tests/fakes.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class SentEmail:
+            to: str
+            subject: str
+
+
+        class FakeMailer:
+            def __init__(self) -> None:
+                self.sent: list[SentEmail] = []
+
+            def send(self, to: str, subject: str) -> None:
+                self.sent.append(SentEmail(to=to, subject=subject))
+  expected_output:
+    outcome: valid
+- name: checks the code of a raised error
+  inputs:
+    file: tests/test_charges.py
+    after: |
+      import pytest
+
+      from billing.charges import CardDeclined, charge
+
+
+      def test_charge_reports_declined_card(declined_card):
+          with pytest.raises(CardDeclined) as exc:
+              charge(declined_card, amount_cents=500)
+
+          assert exc.value.code == "card_declined"
+    unchanged:
+      billing/charges.py: |
+        class CardDeclined(Exception):
+            def __init__(self, code: str) -> None:
+                super().__init__(code)
+                self.code = code
+
+
+        def charge(card: object, amount_cents: int) -> None:
+            raise CardDeclined("card_declined")
+  expected_output:
+    outcome: valid
+- name: checks the status key of a response body in a test of the status
+  inputs:
+    file: tests/test_order_api.py
+    after: |
+      def test_pay_returns_paid_order(client, open_order):
+          response = client.post(f"/api/orders/{open_order.number}/pay/")
+
+          assert response.json()["status"] == "paid"
+  expected_output:
+    outcome: valid
+- name: replaces field asserts with one comparison
+  inputs:
+    file: tests/test_invoices.py
+    before: |
+      from billing.invoices import issue_invoice
+      from orders.models import Order
+
+
+      def test_issue_invoice_copies_order_total():
+          invoice = issue_invoice(Order(id="ord-42", total=120))
+
+          assert invoice.number == "42"
+          assert invoice.total == 120
+    after: |
+      from billing.invoices import Invoice, issue_invoice
+      from orders.models import Order
+
+
+      def test_issue_invoice_copies_order_total():
+          invoice = issue_invoice(Order(id="ord-42", total=120))
+
+          assert invoice == Invoice(number="42", total=120)
+  expected_output:
+    outcome: valid
+- name: checks two fields of a quote whose type isn't shown
+  inputs:
+    file: tests/test_quotes.py
+    after: |
+      from billing.quotes import quote
+
+
+      def test_quote_prices_shipping_separately():
+          result = quote(skus=["A1"], ship=True)
+
+          assert result.goods_cents == 1000
+          assert result.shipping_cents == 500
+  expected_output:
+    outcome: valid
+- name: checks two fields of a quote the test compares whole elsewhere
+  inputs:
+    file: tests/test_quotes.py
+    after: |
+      from billing.quotes import Quote, quote
+
+
+      def test_quote_without_shipping():
+          assert quote(skus=["A1"], ship=False) == Quote(goods_cents=1000, shipping_cents=0)
+
+
+      def test_quote_prices_shipping_separately():
+          result = quote(skus=["A1"], ship=True)
+
+          assert result.goods_cents == 1000
+          assert result.shipping_cents == 500
+  expected_output:
+    outcome: invalid
+- name: checks two fields of a quote that is a dataclass
+  inputs:
+    file: tests/test_quotes.py
+    after: |
+      from billing.quotes import quote
+
+
+      def test_quote_prices_shipping_separately():
+          result = quote(skus=["A1"], ship=True)
+
+          assert result.goods_cents == 1000
+          assert result.shipping_cents == 500
+    unchanged:
+      billing/quotes.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Quote:
+            goods_cents: int
+            shipping_cents: int
+
+
+        def quote(skus: list[str], ship: bool) -> Quote:
+            return Quote(goods_cents=1000 * len(skus), shipping_cents=500 if ship else 0)
+  expected_output:
+    outcome: invalid
+- name: checks only that the orders service has a pool
+  inputs:
+    file: tests/test_services.py
+    after: |
+      from shop.services import build_services
+
+
+      def test_services_share_the_connection_pool(settings):
+          services = build_services(settings)
+
+          assert services.orders.pool is not None
+          assert services.payments.pool is not None
+  expected_output:
+    outcome: invalid
+- name: checks each block's span and then each block's text
+  inputs:
+    file: tests/test_blocks.py
+    after: |
+      from docs.blocks import split_blocks
+
+
+      def test_split_blocks_keeps_text_and_lines():
+          blocks = split_blocks("# Title\n\ntext\nmore\n")
+
+          assert [(block.first_line, block.last_line) for block in blocks] == [(1, 1), (3, 4)]
+          assert [block.text for block in blocks] == ["# Title", "text\nmore"]
+    unchanged:
+      docs/blocks.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Block:
+            text: str
+            first_line: int
+            last_line: int
+
+
+        def split_blocks(source: str) -> list[Block]:
+            blocks: list[Block] = []
+            start = 1
+            lines: list[str] = []
+            for number, line in enumerate(source.splitlines() + [""], start=1):
+                if line:
+                    if not lines:
+                        start = number
+                    lines.append(line)
+                elif lines:
+                    blocks.append(Block("\n".join(lines), start, number - 1))
+                    lines = []
+            return blocks
+  expected_output:
+    outcome: invalid
+- name: compares a span's whole attributes with a fixed timer
+  inputs:
+    file: tests/test_cache.py
+    after: |
+      from tracing.spans import finished_spans
+      from shop.cache import PriceCache
+
+
+      def test_a_changed_price_misses_the_cache(capture, fixed_timer):
+          cache = PriceCache(timer=fixed_timer)
+          cache.price("A1")
+          cache.invalidate("A1")
+
+          cache.price("A1")
+
+          attributes = finished_spans(capture)[-1].attributes
+          assert attributes == {"cache_hit": False, "sku": "A1", "duration_ms": 0.0}
+  expected_output:
+    outcome: valid
+- name: compares a draft's whole tag set
+  inputs:
+    file: tests/test_tags.py
+    after: |
+      from blog.tags import tags_for
+
+
+      def test_a_draft_is_tagged_draft_and_not_published():
+          assert tags_for(status="draft") == {"draft"}
+    unchanged:
+      blog/tags.py: |
+        def tags_for(status: str) -> set[str]:
+            return {status} | ({"published"} if status == "live" else set())
+  expected_output:
+    outcome: valid
+- name: compares the whole report of a clean config
+  inputs:
+    file: tests/test_audit.py
+    after: |
+      from audit.checks import Finding, Report, run_checks
+
+
+      def test_clean_config_passes():
+          report = run_checks({"tls": True, "backups": True})
+
+          assert report == Report(
+              findings=[Finding(rule="tls", is_failure=False), Finding(rule="backups", is_failure=False)]
+          )
+    unchanged:
+      audit/checks.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Finding:
+            rule: str
+            is_failure: bool
+
+
+        @dataclass(frozen=True)
+        class Report:
+            findings: list[Finding]
+
+
+        def run_checks(config: dict[str, object]) -> Report:
+            return Report(findings=[Finding(rule=key, is_failure=not value) for key, value in config.items()])
+  expected_output:
+    outcome: valid
+- name: checks only the derived status of a report
+  inputs:
+    file: tests/test_audit.py
+    after: |
+      from audit.checks import Status, run_checks, status_of
+
+
+      def test_run_checks_on_a_clean_config():
+          report = run_checks({"tls": True, "backups": True})
+
+          assert status_of(report) is Status.PASSED
+    unchanged:
+      audit/checks.py: |
+        import enum
+        from dataclasses import dataclass
+
+
+        class Status(enum.Enum):
+            PASSED = "passed"
+            FAILED = "failed"
+
+
+        @dataclass(frozen=True)
+        class Finding:
+            rule: str
+            is_failure: bool
+
+
+        @dataclass(frozen=True)
+        class Report:
+            findings: list[Finding]
+
+
+        def run_checks(config: dict[str, object]) -> Report:
+            return Report(findings=[Finding(rule=key, is_failure=not value) for key, value in config.items()])
+
+
+        def status_of(report: Report) -> Status:
+            return Status.FAILED if any(f.is_failure for f in report.findings) else Status.PASSED
+  expected_output:
+    outcome: invalid
+- name: checks the shipping charge exactly
+  inputs:
+    file: tests/test_quotes.py
+    after: |
+      from billing.quotes import quote
+
+
+      def test_quote_charges_for_shipping():
+          result = quote(skus=["A1"], ship=True)
+
+          assert result.total_cents == 1500
+    unchanged:
+      billing/quotes.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Quote:
+            skus: tuple[str, ...]
+            total_cents: int
+
+
+        def quote(skus: list[str], ship: bool) -> Quote:
+            return Quote(skus=tuple(skus), total_cents=1000 + (500 if ship else 0))
+  expected_output:
+    outcome: valid
+- name: checks a number appears in a title
+  inputs:
+    file: tests/test_invoice_titles.py
+    after: |
+      from billing.invoices import invoice_title
+
+
+      def test_invoice_title_includes_number():
+          assert "42" in invoice_title(number=42)
+  expected_output:
+    outcome: invalid
+- name: compares the whole title
+  inputs:
+    file: tests/test_invoice_titles.py
+    after: |
+      from billing.invoices import invoice_title
+
+
+      def test_invoice_title_includes_number():
+          assert invoice_title(number=42) == "Invoice 42"
+  expected_output:
+    outcome: valid
+- name: checks an amount appears in a line
+  inputs:
+    file: tests/test_receipts.py
+    before: |
+      from orders.models import Order
+      from orders.receipts import receipt_heading
+
+
+      def test_receipt_heading_names_order():
+          assert receipt_heading(Order(id="ord-1", total=120)) == "Receipt for ord-1"
+    after: |
+      from orders.models import Order
+      from orders.receipts import receipt_heading, receipt_total_line
+
+
+      def test_receipt_heading_names_order():
+          assert receipt_heading(Order(id="ord-1", total=120)) == "Receipt for ord-1"
+
+
+      def test_receipt_total_line_shows_amount():
+          assert "120" in receipt_total_line(Order(id="ord-1", total=120))
+  expected_output:
+    outcome: invalid
+- name: checks a word is absent from a title
+  inputs:
+    file: tests/test_invoice_titles.py
+    after: |
+      from billing.invoices import invoice_title
+
+
+      def test_paid_invoice_title_drops_draft_marker():
+          title = invoice_title(number=42, paid=True)
+
+          assert "DRAFT" not in title
+  expected_output:
+    outcome: invalid
+- name: checks a word in a raised error message
+  inputs:
+    file: tests/test_refunds.py
+    after: |
+      import pytest
+
+      from billing.refunds import RefundError, refund
+
+
+      def test_refund_rejects_amount_above_charge():
+          with pytest.raises(RefundError) as exc:
+              refund(charge_cents=500, amount_cents=900)
+
+          assert "exceeds" in str(exc.value)
+  expected_output:
+    outcome: invalid
+- name: compares the whole raised error message
+  inputs:
+    file: tests/test_refunds.py
+    after: |
+      import pytest
+
+      from billing.refunds import RefundError, refund
+
+
+      def test_refund_rejects_amount_above_charge():
+          with pytest.raises(RefundError) as exc:
+              refund(charge_cents=500, amount_cents=900)
+
+          assert str(exc.value) == "Refund of 900 cents exceeds the 500 cent charge"
+  expected_output:
+    outcome: valid
+- name: checks a heading in a rendered page with assertIn
+  inputs:
+    file: tests/test_order_views.py
+    after: |
+      from django.test import TestCase
+
+      from orders.models import Order
+
+
+      class OrderDetailViewTests(TestCase):
+          def test_shows_order_number(self):
+              order = Order.objects.create(number="ord-9", total_cents=1200)
+
+              response = self.client.get(f"/orders/{order.pk}/")
+
+              self.assertIn("Order ord-9", response.content.decode())
+  expected_output:
+    outcome: invalid
+- name: checks a word in captured command output
+  inputs:
+    file: tests/test_export_command.py
+    after: |
+      from orders.export import export_orders
+
+
+      def test_export_reports_count(capsys, tmp_path):
+          export_orders(destination=tmp_path / "orders.csv", order_ids=["a", "b", "c"])
+
+          assert "3 orders" in capsys.readouterr().out
+  expected_output:
+    outcome: invalid
+- name: compares the whole captured command output
+  inputs:
+    file: tests/test_export_command.py
+    after: |
+      from orders.export import export_orders
+
+
+      def test_export_reports_count(capsys, tmp_path):
+          export_orders(destination=tmp_path / "orders.csv", order_ids=["a", "b", "c"])
+
+          assert capsys.readouterr().out == "Exported 3 orders\n"
+  expected_output:
+    outcome: valid
+- name: checks any warning line mentions a sku
+  inputs:
+    file: tests/test_stock_warnings.py
+    after: |
+      from inventory.warnings import low_stock_warnings
+
+
+      def test_low_stock_warnings_name_the_sku():
+          lines = low_stock_warnings({"A1": 2, "B2": 40})
+
+          assert any("A1" in line for line in lines)
+  expected_output:
+    outcome: invalid
+- name: checks an inserted line in a template
+  inputs:
+    file: tests/test_confirmation_email.py
+    after: |
+      from notifications.confirmation import OrderConfirmationEmail
+      from notifications.templates import load_template
+      from orders.models import Order
+
+
+      def test_render_inserts_order_number_line():
+          email = OrderConfirmationEmail(template=load_template("order_confirmation.txt"))
+
+          body = email.render(Order(id="ord-42", total=120))
+
+          assert "Order number: ord-42\n" in body
+  expected_output:
+    outcome: valid
+- name: checks an order id inside a rendered template
+  inputs:
+    file: tests/test_confirmation_email.py
+    after: |
+      from notifications.confirmation import OrderConfirmationEmail
+      from notifications.templates import load_template
+      from orders.models import Order
+
+
+      def test_render_mentions_order_id():
+          email = OrderConfirmationEmail(template=load_template("order_confirmation.txt"))
+
+          body = email.render(Order(id="ord-42", total=120))
+
+          assert "ord-42" in body
+  expected_output:
+    outcome: invalid
+- name: checks an inserted line in a config file the test reads
+  inputs:
+    file: tests/test_config_writer.py
+    after: |
+      from pathlib import Path
+
+      from deploy.config_writer import add_setting
+
+      FIXTURES = Path(__file__).parent / "fixtures"
+
+
+      def test_add_setting_appends_timeout_line():
+          base = (FIXTURES / "service.cfg").read_text()
+
+          updated = add_setting(base, name="timeout", value=30)
+
+          assert "timeout = 30\n" in updated
+  expected_output:
+    outcome: valid
+- name: checks a line is in a list of lines
+  inputs:
+    file: tests/test_invoice_lines.py
+    after: |
+      from billing.invoices import InvoiceLine, build_invoice
+
+
+      def test_build_invoice_adds_shipping_line():
+          invoice = build_invoice(skus=["A1"], ship=True)
+
+          assert InvoiceLine(sku="SHIP", amount_cents=500) in invoice.lines
+  expected_output:
+    outcome: valid
+- name: changes the order id
+  inputs:
+    file: tests/test_receipts.py
+    before: |
+      from orders.models import Order
+      from orders.receipts import receipt_heading
+
+
+      def test_receipt_heading_names_order():
+          assert receipt_heading(Order(id="ord-1", total=120)) == "Receipt for ord-1"
+    after: |
+      from orders.models import Order
+      from orders.receipts import receipt_heading
+
+
+      def test_receipt_heading_names_order():
+          assert receipt_heading(Order(id="ord-7", total=120)) == "Receipt for ord-7"
+  expected_output:
+    outcome: valid
+- name: adds a membership check to a test helper
+  inputs:
+    file: tests/sku_filters.py
+    before: |
+      def reserved_skus(skus):
+          return [sku for sku in skus]
+    after: |
+      def reserved_skus(skus):
+          return [sku for sku in skus if sku in {"SHIP", "GIFT"}]
+  expected_output:
+    outcome: valid
+- name: sleeps while a worker thread runs
+  inputs:
+    file: tests/test_order_worker.py
+    after: |
+      import threading
+      import time
+
+      from orders.worker import OrderWorker
+
+
+      def test_worker_processes_queued_orders(order_queue):
+          order_queue.put("ord-1")
+          worker = OrderWorker(order_queue)
+          thread = threading.Thread(target=worker.run, daemon=True)
+          thread.start()
+          time.sleep(0.1)
+
+          assert worker.processed == ["ord-1"]
+  expected_output:
+    outcome: invalid
+- name: joins the worker thread before asserting
+  inputs:
+    file: tests/test_order_worker.py
+    after: |
+      import threading
+
+      from orders.worker import OrderWorker
+
+
+      def test_worker_processes_queued_orders(order_queue):
+          order_queue.put("ord-1")
+          order_queue.put(None)
+          worker = OrderWorker(order_queue)
+          thread = threading.Thread(target=worker.run)
+          thread.start()
+          thread.join()
+
+          assert worker.processed == ["ord-1"]
+  expected_output:
+    outcome: valid
+- name: compares a timestamp to the real clock
+  inputs:
+    file: tests/test_invoices.py
+    after: |
+      from datetime import datetime
+
+      from billing.invoices import issue_invoice
+
+
+      def test_issue_invoice_stamps_the_issue_time(draft_invoice):
+          invoice = issue_invoice(draft_invoice)
+
+          assert invoice.issued_at == datetime.now()
+  expected_output:
+    outcome: invalid
+- name: compares a timestamp to a fake clock
+  inputs:
+    file: tests/test_invoices.py
+    after: |
+      from datetime import datetime
+
+      from billing.invoices import issue_invoice
+      from tests.fakes import FakeClock
+
+
+      def test_issue_invoice_stamps_the_issue_time(draft_invoice):
+          clock = FakeClock(datetime(2026, 3, 1, 9, 0))
+
+          invoice = issue_invoice(draft_invoice, clock=clock)
+
+          assert invoice.issued_at == clock.now()
+  expected_output:
+    outcome: valid
+- name: asserts the order of lines built from a set
+  inputs:
+    file: tests/test_picklists.py
+    unchanged:
+      warehouse/picklists.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class PickLine:
+            sku: str
+
+
+        def build_lines(skus: set[str]) -> list[PickLine]:
+            return [PickLine(sku=sku) for sku in skus]
+    after: |
+      from warehouse.picklists import build_lines
+
+
+      def test_build_lines_makes_one_line_per_sku():
+          skus = {"PEN-2", "BOOK-1", "MUG-3"}
+
+          lines = build_lines(skus)
+
+          assert [line.sku for line in lines] == ["PEN-2", "BOOK-1", "MUG-3"]
+  expected_output:
+    outcome: invalid
+- name: sorts the lines built from a set before comparing them whole
+  inputs:
+    file: tests/test_picklists.py
+    unchanged:
+      warehouse/picklists.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class PickLine:
+            sku: str
+
+
+        def build_lines(skus: set[str]) -> list[PickLine]:
+            return [PickLine(sku=sku) for sku in skus]
+    after: |
+      from warehouse.picklists import PickLine, build_lines
+
+
+      def test_build_lines_makes_one_line_per_sku():
+          skus = {"PEN-2", "BOOK-1", "MUG-3"}
+
+          lines = build_lines(skus)
+
+          assert sorted(lines, key=lambda line: line.sku) == [
+              PickLine(sku="BOOK-1"),
+              PickLine(sku="MUG-3"),
+              PickLine(sku="PEN-2"),
+          ]
+  expected_output:
+    outcome: valid
+- name: asserts the order of a directory listing
+  inputs:
+    file: tests/test_exports.py
+    after: |
+      import os
+
+      from reports.exports import export_month
+
+
+      def test_export_month_writes_one_file_per_region(tmp_path):
+          export_month("2026-03", regions=["eu", "us"], folder=tmp_path)
+
+          assert os.listdir(tmp_path) == ["eu.csv", "us.csv"]
+  expected_output:
+    outcome: invalid
+- name: sorts the directory listing before asserting
+  inputs:
+    file: tests/test_exports.py
+    after: |
+      import os
+
+      from reports.exports import export_month
+
+
+      def test_export_month_writes_one_file_per_region(tmp_path):
+          export_month("2026-03", regions=["eu", "us"], folder=tmp_path)
+
+          assert sorted(os.listdir(tmp_path)) == ["eu.csv", "us.csv"]
+  expected_output:
+    outcome: valid
+- name: picks a random sku whose price the test asserts
+  inputs:
+    file: tests/test_pricing.py
+    after: |
+      import random
+      from decimal import Decimal
+
+      from shop.pricing import price_for
+
+
+      def test_price_for_returns_the_book_price():
+          sku = random.choice(["BOOK-1", "PEN-2"])
+
+          assert price_for(sku) == Decimal("12.00")
+  expected_output:
+    outcome: invalid
+- name: generates a random id no assertion reads
+  inputs:
+    file: tests/test_carts.py
+    after: |
+      import uuid
+      from decimal import Decimal
+
+      from shop.carts import Cart
+
+
+      def test_cart_total_sums_its_lines():
+          cart = Cart(id=str(uuid.uuid4()))
+          cart.add(sku="BOOK-1", price=Decimal("12.00"), quantity=2)
+
+          assert cart.total() == Decimal("24.00")
+  expected_output:
+    outcome: valid
+- name: reads the region from the machine's environment
+  inputs:
+    file: tests/test_regional_prices.py
+    after: |
+      import os
+      from decimal import Decimal
+
+      from shop.pricing import regional_price
+
+
+      def test_regional_price_applies_the_eu_markup():
+          region = os.environ.get("REGION", "us")
+
+          assert regional_price(Decimal("10.00"), region) == Decimal("12.00")
+  expected_output:
+    outcome: invalid
+- name: sets the region in the environment before reading it
+  inputs:
+    file: tests/test_regional_prices.py
+    after: |
+      import os
+      from decimal import Decimal
+
+      from shop.pricing import regional_price
+
+
+      def test_regional_price_applies_the_eu_markup(monkeypatch):
+          monkeypatch.setenv("REGION", "eu")
+          region = os.environ["REGION"]
+
+          assert regional_price(Decimal("10.00"), region) == Decimal("12.00")
+  expected_output:
+    outcome: valid
+- name: expects the export dir under the home directory
+  inputs:
+    file: tests/test_settings.py
+    after: |
+      from pathlib import Path
+
+      from reports.settings import export_dir
+
+
+      def test_export_dir_is_under_the_home_directory():
+          assert export_dir() == Path.home() / "exports"
+  expected_output:
+    outcome: valid
+- name: adds a line to an invoice total
+  inputs:
+    file: tests/test_invoices.py
+    before: |
+      from decimal import Decimal
+
+      from billing.invoices import Invoice
+
+
+      def test_total_sums_lines():
+          invoice = Invoice(lines=[Decimal("10.00")])
+
+          assert invoice.total() == Decimal("10.00")
+    after: |
+      from decimal import Decimal
+
+      from billing.invoices import Invoice
+
+
+      def test_total_sums_lines():
+          invoice = Invoice(lines=[Decimal("10.00"), Decimal("5.00")])
+
+          assert invoice.total() == Decimal("15.00")
+  expected_output:
+    outcome: valid
+- name: adds a test with fixed inputs
+  inputs:
+    file: tests/test_pricing.py
+    before: |
+      from decimal import Decimal
+
+      from shop.pricing import price_for
+    after: |
+      from decimal import Decimal
+
+      from shop.pricing import price_for
+
+
+      def test_price_for_returns_the_pen_price():
+          assert price_for("PEN-2") == Decimal("2.50")
+  expected_output:
+    outcome: valid
+- name: moves an asserted order id into a module constant
+  inputs:
+    file: tests/test_shipments.py
+    before: |
+      from shipping.shipments import Shipment, plan_shipment
+
+
+      def test_plan_shipment_sets_order():
+          shipment = plan_shipment(order_id="ord-42", weight_kg=2)
+
+          assert shipment == Shipment(order_id="ord-42", carrier="ground", weight_kg=2)
+    after: |
+      from shipping.shipments import Shipment, plan_shipment
+
+      ORDER_ID = "ord-42"
+
+
+      def test_plan_shipment_sets_order():
+          shipment = plan_shipment(order_id=ORDER_ID, weight_kg=2)
+
+          assert shipment == Shipment(order_id=ORDER_ID, carrier="ground", weight_kg=2)
+  expected_output:
+    outcome: invalid
+- name: passes a constant order id but asserts only the carrier
+  inputs:
+    file: tests/test_shipments.py
+    after: |
+      from shipping.shipments import plan_shipment
+
+      ORDER_ID = "ord-42"
+
+
+      def test_plan_shipment_uses_ground_for_light_parcels():
+          shipment = plan_shipment(order_id=ORDER_ID, weight_kg=2)
+
+          assert shipment.carrier == "ground"
+  expected_output:
+    outcome: valid
+- name: assigns the order id to a local in the test
+  inputs:
+    file: tests/test_shipments.py
+    after: |
+      from shipping.shipments import Shipment, plan_shipment
+
+
+      DEFAULT_WEIGHT_KG = 2
+
+
+      def test_plan_shipment_sets_order():
+          order_id = "ord-42"
+
+          shipment = plan_shipment(order_id=order_id, weight_kg=DEFAULT_WEIGHT_KG)
+
+          assert shipment == Shipment(order_id=order_id, carrier="ground", weight_kg=DEFAULT_WEIGHT_KG)
+  expected_output:
+    outcome: valid
+- name: asserts an account id from a UUID constant
+  inputs:
+    file: tests/test_invoices.py
+    after: |
+      from decimal import Decimal
+      from uuid import UUID
+
+      from billing.invoices import Invoice, draft_invoice
+
+      ACCOUNT_ID = UUID("8f14e45f-ceea-4672-9c3d-1b2a5f7e6d10")
+
+
+      def test_draft_invoice_belongs_to_account():
+          invoice = draft_invoice(account_id=ACCOUNT_ID, amount=Decimal("120.00"))
+
+          assert invoice == Invoice(account_id=ACCOUNT_ID, amount=Decimal("120.00"), status="draft")
+  expected_output:
+    outcome: invalid
+- name: asserts the account id of the account fixture
+  inputs:
+    file: tests/test_invoices.py
+    after: |
+      from decimal import Decimal
+
+      from billing.invoices import Invoice, draft_invoice
+
+      AMOUNT = Decimal("120.00")
+
+
+      def test_draft_invoice_belongs_to_account(account):
+          invoice = draft_invoice(account_id=account.id, amount=AMOUNT)
+
+          assert invoice == Invoice(account_id=account.id, amount=AMOUNT, status="draft")
+  expected_output:
+    outcome: valid
+- name: asserts a customer email imported from a constants module
+  inputs:
+    file: tests/test_signup.py
+    unchanged:
+      tests/constants.py: |
+        CUSTOMER_EMAIL = "ana@example.com"
+    after: |
+      from accounts.signup import sign_up
+      from tests.constants import CUSTOMER_EMAIL
+
+
+      def test_sign_up_creates_customer_with_email(db_session):
+          customer = sign_up(db_session, email="ana@example.com", password="s3cret-pass")
+
+          assert customer.email == CUSTOMER_EMAIL
+  expected_output:
+    outcome: invalid
+- name: asserts a retry count against an imported limit
+  inputs:
+    file: tests/test_retries.py
+    unchanged:
+      tests/constants.py: |
+        MAX_RETRIES = 3
+    after: |
+      from jobs.runner import run_with_retries
+      from tests.constants import MAX_RETRIES
+      from tests.fakes import AlwaysFailingTask
+
+
+      def test_run_stops_after_the_retry_limit():
+          task = AlwaysFailingTask()
+
+          run_with_retries(task, max_retries=MAX_RETRIES)
+
+          assert task.attempts == MAX_RETRIES
+  expected_output:
+    outcome: valid
+- name: asserts an order number from a class constant in a unittest case
+  inputs:
+    file: tests/test_order_numbers.py
+    after: |
+      import unittest
+
+      from shop.orders import OrderNumbering
+
+
+      class OrderNumberingTest(unittest.TestCase):
+          FIRST_NUMBER = "A-0001"
+
+          def test_first_order_gets_first_number(self):
+              numbering = OrderNumbering(prefix="A")
+
+              self.assertEqual(numbering.next(), self.FIRST_NUMBER)
+  expected_output:
+    outcome: invalid
+- name: asserts an order number literal in a unittest case
+  inputs:
+    file: tests/test_order_numbers.py
+    after: |
+      import unittest
+
+      from shop.orders import OrderNumbering
+
+      PREFIX = "A"
+
+
+      class OrderNumberingTest(unittest.TestCase):
+          def test_first_order_gets_first_number(self):
+              numbering = OrderNumbering(prefix=PREFIX)
+
+              self.assertEqual(numbering.next(), "A-0001")
+  expected_output:
+    outcome: valid
+- name: asserts a slug from a constant in a Django test
+  inputs:
+    file: blog/tests/test_article_save.py
+    after: |
+      import pytest
+
+      from blog.models import Article
+
+      HELLO_SLUG = "hello-big-world"
+
+
+      @pytest.mark.django_db
+      def test_save_sets_slug_from_title():
+          article = Article(title="Hello Big World")
+
+          article.save()
+
+          assert Article.objects.get(pk=article.pk).slug == HELLO_SLUG
+  expected_output:
+    outcome: invalid
+- name: asserts a SKU from a constant read in a parametrize list
+  inputs:
+    file: tests/test_catalog.py
+    after: |
+      import pytest
+
+      from catalog.lookup import find_product
+
+      BOOK_SKU = "BOOK-1"
+
+
+      @pytest.mark.parametrize("query", ["book", "BOOK", " book "])
+      def test_find_product_matches_case_insensitively(catalog, query):
+          product = find_product(catalog, query)
+
+          assert product.sku == BOOK_SKU
+  expected_output:
+    outcome: invalid
+- name: changes a weight in a test
+  inputs:
+    file: tests/test_shipments.py
+    before: |
+      from shipping.shipments import plan_shipment
+
+
+      def test_plan_shipment_uses_ground():
+          assert plan_shipment(order_id="ord-42", weight_kg=2).carrier == "ground"
+    after: |
+      from shipping.shipments import plan_shipment
+
+
+      def test_plan_shipment_uses_ground():
+          assert plan_shipment(order_id="ord-42", weight_kg=3).carrier == "ground"
+  expected_output:
+    outcome: valid
+- name: renames a lowercase module value
+  inputs:
+    file: tests/test_shipments.py
+    before: |
+      default_weight = 2
+    after: |
+      default_weight_kg = 2
+  expected_output:
+    outcome: skipped
+- name: computes the expected cache key with the production key function
+  inputs:
+    file: tests/test_product_cache.py
+    unchanged:
+      catalog/cache.py: |
+        from catalog.keys import cache_key
+        from catalog.products import Product
+
+
+        class ProductCache:
+            def __init__(self) -> None:
+                self._entries: dict[str, Product] = {}
+
+            def put(self, product: Product) -> None:
+                self._entries[cache_key(product.sku, product.region)] = product
+
+            def keys(self) -> list[str]:
+                return list(self._entries)
+    after: |
+      from catalog.cache import ProductCache
+      from catalog.keys import cache_key
+      from catalog.products import Product
+
+
+      def expected_key(product):
+          return cache_key(product.sku, product.region)
+
+
+      def test_put_stores_under_product_key():
+          cache = ProductCache()
+          product = Product(sku="A1", region="eu")
+
+          cache.put(product)
+
+          assert cache.keys() == [expected_key(product)]
+  expected_output:
+    outcome: invalid
+- name: writes out the expected cache key
+  inputs:
+    file: tests/test_product_cache.py
+    unchanged:
+      catalog/cache.py: |
+        from catalog.keys import cache_key
+        from catalog.products import Product
+
+
+        class ProductCache:
+            def __init__(self) -> None:
+                self._entries: dict[str, Product] = {}
+
+            def put(self, product: Product) -> None:
+                self._entries[cache_key(product.sku, product.region)] = product
+
+            def keys(self) -> list[str]:
+                return list(self._entries)
+    after: |
+      from catalog.cache import ProductCache
+      from catalog.products import Product
+
+
+      def make_product(sku, region):
+          return Product(sku=sku, region=region)
+
+
+      def test_put_stores_under_product_key():
+          cache = ProductCache()
+
+          cache.put(make_product("A1", "eu"))
+
+          assert cache.keys() == ["eu:A1"]
+  expected_output:
+    outcome: valid
+- name: peeks the next invoice number with the production allocator in a fixture
+  inputs:
+    file: tests/test_invoice_numbers.py
+    unchanged:
+      billing/invoices.py: |
+        from sqlalchemy.orm import Session
+
+        from billing.numbering import InvoiceNumberAllocator
+
+
+        class InvoiceService:
+            def __init__(self, session: Session) -> None:
+                self._session = session
+
+            def create(self, account_id: str, amount: int) -> "Invoice":
+                number = InvoiceNumberAllocator(self._session).next()
+                invoice = Invoice(number=number, account_id=account_id, amount=amount)
+                self._session.add(invoice)
+                return invoice
+    after: |
+      import pytest
+
+      from billing.invoices import InvoiceService
+      from billing.numbering import InvoiceNumberAllocator
+
+
+      @pytest.fixture
+      def next_number(db_session):
+          return InvoiceNumberAllocator(db_session).peek_next()
+
+
+      def test_create_numbers_the_invoice(db_session, account, next_number):
+          invoice = InvoiceService(db_session).create(account_id=account.id, amount=120)
+
+          assert invoice.number == next_number
+  expected_output:
+    outcome: invalid
+- name: seeds an earlier invoice through the service in a fixture
+  inputs:
+    file: tests/test_invoice_numbers.py
+    unchanged:
+      billing/invoices.py: |
+        from sqlalchemy.orm import Session
+
+        from billing.numbering import InvoiceNumberAllocator
+
+
+        class InvoiceService:
+            def __init__(self, session: Session) -> None:
+                self._session = session
+
+            def create(self, account_id: str, amount: int) -> "Invoice":
+                number = InvoiceNumberAllocator(self._session).next()
+                invoice = Invoice(number=number, account_id=account_id, amount=amount)
+                self._session.add(invoice)
+                return invoice
+    after: |
+      import pytest
+
+      from billing.invoices import InvoiceService
+
+
+      @pytest.fixture
+      def first_invoice(db_session, account):
+          return InvoiceService(db_session).create(account_id=account.id, amount=50)
+
+
+      def test_create_numbers_the_next_invoice(db_session, account, first_invoice):
+          invoice = InvoiceService(db_session).create(account_id=account.id, amount=120)
+
+          assert invoice.number == "INV-0002"
+  expected_output:
+    outcome: valid
+- name: sorts the expected tasks with the scheduler's priority key
+  inputs:
+    file: tests/test_scheduler.py
+    unchanged:
+      jobs/scheduler.py: |
+        from jobs.priority import priority_key
+        from jobs.tasks import Task
+
+
+        class Scheduler:
+            def __init__(self) -> None:
+                self._tasks: list[Task] = []
+
+            def add(self, task: Task) -> None:
+                self._tasks.append(task)
+
+            def queue(self) -> list[Task]:
+                return sorted(self._tasks, key=priority_key)
+    after: |
+      from jobs.priority import priority_key
+      from jobs.scheduler import Scheduler
+      from jobs.tasks import Task
+
+
+      def expected_queue(tasks):
+          return sorted(tasks, key=priority_key)
+
+
+      def test_queue_orders_by_priority():
+          tasks = [Task(name="report", urgent=False), Task(name="page", urgent=True)]
+          scheduler = Scheduler()
+          for task in tasks:
+              scheduler.add(task)
+
+          assert scheduler.queue() == expected_queue(tasks)
+  expected_output:
+    outcome: invalid
+- name: sorts the expected tasks with its own key
+  inputs:
+    file: tests/test_scheduler.py
+    unchanged:
+      jobs/scheduler.py: |
+        from jobs.priority import priority_key
+        from jobs.tasks import Task
+
+
+        class Scheduler:
+            def __init__(self) -> None:
+                self._tasks: list[Task] = []
+
+            def add(self, task: Task) -> None:
+                self._tasks.append(task)
+
+            def queue(self) -> list[Task]:
+                return sorted(self._tasks, key=priority_key)
+    after: |
+      from jobs.scheduler import Scheduler
+      from jobs.tasks import Task
+
+
+      def expected_queue(tasks):
+          return sorted(tasks, key=lambda task: not task.urgent)
+
+
+      def test_queue_orders_by_priority():
+          tasks = [Task(name="report", urgent=False), Task(name="page", urgent=True)]
+          scheduler = Scheduler()
+          for task in tasks:
+              scheduler.add(task)
+
+          assert scheduler.queue() == expected_queue(tasks)
+  expected_output:
+    outcome: valid
+- name: builds the expected slug with the model's slug method
+  inputs:
+    file: blog/tests/test_article_save.py
+    unchanged:
+      blog/models.py: |
+        from django.db import models
+
+
+        class Article(models.Model):
+            title = models.CharField(max_length=200)
+            slug = models.SlugField(unique=True)
+
+            @classmethod
+            def slug_for(cls, title: str) -> str:
+                return "-".join(title.lower().split())
+
+            def save(self, *args, **kwargs):
+                self.slug = Article.slug_for(self.title)
+                super().save(*args, **kwargs)
+    after: |
+      import pytest
+
+      from blog.models import Article
+
+
+      @pytest.fixture
+      def expected_slug():
+          return Article.slug_for("Hello Big World")
+
+
+      @pytest.mark.django_db
+      def test_save_sets_slug_from_title(expected_slug):
+          article = Article(title="Hello Big World")
+
+          article.save()
+
+          assert article.slug == expected_slug
+  expected_output:
+    outcome: invalid
+- name: hashes the expected etag with hashlib
+  inputs:
+    file: tests/test_etags.py
+    unchanged:
+      web/etags.py: |
+        import hashlib
+
+
+        def etag_for(body: bytes) -> str:
+            return hashlib.sha256(body).hexdigest()
+
+
+        class Responder:
+            def respond(self, body: bytes) -> dict[str, str]:
+                return {"ETag": etag_for(body)}
+    after: |
+      import hashlib
+
+      from web.etags import Responder
+
+
+      def sha256_of(body):
+          return hashlib.sha256(body).hexdigest()
+
+
+      def test_respond_sets_etag_from_body():
+          headers = Responder().respond(b"hello")
+
+          assert headers == {"ETag": sha256_of(b"hello")}
+  expected_output:
+    outcome: valid
+- name: gets the expected etag from the production etag function
+  inputs:
+    file: tests/test_etags.py
+    unchanged:
+      web/etags.py: |
+        import hashlib
+
+
+        def etag_for(body: bytes) -> str:
+            return hashlib.sha256(body).hexdigest()
+
+
+        class Responder:
+            def respond(self, body: bytes) -> dict[str, str]:
+                return {"ETag": etag_for(body)}
+    after: |
+      from web.etags import Responder, etag_for
+
+
+      def expected_etag(body):
+          return etag_for(body)
+
+
+      def test_respond_sets_etag_from_body():
+          headers = Responder().respond(b"hello")
+
+          assert headers == {"ETag": expected_etag(b"hello")}
+  expected_output:
+    outcome: invalid
+- name: computes the expected price with the pricing method of the class under test
+  inputs:
+    file: tests/test_quotes.py
+    unchanged:
+      shipping/quotes.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Quote:
+            weight_kg: int
+            price: int
+
+
+        class QuoteService:
+            def __init__(self, rate: int) -> None:
+                self._rate = rate
+
+            def price_for(self, weight_kg: int) -> int:
+                return max(5, weight_kg * self._rate)
+
+            def quote(self, weight_kg: int) -> Quote:
+                return Quote(weight_kg=weight_kg, price=self.price_for(weight_kg))
+    after: |
+      from shipping.quotes import Quote, QuoteService
+
+
+      def expected_quote(service, weight_kg):
+          return Quote(weight_kg=weight_kg, price=service.price_for(weight_kg))
+
+
+      def test_quote_prices_by_weight():
+          service = QuoteService(rate=12)
+
+          assert service.quote(weight_kg=2) == expected_quote(service, 2)
+  expected_output:
+    outcome: invalid
+- name: writes out the expected quote
+  inputs:
+    file: tests/test_quotes.py
+    unchanged:
+      shipping/quotes.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Quote:
+            weight_kg: int
+            price: int
+
+
+        class QuoteService:
+            def __init__(self, rate: int) -> None:
+                self._rate = rate
+
+            def price_for(self, weight_kg: int) -> int:
+                return max(5, weight_kg * self._rate)
+
+            def quote(self, weight_kg: int) -> Quote:
+                return Quote(weight_kg=weight_kg, price=self.price_for(weight_kg))
+    after: |
+      from shipping.quotes import Quote, QuoteService
+
+
+      def expected_quote(weight_kg, price):
+          return Quote(weight_kg=weight_kg, price=price)
+
+
+      def test_quote_prices_by_weight():
+          service = QuoteService(rate=12)
+
+          assert service.quote(weight_kg=2) == expected_quote(2, 24)
+  expected_output:
+    outcome: valid
+- name: changes an asserted key in a test
+  inputs:
+    file: tests/test_product_cache.py
+    before: |
+      from catalog.cache import ProductCache
+      from catalog.products import Product
+
+
+      def test_put_stores_under_product_key():
+          cache = ProductCache()
+
+          cache.put(Product(sku="A1", region="eu"))
+
+          assert cache.keys() == ["eu:A1"]
+    after: |
+      from catalog.cache import ProductCache
+      from catalog.products import Product
+
+
+      def test_put_stores_under_product_key():
+          cache = ProductCache()
+
+          cache.put(Product(sku="A1", region="us"))
+
+          assert cache.keys() == ["us:A1"]
+  expected_output:
+    outcome: valid
+- name: changes a seeding helper that returns nothing
+  inputs:
+    file: tests/test_product_cache.py
+    before: |
+      from catalog.products import Product
+
+
+      def seed_products(session):
+          session.add(Product(sku="A1", region="eu"))
+    after: |
+      from catalog.products import Product
+
+
+      def seed_products(session):
+          session.add(Product(sku="A1", region="us"))
+  expected_output:
+    outcome: skipped
+- name: checks only the first parcel's sku in a test of the parcels' order
+  inputs:
+    file: tests/test_shipments.py
+    before: |
+      from shipping.shipments import Shipment, plan_shipment
+
+
+      def test_plan_shipment_uses_ground_by_default():
+          shipment = plan_shipment(order_id="ord-1", weight_kg=2)
+
+          assert shipment == Shipment(order_id="ord-1", carrier="ground", weight_kg=2)
+    after: |
+      from shipping.shipments import Shipment, pack_items, plan_shipment
+
+
+      def test_plan_shipment_uses_ground_by_default():
+          shipment = plan_shipment(order_id="ord-1", weight_kg=2)
+
+          assert shipment == Shipment(order_id="ord-1", carrier="ground", weight_kg=2)
+
+
+      def test_pack_items_orders_parcels_by_sku():
+          parcels = pack_items(["B2", "A1"])
+
+          assert parcels[0].sku == "A1"
+  expected_output:
+    outcome: invalid

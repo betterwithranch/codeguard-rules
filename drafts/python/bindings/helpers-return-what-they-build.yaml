@@ -1,3 +1,0 @@
-skill: python/skills/helpers-return-what-they-build
-paths: ["**/test_*.py", "**/*_test.py", "**/tests/**/*.py", "**/conftest.py"]
-triggers: [returning-helper]

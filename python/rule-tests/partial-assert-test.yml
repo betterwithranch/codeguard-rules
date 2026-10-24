@@ -1,18 +1,40 @@
 id: partial-assert
 valid:
-# Whole result compared
+# Assignment outside an assert
 - |
-  assert result == Invoice(number='42')
-# Field read inside the expected value
+  result = issue_invoice(order)
+# Bare call asserted directly
 - |
-  assert result == Invoice(number=order.number)
-# Call result compared
+  assert is_ready(order)
+# len outside an assert
 - |
-  assert response.json() == {'total': 1}
-# unittest assertion on a whole value
+  count = len(items)
+# Field tuple outside an assert
+- |
+  pair = (result.number, result.total)
+invalid:
+# unittest assert method
 - |
   self.assertEqual(result, Invoice(number='42'))
-invalid:
+# unittest assertTrue on a field
+- |
+  self.assertTrue(order.paid)
+# Comparison with a name
+- |
+  assert failures == []
+- |
+  assert name == 'small'
+# Comparison of a whole value
+- |
+  assert result == Invoice(number='42')
+# Membership comparison
+- |
+  assert ChangeKind.FUNCTION_BODY in kinds
+- |
+  assert ChangeKind.CLASS_HEADER not in kinds
+# Method called on an item
+- |
+  assert response['systemMessage'].startswith('codeguard warnings:')
 # Field compared on the left
 - |
   assert result.number == '42'
@@ -22,24 +44,55 @@ invalid:
 # Item by index compared
 - |
   assert items[0] == line
+- |
+  assert line == items[0]
 # Item by key compared
 - |
   assert payload['total'] == 120
 # Slice compared
 - |
   assert items[:2] == [first, second]
-# Bare boolean field
-- |
-  assert order.paid
-# Negated boolean field
-- |
-  assert not order.paid
 # Field ordered against a bound
 - |
   assert order.total > 0
+# len compared
+- |
+  assert len(items) == 1
+- |
+  assert count == len(items)
+# len inside a generator
+- |
+  assert all(len(group) == 2 for group in groups)
+# Field tuple compared
+- |
+  assert (result.number, result.total) == expected_pair
+- |
+  assert expected_pair == (result.number, result.total)
+# Key tuple compared
+- |
+  assert (row['number'], row['total']) == expected_pair
+# Field list compared
+- |
+  assert [result.number, result.total] == expected
+# ANY in an expected value
+- |
+  assert result == Invoice(id=ANY, number='42')
+- |
+  assert result == Invoice(id=mock.ANY, number='42')
+# Bare name asserted
+- |
+  assert parcels
+# Bare field asserted
+- |
+  assert invoice.paid
+# Negated field asserted
+- |
+  assert not result.errors
+- |
+  assert not order.paid
 # unittest assertEqual on a field
 - |
-  self.assertEqual(result.number, '42')
-# unittest assertTrue on a field
+  self.assertEqual(invoice.number, '42')
+# unittest assertEqual on len
 - |
-  self.assertTrue(order.paid)
+  self.assertEqual(len(parcels), 2)
