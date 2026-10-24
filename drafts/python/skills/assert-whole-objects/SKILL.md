@@ -11,8 +11,9 @@ instead.
 The test for each produced value: do the test's assertions check several of its parts,
 check all of it with some fields left out, or check only how many items it has, when
 one comparison of the whole value could replace them? If yes, it is a violation. The
-produced value is what the call under test returned or changed, read from the test's
-code. Which side of a comparison it is on doesn't matter.
+produced value is what the call under test returned, changed or sent (a request a fake
+recorded), read from the test's code. Which side of a comparison it is on doesn't
+matter.
 
 - Parts are its fields, items and keys, members of a set it is or holds, and values
   computed from it, such as a filtered subset of its items or an outcome derived from
