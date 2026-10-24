@@ -19,9 +19,11 @@ code. Which side of a comparison it is on doesn't matter.
   it.
 - One comparison of the whole value could replace them when its type has `__eq__`: a
   dict, list, set or tuple, a dataclass or attrs class (unless declared with
-  `eq=False`), a NamedTuple, a pydantic model. A field that changes each run (a
-  generated id, a timestamp, a duration) doesn't prevent it: the test controls its
-  source.
+  `eq=False`), a NamedTuple, a pydantic model. When the type isn't shown, judge by what
+  the value is: one that holds data (a report, a request, a response, a record,
+  settings) has `__eq__`; one that does work (a service, a client, a connection)
+  compares by identity. A field that changes each run (a generated id, a timestamp, a
+  duration) doesn't prevent a whole comparison: the test controls its source.
 - Fields that together are one property the test is about, such as a node's start and
   end line as its span, are one part.
 

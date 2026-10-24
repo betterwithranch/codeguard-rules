@@ -557,18 +557,21 @@ cases:
             assert services.orders.cache is services.payments.cache
     expected_output:
       outcome: valid
-  - name: checks two unrelated fields of the built orders service
+  - name: checks two fields of the loaded settings
     inputs:
-      file: tests/test_services.py
+      file: tests/test_settings.py
       after: |
-        from shop.services import build_services
+        from shop.settings import load_settings
 
 
-        def test_build_services_names_the_orders_service(settings):
-            services = build_services(settings)
+        def test_load_settings_reads_the_orders_section(tmp_path):
+            path = tmp_path / "shop.toml"
+            path.write_text('[orders]\nname = "orders"\nmax_connections = 10\n')
 
-            assert services.orders.name == "orders"
-            assert services.orders.max_connections == 10
+            settings = load_settings(path)
+
+            assert settings.orders.name == "orders"
+            assert settings.orders.max_connections == 10
     expected_output:
       outcome: invalid
   - name: checks each block's line span
