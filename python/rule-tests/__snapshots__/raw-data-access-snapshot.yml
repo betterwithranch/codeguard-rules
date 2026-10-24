@@ -91,6 +91,18 @@ snapshots:
       start: 13
       end: 14
   ? |
+    if "urgent" not in alert:
+        pass
+  : labels:
+    - source: '"urgent" not in alert'
+      style: primary
+      start: 3
+      end: 24
+    - source: '"urgent"'
+      style: secondary
+      start: 3
+      end: 11
+  ? |
     if isinstance(x, int):
         pass
   : labels:
@@ -135,6 +147,17 @@ snapshots:
       style: secondary
       start: 10
       end: 20
+  ? |
+    pipelines = sum(1 for doc in documents if "steps" in doc)
+  : labels:
+    - source: '"steps" in doc'
+      style: primary
+      start: 42
+      end: 56
+    - source: '"steps"'
+      style: secondary
+      start: 42
+      end: 49
   ? |
     rest = loc[2:]
   : labels:

@@ -51,14 +51,18 @@ from another and yields part of the result. Handing undeclared data straight to 
 declaration that checks it is the parse: `Model.model_validate(raw)`,
 `Serializer(data=raw)`, `Diagnostic.from_json(item)` for each item of a raw list, a
 dispatcher that binds it to a typed function's parameters (`handler(**raw)`). So is
-choosing which declaration parses it (routing on a document's `kind` key).
+choosing which declaration parses it (routing on a document's `kind` key), and checking
+it to accept or reject it: a validator, including a pydantic `mode="before"` validator
+that reads raw keys, or a check that raises an error about the data's format before
+the parse proceeds.
 
 "Once" is about where, not when: one piece of code reads each raw field, however many
 times it runs.
 
 For each shape read of undeclared data, follow the value it produces: does it go into
 building a declared value, as a field of it, an argument to its constructor or
-validator, or the choice of which one parses the data? Yes is the parse, unless another
+validator, the choice of which one parses the data, or the decision to reject it? Yes
+is the parse, unless another
 function in the file also reads the same raw field.
 
 ## Violation
@@ -66,8 +70,8 @@ function in the file also reads the same raw field.
 A shape read of undeclared data whose value goes somewhere other than building a
 declared value, reported on the line of the read:
 
-- into a formatted message, a count or a computed result, or a decision about what to
-  do (`f"{error['carrier']}: {error['reason']}"`, `len(lines)` of grep matches,
+- into a formatted message, a count or a computed result, or a decision about what the
+  program does next, other than rejecting the data (`f"{error['carrier']}: {error['reason']}"`, `len(lines)` of grep matches,
   `if alert["urgent"]: page(on_call)`, hours computed from
   `payload["events"][-1]["timestamp"]`);
 - a second read of a raw field another function in the file also reads

@@ -9,6 +9,9 @@ valid:
 # get with a variable key
 - |
   text = fallbacks.get(name)
+# Membership of a variable in a collection
+- |
+  found = name in names
 invalid:
 # Subscript by an integer index
 - |
@@ -58,3 +61,10 @@ invalid:
   def latest():
       data = load()
       return data["events"]
+# Membership of a string key
+- |
+  pipelines = sum(1 for doc in documents if "steps" in doc)
+# Negated membership of a string key
+- |
+  if "urgent" not in alert:
+      pass

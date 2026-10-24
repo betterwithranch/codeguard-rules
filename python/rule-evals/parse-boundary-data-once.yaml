@@ -599,3 +599,158 @@ cases:
             return event.amount_cents > 100_000
     expected_output:
       outcome: valid
+  - name: hands each raw diagnostic to the model's parser in a hook
+    inputs:
+      file: hooks/review_hook.py
+      after: |
+        import json
+        import subprocess
+
+        from reviewing.diagnostics import Diagnostic, summarize
+
+
+        def review_message(command: list[str]) -> dict[str, str]:
+            review = subprocess.run(command, capture_output=True, text=True, check=False)
+            raw = json.loads(review.stdout)["diagnostics"]
+            return {"systemMessage": summarize([Diagnostic.from_json(item) for item in raw])}
+    expected_output:
+      outcome: valid
+  - name: formats raw diagnostics into a hook message
+    inputs:
+      file: hooks/review_hook.py
+      after: |
+        import json
+        import subprocess
+
+
+        def review_message(command: list[str]) -> dict[str, str]:
+            review = subprocess.run(command, capture_output=True, text=True, check=False)
+            raw = json.loads(review.stdout)["diagnostics"]
+            lines = [f"{item['path']}:{item['line']} {item['message']}" for item in raw]
+            return {"systemMessage": "\n".join(lines)}
+    expected_output:
+      outcome: invalid
+  - name: routes raw documents to the model that validates them
+    inputs:
+      file: config/loader.py
+      after: |
+        from pathlib import Path
+
+        import yaml
+
+        from config.models import JobsConfig, PipelinesConfig
+
+
+        def load_config(directory: Path) -> tuple[JobsConfig, PipelinesConfig]:
+            documents = {path.name: yaml.safe_load(path.read_text()) for path in directory.glob("*.yaml")}
+            pipelines = {name: doc for name, doc in documents.items() if isinstance(doc, dict) and "steps" in doc}
+            jobs = {name: doc for name, doc in documents.items() if name not in pipelines}
+            return JobsConfig.model_validate(jobs), PipelinesConfig.model_validate(pipelines)
+    expected_output:
+      outcome: valid
+  - name: counts raw documents by kind for a log line
+    inputs:
+      file: config/loader.py
+      after: |
+        import logging
+        from pathlib import Path
+
+        import yaml
+
+        logger = logging.getLogger(__name__)
+
+
+        def log_config(directory: Path) -> None:
+            documents = [yaml.safe_load(path.read_text()) for path in directory.glob("*.yaml")]
+            pipelines = sum(1 for doc in documents if "steps" in doc)
+            logger.info("%d pipelines, %d jobs", pipelines, len(documents) - pipelines)
+    expected_output:
+      outcome: invalid
+  - name: shows a numbered window of a file's lines
+    inputs:
+      file: tools/files.py
+      after: |
+        from pathlib import Path
+
+        MAX_LINES = 200
+
+
+        def read_window(file: Path, offset: int = 1) -> str:
+            lines = file.read_text(errors="replace").splitlines()
+            start = max(offset, 1)
+            return "".join(
+                f"{number:>6}\t{line}\n"
+                for number, line in enumerate(lines[start - 1 : start - 1 + MAX_LINES], start=start)
+            )
+    expected_output:
+      outcome: valid
+  - name: reports the columns of a csv file's first row
+    inputs:
+      file: tools/files.py
+      after: |
+        from pathlib import Path
+
+
+        def describe_export(file: Path) -> str:
+            lines = file.read_text().splitlines()
+            columns = lines[0].split(",")
+            return f"{len(lines) - 1} rows; first column {columns[0]}, last column {columns[-1]}"
+    expected_output:
+      outcome: invalid
+  - name: rejects a raw document missing a key in a before validator
+    inputs:
+      file: config/jobs.py
+      after: |
+        from pydantic import BaseModel, model_validator
+
+
+        class JobConfig(BaseModel):
+            runner: str
+            image: str | None = None
+
+            @model_validator(mode="before")
+            @classmethod
+            def require_an_image_for_docker(cls, data: object) -> object:
+                if isinstance(data, dict) and data.get("runner") == "docker" and "image" not in data:
+                    raise ValueError("runner docker needs an image")
+                return data
+    expected_output:
+      outcome: valid
+  - name: picks a runner from a raw document's key
+    inputs:
+      file: config/jobs.py
+      after: |
+        from pathlib import Path
+
+        import yaml
+
+        from config.runners import run_in_docker, run_locally
+
+
+        def run_job(file: Path) -> None:
+            data = yaml.safe_load(file.read_text())
+            if data.get("runner") == "docker":
+                run_in_docker(data["image"], data["command"])
+            else:
+                run_locally(data["command"])
+    expected_output:
+      outcome: invalid
+  - name: rejects a legacy file format before validating it
+    inputs:
+      file: config/evals.py
+      after: |
+        from pathlib import Path
+
+        import yaml
+
+        from config.errors import ConfigError
+        from config.models import EvalFile
+
+
+        def load_eval(file: Path) -> EvalFile:
+            data = yaml.safe_load(file.read_text())
+            if isinstance(data, dict) and "id" in data:
+                raise ConfigError(f"{file} uses the old format; rename its id to name")
+            return EvalFile.model_validate(data)
+    expected_output:
+      outcome: valid
