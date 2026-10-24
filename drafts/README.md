@@ -32,14 +32,12 @@ against the rule's skill). `no-foreign-reexports` runs on `__init__.py` files on
 | `context-types-live-with-consumer` | Dependency and context classes live with the stage that reads them |
 | `docstrings-add-information` | A docstring tells the reader something the name, signature and body don't |
 | `enum-usage` | No `.value` on a `StrEnum`, `IntEnum` or `TextChoices` member |
-| `explicit-discriminated-unions` | A parsed union tags each variant and names its discriminator |
 | `factory-methods-by-product` | Factory methods named for the product or input, not the caller |
 | `factory-on-built-type` | Code that decides a type's field values is on the type, in its module, or in a mapper for one source |
 | `import-own-package-by-module` | Code inside a package imports from the defining module, never through a root that contains it |
 | `import-packages-from-root` | Code outside a package imports from the package root, unless the root import would form a cycle |
 | `interface-in-consumer-package` | An interface lives in the package of a consumer |
 | `interfaces-earn-existence` | A Protocol or ABC has two implementers, or prevents an import cycle |
-| `model-validators-intrinsic-only` | Model validators check only the model's own values |
 | `names-match-behavior` | Every word of a function or class name is true of its body, and one names what it does |
 | `narrow-collaborator-params` | No bundle parameter (context, settings, request) when only a few of its fields are read |
 | `no-anonymous-tuples` | No tuple or fixed-key dict returning answers to different questions |
@@ -68,8 +66,8 @@ against the rule's skill). `no-foreign-reexports` runs on `__init__.py` files on
 | `queue-messages-carry-ids` | Stored records cross queues and workflows by id |
 | `state-model-own-module` | A threaded state model gets its own module |
 | `strenum-vs-literal` | No branching on, or keying a table by, a several-value `Literal` |
-| `trust-established-invariants` | No guard re-checking a condition that visible code already guarantees |
 | `types-live-with-producer` | Types live in the package that constructs them |
+| `trust-the-boundary` | A guarantee is made once, where data enters or its type is built, and trusted after: no re-checks, parsed unions decide their variant, model validators use only the model's own values |
 | `union-variants-together` | A union's variants are defined together, directly before its alias |
 | `value-form-matches-role` | A supplied value's form fits its role: a reference carries an existing record's id, a matched value is fixed |
 

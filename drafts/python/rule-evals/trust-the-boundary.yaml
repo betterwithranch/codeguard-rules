@@ -1,0 +1,1062 @@
+cases:
+- name: asserts a carrier already checked for None
+  inputs:
+    file: shipping/pickup.py
+    after: |
+      from dataclasses import dataclass
+
+      from .carrier import Carrier, PickupWindow
+
+
+      class MissingCarrierError(Exception):
+          pass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          id: str
+          carrier: Carrier | None
+
+
+      def schedule_pickup(shipment: Shipment) -> PickupWindow:
+          if shipment.carrier is None:
+              raise MissingCarrierError(shipment.id)
+          assert shipment.carrier is not None
+          return shipment.carrier.next_pickup_window()
+  expected_output:
+    outcome: invalid
+- name: falls back to a placeholder for a carrier already checked for None
+  inputs:
+    file: shipping/pickup.py
+    after: |
+      from dataclasses import dataclass
+
+      from .carrier import Carrier
+
+
+      class MissingCarrierError(Exception):
+          pass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          id: str
+          carrier: Carrier | None
+
+
+      def pickup_note(shipment: Shipment) -> str:
+          if shipment.carrier is None:
+              raise MissingCarrierError(shipment.id)
+          name = shipment.carrier.name if shipment.carrier is not None else "unknown"
+          return f"Pickup for {shipment.id} by {name}"
+  expected_output:
+    outcome: invalid
+- name: raises when a shipment has no carrier
+  inputs:
+    file: shipping/pickup.py
+    after: |
+      from dataclasses import dataclass
+
+      from .carrier import Carrier, PickupWindow
+
+
+      class MissingCarrierError(Exception):
+          pass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          id: str
+          carrier: Carrier | None
+
+
+      def schedule_pickup(shipment: Shipment) -> PickupWindow:
+          if shipment.carrier is None:
+              raise MissingCarrierError(shipment.id)
+          return shipment.carrier.next_pickup_window()
+  expected_output:
+    outcome: valid
+- name: rechecks the payload type after dispatch
+  inputs:
+    file: payments/refunds.py
+    before: |
+      from .payment import PaymentKind, PaymentRequest, PaymentResult, RefundPayload
+
+
+      class _RefundHandler:
+          def handle(self, request: PaymentRequest) -> PaymentResult:
+              return PaymentResult(refunded_cents=request.payload.amount_cents)
+
+
+      HANDLERS = {PaymentKind.REFUND: _RefundHandler()}
+
+
+      def dispatch(request: PaymentRequest) -> PaymentResult:
+          if request.kind is PaymentKind.REFUND and not isinstance(request.payload, RefundPayload):
+              raise TypeError("a refund request must carry a refund payload")
+          return HANDLERS[request.kind].handle(request)
+    after: |
+      from .payment import PaymentKind, PaymentRequest, PaymentResult, RefundPayload
+
+
+      class _RefundHandler:
+          def handle(self, request: PaymentRequest) -> PaymentResult:
+              if not isinstance(request.payload, RefundPayload):
+                  raise TypeError("_RefundHandler requires a refund payload")
+              return PaymentResult(refunded_cents=request.payload.amount_cents)
+
+
+      HANDLERS = {PaymentKind.REFUND: _RefundHandler()}
+
+
+      def dispatch(request: PaymentRequest) -> PaymentResult:
+          if request.kind is PaymentKind.REFUND and not isinstance(request.payload, RefundPayload):
+              raise TypeError("a refund request must carry a refund payload")
+          return HANDLERS[request.kind].handle(request)
+  expected_output:
+    outcome: invalid
+- name: checks the payload type in a handler with no visible dispatch
+  inputs:
+    file: payments/refunds.py
+    after: |
+      from .payment import PaymentRequest, PaymentResult, RefundPayload
+
+
+      class RefundHandler:
+          def handle(self, request: PaymentRequest) -> PaymentResult:
+              if not isinstance(request.payload, RefundPayload):
+                  raise TypeError("RefundHandler requires a refund payload")
+              return PaymentResult(refunded_cents=request.payload.amount_cents)
+  expected_output:
+    outcome: valid
+- name: rejects an unknown payment kind
+  inputs:
+    file: payments/refunds.py
+    after: |
+      from .payment import PaymentKind, PaymentRequest, PaymentResult, RefundPayload
+
+
+      class UnknownPaymentKindError(Exception):
+          pass
+
+
+      class RefundHandler:
+          def handle(self, request: PaymentRequest[RefundPayload]) -> PaymentResult:
+              return PaymentResult(refunded_cents=request.payload.amount_cents)
+
+
+      HANDLERS = {PaymentKind.REFUND: RefundHandler()}
+
+
+      def dispatch(request: PaymentRequest) -> PaymentResult:
+          handler = HANDLERS.get(request.kind)
+          if handler is None:
+              raise UnknownPaymentKindError(request.kind)
+          return handler.handle(request)
+  expected_output:
+    outcome: valid
+- name: rechecks an amount its pydantic field already constrains
+  inputs:
+    file: payments/refund_service.py
+    after: |
+      from pydantic import BaseModel, Field
+
+
+      class RefundRequest(BaseModel):
+          order_number: str
+          amount_cents: int = Field(gt=0)
+
+
+      class InvalidRefundError(Exception):
+          pass
+
+
+      def refund_line(request: RefundRequest) -> str:
+          if request.amount_cents <= 0:
+              raise InvalidRefundError(request.order_number)
+          return f"refund {request.amount_cents} on {request.order_number}"
+  expected_output:
+    outcome: invalid
+- name: checks an amount its pydantic field leaves open
+  inputs:
+    file: payments/refund_service.py
+    after: |
+      from pydantic import BaseModel
+
+
+      class RefundRequest(BaseModel):
+          order_number: str
+          amount_cents: int
+
+
+      class InvalidRefundError(Exception):
+          pass
+
+
+      def refund_line(request: RefundRequest) -> str:
+          if request.amount_cents <= 0:
+              raise InvalidRefundError(request.order_number)
+          return f"refund {request.amount_cents} on {request.order_number}"
+  expected_output:
+    outcome: valid
+- name: returns early for empty lines an imported order never has
+  inputs:
+    file: orders/totals.py
+    unchanged:
+      orders/model.py: |
+        from dataclasses import dataclass
+
+
+        class EmptyOrderError(Exception):
+            pass
+
+
+        @dataclass(frozen=True)
+        class OrderLine:
+            sku: str
+            amount_cents: int
+
+
+        @dataclass(frozen=True)
+        class Order:
+            number: str
+            lines: tuple[OrderLine, ...]
+
+            def __post_init__(self) -> None:
+                if not self.lines:
+                    raise EmptyOrderError(self.number)
+    after: |
+      from orders.model import Order
+
+
+      def largest_line_cents(order: Order) -> int:
+          if not order.lines:
+              return 0
+          return max(line.amount_cents for line in order.lines)
+  expected_output:
+    outcome: invalid
+- name: returns early for empty lines an imported order allows
+  inputs:
+    file: orders/totals.py
+    unchanged:
+      orders/model.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class OrderLine:
+            sku: str
+            amount_cents: int
+
+
+        @dataclass(frozen=True)
+        class Order:
+            number: str
+            lines: tuple[OrderLine, ...]
+    after: |
+      from orders.model import Order
+
+
+      def largest_line_cents(order: Order) -> int:
+          if not order.lines:
+              return 0
+          return max(line.amount_cents for line in order.lines)
+  expected_output:
+    outcome: valid
+- name: checks the item type in a helper only the parcel branch calls
+  inputs:
+    file: warehouse/loading.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Parcel:
+          weight_kg: float
+
+
+      @dataclass(frozen=True)
+      class Pallet:
+          parcels: tuple[Parcel, ...]
+
+
+      def load_weight_kg(items: list[Parcel | Pallet]) -> float:
+          total = 0.0
+          for item in items:
+              match item:
+                  case Parcel():
+                      total += _parcel_weight_kg(item)
+                  case Pallet():
+                      total += sum(parcel.weight_kg for parcel in item.parcels) + 25
+          return total
+
+
+      def _parcel_weight_kg(item: Parcel | Pallet) -> float:
+          if not isinstance(item, Parcel):
+              raise TypeError("expected a parcel")
+          return item.weight_kg
+  expected_output:
+    outcome: invalid
+- name: branches on the item type in a helper both branches call
+  inputs:
+    file: warehouse/loading.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Parcel:
+          weight_kg: float
+
+
+      @dataclass(frozen=True)
+      class Pallet:
+          parcels: tuple[Parcel, ...]
+
+
+      def load_weight_kg(items: list[Parcel | Pallet]) -> float:
+          return sum(_weight_kg(item) for item in items)
+
+
+      def _weight_kg(item: Parcel | Pallet) -> float:
+          if isinstance(item, Parcel):
+              return item.weight_kg
+          return sum(parcel.weight_kg for parcel in item.parcels) + 25
+  expected_output:
+    outcome: valid
+- name: rechecks for empty lines after rejecting empty lines
+  inputs:
+    file: invoices/issue.py
+    after: |
+      class EmptyInvoiceError(Exception):
+          pass
+
+
+      def invoice_total_cents(line_cents: list[int]) -> int:
+          if len(line_cents) == 0:
+              raise EmptyInvoiceError()
+          subtotal = sum(line_cents)
+          if not line_cents:
+              return 0
+          return subtotal + round(subtotal * 0.2)
+  expected_output:
+    outcome: invalid
+- name: checks for empty lines after rejecting a missing list
+  inputs:
+    file: invoices/issue.py
+    after: |
+      class MissingLinesError(Exception):
+          pass
+
+
+      def invoice_total_cents(line_cents: list[int] | None) -> int:
+          if line_cents is None:
+              raise MissingLinesError()
+          if not line_cents:
+              return 0
+          subtotal = sum(line_cents)
+          return subtotal + round(subtotal * 0.2)
+  expected_output:
+    outcome: valid
+- name: checks the shape of a parsed JSON body
+  inputs:
+    file: webhooks/carrier.py
+    after: |
+      import json
+
+
+      class MalformedWebhookError(Exception):
+          pass
+
+
+      def tracking_numbers(body: str) -> list[str]:
+          payload = json.loads(body)
+          if not isinstance(payload, list):
+              raise MalformedWebhookError("expected a list of tracking numbers")
+          return [str(number) for number in payload]
+  expected_output:
+    outcome: valid
+- name: extracts the payload into a local
+  inputs:
+    file: payments/refunds.py
+    before: |
+      from .payment import PaymentRequest, PaymentResult, RefundPayload
+
+
+      class RefundHandler:
+          def handle(self, request: PaymentRequest[RefundPayload]) -> PaymentResult:
+              return PaymentResult(refunded_cents=request.payload.amount_cents)
+    after: |
+      from .payment import PaymentRequest, PaymentResult, RefundPayload
+
+
+      class RefundHandler:
+          def handle(self, request: PaymentRequest[RefundPayload]) -> PaymentResult:
+              payload = request.payload
+              return PaymentResult(refunded_cents=payload.amount_cents)
+  expected_output:
+    outcome: skipped
+- name: parses an untagged union of payment models
+  inputs:
+    file: payments/methods.py
+    after: |
+      from pydantic import BaseModel
+
+
+      class CardPayment(BaseModel):
+          card_token: str
+          amount_cents: int
+
+
+      class BankTransfer(BaseModel):
+          iban: str
+          amount_cents: int
+
+
+      type PaymentMethod = CardPayment | BankTransfer
+
+
+      class CheckoutRequest(BaseModel):
+          order_id: str
+          payment: PaymentMethod
+  expected_output:
+    outcome: invalid
+- name: drops the payment union's discriminator
+  inputs:
+    file: payments/methods.py
+    before: |
+      from typing import Annotated, Literal
+
+      from pydantic import BaseModel, Field
+
+
+      class CardPayment(BaseModel):
+          kind: Literal["card"] = "card"
+          card_token: str
+          amount_cents: int
+
+
+      class BankTransfer(BaseModel):
+          kind: Literal["bank_transfer"] = "bank_transfer"
+          iban: str
+          amount_cents: int
+
+
+      PaymentMethod = Annotated[CardPayment | BankTransfer, Field(discriminator="kind")]
+
+
+      class CheckoutRequest(BaseModel):
+          order_id: str
+          payment: PaymentMethod
+    after: |
+      from typing import Literal
+
+      from pydantic import BaseModel
+
+
+      class CardPayment(BaseModel):
+          kind: Literal["card"] = "card"
+          card_token: str
+          amount_cents: int
+
+
+      class BankTransfer(BaseModel):
+          kind: Literal["bank_transfer"] = "bank_transfer"
+          iban: str
+          amount_cents: int
+
+
+      PaymentMethod = CardPayment | BankTransfer
+
+
+      class CheckoutRequest(BaseModel):
+          order_id: str
+          payment: PaymentMethod
+  expected_output:
+    outcome: invalid
+- name: parses a payment union discriminated on kind
+  inputs:
+    file: payments/methods.py
+    after: |
+      from typing import Annotated, Literal
+
+      from pydantic import BaseModel, Field
+
+
+      class CardPayment(BaseModel):
+          kind: Literal["card"] = "card"
+          card_token: str
+          amount_cents: int
+
+
+      class BankTransfer(BaseModel):
+          kind: Literal["bank_transfer"] = "bank_transfer"
+          iban: str
+          amount_cents: int
+
+
+      PaymentMethod = Annotated[CardPayment | BankTransfer, Field(discriminator="kind")]
+
+
+      class CheckoutRequest(BaseModel):
+          order_id: str
+          payment: PaymentMethod
+  expected_output:
+    outcome: valid
+- name: tags payment models with plain str fields
+  inputs:
+    file: payments/methods.py
+    after: |
+      from pydantic import BaseModel
+
+
+      class CardPayment(BaseModel):
+          kind: str = "card"
+          card_token: str
+
+
+      class BankTransfer(BaseModel):
+          kind: str = "bank_transfer"
+          iban: str
+
+
+      class CheckoutRequest(BaseModel):
+          order_id: str
+          payment: CardPayment | BankTransfer
+  expected_output:
+    outcome: invalid
+- name: parses webhook TypedDicts through an untagged TypeAdapter
+  inputs:
+    file: webhooks/events.py
+    after: |
+      from typing import TypedDict
+
+      from pydantic import TypeAdapter
+
+
+      class ItemCreated(TypedDict):
+          item_id: str
+          name: str
+
+
+      class ItemDeleted(TypedDict):
+          item_id: str
+
+
+      EVENTS = TypeAdapter(list[ItemCreated | ItemDeleted])
+
+
+      def parse_events(body: bytes) -> list[ItemCreated | ItemDeleted]:
+          return EVENTS.validate_json(body)
+  expected_output:
+    outcome: invalid
+- name: parses webhook TypedDicts through a discriminated TypeAdapter
+  inputs:
+    file: webhooks/events.py
+    after: |
+      from typing import Annotated, Literal, TypedDict
+
+      from pydantic import Field, TypeAdapter
+
+
+      class ItemCreated(TypedDict):
+          type: Literal["item.created"]
+          item_id: str
+          name: str
+
+
+      class ItemDeleted(TypedDict):
+          type: Literal["item.deleted"]
+          item_id: str
+
+
+      type ItemEvent = Annotated[ItemCreated | ItemDeleted, Field(discriminator="type")]
+
+      EVENTS = TypeAdapter(list[ItemEvent])
+
+
+      def parse_events(body: bytes) -> list[ItemEvent]:
+          return EVENTS.validate_json(body)
+  expected_output:
+    outcome: valid
+- name: lists imported shipment legs in an untagged model field
+  inputs:
+    file: shipping/itinerary.py
+    before: |
+      from pydantic import BaseModel
+
+
+      class Itinerary(BaseModel):
+          reference: str
+    after: |
+      from pydantic import BaseModel
+
+      from shipping.legs import AirLeg, TruckLeg
+
+
+      class Itinerary(BaseModel):
+          reference: str
+          legs: list[AirLeg | TruckLeg]
+    unchanged:
+      shipping/legs.py: |
+        from pydantic import BaseModel
+
+
+        class AirLeg(BaseModel):
+            flight_number: str
+            hours: float
+
+
+        class TruckLeg(BaseModel):
+            plate: str
+            hours: float
+  expected_output:
+    outcome: invalid
+- name: lists imported tagged shipment legs in a discriminated model field
+  inputs:
+    file: shipping/itinerary.py
+    before: |
+      from pydantic import BaseModel
+
+
+      class Itinerary(BaseModel):
+          reference: str
+    after: |
+      from typing import Annotated
+
+      from pydantic import BaseModel, Field
+
+      from shipping.legs import AirLeg, TruckLeg
+
+
+      class Itinerary(BaseModel):
+          reference: str
+          legs: list[Annotated[AirLeg | TruckLeg, Field(discriminator="mode")]]
+    unchanged:
+      shipping/legs.py: |
+        from typing import Literal
+
+        from pydantic import BaseModel
+
+
+        class AirLeg(BaseModel):
+            mode: Literal["air"] = "air"
+            flight_number: str
+            hours: float
+
+
+        class TruckLeg(BaseModel):
+            mode: Literal["truck"] = "truck"
+            plate: str
+            hours: float
+  expected_output:
+    outcome: valid
+- name: decodes untagged msgspec structs
+  inputs:
+    file: telemetry/decode.py
+    after: |
+      import msgspec
+
+
+      class CpuSample(msgspec.Struct):
+          host: str
+          percent: float
+
+
+      class MemorySample(msgspec.Struct):
+          host: str
+          used_bytes: int
+
+
+      def decode(raw: bytes) -> CpuSample | MemorySample:
+          return msgspec.json.decode(raw, type=CpuSample | MemorySample)
+  expected_output:
+    outcome: invalid
+- name: decodes tagged msgspec structs
+  inputs:
+    file: telemetry/decode.py
+    after: |
+      import msgspec
+
+
+      class CpuSample(msgspec.Struct, tag_field="metric", tag="cpu"):
+          host: str
+          percent: float
+
+
+      class MemorySample(msgspec.Struct, tag_field="metric", tag="memory"):
+          host: str
+          used_bytes: int
+
+
+      def decode(raw: bytes) -> CpuSample | MemorySample:
+          return msgspec.json.decode(raw, type=CpuSample | MemorySample)
+  expected_output:
+    outcome: valid
+- name: matches a union of dataclasses the code builds
+  inputs:
+    file: pricing/adjustments.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class PercentOff:
+          percent: int
+
+
+      @dataclass(frozen=True)
+      class FixedOff:
+          cents: int
+
+
+      type Adjustment = PercentOff | FixedOff
+
+
+      def loyalty_adjustment(years: int) -> Adjustment:
+          return PercentOff(percent=5) if years > 3 else FixedOff(cents=200)
+
+
+      def apply(adjustment: Adjustment, total_cents: int) -> int:
+          match adjustment:
+              case PercentOff(percent=percent):
+                  return total_cents * (100 - percent) // 100
+              case FixedOff(cents=cents):
+                  return max(total_cents - cents, 0)
+  expected_output:
+    outcome: valid
+- name: adds an amount field to tagged variants
+  inputs:
+    file: payments/methods.py
+    before: |
+      from typing import Annotated, Literal
+
+      from pydantic import BaseModel, Field
+
+
+      class CardPayment(BaseModel):
+          kind: Literal["card"] = "card"
+          card_token: str
+
+
+      class BankTransfer(BaseModel):
+          kind: Literal["bank_transfer"] = "bank_transfer"
+          iban: str
+
+
+      PaymentMethod = Annotated[CardPayment | BankTransfer, Field(discriminator="kind")]
+    after: |
+      from typing import Annotated, Literal
+
+      from pydantic import BaseModel, Field
+
+
+      class CardPayment(BaseModel):
+          kind: Literal["card"] = "card"
+          card_token: str
+          amount_cents: int = 0
+
+
+      class BankTransfer(BaseModel):
+          kind: Literal["bank_transfer"] = "bank_transfer"
+          iban: str
+          amount_cents: int = 0
+
+
+      PaymentMethod = Annotated[CardPayment | BankTransfer, Field(discriminator="kind")]
+  expected_output:
+    outcome: skipped
+- name: adds an optional shipment to an order model
+  inputs:
+    file: orders/order.py
+    before: |
+      from pydantic import BaseModel
+
+      from orders.shipment import Shipment
+
+
+      class Order(BaseModel):
+          number: str
+    after: |
+      from pydantic import BaseModel
+
+      from orders.shipment import Shipment
+
+
+      class Order(BaseModel):
+          number: str
+          shipment: Shipment | None = None
+  expected_output:
+    outcome: skipped
+- name: checks a warehouse registry in a model validator
+  inputs:
+    file: shipping/shipment.py
+    after: |
+      from pydantic import BaseModel, model_validator
+
+      from shipping.warehouse_registry import warehouse_registry
+
+
+      class Shipment(BaseModel):
+          sku: str
+          warehouse_code: str
+
+          @model_validator(mode="after")
+          def check_warehouse_stocks_sku(self) -> "Shipment":
+              warehouse = warehouse_registry.get(self.warehouse_code)
+              if not warehouse.stocks(self.sku):
+                  raise ValueError(f"{self.warehouse_code} does not stock {self.sku}")
+              return self
+  expected_output:
+    outcome: invalid
+- name: checks the product catalog in a field validator
+  inputs:
+    file: shipping/shipment.py
+    before: |
+      from pydantic import BaseModel, field_validator
+
+
+      class Shipment(BaseModel):
+          sku: str
+
+          @field_validator("sku")
+          @classmethod
+          def normalize_sku(cls, value: str) -> str:
+              return value.strip().upper()
+    after: |
+      from pydantic import BaseModel, field_validator
+
+      from shipping.catalog import product_catalog
+
+
+      class Shipment(BaseModel):
+          sku: str
+
+          @field_validator("sku")
+          @classmethod
+          def normalize_sku(cls, value: str) -> str:
+              sku = value.strip().upper()
+              if not product_catalog.contains(sku):
+                  raise ValueError(f"unknown sku {sku}")
+              return sku
+  expected_output:
+    outcome: invalid
+- name: validates intrinsic field invariants
+  inputs:
+    file: shipping/shipment.py
+    after: |
+      from pydantic import BaseModel, field_validator
+
+
+      class Shipment(BaseModel):
+          sku: str
+          quantity: int
+
+          @field_validator("sku")
+          @classmethod
+          def normalize_sku(cls, value: str) -> str:
+              return value.strip().upper()
+
+          @field_validator("quantity")
+          @classmethod
+          def check_quantity_positive(cls, value: int) -> int:
+              if value < 1:
+                  raise ValueError("quantity must be at least 1")
+              return value
+  expected_output:
+    outcome: valid
+- name: checks a catalog passed through the validation context
+  inputs:
+    file: orders/order_line.py
+    after: |
+      from pydantic import BaseModel, ValidationInfo, field_validator
+
+
+      class OrderLine(BaseModel):
+          sku: str
+          quantity: int
+
+          @field_validator("sku")
+          @classmethod
+          def check_sku_listed(cls, value: str, info: ValidationInfo) -> str:
+              catalog = info.context["catalog"]
+              if value not in catalog:
+                  raise ValueError(f"{value} is not listed")
+              return value
+  expected_output:
+    outcome: invalid
+- name: orders a booking's start and end in a model validator
+  inputs:
+    file: bookings/booking.py
+    after: |
+      from datetime import datetime
+
+      from pydantic import BaseModel, model_validator
+
+
+      class Booking(BaseModel):
+          room: str
+          starts_at: datetime
+          ends_at: datetime
+
+          @model_validator(mode="after")
+          def check_ends_after_start(self) -> "Booking":
+              if self.ends_at <= self.starts_at:
+                  raise ValueError("a booking ends after it starts")
+              return self
+  expected_output:
+    outcome: valid
+- name: reads a refund limit from the environment in post_init
+  inputs:
+    file: refunds/refund.py
+    after: |
+      import os
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Refund:
+          order_id: str
+          cents: int
+
+          def __post_init__(self) -> None:
+              if self.cents > int(os.environ["MAX_REFUND_CENTS"]):
+                  raise ValueError("refund exceeds the limit")
+  expected_output:
+    outcome: invalid
+- name: normalizes a currency code from a constant table in post_init
+  inputs:
+    file: refunds/refund.py
+    after: "from dataclasses import dataclass\n\nCURRENCY_ALIASES = {\"us$\": \"USD\", \"\u20AC\": \"\
+      EUR\"}\n\n\n@dataclass\nclass Refund:\n    order_id: str\n    cents: int\n    currency: str\n\n\
+      \    def __post_init__(self) -> None:\n        self.currency = CURRENCY_ALIASES.get(self.currency.lower(),\
+      \ self.currency.upper())\n        if self.cents <= 0:\n            raise ValueError(\"a refund is\
+      \ positive\")\n"
+  expected_output:
+    outcome: valid
+- name: queries other rows in a Django model clean
+  inputs:
+    file: rooms/models.py
+    after: |
+      from django.core.exceptions import ValidationError
+      from django.db import models
+
+
+      class Reservation(models.Model):
+          room = models.CharField(max_length=16)
+          starts_at = models.DateTimeField()
+          ends_at = models.DateTimeField()
+
+          def clean(self) -> None:
+              overlapping = Reservation.objects.filter(
+                  room=self.room, starts_at__lt=self.ends_at, ends_at__gt=self.starts_at
+              ).exclude(pk=self.pk)
+              if overlapping.exists():
+                  raise ValidationError("the room is already booked")
+  expected_output:
+    outcome: invalid
+- name: compares a reservation's own dates in a Django model clean
+  inputs:
+    file: rooms/models.py
+    after: |
+      from django.core.exceptions import ValidationError
+      from django.db import models
+
+
+      class Reservation(models.Model):
+          room = models.CharField(max_length=16)
+          starts_at = models.DateTimeField()
+          ends_at = models.DateTimeField()
+
+          def clean(self) -> None:
+              if self.ends_at <= self.starts_at:
+                  raise ValidationError("a reservation ends after it starts")
+  expected_output:
+    outcome: valid
+- name: checks a coupon repository in an attrs validator
+  inputs:
+    file: promotions/coupon.py
+    after: |
+      import attrs
+
+      from promotions.repository import coupon_repository
+
+
+      @attrs.frozen
+      class Coupon:
+          code: str = attrs.field()
+          percent_off: int = 10
+
+          @code.validator
+          def _check_unused(self, attribute, value: str) -> None:
+              if coupon_repository.exists(value):
+                  raise ValueError(f"{value} is already issued")
+  expected_output:
+    outcome: invalid
+- name: checks a coupon code's format in an attrs validator
+  inputs:
+    file: promotions/coupon.py
+    after: |
+      import re
+
+      import attrs
+
+      CODE_FORMAT = re.compile(r"^[A-Z0-9]{8}$")
+
+
+      @attrs.frozen
+      class Coupon:
+          code: str = attrs.field()
+          percent_off: int = 10
+
+          @code.validator
+          def _check_format(self, attribute, value: str) -> None:
+              if not CODE_FORMAT.match(value):
+                  raise ValueError(f"{value} is not an 8-character code")
+  expected_output:
+    outcome: valid
+- name: uppercases the shipment label
+  inputs:
+    file: shipping/shipment.py
+    before: |
+      class Shipment:
+          def __init__(self, sku: str) -> None:
+              self.sku = sku
+
+          def label(self) -> str:
+              return self.sku
+    after: |
+      class Shipment:
+          def __init__(self, sku: str) -> None:
+              self.sku = sku
+
+          def label(self) -> str:
+              return self.sku.upper()
+  expected_output:
+    outcome: skipped
+- name: checks stock in a DRF serializer's field validation
+  inputs:
+    file: orders/serializers.py
+    before: |
+      from rest_framework import serializers
+
+
+      class OrderLineSerializer(serializers.Serializer):
+          sku = serializers.CharField()
+          quantity = serializers.IntegerField(min_value=1)
+    after: |
+      from rest_framework import serializers
+
+      from inventory.models import StockItem
+
+
+      class OrderLineSerializer(serializers.Serializer):
+          sku = serializers.CharField()
+          quantity = serializers.IntegerField(min_value=1)
+
+          def validate_sku(self, value: str) -> str:
+              if not StockItem.objects.filter(sku=value, on_hand__gt=0).exists():
+                  raise serializers.ValidationError("out of stock")
+              return value
+  expected_output:
+    outcome: valid
