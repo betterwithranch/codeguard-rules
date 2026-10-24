@@ -1,6 +1,8 @@
 id: partial-assert
 valid:
 - |
+  assert is_ready(order)
+- |
   assert result == Invoice(number='42')
 - |
   assert result == Status.ACTIVE
@@ -11,6 +13,12 @@ valid:
 - |
   self.assertEqual(result, Invoice(number='42'))
 invalid:
+- |
+  assert ChangeKind.FUNCTION_BODY in kinds
+- |
+  assert ChangeKind.CLASS_HEADER not in kinds
+- |
+  assert response['systemMessage'].startswith('codeguard warnings:')
 - |
   assert result.number == '42'
 - |

@@ -1,6 +1,10 @@
 id: normalizing-call
 valid:
 - |
+  skus = [line.sku for line in lines]
+- |
+  assert all(line.paid for line in lines if line.due)
+- |
   totals = {sku: total for sku, total in rows}
 - |
   assert result == expected
@@ -10,6 +14,8 @@ valid:
   fake.status = 'down'
   assert result == expected
 invalid:
+- |
+  errors = [d for d in review.diagnostics if d.is_error]
 - |
   actual = {key: value for key, value in vars(order).items() if key != 'id'}
 - |

@@ -11,6 +11,15 @@ rule:
       field: name
       regex: ^(exclude|include|exclude_none|exclude_unset|exclude_defaults)$
   - kind: delete_statement
+  - any:
+    - kind: list_comprehension
+    - kind: set_comprehension
+    - kind: generator_expression
+    has:
+      kind: if_clause
+    inside:
+      stopBy: end
+      kind: assignment
   - kind: dictionary_comprehension
     all:
     - has:

@@ -23,6 +23,10 @@ rule:
           any:
             - pattern: '[$A.$F, $A.$G]'
             - pattern: '[$A.$F, $A.$G, $$$REST]'
+        - kind: comparison_operator
+          any:
+            - pattern: $MEMBER in $VALUES
+            - pattern: $MEMBER not in $VALUES
         - kind: identifier
           regex: ^ANY$
         - kind: attribute
@@ -37,6 +41,13 @@ rule:
           - kind: not_operator
             has:
               any: [{kind: identifier}, {kind: attribute}, {kind: subscript}]
+          - kind: call
+            has:
+              field: function
+              kind: attribute
+              has:
+                field: object
+                any: [{kind: attribute}, {kind: subscript}]
     - kind: call
       all:
         - has: {field: function, regex: ^self\.assert}

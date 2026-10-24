@@ -94,6 +94,21 @@ snapshots:
       start: 0
       end: 16
   ? |
+    errors = [d for d in review.diagnostics if d.is_error]
+  : labels:
+    - source: '[d for d in review.diagnostics if d.is_error]'
+      style: primary
+      start: 9
+      end: 54
+    - source: errors = [d for d in review.diagnostics if d.is_error]
+      style: secondary
+      start: 0
+      end: 54
+    - source: if d.is_error
+      style: secondary
+      start: 40
+      end: 53
+  ? |
     order.id = None
     assert order == Order(id=None, total=1)
   : labels:

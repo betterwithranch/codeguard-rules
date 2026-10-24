@@ -484,19 +484,6 @@ cases:
             assert 120 == invoice.total
     expected_output:
       outcome: invalid
-  - name: checks every parcel's sku
-    inputs:
-      file: tests/test_shipments.py
-      after: |
-        from shipping.shipments import pack_items
-
-
-        def test_pack_items_orders_parcels_by_sku():
-            parcels = pack_items(["B2", "A1"])
-
-            assert [parcel.sku for parcel in parcels] == ["A1", "B2"]
-    expected_output:
-      outcome: skipped
   - name: checks every parcel's sku and quantity
     inputs:
       file: tests/test_shipments.py
@@ -510,6 +497,186 @@ cases:
             assert [(parcel.sku, parcel.quantity) for parcel in parcels] == [("A1", 1), ("B2", 2)]
     expected_output:
       outcome: invalid
+  - name: checks a command's exit code and output
+    inputs:
+      file: tests/test_cli.py
+      after: |
+        import subprocess
+        import sys
+
+
+        def test_report_prints_nothing_for_a_clean_tree(tmp_path):
+            result = subprocess.run(
+                [sys.executable, "-m", "linter", "report"],
+                cwd=tmp_path,
+                capture_output=True,
+                text=True,
+            )
+
+            assert result.returncode == 0
+            assert result.stdout == ""
+    expected_output:
+      outcome: valid
+  - name: checks two fields of a run result that has equality
+    inputs:
+      file: tests/test_cli.py
+      after: |
+        from dataclasses import dataclass
+
+        from linter.cli import main
+
+
+        @dataclass(frozen=True)
+        class Run:
+            exit_code: int
+            output: str
+
+
+        def run(*args: str) -> Run:
+            return Run(*main(list(args)))
+
+
+        def test_report_prints_nothing_for_a_clean_tree():
+            result = run("report")
+
+            assert result.exit_code == 0
+            assert result.output == ""
+    expected_output:
+      outcome: invalid
+  - name: checks that two services share one connection pool
+    inputs:
+      file: tests/test_services.py
+      after: |
+        from shop.services import build_services
+
+
+        def test_services_share_the_connection_pool(settings):
+            services = build_services(settings)
+
+            assert services.orders.pool is services.payments.pool
+            assert services.orders.cache is services.payments.cache
+    expected_output:
+      outcome: valid
+  - name: checks two fields of the built services by value
+    inputs:
+      file: tests/test_services.py
+      after: |
+        from shop.services import build_services
+
+
+        def test_services_use_the_configured_limits(settings):
+            services = build_services(settings)
+
+            assert services.orders.max_connections == 10
+            assert services.orders.timeout_seconds == 5
+    expected_output:
+      outcome: invalid
+  - name: checks each block's line span
+    inputs:
+      file: tests/test_blocks.py
+      after: |
+        from docs.blocks import split_blocks
+
+
+        def test_blocks_span_their_lines():
+            blocks = split_blocks("# Title\n\ntext\nmore\n")
+
+            assert [(block.first_line, block.last_line) for block in blocks] == [(1, 1), (3, 4)]
+    expected_output:
+      outcome: valid
+  - name: checks which tags a post has one by one
+    inputs:
+      file: tests/test_tags.py
+      after: |
+        from blog.tags import tags_for
+
+
+        def test_a_draft_is_tagged_draft_and_not_published():
+            tags = tags_for(status="draft")
+
+            assert "draft" in tags
+            assert "published" not in tags
+    expected_output:
+      outcome: invalid
+  - name: checks a filtered subset and a derived outcome of a report
+    inputs:
+      file: tests/test_audit.py
+      after: |
+        from audit.checks import Status, run_checks, status_of
+
+
+        def test_clean_config_passes(clean_config):
+            report = run_checks(clean_config)
+
+            failures = [finding for finding in report.findings if finding.is_failure]
+            assert failures == []
+            assert status_of(report) is Status.PASSED
+    expected_output:
+      outcome: invalid
+  - name: checks a response's keys and then the start of a message
+    inputs:
+      file: tests/test_hooks.py
+      after: |
+        from hooks.stop import run_stop_hook
+
+
+        def test_a_failed_check_warns_the_user(repo):
+            response = run_stop_hook(repo)
+
+            assert list(response) == ["message"]
+            assert response["message"].startswith("checks failed:")
+    expected_output:
+      outcome: invalid
+  - name: checks two attributes of a span that also records durations
+    inputs:
+      file: tests/test_cache.py
+      after: |
+        from tracing.spans import finished_spans
+        from shop.cache import PriceCache
+
+
+        def test_a_changed_price_misses_the_cache(capture):
+            cache = PriceCache()
+            cache.price("A1")
+            cache.invalidate("A1")
+
+            cache.price("A1")
+
+            attributes = finished_spans(capture)[-1].attributes
+            assert (attributes["cache_hit"], attributes["sku"]) == (False, "A1")
+    expected_output:
+      outcome: invalid
+  - name: checks parts of the request a fake recorded
+    inputs:
+      file: tests/test_client.py
+      after: |
+        from llm.client import FakeModel, ask
+
+
+        def test_ask_sends_the_prompt_as_the_only_message():
+            model = FakeModel(reply="ok")
+
+            ask(model, prompt="hello", system="be brief")
+
+            name, messages, config = model.requests[0]
+            assert name == "small"
+            assert config.system == "be brief"
+            assert [message.text for message in messages] == ["hello"]
+    expected_output:
+      outcome: invalid
+  - name: checks every parcel's sku
+    inputs:
+      file: tests/test_shipments.py
+      after: |
+        from shipping.shipments import pack_items
+
+
+        def test_pack_items_orders_parcels_by_sku():
+            parcels = pack_items(["B2", "A1"])
+
+            assert [parcel.sku for parcel in parcels] == ["A1", "B2"]
+    expected_output:
+      outcome: skipped
   - name: compares the full parcel list
     inputs:
       file: tests/test_shipments.py
