@@ -6,7 +6,8 @@ linter; they don't repeat one. A Python project should run
 [ruff](https://docs.astral.sh/ruff/) for what it covers, such as `print` (T201), imports
 inside functions (PLC0415), `getattr` with a literal (B009), `TYPE_CHECKING` (TID251),
 untyped parameters (ANN001, ANN003) and unused arguments (ARG001),
-and [basedpyright](https://docs.basedpyright.com) with these rules on:
+but not the missing-docstring rules (D100–D107), which push docstrings that restate the
+name, and [basedpyright](https://docs.basedpyright.com) with these rules on:
 
 - `reportExplicitAny`: no `Any`.
 - `reportMissingTypeArgument`: generic annotations and base classes are parameterized.

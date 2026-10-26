@@ -111,6 +111,21 @@ Pattern rules (ast-grep) on test files:
 | `no-empty-fixtures` | No fixture whose body is only `pass`, `...`, a docstring, a bare `return`/`yield` or `return None` |
 | `no-stripped-result-copies` | No stripped copy of the result (dump with `exclude`, a `replace` that sets `None`, `del`/`pop` of a key, a filtered dict comprehension, a field set to `None`) that a later assert compares |
 
+## Decided for the split
+
+- Domain answers away from their data (`knowledge-has-one-home`): the home is the
+  module that declares the type, not only the class. A function the change adds or
+  edits outside that module, computing a domain answer about the type from only its own
+  data, is a violation; a module function beside the type is not.
+- Anonymous results (`domain-in-data-structures`): stays. A project function returning
+  `(user, created)` is a violation; unpacking a third-party API's result, such as
+  Django's `get_or_create`, is not, since that shape isn't the change's.
+- Docstrings that restate the name or signature (`names-tell-the-truth`): stays. It
+  doesn't conflict with D401, which only sets a docstring's mood.
+- One verb per operation (`names-tell-the-truth`): stays as a consistency rule. The
+  synonym list becomes pairs of one operation under two verbs, so a judge doesn't read
+  it as words that always mean the same.
+
 ## Waiting on a language-server tier
 
 A proposed codeguard rule kind: an ast-grep match on the changed code picks a symbol, one
