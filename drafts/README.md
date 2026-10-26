@@ -125,6 +125,28 @@ Pattern rules (ast-grep) on test files:
 - One verb per operation (`names-tell-the-truth`): stays as a consistency rule. The
   synonym list becomes pairs of one operation under two verbs, so a judge doesn't read
   it as words that always mean the same.
+- `names-tell-the-truth` splits into four judge rules and a pattern rule: the name is
+  a true summary of its body (no word the body doesn't do, and a word for its main
+  action; a creation method named for its caller is a form of this); a method does a
+  sibling's operation under a different verb; a request- or action-named type the
+  change builds only groups an in-process call's arguments; a comment or docstring the
+  change adds says nothing the code doesn't. A `*Builder` class with no part methods
+  before `build()` is a pattern rule. Commented-out code and bare TODOs go to ruff
+  (ERA001, TD003, FIX002).
+
+Splitting costs judge calls only where a change touches more than one split rule's
+trigger: one judge call measured about 3.8 s, 200 output tokens and $0.02 on
+`claude-sonnet-5-5`. Anthropic's and Google's guidance both favour one criterion per
+judge call.
+
+## Proposed codeguard changes
+
+- `codeguard eval` takes the provider to judge with, so CI runs one `judge-evals` job
+  per provider.
+- A language-server rule kind (below).
+- The code under review comes before the rule in each judge call, so rules judging the
+  same file share it from the prompt cache. Today each rule's instructions are the
+  system prompt, so the cached prefix differs per rule.
 
 ## Waiting on a language-server tier
 
