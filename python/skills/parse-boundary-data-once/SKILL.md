@@ -20,8 +20,10 @@ A shape read picks out a part of the data by something the outside source's form
 defines: a key, read or tested for (`error["carrier"]`, `error.get("carrier")`,
 `"carrier" in error`), an index or position (`events[-1]`), or a
 delimiter-separated field (`line.split(":")[0]` on grep output). Treating text only as
-text is not a shape read: splitting it into lines to number, window, count or show
-them, hashing it, storing or passing it on.
+text is not a shape read: splitting it into lines and numbering, windowing, counting or
+showing every line alike, hashing it, storing or passing it on. Picking out one line or
+field because the format gives it a meaning, such as a header row or a column, is a
+shape read.
 
 For each shape read, ask which code states the shape being read.
 
