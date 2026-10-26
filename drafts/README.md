@@ -37,9 +37,26 @@ tables; it is not itself a rule.
 The judge rules below don't meet this yet. They were regrouped from about 75 narrow
 drafts into one rule per intent, and most give each form its own violation definition,
 so each is several claims. Before any is added back, every draft is split here into
-one draft per claim. A claim a linter, import-linter, a Pylint checker or a pattern rule
-can check moves to that tool, and a claim that can't be decided from one file is
-dropped.
+one draft per claim, each with a single pass/fail, and each claim is marked with what
+decides it:
+
+- **ast-grep**: a code shape, decided by syntax. It becomes a pattern rule.
+- **LSP**: a fact about symbols across the project, such as an interface's implementers
+  or a function's references, which a language server answers exactly. codeguard has
+  no language-server rules yet, so these claims are out of scope until it does; they
+  wait in [Waiting on a language-server tier](#waiting-on-a-language-server-tier).
+- **LLM**: judgment. It stays a judge rule.
+
+A claim an existing linter or import-linter can already check moves to that tool
+instead.
+
+A rule, its test and its eval cases ask for only as much scope as decides pass or fail.
+Most judge rules are about the change: the test asks about each thing the change adds
+or edits, answered from the code it touched and the definitions of names that code
+uses. A rule that keeps something unique or consistent across the repository (one home
+for a job, one word for one operation) asks whether the change adds a second one,
+names the one search that finds the first, and has eval cases whose `unchanged` files
+hold it.
 
 Judge rules on every `.py` file except test files (Claude reads each changed file
 against the rule's skill):
@@ -93,6 +110,21 @@ Pattern rules (ast-grep) on test files:
 | `no-conftest-imports` | No import from a `conftest.py` |
 | `no-empty-fixtures` | No fixture whose body is only `pass`, `...`, a docstring, a bare `return`/`yield` or `return None` |
 | `no-stripped-result-copies` | No stripped copy of the result (dump with `exclude`, a `replace` that sets `None`, `del`/`pop` of a key, a filtered dict comprehension, a field set to `None`) that a later assert compares |
+
+## Waiting on a language-server tier
+
+A proposed codeguard rule kind: an ast-grep match on the changed code picks a symbol, one
+language-server query (`textDocument/implementation`, `textDocument/references`) runs
+on it, and a test on the result decides the rule, with no model call. basedpyright's
+language server answers both queries, including a `Protocol`'s structural implementers
+that never name it. These claims are taken out of the judge drafts until codeguard
+supports it:
+
+- An interface (`Protocol` or ABC) has two or more implementers outside test code.
+- A function or method whose whole body maps an already-named function over its input
+  has more than one call site.
+- A passive shape used by only one type lives in that type's module.
+- A data type, result, record, exception or enum lives in the module that builds it.
 
 ## Import-graph tier candidates
 
