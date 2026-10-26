@@ -9,12 +9,19 @@ back is `git mv` of its files into `python/`, in a commit whose CI passes. A jud
 moves its skill, binding and eval, once:
 
 - every `invalid` and `valid` eval case passes 20 of 20 runs (`codeguard eval --repeat 20`)
-  on its binding's model, checked before the commit; CI then repeats 3 runs;
+  on each eval provider, `claude-sonnet-5-5` through the `claude` CLI and
+  `gemini-3.1-pro-preview` on Vertex AI, checked before the commit; CI then repeats 3
+  runs in one `judge-evals` matrix job per provider. The binding still names the model
+  that judges reviews; passing on both shows the test reads the same to two models;
 - a judged review of codeguard with the rule loaded reports no false positive, and every
   real violation it finds is fixed in codeguard.
 
 A pattern rule moves its rule, binding, test and snapshot, once
 `codeguard review --all --dry-run` over codeguard flags nothing it shouldn't.
+
+No judge rule is added back until both providers can be checked: `codeguard eval` takes
+the provider to judge with (it judges only with the binding's today), and this
+environment and CI have Google Cloud credentials for Vertex AI.
 
 Rules are added back highest value first: rules about architecture and design before
 rules about style.
