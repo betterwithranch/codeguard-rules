@@ -17,6 +17,9 @@
       "Bash(task test:*)",
       "Bash(task eval:*)",
       "Bash(uv tool install:*)"
+    ],
+    "deny": [
+      "mcp__claude-code-remote__add_repo"
     ]
   }
 }
