@@ -10,5 +10,13 @@
   },
   "enabledPlugins": {
     "codeguard@codeguard": true
+  },
+  "permissions": {
+    "allow": [
+      "Bash(codeguard:*)",
+      "Bash(task test:*)",
+      "Bash(task eval:*)",
+      "Bash(uv tool install:*)"
+    ]
   }
 }
