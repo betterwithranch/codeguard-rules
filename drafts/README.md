@@ -19,10 +19,20 @@ A pattern rule moves its rule, binding, test and snapshot, once
 Rules are added back highest value first: rules about architecture and design before
 rules about style.
 
-The drafts' judge rules each state one architectural intent with a yes/no test; the
-code shapes that intent allows or forbids are its forms, listed on both sides. They were
-regrouped from about 75 narrow drafts, each policing one code shape, and are refined one
-at a time as they're added back.
+A judge rule makes one claim, with one yes/no test, as codeguard's `writing-rules` skill
+requires. Its forms illustrate that test on both sides: the test alone decides each
+form, and no form has its own definition of a violation. When a form fails its evals,
+the test is restated; the form isn't held back or carved out. Each code shape is on
+the violation side of at most one rule, so a contradiction or overlap between two rules
+is settled before either is added back. An architectural intent groups rules in these
+tables; it is not itself a rule.
+
+The judge rules below don't meet this yet. They were regrouped from about 75 narrow
+drafts into one rule per intent, and most give each form its own violation definition,
+so each is several claims. Before any is added back, every draft is split here into
+one draft per claim. A claim a linter, import-linter, a Pylint checker or a pattern rule
+can check moves to that tool, and a claim that can't be decided from one file is
+dropped.
 
 Judge rules on every `.py` file except test files (Claude reads each changed file
 against the rule's skill):
