@@ -129,6 +129,12 @@ task eval                # codeguard eval: judge each eval case and review each 
 
 `CODEGUARD=<path>` runs another codeguard build, such as a checkout's `.venv/bin/codeguard`.
 
+CI judges only the rules a change can affect: a rule whose skill, binding, eval or a
+trigger's gate changed, or every rule when `codeguard-package.yaml`, the workflow or
+`scripts/judge_eval_package.py` changed. That script builds a copy of the package
+holding only those judge rules; `scripts/judge_eval_package.py <base> <dir>` then
+`codeguard eval` in `<dir>` does the same locally.
+
 [Which test to write](https://github.com/betterwithranch/codeguard#which-test-to-write)
 says which test covers which change. Every judge rule has a rule eval with `invalid`,
 `valid` and `skipped` cases, each named after what its edit does. Each case is a clear

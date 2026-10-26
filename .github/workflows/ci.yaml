@@ -42,16 +42,28 @@ jobs:
       - uses: actions/checkout@v7
         with:
           path: rules
+          fetch-depth: 0
       - uses: actions/checkout@v7
         with:
           repository: betterwithranch/codeguard
           ref: ${{ env.CODEGUARD_REF }}
           path: codeguard
       - uses: astral-sh/setup-uv@v10.2.0
-      - run: npm install --global @anthropic-ai/claude-code
-      - name: Judge every eval case 3 times
+      - name: Keep the judge rules this change can affect
+        id: affected
         working-directory: rules
-        run: uv run --frozen --project ../codeguard codeguard eval --repeat 3
+        run: |
+          base=$(git merge-base "$BASE" HEAD)
+          uv run --frozen --project ../codeguard python scripts/judge_eval_package.py "$base" "$RUNNER_TEMP/evals"
+          if [ -d "$RUNNER_TEMP/evals" ]; then echo "package=$RUNNER_TEMP/evals" >> "$GITHUB_OUTPUT"; fi
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+      - if: steps.affected.outputs.package
+        run: npm install --global @anthropic-ai/claude-code
+      - name: Judge each affected rule's eval cases 3 times
+        if: steps.affected.outputs.package
+        working-directory: ${{ steps.affected.outputs.package }}
+        run: uv run --frozen --project "$GITHUB_WORKSPACE/codeguard" codeguard eval --repeat 3
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
   judged-review:

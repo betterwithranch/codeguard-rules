@@ -143,6 +143,7 @@ judge call.
 
 - `codeguard eval` takes the provider to judge with, so CI runs one `judge-evals` job
   per provider.
+- `codeguard eval` takes the rules to judge, replacing `scripts/judge_eval_package.py`.
 - A language-server rule kind (below).
 - The code under review comes before the rule in each judge call, so rules judging the
   same file share it from the prompt cache. Today each rule's instructions are the
