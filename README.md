@@ -146,8 +146,8 @@ means the rule's criterion or the case is unclear. Fix the criterion or the case
 re-run or loosen the gate. [CLAUDE.md](CLAUDE.md) has the details.
 
 The rules are tested only by their own cases, through codeguard, so they are shown
-accurate as codeguard runs them. CI runs `codeguard test`, then `judge-evals` runs
-`codeguard eval --repeat 3` with Claude; a case that fails or isn't judged in any run
-fails the build. `judge-evals` needs the repository secret `CLAUDE_CODE_OAUTH_TOKEN`.
+accurate as codeguard runs them. CI's `test` job runs `codeguard test`, then its `eval`
+job runs `codeguard eval --repeat 3` with Claude; a case that fails or isn't judged in
+any run fails the build. The `eval` job needs the repository secret `CLAUDE_CODE_OAUTH_TOKEN`.
 CI runs the codeguard release in `CODEGUARD_REF` in `.github/workflows/ci.yaml`, so
 moving to a new release is a change here, which judges every rule.

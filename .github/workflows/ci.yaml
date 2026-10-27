@@ -9,7 +9,7 @@ concurrency:
 env:
   CODEGUARD_REF: v0.6.0
 jobs:
-  rules:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -21,11 +21,11 @@ jobs:
           ref: ${{ env.CODEGUARD_REF }}
           path: codeguard
       - uses: astral-sh/setup-uv@v10.2.0
-      - name: Test rules
+      - name: codeguard test
         working-directory: rules
         run: uv run --frozen --project ../codeguard codeguard test
-  judge-evals:
-    needs: rules
+  eval:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -49,7 +49,7 @@ jobs:
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
       - if: steps.affected.outputs.package
         run: npm install --global @anthropic-ai/claude-code
-      - name: Judge each affected rule's eval cases 3 times
+      - name: codeguard eval on the affected judge rules, 3 times each
         if: steps.affected.outputs.package
         working-directory: ${{ steps.affected.outputs.package }}
         run: uv run --frozen --project "$GITHUB_WORKSPACE/codeguard" codeguard eval --repeat 3

@@ -11,7 +11,7 @@ moves its skill, binding and eval, once:
 - every `invalid` and `valid` eval case passes 20 of 20 runs (`codeguard eval --repeat 20`)
   on each eval provider, `claude-sonnet-5-5` through the `claude` CLI and
   `gemini-3.1-pro-preview` on Vertex AI, checked before the commit; CI then repeats 3
-  runs in one `judge-evals` matrix job per provider. The binding still names the model
+  runs in one `eval` matrix job per provider. The binding still names the model
   that judges reviews; passing on both shows the test reads the same to two models.
 
 A pattern rule moves its rule, binding, test and snapshot, once its rule tests have a
@@ -142,7 +142,7 @@ judge call.
 
 ## Proposed codeguard changes
 
-- `codeguard eval` takes the provider to judge with, so CI runs one `judge-evals` job
+- `codeguard eval` takes the provider to judge with, so CI runs one `eval` job
   per provider.
 - `codeguard eval` takes the rules and cases to judge, replacing
   `scripts/judge_eval_package.py`.
