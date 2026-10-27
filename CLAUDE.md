@@ -5,6 +5,10 @@ the tests.
 
 ## Rules
 
+[docs/rule-design.md](docs/rule-design.md) records how rules here are designed and the
+mistakes already corrected. Read it before changing a rule or an eval, and add to it
+when a design mistake is corrected.
+
 Before adding or changing a rule, and whenever a rule test or eval fails, flips between
 runs or reports a warning, load codeguard's `writing-rules` skill and follow it and its
 judge rule guide (`references/judge-rules.md`). A case that fails is fixed in the rule's
