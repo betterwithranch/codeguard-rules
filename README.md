@@ -129,6 +129,10 @@ task eval                # codeguard eval: judge each eval case and review each 
 
 `CODEGUARD=<path>` runs another codeguard build, such as a checkout's `.venv/bin/codeguard`.
 
+A Claude Code session here installs codeguard at the release CI pins (`CODEGUARD_REF`
+in `.github/workflows/ci.yaml`) when it starts, through `.claude/hooks/session-start.sh`,
+so local runs match CI. Moving to a new codeguard release is that one line.
+
 CI judges only the rules a change can affect: a rule whose skill, binding, eval or a
 trigger's gate changed, or every rule when `codeguard-package.yaml`, the workflow or
 `scripts/affected_judge_rules.py` changed. That script prints the affected rules, and
