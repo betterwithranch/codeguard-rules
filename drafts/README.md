@@ -27,10 +27,11 @@ CI need Google Cloud credentials for Vertex AI, and CI's `eval` matrix then gain
 Rules are added back highest value first: rules about architecture and design before
 rules about style.
 
-A judge rule makes one claim, with one yes/no test, as codeguard's `writing-rules` skill
-requires. Its forms illustrate that test on both sides: the test alone decides each
-form, and no form has its own definition of a violation. When a form fails its evals,
-the test is restated; the form isn't held back or carved out. Each code shape is on
+A judge rule states one convention, an abstract statement each piece of code keeps or
+breaks, as codeguard's `writing-rules` skill requires; the judge reports where the
+change breaks it. Its forms illustrate the convention on both sides: the convention
+alone decides each form, and no form has its own definition of a violation. When a form
+fails its evals, the convention is restated; the form isn't held back or carved out. Each code shape is on
 the violation side of at most one rule, so a contradiction or overlap between two rules
 is settled before either is added back. An architectural intent groups rules in these
 tables; it is not itself a rule.
