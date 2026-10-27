@@ -10,6 +10,8 @@ but not the missing-docstring rules (D100–D107), which push docstrings that re
 name, and [basedpyright](https://docs.basedpyright.com) with these rules on:
 
 - `reportExplicitAny`: no `Any`.
+- `reportAny`: no value of type `Any`, such as an untyped `json.loads`, `yaml.safe_load`
+  or `.json()` result read before it's parsed into a declared type.
 - `reportMissingTypeArgument`: generic annotations and base classes are parameterized.
 - `reportGeneralTypeIssues` (on in `standard`): every TypeVar is bound by its class, and
   variance matches use.
@@ -51,15 +53,8 @@ code skip test files:
 | `one-form-per-input` | No parameter reconciled from another parameter when missing (`if index is None: index = build(catalog)`) |
 | `typed-dispatch-registries` | A class takes a registry, not a `dict[str, Callable]` |
 
-Judge rules on every `.py` file except test files (Claude reads each changed file
-against the rule's skill):
-
-| Rule | Checks |
-|---|---|
-| `parse-boundary-data-once` | Outside data is read only through the part of the program that declares and checks its shape |
-
-The other judge rules, and some pattern rules, are drafts in `drafts/python/`, which
-codeguard doesn't load. A draft moves back into `python/` one rule at a time, highest
+There are no judge rules yet. The judge rules, and some pattern rules, are drafts in
+`drafts/python/`, which codeguard doesn't load. A draft moves back into `python/` one rule at a time, highest
 value first: a judge rule once it passes every eval case 20 of 20 runs on each eval
 provider, a pattern rule once its rule tests cover each branch and pass. codeguard's
 `writing-rules` skill has the steps, and [drafts/README.md](drafts/README.md) the
@@ -124,7 +119,7 @@ codeguard rejects any other entry in a ruleset directory.
 ```sh
 task test                # codeguard test: pattern rule and gate tests, eval triggers
 task test -- -U          # the same, regenerating snapshots
-task eval                # codeguard eval: judge each eval case and review each rule; calls Claude
+task eval                # codeguard eval: judge each judge rule eval case; calls Claude
 ```
 
 `CODEGUARD=<path>` runs another codeguard build, such as a checkout's `.venv/bin/codeguard`.
