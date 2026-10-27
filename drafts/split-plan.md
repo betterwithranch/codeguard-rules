@@ -7,8 +7,10 @@ of at most one rule. Each claim is marked with what decides it:
 
 - **LLM**: judgment; stays a judge rule.
 - **ast-grep**: a code shape; becomes a pattern rule.
-- **linter**: a ruff or basedpyright rule, or import-linter, already covers it; the
-  README recommends it instead.
+- **linter**: an existing linter rule (ruff, basedpyright, import-linter) decides it.
+  Out of scope here: codeguard is the layer for what a linter can't decide, not a
+  linter or a wrapper for one, and linter settings belong in the app's own
+  configuration. The codes are noted only so the claim isn't rebuilt as a rule.
 - **LSP**: a lookup a language server answers; waits for codeguard's language-server
   tier.
 - **drop**: low value next to the architecture rules, or idiomatic code it would flag.
@@ -38,11 +40,11 @@ The test drafts are planned after these.
 
 | Claim | Tool | Why | Note |
 |---|---|---|---|
-| Two functions switch on the same types (`isinstance` chains, class patterns) | LLM | A new type then needs every switch found and changed; one dispatch states it once | Custom-linter candidate (see Open) |
+| Two functions switch on the same types (`isinstance` chains, class patterns) | LLM | A new type then needs every switch found and changed; one dispatch states it once | |
 | Code branches on a `Literal` value set instead of an enum | drop | | `match` on a `Literal` with basedpyright's exhaustiveness check is idiomatic; it fails "idiomatic code never fails a rule". The convention came from otter's skill with no recorded reason; it comes back if one turns up. Its gate `tag-value` goes with it |
 | A project function returns a tuple or fixed-key dict whose parts answer different questions (`return user, created`) | LLM | Callers learn each part's meaning from its position or key, and nothing checks it | Decided earlier |
 | A dict built from a collection keeps one item per shared key and nothing chooses which or notices | moved | | To errors-surface-at-cause: it hides lost data |
-| Sibling private helpers' bodies are the same except one literal or enum member | LLM | The rule (which value goes where) is restated per helper instead of passed as data | Its own rule, not merged into copied steps: the copy test says bodies differing by a constant aren't copies. Private siblings only; public methods are exempt, since callers use their names. Custom-linter candidate |
+| Sibling private helpers' bodies are the same except one literal or enum member | LLM | The rule (which value goes where) is restated per helper instead of passed as data | Its own rule, not merged into copied steps: the copy test says bodies differing by a constant aren't copies. Private siblings only; public methods are exempt, since callers use their names. |
 | A class stores a value that restates one field it already holds: its own (`is_shipped` beside `shipped_at`) or a stored object's (`self.email` beside `self.customer`) | LLM | Two fields that must agree drift apart when one is updated and the other isn't | Merges the derived flag and copied owner values on the drafts' narrow test. Not a violation: a value computed from several sources (`self.total = sum(...)`); a key kept without its object; an ORM foreign key beside its relationship (`customer_id` with `customer`), a framework idiom. The registration-key form and the call-site form (setting a flag and its field together where the class isn't in the file) are dropped as minor |
 
 ## knowledge-has-one-home
@@ -54,7 +56,7 @@ The test drafts are planned after these.
 | A second type owns a job another type already owns on the same concept | LLM | Two owners of one job each get half the fixes | Consistency kind: names its search (the domain noun and verb). Building an instance is construction-has-one-home's, not a job here |
 | Two passive shapes with the same fields model the same thing at the same boundary (two models of one API's response) | LLM | One outside shape described twice drifts when the outside changes | Consistency kind: the search is the boundary's module. The draft's third form, missing from the first plan |
 | A function outside a type's module computes a domain answer from only that type's data | LLM | The answer belongs with the data it reads, where the type's next change will see it | Decided earlier: home is the type's module. When the type already has that method, the function is a copy and belongs to the copied-steps rule |
-| A module-level collection only repeats another declared set's members | LLM | A new member must be added in two places by hand | Custom-linter candidate |
+| A module-level collection only repeats another declared set's members | LLM | A new member must be added in two places by hand | |
 
 ## construction-has-one-home
 
@@ -81,8 +83,8 @@ The test drafts are planned after these.
 | A shared instance (module level, class attribute, parameter default, cached factory) is of a class that stores each use's results on itself | LLM | One use's results leak into the next, and concurrent uses corrupt each other | |
 | A call in a function or dataclass default, or a mutable default | linter | Evaluated once and shared by every call | ruff B008, RUF009, B006. Covers the parameter-default and dataclass-default forms of a shared instance |
 | Module-level mutable state holds one call's or one instance's data | LLM | Data scoped wider than its use outlives it and is shared by accident | Split from the one-writer claim |
-| Two functions write the same module-level state | LLM | With two writers, neither owns the value, and each write can undo the other | Custom-linter candidate |
-| A `global` statement rebinds module state | linter | | ruff PLW0603. Stricter than the claim: it also flags a lazy cache one function owns, which the drafts allow. Recommended as a project choice |
+| Two functions write the same module-level state | LLM | With two writers, neither owns the value, and each write can undo the other | |
+| A `global` statement rebinds module state | linter | | ruff PLW0603. Stricter than the claim: it also flags a lazy cache one function owns, which the drafts allow. An app may choose it |
 | A class-level mutable container is mutated through `self` | ast-grep | Every instance shares the one container | A class body `$X = []`, `{}` or `set()` and a method calling `self.$X.append`, `.add`, `.update` or assigning `self.$X[...]`. Replaces RUF012, which checks the annotation, not the mutation |
 
 ## modules-own-knowledge
@@ -163,15 +165,11 @@ variant tags. `reference-id` stays: the test draft `real-test-data` uses it.
 
 ## Open
 
-- **Custom linter.** The skill puts a linter's custom rule (logic across nodes:
-  counting, state, types) above a judge rule. Four claims are exact in-file
-  computations: repeated type switches, one-value sibling helpers, hand-synced module
-  collections, two writers of one module global. They stay LLM unless this repository
-  ships a Pylint plugin; that's a scope decision.
 - **Names claim 1** is two questions, a false name and a vague name. It was decided as
   one rule; splitting it is the skill's default.
 
 ## Count
 
-From 11 drafts: 33 judge rules, 5 pattern rules, 5 checks moved to linters, 8 claims
-parked for the language-server tier, 7 dropped.
+From 11 drafts: 33 judge rules, 5 pattern rules, 5 checks a linter already decides, 8 claims
+parked for the language-server tier, 7 dropped. The linter checks stay in the
+app's linter configuration, not here.

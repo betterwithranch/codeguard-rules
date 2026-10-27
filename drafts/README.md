@@ -50,8 +50,9 @@ decides it:
 - **drop**: low value next to the architecture rules, or it would flag idiomatic code.
   Each drop and its reason is recorded in the plan.
 
-A claim an existing linter or import-linter can already check moves to that tool
-instead.
+A claim an existing linter or import-linter already decides is out of scope: it
+belongs in the app's linter configuration, not here. codeguard runs what a linter
+can't decide; it isn't a linter or a wrapper for one.
 
 [split-plan.md](split-plan.md) has each architecture draft's claims and what decides each.
 
