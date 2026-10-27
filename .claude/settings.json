@@ -3,7 +3,7 @@
     "codeguard": {
       "source": {
         "source": "github",
-        "repo": "betterwithranch/codeguard",
+        "repo": "jig-code/codeguard",
         "ref": "v0"
       }
     }
