@@ -7,8 +7,12 @@ the tests.
 
 codeguard makes coding agents follow a project's conventions: it loads a rule's skill
 before an agent edits a file, and reviews each change with pattern rules and an LLM
-judge at the agent's Stop hook and in CI. It is not a linter and doesn't wrap one; it
-runs only what a linter can't decide.
+judge at the agent's Stop hook and in CI.
+
+The point of this repository is a set of standards a project can adopt easily, by
+enabling a ruleset, without writing or maintaining checks of its own. Linters already do
+that for what their built-in rules cover, so codeguard doesn't reinvent linting: it
+isn't a linter and doesn't wrap one.
 
 This repository holds only codeguard rules that any project can use:
 
@@ -18,17 +22,22 @@ This repository holds only codeguard rules that any project can use:
 
 What doesn't belong here:
 
-- **Linter rules and settings.** A claim ruff, basedpyright, import-linter or a custom
-  Pylint checker decides is the app's, in its own lint task and configuration, and gets
-  no rule here. Don't recommend linter settings in this repository either.
+- **A linter's built-in rules and settings.** A claim a built-in rule of a mainstream
+  linter for that language decides (ruff, basedpyright or import-linter for Python) is
+  the app's to turn on in its own lint configuration, and gets no rule here. Don't
+  recommend linter settings in this repository either.
 - **A project's own conventions.** Rules only one app (such as otter) needs live in that
   app's `.codeguard/`, along with which rulesets it enables and at what severity.
 
+A claim no built-in linter rule decides belongs here, even when a project could write a
+custom linter plugin for it (a Pylint checker): a project adopting these standards
+shouldn't have to write or keep custom lint rules.
+
 Choosing a tool for a claim:
 
-1. If a linter the app runs can decide it, it isn't a rule here.
-2. If ast-grep decides it exactly, it's a pattern rule, never a judge rule. A judge rule
-   with a mechanical part is split: the pattern rule owns that part.
+1. If a built-in rule of a linter for the language decides it, it isn't a rule here.
+2. Else, if ast-grep decides it exactly, it's a pattern rule, never a judge rule. A
+   judge rule with a mechanical part is split: the pattern rule owns that part.
 3. Otherwise it's a judge rule. A part that can't be matched without false positives
    stays in the judge rule.
 
