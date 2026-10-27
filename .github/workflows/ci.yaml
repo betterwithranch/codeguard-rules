@@ -7,9 +7,9 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 env:
-  CODEGUARD_REF: main
+  CODEGUARD_REF: v0.7.0
 jobs:
-  rules:
+  test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -21,65 +21,46 @@ jobs:
           ref: ${{ env.CODEGUARD_REF }}
           path: codeguard
       - uses: astral-sh/setup-uv@v10.2.0
-      - name: Test rules
+      - name: codeguard test
         working-directory: rules
         run: uv run --frozen --project ../codeguard codeguard test
-      - name: Review codeguard with this branch's rules
-        working-directory: codeguard
-        run: |
-          cat > .codeguard/config.yaml <<'EOF'
-          packages:
-            - kind: path
-              path: ../rules
-              rulesets:
-                python: {}
-          EOF
-          uv run --frozen codeguard review --all --dry-run
-  judge-evals:
-    needs: rules
+  eval:
+    needs: test
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        provider: [claude-cli]
     steps:
       - uses: actions/checkout@v7
         with:
           path: rules
+          fetch-depth: 0
       - uses: actions/checkout@v7
         with:
           repository: betterwithranch/codeguard
           ref: ${{ env.CODEGUARD_REF }}
           path: codeguard
       - uses: astral-sh/setup-uv@v10.2.0
-      - run: npm install --global @anthropic-ai/claude-code
-      - name: Judge every eval case 3 times
+      - name: Find the judge rules this change can affect
+        id: affected
         working-directory: rules
-        run: uv run --frozen --project ../codeguard codeguard eval --repeat 3
-        env:
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-  judged-review:
-    needs: rules
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          path: rules
-      - uses: actions/checkout@v7
-        with:
-          repository: betterwithranch/codeguard
-          ref: ${{ env.CODEGUARD_REF }}
-          path: codeguard
-      - uses: astral-sh/setup-uv@v10.2.0
-      - run: npm install --global @anthropic-ai/claude-code
-      - name: Judge codeguard with this branch's rules
-        working-directory: codeguard
         run: |
-          set -o pipefail
-          cat > .codeguard/config.yaml <<'YAML'
-          packages:
-            - kind: path
-              path: ../rules
-              rulesets:
-                python: {}
-          YAML
-          uv run --frozen codeguard review --all | tee "$RUNNER_TEMP/review.txt"
-          ! grep -E ': (error|warning|info|hint) ' "$RUNNER_TEMP/review.txt"
+          base=$(git merge-base "$BASE" HEAD)
+          rules=$(uv run --frozen --project ../codeguard python scripts/affected_judge_rules.py "$base")
+          echo "rules=$(echo $rules)" >> "$GITHUB_OUTPUT"
         env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+      - if: steps.affected.outputs.rules
+        run: npm install --global @anthropic-ai/claude-code
+      - name: codeguard eval on the affected judge rules, 3 times each
+        if: steps.affected.outputs.rules
+        working-directory: rules
+        run: |
+          args=()
+          for rule in $RULES; do args+=(--rule "$rule"); done
+          uv run --frozen --project ../codeguard codeguard eval --provider "$PROVIDER" --repeat 3 "${args[@]}"
+        env:
+          RULES: ${{ steps.affected.outputs.rules }}
+          PROVIDER: ${{ matrix.provider }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

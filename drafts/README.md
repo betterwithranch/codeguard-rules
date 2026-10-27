@@ -9,20 +9,55 @@ back is `git mv` of its files into `python/`, in a commit whose CI passes. A jud
 moves its skill, binding and eval, once:
 
 - every `invalid` and `valid` eval case passes 20 of 20 runs (`codeguard eval --repeat 20`)
-  on its binding's model, checked before the commit; CI then repeats 3 runs;
-- a judged review of codeguard with the rule loaded reports no false positive, and every
-  real violation it finds is fixed in codeguard.
+  on each eval provider, `claude-sonnet-5-5` through the `claude` CLI and
+  `gemini-3.1-pro-preview` on Vertex AI, checked before the commit; CI then repeats 3
+  runs in one `eval` matrix job per provider. The binding still names the model
+  that judges reviews; passing on both shows the test reads the same to two models.
 
-A pattern rule moves its rule, binding, test and snapshot, once
-`codeguard review --all --dry-run` over codeguard flags nothing it shouldn't.
+A pattern rule moves its rule, binding, test and snapshot, once its rule tests have a
+case for each branch and `codeguard test` passes.
+
+A rule is shown accurate only by its own cases. Reviewing other code, codeguard's
+included, is not part of the bar.
+
+No judge rule is added back until both providers can be checked: this environment and
+CI need Google Cloud credentials for Vertex AI, and CI's `eval` matrix then gains
+`gemini`.
 
 Rules are added back highest value first: rules about architecture and design before
 rules about style.
 
-The drafts' judge rules each state one architectural intent with a yes/no test; the
-code shapes that intent allows or forbids are its forms, listed on both sides. They were
-regrouped from about 75 narrow drafts, each policing one code shape, and are refined one
-at a time as they're added back.
+A judge rule makes one claim, with one yes/no test, as codeguard's `writing-rules` skill
+requires. Its forms illustrate that test on both sides: the test alone decides each
+form, and no form has its own definition of a violation. When a form fails its evals,
+the test is restated; the form isn't held back or carved out. Each code shape is on
+the violation side of at most one rule, so a contradiction or overlap between two rules
+is settled before either is added back. An architectural intent groups rules in these
+tables; it is not itself a rule.
+
+The judge rules below don't meet this yet. They were regrouped from about 75 narrow
+drafts into one rule per intent, and most give each form its own violation definition,
+so each is several claims. Before any is added back, every draft is split here into
+one draft per claim, each with a single pass/fail, and each claim is marked with what
+decides it:
+
+- **ast-grep**: a code shape, decided by syntax. It becomes a pattern rule.
+- **LSP**: a fact about symbols across the project, such as an interface's implementers
+  or a function's references, which a language server answers exactly. codeguard has
+  no language-server rules yet, so these claims are out of scope until it does; they
+  wait in [Waiting on a language-server tier](#waiting-on-a-language-server-tier).
+- **LLM**: judgment. It stays a judge rule.
+
+A claim an existing linter or import-linter can already check moves to that tool
+instead.
+
+A rule, its test and its eval cases ask for only as much scope as decides pass or fail.
+Most judge rules are about the change: the test asks about each thing the change adds
+or edits, answered from the code it touched and the definitions of names that code
+uses. A rule that keeps something unique or consistent across the repository (one home
+for a job, one word for one operation) asks whether the change adds a second one,
+names the one search that finds the first, and has eval cases whose `unchanged` files
+hold it.
 
 Judge rules on every `.py` file except test files (Claude reads each changed file
 against the rule's skill):
@@ -76,6 +111,56 @@ Pattern rules (ast-grep) on test files:
 | `no-conftest-imports` | No import from a `conftest.py` |
 | `no-empty-fixtures` | No fixture whose body is only `pass`, `...`, a docstring, a bare `return`/`yield` or `return None` |
 | `no-stripped-result-copies` | No stripped copy of the result (dump with `exclude`, a `replace` that sets `None`, `del`/`pop` of a key, a filtered dict comprehension, a field set to `None`) that a later assert compares |
+
+## Decided for the split
+
+- Domain answers away from their data (`knowledge-has-one-home`): the home is the
+  module that declares the type, not only the class. A function the change adds or
+  edits outside that module, computing a domain answer about the type from only its own
+  data, is a violation; a module function beside the type is not.
+- Anonymous results (`domain-in-data-structures`): stays. A project function returning
+  `(user, created)` is a violation; unpacking a third-party API's result, such as
+  Django's `get_or_create`, is not, since that shape isn't the change's.
+- Docstrings that restate the name or signature (`names-tell-the-truth`): stays. It
+  doesn't conflict with D401, which only sets a docstring's mood.
+- One verb per operation (`names-tell-the-truth`): stays as a consistency rule. The
+  synonym list becomes pairs of one operation under two verbs, so a judge doesn't read
+  it as words that always mean the same.
+- `names-tell-the-truth` splits into four judge rules and a pattern rule: the name is
+  a true summary of its body (no word the body doesn't do, and a word for its main
+  action; a creation method named for its caller is a form of this); a method does a
+  sibling's operation under a different verb; a request- or action-named type the
+  change builds only groups an in-process call's arguments; a comment or docstring the
+  change adds says nothing the code doesn't. A `*Builder` class with no part methods
+  before `build()` is a pattern rule. Commented-out code and bare TODOs go to ruff
+  (ERA001, TD003, FIX002).
+
+Splitting costs judge calls only where a change touches more than one split rule's
+trigger: one judge call measured about 3.8 s, 200 output tokens and $0.02 on
+`claude-sonnet-5-5`. Anthropic's and Google's guidance both favour one criterion per
+judge call.
+
+## Proposed codeguard changes
+
+- A language-server rule kind (below).
+- The code under review comes before the rule in each judge call, so rules judging the
+  same file share it from the prompt cache. Today each rule's instructions are the
+  system prompt, so the cached prefix differs per rule.
+
+## Waiting on a language-server tier
+
+A proposed codeguard rule kind: an ast-grep match on the changed code picks a symbol, one
+language-server query (`textDocument/implementation`, `textDocument/references`) runs
+on it, and a test on the result decides the rule, with no model call. basedpyright's
+language server answers both queries, including a `Protocol`'s structural implementers
+that never name it. These claims are taken out of the judge drafts until codeguard
+supports it:
+
+- An interface (`Protocol` or ABC) has two or more implementers outside test code.
+- A function or method whose whole body maps an already-named function over its input
+  has more than one call site.
+- A passive shape used by only one type lives in that type's module.
+- A data type, result, record, exception or enum lives in the module that builds it.
 
 ## Import-graph tier candidates
 

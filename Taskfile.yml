@@ -10,6 +10,6 @@ tasks:
       - "{{.CODEGUARD}} test {{.CLI_ARGS}}"
 
   eval:
-    desc: Judge each judge rule eval case and review each rule. Calls Claude.
+    desc: Judge each judge rule eval case. Calls Claude.
     cmds:
       - "{{.CODEGUARD}} eval {{.CLI_ARGS}}"
