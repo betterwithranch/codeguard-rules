@@ -29,7 +29,7 @@ The test drafts are planned after these.
 | Claim | Tool | Note |
 |---|---|---|
 | Two functions switch on the same types (`isinstance` chains, class patterns) | LLM | |
-| Code branches on a `Literal` value set instead of an enum | drop | `match` on a `Literal` with basedpyright's exhaustiveness check is idiomatic; it fails "idiomatic code never fails a rule" |
+| Code branches on a `Literal` value set instead of an enum | drop | `match` on a `Literal` with basedpyright's exhaustiveness check is idiomatic; it fails "idiomatic code never fails a rule". The convention came from otter's skill with no recorded reason; it comes back if one turns up |
 | A project function returns a tuple or fixed-key dict whose parts answer different questions (`return user, created`) | LLM | Decided earlier |
 | A dict built from a collection keeps one item per shared key and nothing chooses which or notices | LLM | Hides lost data, so it moves to the errors group |
 | Sibling private helpers differ only by one value | merge | Into "a function repeats another's steps" |
