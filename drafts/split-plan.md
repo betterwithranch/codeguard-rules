@@ -98,7 +98,7 @@ The test drafts are planned after these.
 | A context type lives outside its consumer's package | LSP | | Parked. Its in-file form (a context class in a module of output schemas) is judge-decidable, but minor; it waits with the rest |
 | An interface lives outside its consumer's package | LSP | | Parked |
 | A union's variants are not one run directly before its alias | drop | | Layout style. Its gate `union-alias-module` goes with it |
-| Sibling packages import each other | linter | Mutual imports make the two packages one unit that can't be understood or changed apart | import-linter, with contracts each project writes for its own packages; no generic contract covers it |
+| A package the change adds is in no import-linter contract that keeps its siblings from importing each other | LLM | Mutual imports make two packages one unit that can't be understood or changed apart; import-linter enforces the contract, so this rule only checks a new package is under one | Checks the project's import-linter configuration, never the imports themselves: that's import-linter's job. Consistency kind: names its search (the `[tool.importlinter]` table or `.importlinter` file). Applies only where the project configures import-linter |
 | Modules split by execution phase handle the same concept | drop | | Narrow, and needs reading every phase module |
 
 ## one-responsibility
@@ -170,6 +170,6 @@ variant tags. `reference-id` stays: the test draft `real-test-data` uses it.
 
 ## Count
 
-From 11 drafts: 33 judge rules, 5 pattern rules, 5 checks a linter already decides, 8 claims
+From 11 drafts: 34 judge rules, 5 pattern rules, 4 checks a linter already decides, 8 claims
 parked for the language-server tier, 7 dropped. The linter checks stay in the
 app's linter configuration, not here.
