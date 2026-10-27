@@ -26,9 +26,16 @@ rule:
           kind: return_statement
           has:
             kind: call
-            has:
-              field: arguments
-              regex: ^\(\s*\)$
+            all:
+              - has:
+                  field: arguments
+                  regex: ^\(\s*\)$
+              - not:
+                  has:
+                    field: function
+                    has:
+                      kind: call
+                      stopBy: end
       - not:
           has:
             not:
