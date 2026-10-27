@@ -51,6 +51,8 @@ decides it:
 A claim an existing linter or import-linter can already check moves to that tool
 instead.
 
+[split-plan.md](split-plan.md) has each architecture draft's claims and what decides each.
+
 A rule, its test and its eval cases ask for only as much scope as decides pass or fail.
 Most judge rules are about the change: the test asks about each thing the change adds
 or edits, answered from the code it touched and the definitions of names that code
