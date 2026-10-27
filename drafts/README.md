@@ -20,9 +20,9 @@ case for each branch and `codeguard test` passes.
 A rule is shown accurate only by its own cases. Reviewing other code, codeguard's
 included, is not part of the bar.
 
-No judge rule is added back until both providers can be checked: `codeguard eval` takes
-the provider to judge with (it judges only with the binding's today), and this
-environment and CI have Google Cloud credentials for Vertex AI.
+No judge rule is added back until both providers can be checked: this environment and
+CI need Google Cloud credentials for Vertex AI, and CI's `eval` matrix then gains
+`gemini`.
 
 Rules are added back highest value first: rules about architecture and design before
 rules about style.
@@ -142,13 +142,6 @@ judge call.
 
 ## Proposed codeguard changes
 
-- `codeguard eval` takes the provider to judge with, so CI runs one `eval` job
-  per provider.
-- `codeguard eval` takes the rules and cases to judge, replacing
-  `scripts/judge_eval_package.py`.
-- codeguard's `writing-rules` skill guides how to write a rule and its cases, and stops
-  telling authors to verify a rule by reviewing real code and turning findings into
-  cases.
 - A language-server rule kind (below).
 - The code under review comes before the rule in each judge call, so rules judging the
   same file share it from the prompt cache. Today each rule's instructions are the

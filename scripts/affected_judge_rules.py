@@ -1,15 +1,13 @@
-"""Copy this rule package with only the judge rules a diff can change the verdicts of.
+"""Print the judge rules a diff can change the verdicts of, one id per line.
 
 A judge rule's verdicts change with its skill, its binding (which names its model), its
 eval, and the gates its binding triggers on. A change to the package config, the CI
-workflow or this script can change every rule's. `codeguard eval` on the copy judges
-only the rules kept.
+workflow or this script can change every rule's. CI passes each id to
+`codeguard eval --rule`, and skips the eval when none is printed.
 
-Usage: judge_eval_package.py <base> <out>. Prints the rules kept, and writes nothing
-when there are none.
+Usage: affected_judge_rules.py <base>
 """
 
-import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -17,7 +15,7 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
-EVERY_RULE = {"codeguard-package.yaml", ".github/workflows/ci.yaml", "scripts/judge_eval_package.py"}
+EVERY_RULE = {"codeguard-package.yaml", ".github/workflows/ci.yaml", "scripts/affected_judge_rules.py"}
 
 
 def changed_paths(base: str) -> set[str]:
@@ -52,23 +50,13 @@ def affected(ruleset: str, rules: dict[str, set[str]], paths: set[str]) -> set[s
     return kept
 
 
-def main(base: str, out: Path) -> None:
+def main(base: str) -> None:
     rulesets = yaml.safe_load((ROOT / "codeguard-package.yaml").read_text())["rulesets"]
     paths = changed_paths(base)
-    plans = {name: judge_triggers(ROOT / name) for name in rulesets}
-    kept = {name: affected(name, rules, paths) for name, rules in plans.items()}
-    if not any(kept.values()):
-        return
-    shutil.copytree(ROOT, out, ignore=shutil.ignore_patterns(".git", "drafts"))
-    subprocess.run(["git", "init", "--quiet"], cwd=out, check=True)
-    for name, rules in plans.items():
-        for rule in rules.keys() - kept[name]:
-            shutil.rmtree(out / name / "skills" / rule)
-            (out / name / "bindings" / f"{rule}.yaml").unlink()
-            (out / name / "rule-evals" / f"{rule}.yaml").unlink()
-        for rule in sorted(kept[name]):
-            print(f"{name}/{rule}")
+    for name in rulesets:
+        for rule in sorted(affected(name, judge_triggers(ROOT / name), paths)):
+            print(rule)
 
 
 if __name__ == "__main__":
-    main(sys.argv[1], Path(sys.argv[2]))
+    main(sys.argv[1])

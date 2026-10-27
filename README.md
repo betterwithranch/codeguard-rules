@@ -131,9 +131,10 @@ task eval                # codeguard eval: judge each eval case and review each 
 
 CI judges only the rules a change can affect: a rule whose skill, binding, eval or a
 trigger's gate changed, or every rule when `codeguard-package.yaml`, the workflow or
-`scripts/judge_eval_package.py` changed. That script builds a copy of the package
-holding only those judge rules; `scripts/judge_eval_package.py <base> <dir>` then
-`codeguard eval` in `<dir>` does the same locally.
+`scripts/affected_judge_rules.py` changed. That script prints the affected rules, and
+CI passes each to `codeguard eval --rule`. The `eval` job runs once per provider in its
+matrix (`claude-cli` today). Locally, `codeguard eval --rule <id> --repeat 20` judges one
+rule, and `--provider gemini` judges it with Gemini instead of its binding's model.
 
 [Which test to write](https://github.com/betterwithranch/codeguard#which-test-to-write)
 says which test covers which change. Every judge rule has a rule eval with `invalid`,
