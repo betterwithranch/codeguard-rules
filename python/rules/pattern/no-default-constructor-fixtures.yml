@@ -5,6 +5,8 @@ message: Don't wrap a no-argument constructor call in a fixture or helper.
 note: |
   A fixture or helper whose body only returns `SomeClass()` adds a name and nothing else.
   Delete it and call `SomeClass()` in the test body.
+metadata:
+  why: A fixture that only calls a constructor adds a name to look up and hides nothing worth hiding.
 rule:
   kind: function_definition
   any:

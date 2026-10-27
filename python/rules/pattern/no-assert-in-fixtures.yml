@@ -5,6 +5,8 @@ message: Don't assert inside a fixture.
 note: |
   A fixture supplies a thing; the test body holds the assertions. Move the `assert`
   into the tests that use the fixture.
+metadata:
+  why: An assertion in a fixture fails as a setup error in every test that uses it, so the failure doesn't say which behaviour broke.
 rule:
   kind: assert_statement
   inside:

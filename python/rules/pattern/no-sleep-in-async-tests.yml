@@ -5,6 +5,8 @@ message: Don't coordinate an async test with sleep.
 note: |
   Wait on an `asyncio.Event`, `Condition`, or similar primitive instead, so the test
   waits exactly as long as the code it tests.
+metadata:
+  why: A sleep guesses how long the code takes, so the test is slow when the guess is long and flaky when it's short.
 rule:
   any:
     - pattern: asyncio.sleep($$$)

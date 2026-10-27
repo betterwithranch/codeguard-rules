@@ -5,6 +5,8 @@ message: Take a registry class, not a `dict[str, Callable]`.
 note: |
   Wrap the mapping in a named registry class with a `resolve` method, and take the
   registry instead.
+metadata:
+  why: A `dict[str, Callable]` gives the type checker nothing to check about its handlers or their lookup.
 utils:
   callable-mapping:
     kind: type

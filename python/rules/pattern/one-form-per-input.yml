@@ -5,6 +5,8 @@ message: Don't derive one parameter from another when it's missing.
 note: |
   The function accepts two forms of the same input, the value or what it is derived
   from, so each caller can pass either and the function reconciles them.
+metadata:
+  why: Accepting a value or what it's derived from lets callers pass both, and the function has to reconcile them when they disagree.
 utils:
   parameter-name:
     kind: identifier

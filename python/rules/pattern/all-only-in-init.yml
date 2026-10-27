@@ -5,6 +5,8 @@ message: Define `__all__` only in a package's `__init__.py`.
 note: |
   Only a package `__init__.py` or a `.pyi` stub may define `__all__`. Mark a private
   name with a leading underscore instead.
+metadata:
+  why: "`__all__` in an ordinary module only affects star imports, so it reads as an access rule while restricting nothing."
 ignores:
   - "**/__init__.py"
   - "**/*.pyi"

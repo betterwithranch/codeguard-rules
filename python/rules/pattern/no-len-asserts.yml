@@ -5,6 +5,8 @@ message: Don't assert only a collection's length.
 note: |
   A length check passes when the items are wrong. Assert the whole collection
   (`assert lines == [ExampleLine(sku="A1"), ExampleLine(sku="B2")]`).
+metadata:
+  why: A length check passes when the items are wrong.
 utils:
   length:
     kind: call
