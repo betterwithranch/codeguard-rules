@@ -36,6 +36,11 @@ valid:
     def make_example_model(name):
         return ExampleModel(name)
 
+  # Helper that calls a method on an object built with arguments
+  - |
+    def run_example_check(name):
+        return ExampleCheck(name).run()
+
 invalid:
   # Bare fixture returning a no-argument constructor call
   - |
