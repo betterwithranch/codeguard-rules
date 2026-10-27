@@ -1,23 +1,9 @@
 # codeguard-rules
 
 Rulesets for [codeguard](https://github.com/jig-code/codeguard). Each ruleset is a
-directory a project opts into from its `.codeguard/config.yaml`. The rules supplement a
-linter; they don't repeat one. A Python project should run
-[ruff](https://docs.astral.sh/ruff/) for what it covers, such as `print` (T201), imports
-inside functions (PLC0415), `getattr` with a literal (B009), `TYPE_CHECKING` (TID251),
-untyped parameters (ANN001, ANN003) and unused arguments (ARG001),
-but not the missing-docstring rules (D100–D107), which push docstrings that restate the
-name, and [basedpyright](https://docs.basedpyright.com) with these rules on:
+directory a project opts into from its `.codeguard/config.yaml`.
 
-- `reportExplicitAny`: no `Any`.
-- `reportAny`: no value of type `Any`, such as an untyped `json.loads`, `yaml.safe_load`
-  or `.json()` result read before it's parsed into a declared type.
-- `reportMissingTypeArgument`: generic annotations and base classes are parameterized.
-- `reportGeneralTypeIssues` (on in `standard`): every TypeVar is bound by its class, and
-  variance matches use.
-- `reportArgumentType` (on in `standard`): pass enum members, never a bare literal.
-- `reportUnnecessaryIsInstance`, `reportUnnecessaryComparison`: no re-checks of a fact
-  the types already guarantee.
+codeguard supplements a linter; it doesn't repeat one.
 
 ## Rulesets
 
