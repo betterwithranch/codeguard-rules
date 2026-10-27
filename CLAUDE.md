@@ -3,6 +3,47 @@
 The rule package codeguard reviews with. [README.md](README.md) explains the layout and
 the tests.
 
+## Scope
+
+codeguard makes coding agents follow a project's conventions: it loads a rule's skill
+before an agent edits a file, and reviews each change with pattern rules and an LLM
+judge at the agent's Stop hook and in CI. It is not a linter and doesn't wrap one; it
+runs only what a linter can't decide.
+
+This repository holds only codeguard rules that any project can use:
+
+- **Pattern rules** (ast-grep), for a claim syntax decides exactly.
+- **Judge rules** (a skill bound to files by a binding), for a claim that needs
+  judgment, with the **gates** that pick the code each one reads.
+
+What doesn't belong here:
+
+- **Linter rules and settings.** A claim ruff, basedpyright, import-linter or a custom
+  Pylint checker decides is the app's, in its own lint task and configuration, and gets
+  no rule here. Don't recommend linter settings in this repository either.
+- **A project's own conventions.** Rules only one app (such as otter) needs live in that
+  app's `.codeguard/`, along with which rulesets it enables and at what severity.
+
+Choosing a tool for a claim:
+
+1. If a linter the app runs can decide it, it isn't a rule here.
+2. If ast-grep decides it exactly, it's a pattern rule, never a judge rule. A judge rule
+   with a mechanical part is split: the pattern rule owns that part.
+3. Otherwise it's a judge rule. A part that can't be matched without false positives
+   stays in the judge rule.
+
+Each claim is written in exactly one place, and idiomatic code never fails a rule.
+Every rule says why it exists: a judge rule in its skill's `## Why` section, a pattern
+rule in `metadata.why`, each with an optional source.
+
+Drafts in `drafts/` aren't loaded by codeguard. They're promoted highest value first:
+architecture and design, then test design, then style and naming.
+
+codeguard's design and decisions are recorded in the vault (obsidian-vault,
+`10 Personal/Projects/Agent Coding Quality/`): `codeguard/Architecture.md`,
+`Rules Implementation Plan.md` and `History/codeguard Decisions.md`. Ask the user when a
+change seems to need a decision those don't cover.
+
 ## Rules
 
 Before adding or changing a rule, and whenever a rule test or eval fails, flips between
