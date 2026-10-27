@@ -5,6 +5,8 @@ message: Don't name a module `utils`, `helpers`, `common`, `shared`, or `contrac
 note: |
   A bucket name invites unrelated code. Name the module after its domain purpose or its
   primary type, and move each unrelated concept to its own module.
+metadata:
+  why: A bucket module collects unrelated code, so nothing in it can be found by its concept and it grows without bound.
 files:
   - "**/utils.py"
   - "**/helpers.py"

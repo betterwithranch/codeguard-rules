@@ -5,6 +5,8 @@ message: A fixture returns one object, never a tuple.
 note: |
   A tuple hides what each element is. Split it into one fixture per object, and have a
   test request each fixture it needs.
+metadata:
+  why: A tuple fixture hides what each element is, and every test that wants one part has to unpack them all.
 rule:
   any:
     - kind: return_statement

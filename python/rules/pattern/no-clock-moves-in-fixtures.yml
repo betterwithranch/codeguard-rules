@@ -5,6 +5,8 @@ message: Don't sleep or move the clock inside a fixture.
 note: |
   Waiting or moving time is an arrange step of one scenario. In a fixture it is
   hidden from the tests that depend on it.
+metadata:
+  why: Time moved in a fixture changes every test that uses it while staying out of sight in the test bodies.
 rule:
   any:
   - pattern: time.sleep($$$)

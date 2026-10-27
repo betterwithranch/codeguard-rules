@@ -5,6 +5,8 @@ message: Don't del a parameter to mark it unused.
 note: |
   Prefix the unused parameter with an underscore (`request` -> `_request`). The prefix
   signals intent without a runtime statement.
+metadata:
+  why: "`del` of a parameter is a runtime statement that only signals intent, which an underscore prefix does without running anything."
 rule:
   pattern: del $NAME
   inside:

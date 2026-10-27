@@ -5,6 +5,8 @@ message: Don't raise TypeError for unexpected keyword arguments by hand.
 note: |
   Python already raises TypeError for an unknown keyword. Declare typed parameters, or
   pass `**overrides` untouched to one typed target.
+metadata:
+  why: Python already rejects unknown keywords; checking by hand duplicates that and hides the function's real parameters.
 rule:
   kind: function_definition
   all:
