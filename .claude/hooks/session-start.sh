@@ -12,7 +12,7 @@ if [ -z "$ref" ]; then
 fi
 
 if ! uv tool list 2>/dev/null | grep -qx "codeguard $ref"; then
-  uv tool install --force --quiet "git+https://github.com/betterwithranch/codeguard@$ref"
+  uv tool install --force --quiet "git+https://github.com/jig-code/codeguard@$ref"
 fi
 
 if [ -n "${CLAUDE_ENV_FILE:-}" ]; then

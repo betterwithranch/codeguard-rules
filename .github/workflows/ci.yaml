@@ -17,7 +17,7 @@ jobs:
           path: rules
       - uses: actions/checkout@v7
         with:
-          repository: betterwithranch/codeguard
+          repository: jig-code/codeguard
           ref: ${{ env.CODEGUARD_REF }}
           path: codeguard
       - uses: astral-sh/setup-uv@v10.2.0
@@ -38,7 +38,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/checkout@v7
         with:
-          repository: betterwithranch/codeguard
+          repository: jig-code/codeguard
           ref: ${{ env.CODEGUARD_REF }}
           path: codeguard
       - uses: astral-sh/setup-uv@v10.2.0

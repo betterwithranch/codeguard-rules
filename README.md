@@ -1,6 +1,6 @@
 # codeguard-rules
 
-Rulesets for [codeguard](https://github.com/betterwithranch/codeguard). Each ruleset is a
+Rulesets for [codeguard](https://github.com/jig-code/codeguard). Each ruleset is a
 directory a project opts into from its `.codeguard/config.yaml`. The rules supplement a
 linter; they don't repeat one. A Python project should run
 [ruff](https://docs.astral.sh/ruff/) for what it covers, such as `print` (T201), imports
@@ -135,7 +135,7 @@ CI passes each to `codeguard eval --rule`. The `eval` job runs once per provider
 matrix (`claude-cli` today). Locally, `codeguard eval --rule <id> --repeat 20` judges one
 rule, and `--provider gemini` judges it with Gemini instead of its binding's model.
 
-[Which test to write](https://github.com/betterwithranch/codeguard#which-test-to-write)
+[Which test to write](https://github.com/jig-code/codeguard#which-test-to-write)
 says which test covers which change. Every judge rule has a rule eval with `invalid`,
 `valid` and `skipped` cases, each named after what its edit does. Each case is a clear
 violation, a clear non-violation, or clearly outside the rule's gate. A case a reviewer
