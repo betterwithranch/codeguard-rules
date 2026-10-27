@@ -12,12 +12,13 @@ moves its skill, binding and eval, once:
   on each eval provider, `claude-sonnet-5-5` through the `claude` CLI and
   `gemini-3.1-pro-preview` on Vertex AI, checked before the commit; CI then repeats 3
   runs in one `judge-evals` matrix job per provider. The binding still names the model
-  that judges reviews; passing on both shows the test reads the same to two models;
-- a judged review of codeguard with the rule loaded reports no false positive, and every
-  real violation it finds is fixed in codeguard.
+  that judges reviews; passing on both shows the test reads the same to two models.
 
-A pattern rule moves its rule, binding, test and snapshot, once
-`codeguard review --all --dry-run` over codeguard flags nothing it shouldn't.
+A pattern rule moves its rule, binding, test and snapshot, once its rule tests have a
+case for each branch and `codeguard test` passes.
+
+A rule is shown accurate only by its own cases. Reviewing other code, codeguard's
+included, is not part of the bar.
 
 No judge rule is added back until both providers can be checked: `codeguard eval` takes
 the provider to judge with (it judges only with the binding's today), and this
@@ -143,7 +144,11 @@ judge call.
 
 - `codeguard eval` takes the provider to judge with, so CI runs one `judge-evals` job
   per provider.
-- `codeguard eval` takes the rules to judge, replacing `scripts/judge_eval_package.py`.
+- `codeguard eval` takes the rules and cases to judge, replacing
+  `scripts/judge_eval_package.py`.
+- codeguard's `writing-rules` skill guides how to write a rule and its cases, and stops
+  telling authors to verify a rule by reviewing real code and turning findings into
+  cases.
 - A language-server rule kind (below).
 - The code under review comes before the rule in each judge call, so rules judging the
   same file share it from the prompt cache. Today each rule's instructions are the

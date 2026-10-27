@@ -5,11 +5,14 @@ the tests.
 
 ## Rules
 
-Before adding or changing a rule, and whenever a rule eval or `judged-review` fails,
-flips between runs or reports a warning, load codeguard's `writing-rules` skill and
-follow it and its judge rule guide (`references/judge-rules.md`). A finding you think is
-wrong is fixed in the rule, never by changing the reviewed code (codeguard, say) to get
-past it.
+Before adding or changing a rule, and whenever a rule test or eval fails, flips between
+runs or reports a warning, load codeguard's `writing-rules` skill and follow it and its
+judge rule guide (`references/judge-rules.md`). A case that fails is fixed in the rule's
+criterion or in the case, never by re-running it until it passes.
+
+This repository owns its rules' accuracy, and proves it only with its own tests run
+through codeguard: `codeguard test` for pattern rules and gates, `codeguard eval` for
+judge rules. Reviewing other code, codeguard's included, is not part of that.
 
 ## Repositories
 

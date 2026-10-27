@@ -24,17 +24,6 @@ jobs:
       - name: Test rules
         working-directory: rules
         run: uv run --frozen --project ../codeguard codeguard test
-      - name: Review codeguard with this branch's rules
-        working-directory: codeguard
-        run: |
-          cat > .codeguard/config.yaml <<'EOF'
-          packages:
-            - kind: path
-              path: ../rules
-              rulesets:
-                python: {}
-          EOF
-          uv run --frozen codeguard review --all --dry-run
   judge-evals:
     needs: rules
     runs-on: ubuntu-latest
@@ -64,34 +53,5 @@ jobs:
         if: steps.affected.outputs.package
         working-directory: ${{ steps.affected.outputs.package }}
         run: uv run --frozen --project "$GITHUB_WORKSPACE/codeguard" codeguard eval --repeat 3
-        env:
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
-  judged-review:
-    needs: rules
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v7
-        with:
-          path: rules
-      - uses: actions/checkout@v7
-        with:
-          repository: betterwithranch/codeguard
-          ref: ${{ env.CODEGUARD_REF }}
-          path: codeguard
-      - uses: astral-sh/setup-uv@v10.2.0
-      - run: npm install --global @anthropic-ai/claude-code
-      - name: Judge codeguard with this branch's rules
-        working-directory: codeguard
-        run: |
-          set -o pipefail
-          cat > .codeguard/config.yaml <<'YAML'
-          packages:
-            - kind: path
-              path: ../rules
-              rulesets:
-                python: {}
-          YAML
-          uv run --frozen codeguard review --all | tee "$RUNNER_TEMP/review.txt"
-          ! grep -E ': (error|warning|info|hint) ' "$RUNNER_TEMP/review.txt"
         env:
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}

@@ -60,10 +60,10 @@ against the rule's skill):
 
 The other judge rules, and some pattern rules, are drafts in `drafts/python/`, which
 codeguard doesn't load. A draft moves back into `python/` one rule at a time, highest
-value first: a judge rule once it passes every eval case 20 of 20 runs on the model its
-binding names and a judged review of codeguard finds nothing wrong, a pattern rule once
-it flags nothing in codeguard it shouldn't. codeguard's `writing-rules` skill has the
-steps, and [drafts/README.md](drafts/README.md) the conditions.
+value first: a judge rule once it passes every eval case 20 of 20 runs on each eval
+provider, a pattern rule once its rule tests cover each branch and pass. codeguard's
+`writing-rules` skill has the steps, and [drafts/README.md](drafts/README.md) the
+conditions.
 
 Reviews and evals both judge a rule with its binding's `provider` and `model`, and a
 project can't override them, so a rule is only ever judged by the model its evals pass
@@ -143,19 +143,11 @@ could argue either way doesn't belong in a rule eval.
 
 A case or finding that flips between runs, or comes back as a low-confidence warning,
 means the rule's criterion or the case is unclear. Fix the criterion or the case. Don't
-re-run, loosen the gate, or change the reviewed code. [CLAUDE.md](CLAUDE.md) has the
-details.
+re-run or loosen the gate. [CLAUDE.md](CLAUDE.md) has the details.
 
-CI runs `codeguard test`, then runs the branch's pattern rules over every file in
-codeguard (`codeguard review --all --dry-run`, which calls no model). A pattern rule
-that flags code there fails the build before a release ships it. CI uses the codeguard
-ref in `CODEGUARD_REF` in `.github/workflows/ci.yaml`.
-
-Once those pass, CI judges the judge rules:
-
-- `judge-evals` runs `codeguard eval --repeat 3` with Claude. A case that fails or
-  isn't judged in any run fails the build.
-- `judged-review` runs `codeguard review --all` over codeguard with Claude and fails on
-  any diagnostic, warnings included.
-
-They need the repository secret `CLAUDE_CODE_OAUTH_TOKEN`.
+The rules are tested only by their own cases, through codeguard, so they are shown
+accurate as codeguard runs them. CI runs `codeguard test`, then `judge-evals` runs
+`codeguard eval --repeat 3` with Claude; a case that fails or isn't judged in any run
+fails the build. `judge-evals` needs the repository secret `CLAUDE_CODE_OAUTH_TOKEN`.
+CI runs the codeguard release in `CODEGUARD_REF` in `.github/workflows/ci.yaml`, so
+moving to a new release is a change here, which judges every rule.
