@@ -13,19 +13,24 @@ codeguard is language-agnostic, and the baseline is three levels: **general**
 (architecture conventions that hold in any language), **Python** and **TypeScript**
 (otter uses both). A rule lives at the level its convention belongs to:
 
-- **General**: the convention, its definitions, `## Violation` and `## Why` are worded
-  without a language. Each language it applies in adds that language's part: paths,
-  triggers, severity, examples, framework exemptions and evals. A language where the
-  rule doesn't apply has no part, and the rule never loads for it.
+- **General**: one judge rule in the `general` ruleset. Its `SKILL.md` holds the
+  convention, definitions, `## Violation`, `## Not a violation` and `## Why`, in no
+  language's terms. Each language it applies in adds a supplement beside it
+  (`python.md`, `typescript.md`) with that language's forms on both sides and its
+  framework code that keeps the convention. The binding's `paths` name the languages by
+  extension, and the one rule eval holds cases in each, which `codeguard eval` reports
+  per language. A language where the rule doesn't apply is left out of its paths and
+  gets no supplement, so the rule never runs there.
 - **Python** or **TypeScript**: the convention itself is about that language or one of
-  its libraries. Every pattern rule is at a language level, since ast-grep matches one
-  language; a general convention can have a pattern rule in each language for its
-  syntactic forms.
+  its libraries, in that language's ruleset. Every pattern rule is at a language level,
+  since ast-grep matches one language; a general convention can have a pattern rule in
+  each language for its syntactic forms.
 
-codeguard has no general level yet: a ruleset is one language in practice, and a
-binding pointing at another ruleset's skill would load a general rule as a language
-rule. That is a codeguard design problem, raised with codeguard; general rules wait for
-it before their bindings and evals are written.
+This is codeguard 0.9's layout: codeguard gives ruleset names no meaning, so `general`
+is a name, and per-language severity overrides don't exist. Only Python has change
+kinds and gates so far: on a TypeScript file every trigger fires, and the judge gets
+the changed lines without the code around them, so a general rule's TypeScript part is
+judged with less context than its Python part until codeguard adds TypeScript gates.
 
 ## Names
 
