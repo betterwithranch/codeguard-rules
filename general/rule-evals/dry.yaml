@@ -594,6 +594,10 @@ cases:
         amountCents: number;
         status: "succeeded" | "failed";
       }
+
+      export function parsePaymentEvent(body: unknown): PaymentEvent {
+        return PaymentEventSchema.parse(body);
+      }
   expected_output:
     outcome: invalid
 - name: the webhook event type is inferred from its schema
@@ -617,6 +621,10 @@ cases:
       });
 
       export type PaymentEvent = z.infer<typeof PaymentEventSchema>;
+
+      export function parsePaymentEvent(body: unknown): PaymentEvent {
+        return PaymentEventSchema.parse(body);
+      }
   expected_output:
     outcome: valid
 - name: a function recomputes the lease end the lease class computes, so a change to notice periods misses renewals
