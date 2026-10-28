@@ -1,0 +1,291 @@
+cases:
+- name: the reminder module works out when a membership expires from its fields, so a change to how pauses extend a term misses reminders
+  inputs:
+    file: memberships/reminders.py
+    unchanged:
+      memberships/__init__.py: ""
+      memberships/models.py: |
+        from dataclasses import dataclass
+        from datetime import date
+
+
+        @dataclass(frozen=True)
+        class Membership:
+            member_email: str
+            started_on: date
+            term_days: int
+            paused_days: int
+    after: |
+      from datetime import date, timedelta
+
+      from memberships.models import Membership
+
+
+      def expires_on(membership: Membership) -> date:
+          return membership.started_on + timedelta(days=membership.term_days + membership.paused_days)
+  expected_output:
+    outcome: invalid
+- name: the reminder module asks the membership when it expires and only picks its own reminder day
+  inputs:
+    file: memberships/reminders.py
+    unchanged:
+      memberships/__init__.py: ""
+      memberships/models.py: |
+        from dataclasses import dataclass
+        from datetime import date, timedelta
+
+
+        @dataclass(frozen=True)
+        class Membership:
+            member_email: str
+            started_on: date
+            term_days: int
+            paused_days: int
+
+            def expires_on(self) -> date:
+                return self.started_on + timedelta(days=self.term_days + self.paused_days)
+    after: |
+      from datetime import date, timedelta
+
+      from memberships.models import Membership
+
+      REMINDER_LEAD = timedelta(days=7)
+
+
+      def reminder_day(membership: Membership) -> date:
+          return membership.expires_on() - REMINDER_LEAD
+  expected_output:
+    outcome: valid
+- name: a rota planner decides whether a shift runs into overtime from the shift's own hours, so a change to break rules misses the planner
+  inputs:
+    file: rota/planner.py
+    unchanged:
+      rota/__init__.py: ""
+      rota/shifts.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Shift:
+            worker_id: int
+            scheduled_hours: float
+            unpaid_break_hours: float
+            contracted_hours: float
+    after: |
+      from rota.shifts import Shift
+
+
+      class RotaPlanner:
+          def __init__(self, shifts: list[Shift]) -> None:
+              self.shifts = shifts
+
+          def runs_into_overtime(self, shift: Shift) -> bool:
+              worked = shift.scheduled_hours - shift.unpaid_break_hours
+              return worked > shift.contracted_hours
+  expected_output:
+    outcome: invalid
+- name: a shipping charge applies the shipping module's own rates to a parcel's weight, knowledge the parcel doesn't have
+  inputs:
+    file: shipping/rates.py
+    unchanged:
+      parcels/__init__.py: ""
+      parcels/models.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Parcel:
+            region: str
+            weight_kg: float
+    after: |
+      from parcels.models import Parcel
+
+      CENTS_PER_KG = {"EU": 450, "US": 620, "APAC": 880}
+
+
+      def charge_cents(parcel: Parcel) -> int:
+          return round(CENTS_PER_KG[parcel.region] * parcel.weight_kg)
+  expected_output:
+    outcome: valid
+- name: a payload builder copies a parcel's fields into the API's keys and decides nothing
+  inputs:
+    file: api/parcel_payloads.py
+    unchanged:
+      parcels/__init__.py: ""
+      parcels/models.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Parcel:
+            region: str
+            weight_kg: float
+    after: |
+      from parcels.models import Parcel
+
+
+      def parcel_payload(parcel: Parcel) -> dict[str, object]:
+          weight = {"value": parcel.weight_kg, "unit": "kg"}
+          return {"region": parcel.region, "weight": weight}
+  expected_output:
+    outcome: valid
+- name: a welcome message works out a booking's nights from its dates inline, so a change to how stays are counted misses the message
+  inputs:
+    file: messaging/welcome.py
+    unchanged:
+      bookings/__init__.py: ""
+      bookings/models.py: |
+        from dataclasses import dataclass
+        from datetime import date
+
+
+        @dataclass(frozen=True)
+        class Booking:
+            guest_name: str
+            check_in: date
+            check_out: date
+    after: |
+      from bookings.models import Booking
+
+
+      def welcome_text(booking: Booking) -> str:
+          nights = (booking.check_out - booking.check_in).days
+          greeting = f"Welcome, {booking.guest_name}!"
+          return f"{greeting} Your stay is {nights} nights."
+  expected_output:
+    outcome: invalid
+- name: returns a booking's guest name
+  inputs:
+    file: messaging/welcome.py
+    unchanged:
+      bookings/__init__.py: ""
+      bookings/models.py: |
+        from dataclasses import dataclass
+        from datetime import date
+
+
+        @dataclass(frozen=True)
+        class Booking:
+            guest_name: str
+            check_in: date
+            check_out: date
+    after: |
+      from bookings.models import Booking
+
+
+      def guest_of(booking: Booking) -> str:
+          return booking.guest_name
+  expected_output:
+    outcome: skipped
+- name: an SLA check works out a ticket's deadline from its fields outside the ticket module, so a change to SLA hours misses it
+  inputs:
+    file: support/sla.ts
+    unchanged:
+      support/ticket.ts: |
+        export interface Ticket {
+          id: string;
+          openedAt: Date;
+          slaHours: number;
+          status: "open" | "pending" | "closed";
+        }
+    after: |
+      import type { Ticket } from "./ticket";
+
+      export function isBreached(ticket: Ticket, now: Date): boolean {
+        const deadline = ticket.openedAt.getTime() + ticket.slaHours * 3_600_000;
+        return ticket.status !== "closed" && deadline < now.getTime();
+      }
+  expected_output:
+    outcome: invalid
+- name: a dashboard counts breached tickets with the check the ticket module exports
+  inputs:
+    file: support/dashboard.ts
+    unchanged:
+      support/ticket.ts: |
+        export interface Ticket {
+          id: string;
+          openedAt: Date;
+          slaHours: number;
+          status: "open" | "pending" | "closed";
+        }
+
+        const HOUR_MS = 60 * 60 * 1000;
+
+        export function isBreached(ticket: Ticket, now: Date): boolean {
+          const deadline = ticket.openedAt.getTime() + ticket.slaHours * HOUR_MS;
+          return ticket.status !== "closed" && deadline < now.getTime();
+        }
+    after: |
+      import { isBreached, type Ticket } from "./ticket";
+
+      export function breachedCount(tickets: Ticket[], now: Date): number {
+        return tickets.filter((ticket) => isBreached(ticket, now)).length;
+      }
+  expected_output:
+    outcome: valid
+- name: a payout service works out a sale's net from the sale's own amounts, so a change to refunds misses payouts
+  inputs:
+    file: payouts/service.ts
+    unchanged:
+      sales/sale.ts: |
+        export interface Sale {
+          id: string;
+          sellerId: string;
+          grossCents: number;
+          refundedCents: number;
+          country: string;
+        }
+    after: |
+      import type { Sale } from "../sales/sale";
+
+      export class PayoutService {
+        constructor(private readonly bankAccountId: string) {}
+
+        netCents(sale: Sale): number {
+          return Math.max(sale.grossCents - sale.refundedCents, 0);
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: a VAT function applies the tax module's own rates to a sale, knowledge the sale doesn't have
+  inputs:
+    file: tax/vat.ts
+    unchanged:
+      sales/sale.ts: |
+        export interface Sale {
+          id: string;
+          sellerId: string;
+          grossCents: number;
+          refundedCents: number;
+          country: string;
+        }
+    after: |
+      import type { Sale } from "../sales/sale";
+
+      const VAT_RATES: Record<string, number> = { DE: 0.19, FR: 0.2, NL: 0.21 };
+
+      export function vatCents(sale: Sale): number {
+        return Math.round(sale.grossCents * (VAT_RATES[sale.country] ?? 0));
+      }
+  expected_output:
+    outcome: valid
+- name: a report row copies a sale's fields into columns and decides nothing
+  inputs:
+    file: reports/sales-rows.ts
+    unchanged:
+      sales/sale.ts: |
+        export interface Sale {
+          id: string;
+          sellerId: string;
+          grossCents: number;
+          refundedCents: number;
+          country: string;
+        }
+    after: |
+      import type { Sale } from "../sales/sale";
+
+      export function toRow(sale: Sale): Record<string, string | number> {
+        return { id: sale.id, seller: sale.sellerId, gross: sale.grossCents, country: sale.country };
+      }
+  expected_output:
+    outcome: valid
