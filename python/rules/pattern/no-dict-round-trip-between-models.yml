@@ -6,6 +6,8 @@ note: |
   A dict round-trip drops type checking on every field. Build the target by assigning
   each field explicitly from the source. Serialize to a dict only when the dict is the
   destination (JSON, a database column, a wire payload).
+metadata:
+  why: A dict round-trip drops type checking on every field, so a renamed or retyped field passes silently.
 utils:
   model-as-dict:
     any:

@@ -7,6 +7,8 @@ note: |
   it builds. Move the reason into the test name or a well-named helper, then delete the
   comment. Tool directives (`# noqa`, `# type:`, `# pragma`, `# fmt:`, `# pyright:`,
   `# mypy:`, `# pylint:`, `# ruff:`, `# isort:`, `# ast-grep-ignore`) are allowed.
+metadata:
+  why: A comment in a test goes stale while the test keeps passing; a name or helper that says the same thing stays checked.
 rule:
   kind: comment
   not:

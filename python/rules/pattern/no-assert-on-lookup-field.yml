@@ -6,6 +6,8 @@ note: |
   An item found by `sku == "A1"` always has `sku == "A1"`, so the assert can't fail.
   Assert the set of keys present (`assert {i.sku for i in result.items} == {"A1", "B2"}`),
   or find by one field and assert a different one.
+metadata:
+  why: An assert on the field used to find the item can't fail, so the test passes whatever the code returns.
 utils:
   lookup-by-field:
     any:

@@ -11,8 +11,7 @@ its type is built, and the rest of the program trusts it.
 A guarantee is a fact code can rely on without checking: a value is present, positive,
 one particular variant, in range. It is established by:
 
-- the parse at the boundary, which turns outside data into declared values
-  (`parse-boundary-data-once` covers reading the raw data);
+- the parse at the boundary, which turns outside data into declared values;
 - a type that rejects bad values when it is built: a pydantic `field_validator` or
   `Field(gt=0)`, a dataclass `__post_init__` that raises, an attrs validator, a Django
   field with `null=False`, a SQLAlchemy column with `nullable=False`;

@@ -1,6 +1,6 @@
 # codeguard-rules
 
-Rulesets for [codeguard](https://github.com/betterwithranch/codeguard). Each ruleset is a
+Rulesets for [codeguard](https://github.com/jig-code/codeguard). Each ruleset is a
 directory a project opts into from its `.codeguard/config.yaml`. The rules supplement a
 linter; they don't repeat one. A Python project should run
 [ruff](https://docs.astral.sh/ruff/) for what it covers, such as `print` (T201), imports
@@ -10,6 +10,8 @@ but not the missing-docstring rules (D100–D107), which push docstrings that re
 name, and [basedpyright](https://docs.basedpyright.com) with these rules on:
 
 - `reportExplicitAny`: no `Any`.
+- `reportAny`: no value of type `Any`, such as an untyped `json.loads`, `yaml.safe_load`
+  or `.json()` result read before it's parsed into a declared type.
 - `reportMissingTypeArgument`: generic annotations and base classes are parameterized.
 - `reportGeneralTypeIssues` (on in `standard`): every TypeVar is bound by its class, and
   variance matches use.
@@ -51,15 +53,8 @@ code skip test files:
 | `one-form-per-input` | No parameter reconciled from another parameter when missing (`if index is None: index = build(catalog)`) |
 | `typed-dispatch-registries` | A class takes a registry, not a `dict[str, Callable]` |
 
-Judge rules on every `.py` file except test files (Claude reads each changed file
-against the rule's skill):
-
-| Rule | Checks |
-|---|---|
-| `parse-boundary-data-once` | Outside data is read only through the part of the program that declares and checks its shape |
-
-The other judge rules, and some pattern rules, are drafts in `drafts/python/`, which
-codeguard doesn't load. A draft moves back into `python/` one rule at a time, highest
+There are no judge rules yet. The judge rules, and some pattern rules, are drafts in
+`drafts/python/`, which codeguard doesn't load. A draft moves back into `python/` one rule at a time, highest
 value first: a judge rule once it passes every eval case 20 of 20 runs on each eval
 provider, a pattern rule once its rule tests cover each branch and pass. codeguard's
 `writing-rules` skill has the steps, and [drafts/README.md](drafts/README.md) the
@@ -124,7 +119,7 @@ codeguard rejects any other entry in a ruleset directory.
 ```sh
 task test                # codeguard test: pattern rule and gate tests, eval triggers
 task test -- -U          # the same, regenerating snapshots
-task eval                # codeguard eval: judge each eval case and review each rule; calls Claude
+task eval                # codeguard eval: judge each judge rule eval case; calls Claude
 ```
 
 `CODEGUARD=<path>` runs another codeguard build, such as a checkout's `.venv/bin/codeguard`.
@@ -140,7 +135,7 @@ CI passes each to `codeguard eval --rule`. The `eval` job runs once per provider
 matrix (`claude-cli` today). Locally, `codeguard eval --rule <id> --repeat 20` judges one
 rule, and `--provider gemini` judges it with Gemini instead of its binding's model.
 
-[Which test to write](https://github.com/betterwithranch/codeguard#which-test-to-write)
+[Which test to write](https://github.com/jig-code/codeguard#which-test-to-write)
 says which test covers which change. Every judge rule has a rule eval with `invalid`,
 `valid` and `skipped` cases, each named after what its edit does. Each case is a clear
 violation, a clear non-violation, or clearly outside the rule's gate. A case a reviewer

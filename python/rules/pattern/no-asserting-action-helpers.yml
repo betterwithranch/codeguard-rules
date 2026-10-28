@@ -5,6 +5,8 @@ message: Don't assert on a passed result and act in the same test helper.
 note: |
   A helper that checks a result it was passed and then drives the next step hides
   part of the test's act and assertions from the test body.
+metadata:
+  why: A helper that both checks and acts hides part of the test's act and assertions, so a reader can't see what the test proves.
 rule:
   kind: function_definition
   not:

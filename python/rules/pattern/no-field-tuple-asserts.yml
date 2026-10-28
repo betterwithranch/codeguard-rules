@@ -7,6 +7,8 @@ note: |
   later, and a failure shows positions instead of field names. Compare the whole object
   (`assert result == ExampleModel(name="a", total=1)`). If the type has no usable
   `__eq__`, assert each field on its own line.
+metadata:
+  why: A tuple of fields leaves the others unchecked, including fields added later, and its failure shows positions instead of names.
 utils:
   field-tuple:
     kind: tuple

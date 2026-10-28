@@ -5,6 +5,8 @@ message: Don't pop keys out of a `**kwargs` parameter in test code.
 note: |
   Popping keys out of `**kwargs` hides the helper's real parameters. Declare each one as
   a typed parameter, and pass any remaining `**kwargs` untouched to one typed target.
+metadata:
+  why: Popping keys out of `**kwargs` hides the helper's real parameters from readers and the type checker.
 rule:
   pattern: $KWARGS.pop($$$)
   inside:

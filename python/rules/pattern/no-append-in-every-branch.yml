@@ -5,6 +5,8 @@ message: Don't append to the same list in every branch of a loop's `if`/`else`.
 note: |
   The loop mixes mapping one item with iterating. Extract the `if`/`elif`/`else` to a
   function that returns one result per item, and build the list with a comprehension.
+metadata:
+  why: A loop that also decides each item's result mixes two jobs, so the per-item decision can't be named, reused or tested alone.
 utils:
   append-only-block:
     kind: block

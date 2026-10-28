@@ -6,6 +6,8 @@ note: |
   Each field the copy drops or replaces goes unchecked. When a field changes each run
   (a generated id, a timestamp), control its source in the test (inject the clock or
   the id generator) and compare the whole object.
+metadata:
+  why: Each field the assert strips goes unchecked, so a wrong value there passes.
 utils:
   field-dropping-copy:
     any:
