@@ -18,9 +18,9 @@ A piece of knowledge is something the program decides that changes for one reaso
   file format or one API's response.
 
 Its representation is the code that states it: a function or method, the process that
-runs the stages, the collection or enumeration that lists the set, the type that models
-the outside thing. Code uses the knowledge when it calls, reads, or derives from that
-representation.
+runs the stages, the collection or enumeration that lists the set, the type or schema
+that models the outside thing. Code uses the knowledge when it calls, reads, or derives
+from that representation.
 
 The other representation is in the file under review or in a module of the program
 that file imports. Read those modules to compare.
@@ -38,7 +38,8 @@ This includes:
 - a function that repeats the steps of a method the type it works on already has;
 - code that runs a process's stages in the process's order, outside the process;
 - a collection that lists exactly the members of another set and states nothing more;
-- a second type with the fields of a type that already models the same outside thing.
+- a second type or schema with the fields of a type or schema that already models the
+  same outside thing.
 
 Report it on the code the change adds or edits that states the knowledge again: the code
 a fix would replace with a use of the existing representation.
