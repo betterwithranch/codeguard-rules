@@ -29,17 +29,16 @@ convention in no language's terms, and a supplement beside it for each language,
 gets the skill and the supplement for the file's language. Its binding's `paths` name
 the languages it runs on.
 
-| Rule | Checks | Gemini | Validated |
-|---|---|---|---|
-| `dry` | Don't Repeat Yourself: code the change adds doesn't state a computation, process, set or outside shape again when the file or a module it imports already states it | Not yet | Not yet |
-| `domain-logic-separate-from-io` | Domain logic separate from I/O: a domain decision is made in code that does no I/O, so a function the change adds or edits doesn't decide and read or change state outside the program in the same body | Not yet | Not yet |
-| `single-responsibility` | Single responsibility: a function or class has one reason to change, so a function's own body doesn't hold the details of two concerns (business rules, an outside system, a data format) and a class's methods don't serve two | Not yet | Not yet |
-| `no-repeated-switches` | No repeated switches: behaviour chosen by which kind a value is (its class, or an enum member or tag naming its variant) is chosen in one place, unless the type checker proves every place covers every kind | Not yet | Not yet |
+| Rule | Checks | Validated |
+|---|---|---|
+| `dry` | Don't Repeat Yourself: code the change adds doesn't state a computation, process, set or outside shape again when the file or a module it imports already states it | Not yet |
+| `domain-logic-separate-from-io` | Domain logic separate from I/O: a domain decision is made in code that does no I/O, so a function the change adds or edits doesn't decide and read or change state outside the program in the same body | Not yet |
+| `single-responsibility` | Single responsibility: a function or class has one reason to change, so a function's own body doesn't hold the details of two concerns (business rules, an outside system, a data format) and a class's methods don't serve two | Not yet |
+| `no-repeated-switches` | No repeated switches: behaviour chosen by which kind a value is (its class, or an enum member or tag naming its variant) is chosen in one place, unless the type checker proves every place covers every kind | Not yet |
 
-Each rule passes 20 of 20 eval runs on Claude before it ships. Two checks follow, and
-don't hold up the next rule:
+Each rule passes 20 of 20 eval runs on Claude before it ships, and CI's 3 runs before it
+merges. One check follows, and doesn't hold up the next rule:
 
-- **Gemini**: its eval passes CI's `gemini` leg, 3 runs with `--provider gemini`.
 - **Validated**: its findings on real changes, read from codeguard's Logfire traces,
   show it flags what it should. Until then it's a `warning`: its findings print but don't
   block. Once validated, its binding's `severity` moves it to `error`.
@@ -161,7 +160,8 @@ CI judges only the rules a change can affect: a rule whose skill, binding, eval 
 trigger's gate changed, or every rule when `codeguard-package.yaml`, the workflow or
 `scripts/affected_judge_rules.py` changed. That script prints the affected rules, and
 CI passes each to `codeguard eval --rule`. The `eval` job runs once per provider in its
-matrix, `claude-cli` and `gemini`. Locally, `codeguard eval --rule <id> --repeat 20` judges one
+matrix, `claude-cli`. Gemini is out of the matrix until codeguard's Gemini judge
+is faster and steadier; its auth step stays, so adding `gemini` back turns it on. Locally, `codeguard eval --rule <id> --repeat 20` judges one
 rule, and `--provider gemini` judges it with Gemini instead of its binding's model.
 
 [Which test to write](https://github.com/jig-code/codeguard#which-test-to-write)
@@ -177,8 +177,7 @@ re-run or loosen the gate. [CLAUDE.md](CLAUDE.md) has the details.
 The rules are tested only by their own cases, through codeguard, so they are shown
 accurate as codeguard runs them. CI's `test` job runs `codeguard test`, then its `eval`
 job runs `codeguard eval --repeat 3` with each provider; a case that fails or isn't
-judged in any run on Claude fails the build, and on Gemini shows as a failed job
-without failing the build. The `eval` job needs, in the repository's Actions
+judged in any run fails the build. The `eval` job needs, in the repository's Actions
 settings, the secret `CLAUDE_CODE_OAUTH_TOKEN` for Claude, and for Gemini the secret
 `GOOGLE_CREDENTIALS` (a service account key with the Vertex AI User role) and the
 variable `GOOGLE_CLOUD_PROJECT`. codeguard's README, under "Judge with Gemini on Google
