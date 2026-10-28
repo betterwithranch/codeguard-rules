@@ -1,0 +1,348 @@
+cases:
+- name: the refund window is decided beside the order query, so testing the window needs a database
+  inputs:
+    file: shop/refunds.py
+    after: |
+      from datetime import date, timedelta
+
+      from shop.models import Order, Refund
+
+      REFUND_WINDOW = timedelta(days=30)
+
+
+      def request_refund(order_id: int, today: date) -> Refund | None:
+          order = Order.objects.get(pk=order_id)
+          if order.status != "delivered" or today - order.delivered_on > REFUND_WINDOW:
+              return None
+          return Refund.objects.create(order=order, amount=order.total)
+  expected_output:
+    outcome: invalid
+- name: the refund view asks the refund policy, so the window is tested with plain orders
+  inputs:
+    file: shop/refunds.py
+    unchanged:
+      shop/refund_policy.py: |
+        from datetime import date, timedelta
+
+        from shop.models import Order
+
+        REFUND_WINDOW = timedelta(days=30)
+
+
+        def refund_allowed(order: Order, today: date) -> bool:
+            return order.status == "delivered" and today - order.delivered_on <= REFUND_WINDOW
+    after: |
+      from datetime import date
+
+      from shop.models import Order, Refund
+      from shop.refund_policy import refund_allowed
+
+
+      def request_refund(order_id: int, today: date) -> Refund | None:
+          order = Order.objects.get(pk=order_id)
+          if not refund_allowed(order, today):
+              return None
+          return Refund.objects.create(order=order, amount=order.total)
+  expected_output:
+    outcome: valid
+- name: an invoice reads today's date to decide it is overdue, so no test can pin the day
+  inputs:
+    file: billing/invoices.py
+    after: |
+      from dataclasses import dataclass
+      from datetime import date
+
+      GRACE_DAYS = 14
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          due_on: date
+          paid: bool
+
+
+      def is_overdue(invoice: Invoice) -> bool:
+          return not invoice.paid and (date.today() - invoice.due_on).days > GRACE_DAYS
+  expected_output:
+    outcome: invalid
+- name: an invoice is overdue by the date it is given, so a test passes any day
+  inputs:
+    file: billing/invoices.py
+    after: |
+      from dataclasses import dataclass
+      from datetime import date
+
+      GRACE_DAYS = 14
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          due_on: date
+          paid: bool
+
+
+      def is_overdue(invoice: Invoice, today: date) -> bool:
+          return not invoice.paid and (today - invoice.due_on).days > GRACE_DAYS
+  expected_output:
+    outcome: valid
+- name: a room counts its bookings with a query to decide it has space, so the capacity rule needs a database
+  inputs:
+    file: venues/models.py
+    after: |
+      from datetime import date
+
+      from django.db import models
+
+
+      class Room(models.Model):
+          capacity = models.PositiveIntegerField()
+
+          def has_space_on(self, day: date) -> bool:
+              booked = Booking.objects.filter(room=self, day=day).count()
+              return booked < self.capacity
+
+
+      class Booking(models.Model):
+          room = models.ForeignKey(Room, on_delete=models.CASCADE)
+          day = models.DateField()
+  expected_output:
+    outcome: invalid
+- name: a room decides it has space from its own loaded fields
+  inputs:
+    file: venues/models.py
+    after: |
+      from django.db import models
+
+
+      class Room(models.Model):
+          capacity = models.PositiveIntegerField()
+          seats_booked = models.PositiveIntegerField(default=0)
+
+          def has_space(self) -> bool:
+              return self.seats_booked < self.capacity
+  expected_output:
+    outcome: valid
+- name: the points client turns the service's not-found and error answers into exceptions
+  inputs:
+    file: loyalty/client.py
+    after: |
+      import httpx
+
+
+      class UnknownMember(Exception):
+          pass
+
+
+      def fetch_points(client: httpx.Client, member_id: str) -> int:
+          response = client.get(f"/members/{member_id}/points")
+          if response.status_code == 404:
+              raise UnknownMember(member_id)
+          response.raise_for_status()
+          return response.json()["points"]
+  expected_output:
+    outcome: valid
+- name: a task decides the membership tier between loading and saving the member, so the tier thresholds need a database to test
+  inputs:
+    file: loyalty/tasks.py
+    after: |
+      from celery import shared_task
+
+      from loyalty.models import Member
+
+
+      @shared_task
+      def refresh_tier(member_id: int) -> None:
+          member = Member.objects.get(pk=member_id)
+          if member.points >= 5000:
+              member.tier = "gold"
+          elif member.points >= 1000:
+              member.tier = "silver"
+          else:
+              member.tier = "bronze"
+          member.save(update_fields=["tier"])
+  expected_output:
+    outcome: invalid
+- name: adds an import
+  inputs:
+    file: shop/views.py
+    before: |
+      from shop.refunds import request_refund
+    after: |
+      from shop.refund_policy import refund_allowed
+      from shop.refunds import request_refund
+  expected_output:
+    outcome: skipped
+- name: the shipping handler works out free shipping from the cart it just queried, so the threshold needs a database to test
+  inputs:
+    file: src/checkout/shippingQuote.ts
+    after: |
+      import type { Request, Response } from "express";
+      import { prisma } from "../db";
+
+      const FREE_SHIPPING_FROM_CENTS = 5000;
+      const STANDARD_SHIPPING_CENTS = 499;
+
+      export async function shippingQuote(req: Request, res: Response): Promise<void> {
+        const cart = await prisma.cart.findUniqueOrThrow({
+          where: { id: req.params.cartId },
+          include: { items: true },
+        });
+        const subtotal = cart.items.reduce((sum, item) => sum + item.priceCents * item.quantity, 0);
+        const shippingCents =
+          subtotal >= FREE_SHIPPING_FROM_CENTS || cart.memberTier === "plus" ? 0 : STANDARD_SHIPPING_CENTS;
+        res.json({ shippingCents });
+      }
+  expected_output:
+    outcome: invalid
+- name: the shipping handler queries the cart and asks the shipping rules for the charge
+  inputs:
+    file: src/checkout/shippingQuote.ts
+    unchanged:
+      src/checkout/shipping.ts: |
+        export interface CartLine {
+          priceCents: number;
+          quantity: number;
+        }
+
+        export interface Cart {
+          memberTier: string;
+          items: CartLine[];
+        }
+
+        const FREE_SHIPPING_FROM_CENTS = 5000;
+        const STANDARD_SHIPPING_CENTS = 499;
+
+        export function shippingFor(cart: Cart): number {
+          const subtotal = cart.items.reduce((sum, item) => sum + item.priceCents * item.quantity, 0);
+          return subtotal >= FREE_SHIPPING_FROM_CENTS || cart.memberTier === "plus" ? 0 : STANDARD_SHIPPING_CENTS;
+        }
+    after: |
+      import type { Request, Response } from "express";
+      import { prisma } from "../db";
+      import { shippingFor } from "./shipping";
+
+      export async function shippingQuote(req: Request, res: Response): Promise<void> {
+        const cart = await prisma.cart.findUniqueOrThrow({
+          where: { id: req.params.cartId },
+          include: { items: true },
+        });
+        res.json({ shippingCents: shippingFor(cart) });
+      }
+  expected_output:
+    outcome: valid
+- name: a trial reads the clock to decide it has ended, so no test can pin the moment
+  inputs:
+    file: src/accounts/trial.ts
+    after: |
+      const TRIAL_DAYS = 14;
+      const DAY_MS = 86_400_000;
+
+      export interface Account {
+        createdAt: Date;
+        subscribed: boolean;
+      }
+
+      export function trialHasEnded(account: Account): boolean {
+        return !account.subscribed && Date.now() - account.createdAt.getTime() > TRIAL_DAYS * DAY_MS;
+      }
+  expected_output:
+    outcome: invalid
+- name: a trial has ended by the time it is given, so a test passes at any moment
+  inputs:
+    file: src/accounts/trial.ts
+    after: |
+      const TRIAL_DAYS = 14;
+      const DAY_MS = 86_400_000;
+
+      export interface Account {
+        createdAt: Date;
+        subscribed: boolean;
+      }
+
+      export function trialHasEnded(account: Account, now: Date): boolean {
+        return !account.subscribed && now.getTime() - account.createdAt.getTime() > TRIAL_DAYS * DAY_MS;
+      }
+  expected_output:
+    outcome: valid
+- name: loan approval asks the credit bureau and applies the score and income limits in one method, so the limits need a fake bureau to test
+  inputs:
+    file: src/lending/approvals.ts
+    after: |
+      import type { CreditBureauClient } from "./creditBureau";
+
+      export interface LoanApplication {
+        applicantId: string;
+        amountCents: number;
+      }
+
+      export class LoanApprovals {
+        constructor(private readonly bureau: CreditBureauClient) {}
+
+        async approve(application: LoanApplication): Promise<boolean> {
+          const report = await this.bureau.report(application.applicantId);
+          return report.score >= 680 && application.amountCents <= report.annualIncomeCents * 0.4;
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: the rates client turns the service's unknown-pair and error answers into exceptions
+  inputs:
+    file: src/fx/ratesClient.ts
+    after: |
+      import { z } from "zod";
+
+      const rateBody = z.object({ rate: z.number().positive() });
+
+      export class UnknownCurrencyPair extends Error {}
+
+      export async function fetchRate(base: string, quote: string): Promise<number> {
+        const response = await fetch(`https://rates.example.com/v1/${base}/${quote}`);
+        if (response.status === 404) {
+          throw new UnknownCurrencyPair(`${base}/${quote}`);
+        }
+        if (!response.ok) {
+          throw new Error(`rates service answered ${response.status}`);
+        }
+        return rateBody.parse(await response.json()).rate;
+      }
+  expected_output:
+    outcome: valid
+- name: a subscription decides it can pause from its own fields
+  inputs:
+    file: src/billing/subscription.ts
+    after: |
+      const MAX_PAUSES_PER_YEAR = 2;
+
+      export class Subscription {
+        constructor(
+          readonly status: "active" | "paused" | "cancelled",
+          readonly pausesThisYear: number,
+        ) {}
+
+        canPause(): boolean {
+          return this.status === "active" && this.pausesThisYear < MAX_PAUSES_PER_YEAR;
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: payment routing decides manual review and sends the payment to the queue in one function, so the review rule needs a fake queue to test
+  inputs:
+    file: src/payments/routing.ts
+    after: |
+      import type { QueueClient } from "../queue";
+
+      const REVIEW_FROM_CENTS = 100_000;
+
+      export interface Payment {
+        id: string;
+        amountCents: number;
+        cardCountry: string;
+        billingCountry: string;
+      }
+
+      export async function routePayment(payment: Payment, queue: QueueClient): Promise<void> {
+        const needsReview = payment.amountCents >= REVIEW_FROM_CENTS || payment.cardCountry !== payment.billingCountry;
+        await queue.send(needsReview ? "manual-review" : "settlement", payment);
+      }
+  expected_output:
+    outcome: invalid

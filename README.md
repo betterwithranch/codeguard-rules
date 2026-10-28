@@ -32,6 +32,7 @@ the languages it runs on.
 | Rule | Checks | Gemini | Validated |
 |---|---|---|---|
 | `dry` | Don't Repeat Yourself: code the change adds doesn't state a computation, process, set or outside shape again when the file or a module it imports already states it | Passed | Not yet |
+| `functional-core-imperative-shell` | Functional core, imperative shell: a domain decision is made in code that does no I/O, so a function the change adds or edits doesn't decide and read or change state outside the program in the same body | Not yet | Not yet |
 
 Each rule passes 20 of 20 eval runs on Claude before it ships. Two checks follow, and
 don't hold up the next rule:
@@ -41,7 +42,7 @@ don't hold up the next rule:
   show it flags what it should. Until then it's a `warning`: its findings print but don't
   block. Once validated, its binding's `severity` moves it to `error`.
 
-Its evals have cases in each language, reported apart as `dry (python)` and
+A rule's evals have cases in each language, reported apart, such as `dry (python)` and
 `dry (typescript)`. Gates in `general/gates/` are ast-grep rules for one language each;
 on a TypeScript file, every trigger fires.
 
