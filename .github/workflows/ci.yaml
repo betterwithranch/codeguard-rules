@@ -68,5 +68,6 @@ jobs:
           RULES: ${{ steps.affected.outputs.rules }}
           PROVIDER: ${{ matrix.provider }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          LOGFIRE_TOKEN: ${{ secrets.LOGFIRE_TOKEN }}
           GOOGLE_CLOUD_PROJECT: ${{ vars.GOOGLE_CLOUD_PROJECT }}
           GOOGLE_CLOUD_LOCATION: global
