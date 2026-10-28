@@ -17,10 +17,10 @@ Two checks come after a rule ships and don't hold up the next rule. The README's
 table tracks both for each rule, and the plan isn't done until every rule has passed
 both:
 
-- **Gemini**: every case passes 20 of 20 runs on `gemini-3.1-pro-preview` on Vertex AI
-  (`--provider gemini`). The binding still names the model that judges reviews; passing
-  on both shows the test reads the same to two models. CI's `gemini` leg repeats 3 runs
-  and reports a failure without failing the build.
+- **Gemini**: every case passes CI's `gemini` leg, 3 runs on `gemini-3.1-pro-preview`
+  on Vertex AI (`--provider gemini`). The binding still names the model that judges
+  reviews; passing on both shows the test reads the same to two models. A failure there
+  shows as a failed job without failing the build.
 - **Validation**: the rule ships as a `warning`, and its findings on real changes, read
   from codeguard's Logfire traces, show it flags what it should. A validated rule's
   binding moves to `error`.

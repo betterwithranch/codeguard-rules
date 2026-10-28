@@ -176,7 +176,8 @@ planned after these.
 Two checks run after each rule ships and don't hold up the next rule; the README's rule
 table tracks them. The plan is done when every rule has passed both:
 
-- **Gemini**: every judge rule's eval cases pass 20 of 20 runs with `--provider gemini`.
+- **Gemini**: every judge rule's eval cases pass CI's `gemini` leg (3 runs with
+  `--provider gemini`).
 - **Validation**: every rule's findings on real changes, from codeguard's Logfire data,
   show it flags what it should and nothing else. A validated rule's binding moves from
   `warning` to `error`.
