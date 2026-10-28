@@ -36,6 +36,7 @@ the languages it runs on.
 | `single-responsibility` | Single responsibility: a function or class has one reason to change, so a function's own body doesn't hold the details of two concerns (business rules, an outside system, a data format) and a class's methods don't serve two | Not yet |
 | `no-repeated-switches` | No repeated switches: behaviour chosen by which kind a value is (its class, or an enum member or tag naming its variant) is chosen in one place, unless the type checker proves every place covers every kind | Not yet |
 | `no-feature-envy` | No feature envy: a domain answer computed from one type's data lives in that type's module, so code elsewhere doesn't work an answer out from one value's fields alone | Not yet |
+| `fail-fast` | Fail fast: a failure, missing data or an impossible state is reported where it's found, so code the change adds doesn't swallow an error, default data that should exist, clamp an impossible value or drop the items that failed | Not yet |
 
 Each rule passes 20 of 20 eval runs on Claude before it ships, and CI's 3 runs before it
 merges. One check follows, and doesn't hold up the next rule:
@@ -79,7 +80,6 @@ code skip test files:
 | `no-tuple-fixtures` | A pytest fixture returns or yields one object, never a tuple |
 | `one-form-per-input` | No parameter reconciled from another parameter when missing (`if index is None: index = build(catalog)`) |
 | `typed-dispatch-registries` | A class takes a registry, not a `dict[str, Callable]` |
-| `fail-fast` | Fail fast: a failure, missing data or an impossible state is reported where it's found, so code the change adds doesn't swallow an error, default data that should exist, clamp an impossible value or drop the items that failed | Not yet |
 
 The `python` ruleset has no judge rules yet. Its judge rules, and some pattern rules, are drafts in
 `drafts/python/`, which codeguard doesn't load. A draft moves into a ruleset one rule at a time, in the order in
