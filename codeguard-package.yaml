@@ -1,4 +1,4 @@
 name: betterwithranch
-rulesets: [python]
+rulesets: [general, python]
 ast-grep: ">=0.45"
 codeguard: ">=0.9"

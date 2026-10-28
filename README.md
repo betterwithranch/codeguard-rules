@@ -21,6 +21,22 @@ name, and [basedpyright](https://docs.basedpyright.com) with these rules on:
 
 ## Rulesets
 
+### `general`
+
+Architecture rules for any language. Each is one judge rule: its `SKILL.md` states the
+convention in no language's terms, and a supplement beside it for each language,
+`python.md` and `typescript.md`, gives that language's forms and examples. The judge
+gets the skill and the supplement for the file's language. Its binding's `paths` name
+the languages it runs on.
+
+| Rule | Checks |
+|---|---|
+| `dry` | Don't Repeat Yourself: code the change adds doesn't state a computation, process, set or outside shape again when the file or a module it imports already states it |
+
+Its evals have cases in each language, reported apart as `dry (python)` and
+`dry (typescript)`. Gates in `general/gates/` are ast-grep rules for one language each;
+on a TypeScript file, every trigger fires.
+
 ### `python`
 
 Rules for any Python project. No framework rules. Each rule checks one thing, so a
@@ -53,8 +69,9 @@ code skip test files:
 | `one-form-per-input` | No parameter reconciled from another parameter when missing (`if index is None: index = build(catalog)`) |
 | `typed-dispatch-registries` | A class takes a registry, not a `dict[str, Callable]` |
 
-There are no judge rules yet. The judge rules, and some pattern rules, are drafts in
-`drafts/python/`, which codeguard doesn't load. A draft moves back into `python/` one rule at a time, highest
+The `python` ruleset has no judge rules yet. Its judge rules, and some pattern rules, are drafts in
+`drafts/python/`, which codeguard doesn't load. A draft moves into a ruleset one rule at a time, in the order in
+[drafts/split-plan.md](drafts/split-plan.md), highest
 value first: a judge rule once it passes every eval case 20 of 20 runs on each eval
 provider, a pattern rule once its rule tests cover each branch and pass. codeguard's
 `writing-rules` skill has the steps, and [drafts/README.md](drafts/README.md) the
@@ -68,8 +85,8 @@ binding and pass its evals again. [drafts/README.md](drafts/README.md) lists the
 
 A judge rule runs on a changed file only when a changed line falls inside code it could
 flag. Its binding's `triggers` names that code: a change kind built into codeguard, such
-as `fixture` or `import`, or a gate in `python/gates/`, an ast-grep rule such as
-`mock-use`. A rule ast-grep or the type checker can check is a pattern rule or a checker
+as `fixture` or `import`, or a gate in the ruleset's `gates/`, an ast-grep rule
+such as `mock-use`. A rule ast-grep or the type checker can check is a pattern rule or a checker
 setting, never a judge rule.
 
 ## Use a ruleset
@@ -103,11 +120,12 @@ project that sets `ast-grep` in its config must pick a version in that range.
 
 ```
 codeguard-package.yaml       # name, rulesets, and supported ast-grep and codeguard versions
-python/
+general/, python/            # one directory per ruleset
   rules/pattern/<id>.yml     # ast-grep rules
   gates/<id>.yml             # ast-grep rules that decide when a judge rule runs
   rule-tests/<id>-test.yml   # tests for both, with __snapshots__/
   skills/<id>/SKILL.md       # judge rules
+  skills/<id>/<language>.md  # a judge rule's forms and examples in one language
   bindings/<id>.yaml         # a skill or pattern rule and its default paths
   rule-evals/<id>.yaml       # judge rule evals: cases codeguard judges with the binding
 ```
