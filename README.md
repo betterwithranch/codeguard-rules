@@ -153,7 +153,7 @@ CI judges only the rules a change can affect: a rule whose skill, binding, eval 
 trigger's gate changed, or every rule when `codeguard-package.yaml`, the workflow or
 `scripts/affected_judge_rules.py` changed. That script prints the affected rules, and
 CI passes each to `codeguard eval --rule`. The `eval` job runs once per provider in its
-matrix (`claude-cli` today). Locally, `codeguard eval --rule <id> --repeat 20` judges one
+matrix, `claude-cli` and `gemini`. Locally, `codeguard eval --rule <id> --repeat 20` judges one
 rule, and `--provider gemini` judges it with Gemini instead of its binding's model.
 
 [Which test to write](https://github.com/jig-code/codeguard#which-test-to-write)
@@ -168,7 +168,11 @@ re-run or loosen the gate. [CLAUDE.md](CLAUDE.md) has the details.
 
 The rules are tested only by their own cases, through codeguard, so they are shown
 accurate as codeguard runs them. CI's `test` job runs `codeguard test`, then its `eval`
-job runs `codeguard eval --repeat 3` with Claude; a case that fails or isn't judged in
-any run fails the build. The `eval` job needs the repository secret `CLAUDE_CODE_OAUTH_TOKEN`.
+job runs `codeguard eval --repeat 3` with each provider; a case that fails or isn't
+judged in any run fails the build. The `eval` job needs, in the repository's Actions
+settings, the secret `CLAUDE_CODE_OAUTH_TOKEN` for Claude, and for Gemini the secret
+`GOOGLE_CREDENTIALS` (a service account key with the Vertex AI User role) and the
+variable `GOOGLE_CLOUD_PROJECT`. codeguard's README, under "Judge with Gemini on Google
+Cloud", has the setup.
 CI runs the codeguard release in `CODEGUARD_REF` in `.github/workflows/ci.yaml`, so
 moving to a new release is a change here, which judges every rule.

@@ -20,9 +20,8 @@ case for each branch and `codeguard test` passes.
 A rule is shown accurate only by its own cases. Reviewing other code, codeguard's
 included, is not part of the bar.
 
-No judge rule is added back until both providers can be checked: this environment and
-CI need Google Cloud credentials for Vertex AI, and CI's `eval` matrix then gains
-`gemini`.
+CI's `eval` matrix runs both providers. Checking a rule on Gemini before the commit needs
+Google Cloud credentials for Vertex AI where the eval runs.
 
 Rules are added back highest value first: rules about architecture and design before
 rules about style.
