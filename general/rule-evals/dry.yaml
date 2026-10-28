@@ -624,7 +624,7 @@ cases:
     file: src/leasing/renewals.ts
     unchanged:
       src/leasing/lease.ts: |
-        const DAY_MS = 86_400_000;
+        export const DAY_MS = 86_400_000;
 
         export class Lease {
           constructor(
@@ -638,11 +638,9 @@ cases:
           }
         }
     before: |
-      import { Lease } from "./lease";
+      import { DAY_MS, Lease } from "./lease";
     after: |
-      import { Lease } from "./lease";
-
-      const DAY_MS = 86_400_000;
+      import { DAY_MS, Lease } from "./lease";
 
       export function renewalOpensOn(lease: Lease): Date {
         const leaseEnd = new Date(lease.startsOn.getTime() + (lease.termDays + lease.noticeDays) * DAY_MS);
@@ -655,7 +653,7 @@ cases:
     file: src/leasing/renewals.ts
     unchanged:
       src/leasing/lease.ts: |
-        const DAY_MS = 86_400_000;
+        export const DAY_MS = 86_400_000;
 
         export class Lease {
           constructor(
@@ -669,11 +667,9 @@ cases:
           }
         }
     before: |
-      import { Lease } from "./lease";
+      import { DAY_MS, Lease } from "./lease";
     after: |
-      import { Lease } from "./lease";
-
-      const DAY_MS = 86_400_000;
+      import { DAY_MS, Lease } from "./lease";
 
       export function renewalOpensOn(lease: Lease): Date {
         return new Date(lease.endsOn().getTime() - 30 * DAY_MS);
