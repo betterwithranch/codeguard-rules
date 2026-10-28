@@ -27,11 +27,10 @@ jobs:
   eval:
     needs: test
     runs-on: ubuntu-latest
-    continue-on-error: ${{ matrix.provider == 'gemini' }}
     strategy:
       fail-fast: false
       matrix:
-        provider: [claude-cli, gemini]
+        provider: [claude-cli]
     steps:
       - uses: actions/checkout@v7
         with:

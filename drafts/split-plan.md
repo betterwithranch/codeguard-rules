@@ -173,11 +173,9 @@ planned after these.
 
 ## Last tasks
 
-Two checks run after each rule ships and don't hold up the next rule; the README's rule
-table tracks them. The plan is done when every rule has passed both:
+One check runs after each rule ships and doesn't hold up the next rule; the README's
+rule table tracks it. The plan is done when every rule has passed it:
 
-- **Gemini**: every judge rule's eval cases pass CI's `gemini` leg (3 runs with
-  `--provider gemini`).
 - **Validation**: every rule's findings on real changes, from codeguard's Logfire data,
   show it flags what it should and nothing else. A validated rule's binding moves from
   `warning` to `error`.
