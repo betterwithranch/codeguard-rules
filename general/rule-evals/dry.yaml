@@ -1,0 +1,827 @@
+cases:
+- name: contractor pay repeats the overtime rule from gross pay, so an overtime change misses contractors
+  inputs:
+    file: payroll/pay.py
+    before: |
+      OVERTIME_AFTER_HOURS = 40
+      OVERTIME_MULTIPLIER = 1.5
+
+
+      def gross_pay(hours: float, hourly_rate: int) -> int:
+          regular = min(hours, OVERTIME_AFTER_HOURS)
+          overtime = max(hours - OVERTIME_AFTER_HOURS, 0)
+          return round(regular * hourly_rate + overtime * hourly_rate * OVERTIME_MULTIPLIER)
+    after: |
+      OVERTIME_AFTER_HOURS = 40
+      OVERTIME_MULTIPLIER = 1.5
+
+
+      def gross_pay(hours: float, hourly_rate: int) -> int:
+          regular = min(hours, OVERTIME_AFTER_HOURS)
+          overtime = max(hours - OVERTIME_AFTER_HOURS, 0)
+          return round(regular * hourly_rate + overtime * hourly_rate * OVERTIME_MULTIPLIER)
+
+
+      def contractor_pay(rate_per_hour: int, logged_hours: float) -> int:
+          base_hours = min(logged_hours, OVERTIME_AFTER_HOURS)
+          extra_hours = max(logged_hours - OVERTIME_AFTER_HOURS, 0)
+          return round(base_hours * rate_per_hour + extra_hours * rate_per_hour * OVERTIME_MULTIPLIER)
+  expected_output:
+    outcome: invalid
+- name: contractor pay adds a platform fee to gross pay, so the overtime rule stays in one place
+  inputs:
+    file: payroll/pay.py
+    before: |
+      OVERTIME_AFTER_HOURS = 40
+      OVERTIME_MULTIPLIER = 1.5
+
+
+      def gross_pay(hours: float, hourly_rate: int) -> int:
+          regular = min(hours, OVERTIME_AFTER_HOURS)
+          overtime = max(hours - OVERTIME_AFTER_HOURS, 0)
+          return round(regular * hourly_rate + overtime * hourly_rate * OVERTIME_MULTIPLIER)
+    after: |
+      OVERTIME_AFTER_HOURS = 40
+      OVERTIME_MULTIPLIER = 1.5
+      PLATFORM_FEE = 250
+
+
+      def gross_pay(hours: float, hourly_rate: int) -> int:
+          regular = min(hours, OVERTIME_AFTER_HOURS)
+          overtime = max(hours - OVERTIME_AFTER_HOURS, 0)
+          return round(regular * hourly_rate + overtime * hourly_rate * OVERTIME_MULTIPLIER)
+
+
+      def contractor_pay(hours: float, hourly_rate: int) -> int:
+          return gross_pay(hours, hourly_rate) - PLATFORM_FEE
+  expected_output:
+    outcome: valid
+- name: refund recomputes the seat price the pricing module owns, so a pricing change refunds the old price
+  inputs:
+    file: tickets/refunds.py
+    unchanged:
+      tickets/__init__.py: ""
+      tickets/pricing.py: |
+        BOOKING_FEE = 300
+        PEAK_DEMAND = 0.8
+
+
+        def seat_price(base_cents: int, demand: float) -> int:
+            surge = 1.25 if demand >= PEAK_DEMAND else 1.0
+            return round(base_cents * surge) + BOOKING_FEE
+    before: |
+      from tickets.pricing import BOOKING_FEE, PEAK_DEMAND
+    after: |
+      from tickets.pricing import BOOKING_FEE, PEAK_DEMAND
+
+
+      def refund_cents(base_cents: int, demand: float, days_before_event: int) -> int:
+          surge = 1.25 if demand >= PEAK_DEMAND else 1.0
+          paid = round(base_cents * surge) + BOOKING_FEE
+          return paid if days_before_event >= 7 else paid // 2
+  expected_output:
+    outcome: invalid
+- name: two private restock helpers repeat one formula with a different lead time each
+  inputs:
+    file: warehouse/restock.py
+    after: |
+      import math
+      from statistics import mean
+
+      SAFETY_FACTOR = 1.2
+
+
+      def _north_restock_level(daily_sales: list[int]) -> int:
+          lead_days = 4
+          return math.ceil(mean(daily_sales) * lead_days * SAFETY_FACTOR)
+
+
+      def _south_restock_level(daily_sales: list[int]) -> int:
+          lead_days = 9
+          return math.ceil(mean(daily_sales) * lead_days * SAFETY_FACTOR)
+
+
+      def restock_levels(north_sales: list[int], south_sales: list[int]) -> dict[str, int]:
+          return {
+              "north": _north_restock_level(north_sales),
+              "south": _south_restock_level(south_sales),
+          }
+  expected_output:
+    outcome: invalid
+- name: one restock formula takes each site's lead time as an argument
+  inputs:
+    file: warehouse/restock.py
+    after: |
+      import math
+      from statistics import mean
+
+      SAFETY_FACTOR = 1.2
+      LEAD_DAYS = {"north": 4, "south": 9}
+
+
+      def _restock_level(daily_sales: list[int], lead_days: int) -> int:
+          return math.ceil(mean(daily_sales) * lead_days * SAFETY_FACTOR)
+
+
+      def restock_levels(north_sales: list[int], south_sales: list[int]) -> dict[str, int]:
+          return {
+              "north": _restock_level(north_sales, LEAD_DAYS["north"]),
+              "south": _restock_level(south_sales, LEAD_DAYS["south"]),
+          }
+  expected_output:
+    outcome: valid
+- name: backfill decodes, calibrates and saves readings itself, so a new pipeline stage skips backfilled data
+  inputs:
+    file: sensors/backfill.py
+    unchanged:
+      sensors/__init__.py: ""
+      sensors/pipeline.py: |
+        from sensors.calibration import Calibrator
+        from sensors.decoding import Decoder
+        from sensors.storage import ReadingStore
+
+
+        class ReadingPipeline:
+            def __init__(self, decoder: Decoder, calibrator: Calibrator, store: ReadingStore) -> None:
+                self.decoder = decoder
+                self.calibrator = calibrator
+                self.store = store
+
+            def run(self, frame: bytes) -> None:
+                reading = self.decoder.decode(frame)
+                calibrated = self.calibrator.calibrate(reading)
+                self.store.save(calibrated)
+    before: |
+      from sensors.pipeline import ReadingPipeline
+
+
+      class Backfill:
+          def __init__(self, pipeline: ReadingPipeline) -> None:
+              self.pipeline = pipeline
+    after: |
+      from sensors.pipeline import ReadingPipeline
+
+
+      class Backfill:
+          def __init__(self, pipeline: ReadingPipeline) -> None:
+              self.pipeline = pipeline
+
+          def replay(self, frames: list[bytes]) -> None:
+              for frame in frames:
+                  reading = self.pipeline.decoder.decode(frame)
+                  calibrated = self.pipeline.calibrator.calibrate(reading)
+                  self.pipeline.store.save(calibrated)
+  expected_output:
+    outcome: invalid
+- name: backfill hands each frame to the reading pipeline
+  inputs:
+    file: sensors/backfill.py
+    unchanged:
+      sensors/__init__.py: ""
+      sensors/pipeline.py: |
+        from sensors.calibration import Calibrator
+        from sensors.decoding import Decoder
+        from sensors.storage import ReadingStore
+
+
+        class ReadingPipeline:
+            def __init__(self, decoder: Decoder, calibrator: Calibrator, store: ReadingStore) -> None:
+                self.decoder = decoder
+                self.calibrator = calibrator
+                self.store = store
+
+            def run(self, frame: bytes) -> None:
+                reading = self.decoder.decode(frame)
+                calibrated = self.calibrator.calibrate(reading)
+                self.store.save(calibrated)
+    before: |
+      from sensors.pipeline import ReadingPipeline
+
+
+      class Backfill:
+          def __init__(self, pipeline: ReadingPipeline) -> None:
+              self.pipeline = pipeline
+    after: |
+      from sensors.pipeline import ReadingPipeline
+
+
+      class Backfill:
+          def __init__(self, pipeline: ReadingPipeline) -> None:
+              self.pipeline = pipeline
+
+          def replay(self, frames: list[bytes]) -> None:
+              for frame in frames:
+                  self.pipeline.run(frame)
+  expected_output:
+    outcome: valid
+- name: a currency tuple lists the enum's members by hand, so a new currency is missing from it
+  inputs:
+    file: billing/currency.py
+    before: |
+      from enum import Enum
+
+
+      class Currency(Enum):
+          USD = "USD"
+          EUR = "EUR"
+          GBP = "GBP"
+    after: |
+      from enum import Enum
+
+
+      class Currency(Enum):
+          USD = "USD"
+          EUR = "EUR"
+          GBP = "GBP"
+
+
+      ACCEPTED_CURRENCY_CODES = ("USD", "EUR", "GBP")
+  expected_output:
+    outcome: invalid
+- name: the accepted currency codes are built from the enum
+  inputs:
+    file: billing/currency.py
+    before: |
+      from enum import Enum
+
+
+      class Currency(Enum):
+          USD = "USD"
+          EUR = "EUR"
+          GBP = "GBP"
+    after: |
+      from enum import Enum
+
+
+      class Currency(Enum):
+          USD = "USD"
+          EUR = "EUR"
+          GBP = "GBP"
+
+
+      ACCEPTED_CURRENCY_CODES = tuple(currency.value for currency in Currency)
+  expected_output:
+    outcome: valid
+- name: the networks that need a challenge are a choice of their own among all networks
+  inputs:
+    file: billing/networks.py
+    before: |
+      from billing.gateways import amex_gateway, mastercard_gateway, visa_gateway
+
+      GATEWAYS = {
+          "visa": visa_gateway,
+          "mastercard": mastercard_gateway,
+          "amex": amex_gateway,
+      }
+    after: |
+      from billing.gateways import amex_gateway, mastercard_gateway, visa_gateway
+
+      GATEWAYS = {
+          "visa": visa_gateway,
+          "mastercard": mastercard_gateway,
+          "amex": amex_gateway,
+      }
+
+      CHALLENGE_REQUIRED = {"visa", "mastercard"}
+  expected_output:
+    outcome: valid
+- name: a second model copies the carrier's tracking event fields, so a carrier change updates only one
+  inputs:
+    file: carriers/notifications.py
+    unchanged:
+      carriers/__init__.py: ""
+      carriers/tracking.py: |
+        from datetime import datetime
+
+        from pydantic import BaseModel
+
+
+        class CarrierTrackingEvent(BaseModel):
+            tracking_number: str
+            status_code: str
+            location: str
+            occurred_at: datetime
+
+
+        def parse_event(body: bytes) -> CarrierTrackingEvent:
+            return CarrierTrackingEvent.model_validate_json(body)
+    before: |
+      from carriers.tracking import parse_event
+
+
+      def notification_text(body: bytes) -> str:
+          event = parse_event(body)
+          return f"{event.tracking_number}: {event.status_code}"
+    after: |
+      from datetime import datetime
+
+      from pydantic import BaseModel
+
+      from carriers.tracking import parse_event
+
+
+      class TrackingUpdate(BaseModel):
+          tracking_number: str
+          status_code: str
+          location: str
+          occurred_at: datetime
+
+
+      def notification_text(body: bytes) -> str:
+          update = TrackingUpdate.model_validate_json(body)
+          return f"{update.tracking_number}: {update.status_code}"
+  expected_output:
+    outcome: invalid
+- name: a stored shipment row and the API's shipment response are mapped where they meet
+  inputs:
+    file: shipments/api.py
+    unchanged:
+      shipments/__init__.py: ""
+      shipments/rows.py: |
+        from dataclasses import dataclass
+        from datetime import date
+
+
+        @dataclass(frozen=True)
+        class ShipmentRow:
+            reference: str
+            destination: str
+            shipped_on: date
+    before: |
+      from shipments.rows import ShipmentRow
+    after: |
+      from datetime import date
+
+      from pydantic import BaseModel
+
+      from shipments.rows import ShipmentRow
+
+
+      class ShipmentResponse(BaseModel):
+          reference: str
+          destination: str
+          shipped_on: date
+
+
+      def to_response(row: ShipmentRow) -> ShipmentResponse:
+          return ShipmentResponse(
+              reference=row.reference,
+              destination=row.destination,
+              shipped_on=row.shipped_on,
+          )
+  expected_output:
+    outcome: valid
+- name: a module function recomputes the trial end the subscription already computes
+  inputs:
+    file: accounts/reminders.py
+    unchanged:
+      accounts/__init__.py: ""
+      accounts/subscription.py: |
+        from dataclasses import dataclass
+        from datetime import date, timedelta
+
+
+        @dataclass(frozen=True)
+        class Subscription:
+            started_on: date
+            trial_days: int
+            extended_days: int
+
+            def trial_ends_on(self) -> date:
+                return self.started_on + timedelta(days=self.trial_days + self.extended_days)
+    before: |
+      from accounts.subscription import Subscription
+    after: |
+      from datetime import date, timedelta
+
+      from accounts.subscription import Subscription
+
+
+      def reminder_date(subscription: Subscription) -> date:
+          trial_end = subscription.started_on + timedelta(
+              days=subscription.trial_days + subscription.extended_days
+          )
+          return trial_end - timedelta(days=3)
+  expected_output:
+    outcome: invalid
+- name: a coupon check spells out the code pattern the coupon module defines
+  inputs:
+    file: checkout/discounts.py
+    unchanged:
+      checkout/__init__.py: ""
+      checkout/coupons.py: |
+        import re
+
+        COUPON_CODE = re.compile(r"[A-Z]{4}-\d{4}")
+
+
+        def is_coupon_code(text: str) -> bool:
+            return COUPON_CODE.fullmatch(text) is not None
+    before: |
+      from checkout.coupons import is_coupon_code
+    after: |
+      import re
+
+      from checkout.coupons import is_coupon_code
+
+
+      def discount_cents(code: str, subtotal_cents: int) -> int:
+          if re.fullmatch(r"[A-Z]{4}-\d{4}", code) is None:
+              return 0
+          return subtotal_cents // 10
+  expected_output:
+    outcome: invalid
+- name: two totals sum different measures of the same lines
+  inputs:
+    file: orders/totals.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Line:
+          quantity: int
+          unit_price_cents: int
+          unit_weight_grams: int
+
+
+      def order_value_cents(lines: list[Line]) -> int:
+          return sum(line.quantity * line.unit_price_cents for line in lines)
+
+
+      def order_weight_grams(lines: list[Line]) -> int:
+          return sum(line.quantity * line.unit_weight_grams for line in lines)
+  expected_output:
+    outcome: valid
+- name: two Django models each name themselves by their own field
+  inputs:
+    file: catalog/models.py
+    after: |
+      from django.db import models
+
+
+      class Author(models.Model):
+          full_name = models.CharField(max_length=200)
+
+          def __str__(self) -> str:
+              return self.full_name
+
+
+      class Publisher(models.Model):
+          trading_name = models.CharField(max_length=200)
+
+          def __str__(self) -> str:
+              return self.trading_name
+  expected_output:
+    outcome: valid
+- name: adds an import
+  inputs:
+    file: payroll/report.py
+    before: |
+      from payroll.pay import gross_pay
+    after: |
+      from payroll.pay import contractor_pay, gross_pay
+  expected_output:
+    outcome: skipped
+- name: an invoice total repeats the tax steps another function owns, so a tax change misses invoices
+  inputs:
+    file: src/billing/totals.ts
+    before: |
+      const TAX_RATE = 0.2;
+
+      export function quoteTotal(netCents: number, discountCents: number): number {
+        const taxable = Math.max(netCents - discountCents, 0);
+        return Math.round(taxable * (1 + TAX_RATE));
+      }
+    after: |
+      const TAX_RATE = 0.2;
+
+      export function quoteTotal(netCents: number, discountCents: number): number {
+        const taxable = Math.max(netCents - discountCents, 0);
+        return Math.round(taxable * (1 + TAX_RATE));
+      }
+
+      export function invoiceTotal(discount: number, net: number): number {
+        const taxableAmount = Math.max(net - discount, 0);
+        return Math.round(taxableAmount * (1 + TAX_RATE));
+      }
+  expected_output:
+    outcome: invalid
+- name: an invoice total adds a late charge to the quote total
+  inputs:
+    file: src/billing/totals.ts
+    before: |
+      const TAX_RATE = 0.2;
+
+      export function quoteTotal(netCents: number, discountCents: number): number {
+        const taxable = Math.max(netCents - discountCents, 0);
+        return Math.round(taxable * (1 + TAX_RATE));
+      }
+    after: |
+      const TAX_RATE = 0.2;
+      const LATE_CHARGE_CENTS = 1500;
+
+      export function quoteTotal(netCents: number, discountCents: number): number {
+        const taxable = Math.max(netCents - discountCents, 0);
+        return Math.round(taxable * (1 + TAX_RATE));
+      }
+
+      export function invoiceTotal(netCents: number, discountCents: number, isLate: boolean): number {
+        return quoteTotal(netCents, discountCents) + (isLate ? LATE_CHARGE_CENTS : 0);
+      }
+  expected_output:
+    outcome: valid
+- name: a role union lists the permission map's roles by hand, so a new role is missing from it
+  inputs:
+    file: src/auth/roles.ts
+    before: |
+      export const PERMISSIONS = {
+        viewer: ["read"],
+        editor: ["read", "write"],
+        owner: ["read", "write", "delete"],
+      } as const;
+    after: |
+      export const PERMISSIONS = {
+        viewer: ["read"],
+        editor: ["read", "write"],
+        owner: ["read", "write", "delete"],
+      } as const;
+
+      export type Role = "viewer" | "editor" | "owner";
+  expected_output:
+    outcome: invalid
+- name: the role type is taken from the permission map's keys
+  inputs:
+    file: src/auth/roles.ts
+    before: |
+      export const PERMISSIONS = {
+        viewer: ["read"],
+        editor: ["read", "write"],
+        owner: ["read", "write", "delete"],
+      } as const;
+    after: |
+      export const PERMISSIONS = {
+        viewer: ["read"],
+        editor: ["read", "write"],
+        owner: ["read", "write", "delete"],
+      } as const;
+
+      export type Role = keyof typeof PERMISSIONS;
+  expected_output:
+    outcome: valid
+- name: an interface repeats the webhook schema's fields, so the two drift when the webhook changes
+  inputs:
+    file: src/payments/webhook.ts
+    before: |
+      import { z } from "zod";
+
+      export const PaymentEventSchema = z.object({
+        paymentId: z.string(),
+        amountCents: z.number().int(),
+        status: z.enum(["succeeded", "failed"]),
+      });
+    after: |
+      import { z } from "zod";
+
+      export const PaymentEventSchema = z.object({
+        paymentId: z.string(),
+        amountCents: z.number().int(),
+        status: z.enum(["succeeded", "failed"]),
+      });
+
+      export interface PaymentEvent {
+        paymentId: string;
+        amountCents: number;
+        status: "succeeded" | "failed";
+      }
+
+      export function parsePaymentEvent(body: unknown): PaymentEvent {
+        return PaymentEventSchema.parse(body);
+      }
+  expected_output:
+    outcome: invalid
+- name: the webhook event type is inferred from its schema
+  inputs:
+    file: src/payments/webhook.ts
+    before: |
+      import { z } from "zod";
+
+      export const PaymentEventSchema = z.object({
+        paymentId: z.string(),
+        amountCents: z.number().int(),
+        status: z.enum(["succeeded", "failed"]),
+      });
+    after: |
+      import { z } from "zod";
+
+      export const PaymentEventSchema = z.object({
+        paymentId: z.string(),
+        amountCents: z.number().int(),
+        status: z.enum(["succeeded", "failed"]),
+      });
+
+      export type PaymentEvent = z.infer<typeof PaymentEventSchema>;
+
+      export function parsePaymentEvent(body: unknown): PaymentEvent {
+        return PaymentEventSchema.parse(body);
+      }
+  expected_output:
+    outcome: valid
+- name: a function recomputes the lease end the lease class computes, so a change to notice periods misses renewals
+  inputs:
+    file: src/leasing/renewals.ts
+    unchanged:
+      src/leasing/lease.ts: |
+        export const DAY_MS = 86_400_000;
+
+        export class Lease {
+          constructor(
+            readonly startsOn: Date,
+            readonly termDays: number,
+            readonly noticeDays: number,
+          ) {}
+
+          endsOn(): Date {
+            return new Date(this.startsOn.getTime() + (this.termDays + this.noticeDays) * DAY_MS);
+          }
+        }
+    before: |
+      import { DAY_MS, Lease } from "./lease";
+    after: |
+      import { DAY_MS, Lease } from "./lease";
+
+      export function renewalOpensOn(lease: Lease): Date {
+        const leaseEnd = new Date(lease.startsOn.getTime() + (lease.termDays + lease.noticeDays) * DAY_MS);
+        return new Date(leaseEnd.getTime() - 30 * DAY_MS);
+      }
+  expected_output:
+    outcome: invalid
+- name: renewal opens a month before the end the lease computes
+  inputs:
+    file: src/leasing/renewals.ts
+    unchanged:
+      src/leasing/lease.ts: |
+        export const DAY_MS = 86_400_000;
+
+        export class Lease {
+          constructor(
+            readonly startsOn: Date,
+            readonly termDays: number,
+            readonly noticeDays: number,
+          ) {}
+
+          endsOn(): Date {
+            return new Date(this.startsOn.getTime() + (this.termDays + this.noticeDays) * DAY_MS);
+          }
+        }
+    before: |
+      import { DAY_MS, Lease } from "./lease";
+    after: |
+      import { DAY_MS, Lease } from "./lease";
+
+      export function renewalOpensOn(lease: Lease): Date {
+        return new Date(lease.endsOn().getTime() - 30 * DAY_MS);
+      }
+  expected_output:
+    outcome: valid
+- name: a retry parses, validates and writes the upload itself, so a new import stage skips retried uploads
+  inputs:
+    file: src/imports/retry.ts
+    unchanged:
+      src/imports/importJob.ts: |
+        import type { Parser } from "./parser";
+        import type { Validator } from "./validator";
+        import type { Writer } from "./writer";
+
+        export class ImportJob {
+          constructor(
+            readonly parser: Parser,
+            readonly validator: Validator,
+            readonly writer: Writer,
+          ) {}
+
+          async run(upload: Buffer): Promise<void> {
+            const records = this.parser.parse(upload);
+            const accepted = this.validator.check(records);
+            await this.writer.write(accepted);
+          }
+        }
+    before: |
+      import type { ImportJob } from "./importJob";
+
+      export class RetryQueue {
+        constructor(private readonly job: ImportJob) {}
+      }
+    after: |
+      import type { ImportJob } from "./importJob";
+
+      export class RetryQueue {
+        constructor(private readonly job: ImportJob) {}
+
+        async retry(failed: Buffer[]): Promise<void> {
+          for (const upload of failed) {
+            const records = this.job.parser.parse(upload);
+            const accepted = this.job.validator.check(records);
+            await this.job.writer.write(accepted);
+          }
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: a retry hands each failed upload to the import job
+  inputs:
+    file: src/imports/retry.ts
+    unchanged:
+      src/imports/importJob.ts: |
+        import type { Parser } from "./parser";
+        import type { Validator } from "./validator";
+        import type { Writer } from "./writer";
+
+        export class ImportJob {
+          constructor(
+            readonly parser: Parser,
+            readonly validator: Validator,
+            readonly writer: Writer,
+          ) {}
+
+          async run(upload: Buffer): Promise<void> {
+            const records = this.parser.parse(upload);
+            const accepted = this.validator.check(records);
+            await this.writer.write(accepted);
+          }
+        }
+    before: |
+      import type { ImportJob } from "./importJob";
+
+      export class RetryQueue {
+        constructor(private readonly job: ImportJob) {}
+      }
+    after: |
+      import type { ImportJob } from "./importJob";
+
+      export class RetryQueue {
+        constructor(private readonly job: ImportJob) {}
+
+        async retry(failed: Buffer[]): Promise<void> {
+          for (const upload of failed) {
+            await this.job.run(upload);
+          }
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a checkout summary works out shipping inside its own body, so a rate change misses the summary
+  inputs:
+    file: src/checkout/summary.ts
+    unchanged:
+      src/checkout/shipping.ts: |
+        export const ZONE_RATES = { domestic: 450, international: 1800 } as const;
+        export const FREE_SHIPPING_FROM_CENTS = 5000;
+
+        export function shippingCents(subtotalCents: number, zone: keyof typeof ZONE_RATES): number {
+          if (zone === "domestic" && subtotalCents >= FREE_SHIPPING_FROM_CENTS) {
+            return 0;
+          }
+          return ZONE_RATES[zone];
+        }
+    before: |
+      import { FREE_SHIPPING_FROM_CENTS, ZONE_RATES } from "./shipping";
+    after: |
+      import { FREE_SHIPPING_FROM_CENTS, ZONE_RATES } from "./shipping";
+
+      export function summaryLines(subtotalCents: number, zone: keyof typeof ZONE_RATES): string[] {
+        let shipping: number = ZONE_RATES[zone];
+        if (zone === "domestic" && subtotalCents >= FREE_SHIPPING_FROM_CENTS) {
+          shipping = 0;
+        }
+        const total = subtotalCents + shipping;
+        return [`Subtotal: ${subtotalCents}`, `Shipping: ${shipping}`, `Total: ${total}`];
+      }
+  expected_output:
+    outcome: invalid
+- name: a checkout summary asks the shipping module for the charge and lays out its own lines
+  inputs:
+    file: src/checkout/summary.ts
+    unchanged:
+      src/checkout/shipping.ts: |
+        export const ZONE_RATES = { domestic: 450, international: 1800 } as const;
+        export const FREE_SHIPPING_FROM_CENTS = 5000;
+
+        export function shippingCents(subtotalCents: number, zone: keyof typeof ZONE_RATES): number {
+          if (zone === "domestic" && subtotalCents >= FREE_SHIPPING_FROM_CENTS) {
+            return 0;
+          }
+          return ZONE_RATES[zone];
+        }
+    before: |
+      import { ZONE_RATES, shippingCents } from "./shipping";
+    after: |
+      import { ZONE_RATES, shippingCents } from "./shipping";
+
+      export function summaryLines(subtotalCents: number, zone: keyof typeof ZONE_RATES): string[] {
+        const shipping = shippingCents(subtotalCents, zone);
+        const total = subtotalCents + shipping;
+        return [`Subtotal: ${subtotalCents}`, `Shipping: ${shipping}`, `Total: ${total}`];
+      }
+  expected_output:
+    outcome: valid

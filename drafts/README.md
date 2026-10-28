@@ -27,10 +27,11 @@ CI need Google Cloud credentials for Vertex AI, and CI's `eval` matrix then gain
 Rules are added back highest value first: rules about architecture and design before
 rules about style.
 
-A judge rule makes one claim, with one yes/no test, as codeguard's `writing-rules` skill
-requires. Its forms illustrate that test on both sides: the test alone decides each
-form, and no form has its own definition of a violation. When a form fails its evals,
-the test is restated; the form isn't held back or carved out. Each code shape is on
+A judge rule states one convention, an abstract statement each piece of code keeps or
+breaks, as codeguard's `writing-rules` skill requires; the judge reports where the
+change breaks it. Its forms illustrate the convention on both sides: the convention
+alone decides each form, and no form has its own definition of a violation. When a form
+fails its evals, the convention is restated; the form isn't held back or carved out. Each code shape is on
 the violation side of at most one rule, so a contradiction or overlap between two rules
 is settled before either is added back. An architectural intent groups rules in these
 tables; it is not itself a rule.
@@ -47,9 +48,14 @@ decides it:
   no language-server rules yet, so these claims are out of scope until it does; they
   wait in [Waiting on a language-server tier](#waiting-on-a-language-server-tier).
 - **LLM**: judgment. It stays a judge rule.
+- **drop**: low value next to the architecture rules, or it would flag idiomatic code.
+  Each drop and its reason is recorded in the plan.
 
-A claim an existing linter or import-linter can already check moves to that tool
-instead.
+A claim an existing linter or import-linter already decides is out of scope: it
+belongs in the app's linter configuration, not here. codeguard runs what a linter
+can't decide; it isn't a linter or a wrapper for one.
+
+[split-plan.md](split-plan.md) has each architecture draft's claims and what decides each.
 
 A rule, its test and its eval cases ask for only as much scope as decides pass or fail.
 Most judge rules are about the change: the test asks about each thing the change adds
@@ -133,7 +139,13 @@ Pattern rules (ast-grep) on test files:
   change builds only groups an in-process call's arguments; a comment or docstring the
   change adds says nothing the code doesn't. A `*Builder` class with no part methods
   before `build()` is a pattern rule. Commented-out code and bare TODOs go to ruff
-  (ERA001, TD003, FIX002).
+  (ERA001, TD003). FIX002 is left out: it flags every TODO, including one with a
+  tracker link, which the draft allows.
+  Revised in the split plan after review: the request-named type claim needs where the
+  type is built and read across the repository, so it waits for the language-server
+  tier; the comment test becomes "states no fact from outside the code", since a
+  comment like `# doesn't handle refunds` says something the code doesn't and the draft
+  still flags it.
 
 Splitting costs judge calls only where a change touches more than one split rule's
 trigger: one judge call measured about 3.8 s, 200 output tokens and $0.02 on
@@ -161,6 +173,11 @@ supports it:
   has more than one call site.
 - A passive shape used by only one type lives in that type's module.
 - A data type, result, record, exception or enum lives in the module that builds it.
+- A protocol is more than a mirror of one class's data attributes.
+- A context type lives in its consumer's package.
+- An interface lives in its consumer's package.
+- A request- or action-named type is more than an in-process call's argument group,
+  judged from where it is built and read.
 
 ## Import-graph tier candidates
 
