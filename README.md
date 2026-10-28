@@ -79,6 +79,7 @@ code skip test files:
 | `no-tuple-fixtures` | A pytest fixture returns or yields one object, never a tuple |
 | `one-form-per-input` | No parameter reconciled from another parameter when missing (`if index is None: index = build(catalog)`) |
 | `typed-dispatch-registries` | A class takes a registry, not a `dict[str, Callable]` |
+| `fail-fast` | Fail fast: a failure, missing data or an impossible state is reported where it's found, so code the change adds doesn't swallow an error, default data that should exist, clamp an impossible value or drop the items that failed | Not yet |
 
 The `python` ruleset has no judge rules yet. Its judge rules, and some pattern rules, are drafts in
 `drafts/python/`, which codeguard doesn't load. A draft moves into a ruleset one rule at a time, in the order in

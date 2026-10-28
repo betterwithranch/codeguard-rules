@@ -1,0 +1,6 @@
+id: item-skip
+language: python
+rule:
+  any:
+  - kind: if_clause
+  - kind: continue_statement

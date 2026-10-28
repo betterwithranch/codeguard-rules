@@ -1,0 +1,238 @@
+cases:
+- name: timesheet export swallows every payroll error, so a rejected sheet is reported as exported and the worker goes unpaid
+  inputs:
+    file: payroll/export.py
+    after: |
+      from payroll.client import PayrollClient
+      from payroll.models import Timesheet
+
+
+      def export_timesheets(client: PayrollClient, sheets: list[Timesheet]) -> int:
+          for sheet in sheets:
+              try:
+                  client.submit(sheet)
+              except Exception:
+                  pass
+          return len(sheets)
+  expected_output:
+    outcome: invalid
+- name: timesheet export names the sheet the payroll system rejected and stops
+  inputs:
+    file: payroll/export.py
+    after: |
+      from payroll.client import PayrollClient, PayrollRejected
+      from payroll.errors import TimesheetNotExported
+      from payroll.models import Timesheet
+
+
+      def export_timesheets(client: PayrollClient, sheets: list[Timesheet]) -> int:
+          for sheet in sheets:
+              try:
+                  client.submit(sheet)
+              except PayrollRejected as err:
+                  raise TimesheetNotExported(sheet.id) from err
+          return len(sheets)
+  expected_output:
+    outcome: valid
+- name: a missing webhook signing secret becomes an empty string, so every signature is checked against nothing
+  inputs:
+    file: webhooks/verify.py
+    after: |
+      import hashlib
+      import hmac
+      import os
+
+      SIGNING_SECRET = os.environ.get("WEBHOOK_SIGNING_SECRET", "")
+
+
+      def signature_matches(body: bytes, signature: str) -> bool:
+          expected = hmac.new(SIGNING_SECRET.encode(), body, hashlib.sha256).hexdigest()
+          return hmac.compare_digest(expected, signature)
+  expected_output:
+    outcome: invalid
+- name: an export batch size the operator may leave unset defaults to a working size
+  inputs:
+    file: exports/batches.py
+    after: |
+      import os
+      from collections.abc import Iterator, Sequence
+
+      BATCH_SIZE = int(os.environ.get("EXPORT_BATCH_SIZE", "500"))
+
+
+      def batches(rows: Sequence[dict]) -> Iterator[Sequence[dict]]:
+          for start in range(0, len(rows), BATCH_SIZE):
+              yield rows[start : start + BATCH_SIZE]
+  expected_output:
+    outcome: valid
+- name: seats left are clamped at zero although booking refuses to overbook, so an overbooked flight shows as merely full
+  inputs:
+    file: flights/availability.py
+    unchanged:
+      flights/__init__.py: ""
+      flights/booking.py: |
+        from flights.models import Flight
+
+
+        class Overbooked(Exception):
+            pass
+
+
+        def book(flight: Flight, seats: int) -> None:
+            if flight.booked + seats > flight.capacity:
+                raise Overbooked(flight.number)
+            flight.booked += seats
+    after: |
+      from flights.models import Flight
+
+
+      def seats_left(flight: Flight) -> int:
+          return max(0, flight.capacity - flight.booked)
+  expected_output:
+    outcome: invalid
+- name: a page size typed into the search form is kept between one and a hundred
+  inputs:
+    file: search/params.py
+    after: |
+      def page_size(raw: str) -> int:
+          requested = int(raw)
+          return min(max(requested, 1), 100)
+  expected_output:
+    outcome: valid
+- name: statement import drops the rows that failed to parse, so the imported total no longer matches the bank's
+  inputs:
+    file: banking/statement_import.py
+    unchanged:
+      banking/__init__.py: ""
+      banking/parsing.py: |
+        from decimal import Decimal, InvalidOperation
+
+        from banking.models import Transaction
+
+
+        def parse_row(row: dict[str, str]) -> Transaction | None:
+            """The row's transaction, or None when the row can't be parsed."""
+            try:
+                amount = Decimal(row["amount"])
+            except InvalidOperation:
+                return None
+            return Transaction(booked_on=row["date"], amount=amount, memo=row["memo"])
+    after: |
+      from banking.models import Transaction
+      from banking.parsing import parse_row
+
+
+      def transactions(rows: list[dict[str, str]]) -> list[Transaction]:
+          parsed = [parse_row(row) for row in rows]
+          return [transaction for transaction in parsed if transaction is not None]
+  expected_output:
+    outcome: invalid
+- name: a dunning run picks the invoices past due and unpaid, which is the rule it applies
+  inputs:
+    file: billing/dunning.py
+    after: |
+      from datetime import date
+
+      from billing.models import Invoice
+
+
+      def to_remind(invoices: list[Invoice], today: date) -> list[Invoice]:
+          return [invoice for invoice in invoices if invoice.due_on < today and invoice.paid_on is None]
+  expected_output:
+    outcome: valid
+- name: sums a shift's hours
+  inputs:
+    file: rota/hours.py
+    after: |
+      from rota.models import Shift
+
+
+      def total_hours(shifts: list[Shift]) -> float:
+          hours = [shift.ends_at_hour - shift.starts_at_hour for shift in shifts]
+          return sum(hours)
+  expected_output:
+    outcome: skipped
+- name: a failed price list load returns an empty list, so the shop shows every product as unavailable instead of an error
+  inputs:
+    file: catalog/prices.ts
+    after: |
+      import { pricingClient, type Price } from "./pricing-client";
+
+      export async function loadPriceList(): Promise<Price[]> {
+        try {
+          return await pricingClient.fetchAll();
+        } catch {
+          return [];
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: a failed price list load is rethrown with what failed and its cause
+  inputs:
+    file: catalog/prices.ts
+    after: |
+      import { pricingClient, type Price } from "./pricing-client";
+
+      export class PriceListUnavailable extends Error {}
+
+      export async function loadPriceList(): Promise<Price[]> {
+        try {
+          return await pricingClient.fetchAll();
+        } catch (err) {
+          throw new PriceListUnavailable("price list load failed", { cause: err });
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a missing exchange rate for an invoice's own currency converts at one to one, so the total comes out in the wrong money
+  inputs:
+    file: billing/convert.ts
+    after: |
+      import type { Currency, Invoice } from "./invoice";
+
+      export function totalInEuros(invoice: Invoice, eurRates: Map<Currency, number>): number {
+        const rate = eurRates.get(invoice.currency) ?? 1;
+        return invoice.totalCents * rate;
+      }
+  expected_output:
+    outcome: invalid
+- name: a user who never chose a theme gets the light one
+  inputs:
+    file: settings/theme.ts
+    after: |
+      export interface Preferences {
+        theme?: "light" | "dark";
+        locale: string;
+      }
+
+      export function themeClass(prefs: Preferences): string {
+        const theme = prefs.theme ?? "light";
+        return `theme-${theme}`;
+      }
+  expected_output:
+    outcome: valid
+- name: meter readings that fail to parse are filtered out, so the average is taken over a partial day without saying so
+  inputs:
+    file: meters/daily.ts
+    after: |
+      import { parseReading, type Reading } from "./reading";
+
+      export function dailyAverage(lines: string[]): number {
+        const readings = lines
+          .map((line) => parseReading(line))
+          .filter((reading): reading is Reading => reading !== undefined);
+        return readings.reduce((sum, reading) => sum + reading.kwh, 0) / readings.length;
+      }
+  expected_output:
+    outcome: invalid
+- name: a report keeps the meters whose readings exceeded their limit, which is what it reports
+  inputs:
+    file: meters/alerts.ts
+    after: |
+      import type { Reading } from "./reading";
+
+      export function overLimit(readings: Reading[], limitKwh: number): Reading[] {
+        return readings.filter((reading) => reading.kwh > limitKwh);
+      }
+  expected_output:
+    outcome: valid

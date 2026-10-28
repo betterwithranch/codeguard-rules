@@ -1,0 +1,20 @@
+id: item-skip
+snapshots:
+  "example_count = sum(1 for example_row in example_rows if example_row.amount)\n":
+    labels:
+    - source: if example_row.amount
+      style: primary
+      start: 54
+      end: 75
+  "example_paid = [example_line for example_line in example_lines if example_line.paid_on is not None]\n":
+    labels:
+    - source: if example_line.paid_on is not None
+      style: primary
+      start: 63
+      end: 98
+  "for example_row in example_rows:\n    if example_row.amount is None:\n        continue\n    example_ledger.post(example_row)\n":
+    labels:
+    - source: continue
+      style: primary
+      start: 76
+      end: 84
