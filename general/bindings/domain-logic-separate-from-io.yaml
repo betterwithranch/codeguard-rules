@@ -1,4 +1,4 @@
-skill: general/skills/functional-core-imperative-shell
+skill: general/skills/domain-logic-separate-from-io
 severity: warning
 paths: ["**/*.py", "**/*.ts", "**/*.tsx"]
 exclude_paths:

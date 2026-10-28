@@ -1,9 +1,9 @@
 ---
-name: functional-core-imperative-shell
+name: domain-logic-separate-from-io
 description: A domain decision is made in code that does no I/O; a function that makes a domain decision and, in the same body, reads or changes state outside the program is a violation.
 ---
 
-# Functional Core, Imperative Shell
+# Domain Logic Separate from I/O
 
 A domain decision is made in code that does no I/O.
 
@@ -49,5 +49,5 @@ A decision tangled with I/O can only be tested by faking the I/O around it, and 
 to change whenever the database, service or schema does. A decision made from values it
 is given is tested with plain values and changes only when the rules do.
 
-Source: Gary Bernhardt, "Boundaries" (2012); Alistair Cockburn, "Hexagonal
-Architecture" (2005).
+Source: Alistair Cockburn, "Hexagonal Architecture" (2005); Gary Bernhardt, "Boundaries"
+(2012), which calls the two sides the functional core and the imperative shell.
