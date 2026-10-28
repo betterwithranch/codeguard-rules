@@ -1,0 +1,514 @@
+cases:
+- name: the timing system's XML and the age-group award rules share one function, so a new timing vendor means editing the awards
+  inputs:
+    file: races/podium.py
+    after: |
+      import xml.etree.ElementTree as ET
+      from collections import defaultdict
+
+
+      CHRONOTRACK = "{urn:chronotrack:results:2}"
+
+
+      def age_group_podiums(chronotrack_xml: str) -> dict[str, list[str]]:
+          finishers = []
+          for element in ET.fromstring(chronotrack_xml).iter(f"{CHRONOTRACK}Finisher"):
+              hours, minutes, seconds = (int(part) for part in element.get("ChipTime").split(":"))
+              finishers.append((element.get("BibNo"), int(element.get("AgeOnRaceDay")), hours * 3600 + minutes * 60 + seconds))
+
+          groups: dict[str, list[tuple[int, str]]] = defaultdict(list)
+          for bib, age, chip_seconds in finishers:
+              if age < 30:
+                  group = "open"
+              elif age < 50:
+                  group = "masters"
+              else:
+                  group = "grand masters"
+              groups[group].append((chip_seconds, bib))
+          return {group: [bib for _, bib in sorted(times)[:3]] for group, times in groups.items()}
+  expected_output:
+    outcome: invalid
+- name: podiums are found by reading the timing file and then applying the award rules, each in its own module
+  inputs:
+    file: races/podium.py
+    unchanged:
+      races/timing_xml.py: |
+        import xml.etree.ElementTree as ET
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Finisher:
+            bib: str
+            age: int
+            seconds: int
+
+
+        CHRONOTRACK = "{urn:chronotrack:results:2}"
+
+
+        def read_finishers(chronotrack_xml: str) -> list[Finisher]:
+            finishers = []
+            for element in ET.fromstring(chronotrack_xml).iter(f"{CHRONOTRACK}Finisher"):
+                hours, minutes, seconds = (int(part) for part in element.get("ChipTime").split(":"))
+                seconds_total = hours * 3600 + minutes * 60 + seconds
+                finishers.append(Finisher(element.get("BibNo"), int(element.get("AgeOnRaceDay")), seconds_total))
+            return finishers
+      races/awards.py: |
+        from collections import defaultdict
+
+        from races.timing_xml import Finisher
+
+
+        def age_group(age: int) -> str:
+            if age < 30:
+                return "open"
+            if age < 50:
+                return "masters"
+            return "grand masters"
+
+
+        def podiums(finishers: list[Finisher]) -> dict[str, list[str]]:
+            groups: dict[str, list[Finisher]] = defaultdict(list)
+            for finisher in finishers:
+                groups[age_group(finisher.age)].append(finisher)
+            return {group: [f.bib for f in sorted(members, key=lambda f: f.seconds)[:3]] for group, members in groups.items()}
+    after: |
+      from races.awards import podiums
+      from races.timing_xml import read_finishers
+
+
+      def age_group_podiums(chronotrack_xml: str) -> dict[str, list[str]]:
+          return podiums(read_finishers(chronotrack_xml))
+  expected_output:
+    outcome: valid
+- name: locker assignments gain the label printer's command language, so a new printer model means editing the locker class
+  inputs:
+    file: gym/lockers.py
+    before: |
+      class LockerAssignments:
+          def __init__(self, locker_numbers: list[int]) -> None:
+              self._holders: dict[int, str | None] = {number: None for number in locker_numbers}
+
+          def assign(self, member_id: str) -> int:
+              number = min(n for n, holder in self._holders.items() if holder is None)
+              self._holders[number] = member_id
+              return number
+
+          def release(self, number: int) -> None:
+              self._holders[number] = None
+    after: |
+      class LockerAssignments:
+          def __init__(self, locker_numbers: list[int]) -> None:
+              self._holders: dict[int, str | None] = {number: None for number in locker_numbers}
+
+          def assign(self, member_id: str) -> int:
+              number = min(n for n, holder in self._holders.items() if holder is None)
+              self._holders[number] = member_id
+              return number
+
+          def release(self, number: int) -> None:
+              self._holders[number] = None
+
+          def zpl_tag(self, number: int, member_name: str) -> str:
+              return (
+                  "^XA"
+                  f"^FO40,30^A0N,60,60^FDLocker {number}^FS"
+                  f"^FO40,110^A0N,30,30^FD{member_name.upper()[:24]}^FS"
+                  f"^FO40,160^BCN,80,Y,N,N^FD{number:05d}^FS"
+                  "^XZ"
+              )
+  expected_output:
+    outcome: invalid
+- name: locker assignments gain a swap built from their own assign and release
+  inputs:
+    file: gym/lockers.py
+    before: |
+      class LockerAssignments:
+          def __init__(self, locker_numbers: list[int]) -> None:
+              self._holders: dict[int, str | None] = {number: None for number in locker_numbers}
+
+          def assign(self, member_id: str) -> int:
+              number = min(n for n, holder in self._holders.items() if holder is None)
+              self._holders[number] = member_id
+              return number
+
+          def release(self, number: int) -> None:
+              self._holders[number] = None
+    after: |
+      class LockerAssignments:
+          def __init__(self, locker_numbers: list[int]) -> None:
+              self._holders: dict[int, str | None] = {number: None for number in locker_numbers}
+
+          def assign(self, member_id: str) -> int:
+              number = min(n for n, holder in self._holders.items() if holder is None)
+              self._holders[number] = member_id
+              return number
+
+          def release(self, number: int) -> None:
+              self._holders[number] = None
+
+          def move(self, number: int) -> int:
+              member_id = self._holders[number]
+              if member_id is None:
+                  raise ValueError(f"locker {number} is free")
+              new_number = self.assign(member_id)
+              self.release(number)
+              return new_number
+  expected_output:
+    outcome: valid
+- name: a distance adds, compares and displays itself from its own metres
+  inputs:
+    file: routes/distance.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True, order=True)
+      class Distance:
+          metres: int
+
+          def __add__(self, other: "Distance") -> "Distance":
+              return Distance(self.metres + other.metres)
+
+          def __str__(self) -> str:
+              if self.metres < 1000:
+                  return f"{self.metres} m"
+              return f"{self.metres / 1000:.1f} km"
+  expected_output:
+    outcome: valid
+- name: a parking route works out the fee rules in its own body, so a new tariff means editing the HTTP endpoint
+  inputs:
+    file: parking/api.py
+    after: |
+      from datetime import datetime
+
+      from fastapi import APIRouter
+
+      router = APIRouter()
+
+
+      @router.get("/quote")
+      def quote(entered_at: datetime, left_at: datetime) -> dict[str, int]:
+          minutes = int((left_at - entered_at).total_seconds() // 60)
+          if minutes <= 30:
+              cents = 0
+          else:
+              hours = -(-(minutes - 30) // 60)
+              cents = min(hours * 350, 2400)
+          return {"fee_cents": cents}
+  expected_output:
+    outcome: invalid
+- name: a parking route asks the tariff for the fee and returns it
+  inputs:
+    file: parking/api.py
+    unchanged:
+      parking/tariff.py: |
+        from datetime import datetime
+
+
+        def parking_fee_cents(entered_at: datetime, left_at: datetime) -> int:
+            minutes = int((left_at - entered_at).total_seconds() // 60)
+            if minutes <= 30:
+                return 0
+            hours = -(-(minutes - 30) // 60)
+            return min(hours * 350, 2400)
+    after: |
+      from datetime import datetime
+
+      from fastapi import APIRouter
+
+      from parking.tariff import parking_fee_cents
+
+      router = APIRouter()
+
+
+      @router.get("/quote")
+      def quote(entered_at: datetime, left_at: datetime) -> dict[str, int]:
+          return {"fee_cents": parking_fee_cents(entered_at, left_at)}
+  expected_output:
+    outcome: valid
+- name: a GPX reader parses, converts and builds track points, all of the one file format
+  inputs:
+    file: routes/gpx.py
+    after: |
+      import xml.etree.ElementTree as ET
+      from dataclasses import dataclass
+      from datetime import datetime
+
+      GPX = "{http://www.topografix.com/GPX/1/1}"
+
+
+      @dataclass(frozen=True)
+      class TrackPoint:
+          latitude: float
+          longitude: float
+          elevation_m: float | None
+          recorded_at: datetime | None
+
+
+      def read_track(gpx_text: str) -> list[TrackPoint]:
+          points = []
+          for element in ET.fromstring(gpx_text).iter(f"{GPX}trkpt"):
+              elevation = element.find(f"{GPX}ele")
+              time = element.find(f"{GPX}time")
+              points.append(
+                  TrackPoint(
+                      latitude=float(element.get("lat")),
+                      longitude=float(element.get("lon")),
+                      elevation_m=float(elevation.text) if elevation is not None else None,
+                      recorded_at=datetime.fromisoformat(time.text) if time is not None else None,
+                  )
+              )
+          return points
+  expected_output:
+    outcome: valid
+- name: adds an import
+  inputs:
+    file: races/podium.py
+    before: |
+      from races.timing_xml import read_finishers
+    after: |
+      from races.awards import podiums
+      from races.timing_xml import read_finishers
+  expected_output:
+    outcome: skipped
+- name: a class roster renders students and decides the honour roll inline, so a grading policy change means editing the view
+  inputs:
+    file: src/school/ClassRoster.tsx
+    after: |
+      export interface Student {
+        id: string;
+        name: string;
+        grades: number[];
+      }
+
+      const HONOUR_ROLL_MIN_AVERAGE = 3.5;
+      const HONOUR_ROLL_MIN_GRADE = 3.0;
+
+      export function ClassRoster({ students }: { students: Student[] }) {
+        return (
+          <ul>
+            {students.map((student) => {
+              const average = student.grades.reduce((sum, grade) => sum + grade, 0) / student.grades.length;
+              const honours =
+                average >= HONOUR_ROLL_MIN_AVERAGE && student.grades.every((grade) => grade >= HONOUR_ROLL_MIN_GRADE);
+              return (
+                <li key={student.id}>
+                  {student.name}
+                  {honours && <span className="badge">Honour roll</span>}
+                </li>
+              );
+            })}
+          </ul>
+        );
+      }
+  expected_output:
+    outcome: invalid
+- name: a class roster renders students and asks the grading policy who is on the honour roll
+  inputs:
+    file: src/school/ClassRoster.tsx
+    unchanged:
+      src/school/honourRoll.ts: |
+        const HONOUR_ROLL_MIN_AVERAGE = 3.5;
+        const HONOUR_ROLL_MIN_GRADE = 3.0;
+
+        export function onHonourRoll(grades: number[]): boolean {
+          const average = grades.reduce((sum, grade) => sum + grade, 0) / grades.length;
+          return average >= HONOUR_ROLL_MIN_AVERAGE && grades.every((grade) => grade >= HONOUR_ROLL_MIN_GRADE);
+        }
+    after: |
+      import { onHonourRoll } from "./honourRoll";
+
+      export interface Student {
+        id: string;
+        name: string;
+        grades: number[];
+      }
+
+      export function ClassRoster({ students }: { students: Student[] }) {
+        return (
+          <ul>
+            {students.map((student) => (
+              <li key={student.id}>
+                {student.name}
+                {onHonourRoll(student.grades) && <span className="badge">Honour roll</span>}
+              </li>
+            ))}
+          </ul>
+        );
+      }
+  expected_output:
+    outcome: valid
+- name: a shift schedule gains Slack's message block format, so a Slack API change means editing the schedule
+  inputs:
+    file: src/staffing/shiftSchedule.ts
+    before: |
+      export class ShiftSchedule {
+        private readonly staffed = new Map<string, string[]>();
+
+        assign(shiftId: string, employeeId: string): void {
+          this.staffed.set(shiftId, [...(this.staffed.get(shiftId) ?? []), employeeId]);
+        }
+
+        unassign(shiftId: string, employeeId: string): void {
+          this.staffed.set(shiftId, (this.staffed.get(shiftId) ?? []).filter((id) => id !== employeeId));
+        }
+      }
+    after: |
+      export class ShiftSchedule {
+        private readonly staffed = new Map<string, string[]>();
+
+        assign(shiftId: string, employeeId: string): void {
+          this.staffed.set(shiftId, [...(this.staffed.get(shiftId) ?? []), employeeId]);
+        }
+
+        unassign(shiftId: string, employeeId: string): void {
+          this.staffed.set(shiftId, (this.staffed.get(shiftId) ?? []).filter((id) => id !== employeeId));
+        }
+
+        slackBlocks(shiftId: string): object[] {
+          return [
+            { type: "header", text: { type: "plain_text", text: `Shift ${shiftId}` } },
+            {
+              type: "section",
+              fields: (this.staffed.get(shiftId) ?? []).map((id) => ({ type: "mrkdwn", text: `<@${id}>` })),
+            },
+            { type: "divider" },
+          ];
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: a shift schedule gains a swap built from its own assign and unassign
+  inputs:
+    file: src/staffing/shiftSchedule.ts
+    before: |
+      export class ShiftSchedule {
+        private readonly staffed = new Map<string, string[]>();
+
+        assign(shiftId: string, employeeId: string): void {
+          this.staffed.set(shiftId, [...(this.staffed.get(shiftId) ?? []), employeeId]);
+        }
+
+        unassign(shiftId: string, employeeId: string): void {
+          this.staffed.set(shiftId, (this.staffed.get(shiftId) ?? []).filter((id) => id !== employeeId));
+        }
+      }
+    after: |
+      export class ShiftSchedule {
+        private readonly staffed = new Map<string, string[]>();
+
+        assign(shiftId: string, employeeId: string): void {
+          this.staffed.set(shiftId, [...(this.staffed.get(shiftId) ?? []), employeeId]);
+        }
+
+        unassign(shiftId: string, employeeId: string): void {
+          this.staffed.set(shiftId, (this.staffed.get(shiftId) ?? []).filter((id) => id !== employeeId));
+        }
+
+        swap(shiftId: string, leaving: string, joining: string): void {
+          if (!(this.staffed.get(shiftId) ?? []).includes(leaving)) {
+            throw new Error(`${leaving} is not on shift ${shiftId}`);
+          }
+          this.unassign(shiftId, leaving);
+          this.assign(shiftId, joining);
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a duration adds, compares and displays itself from its own seconds
+  inputs:
+    file: src/time/duration.ts
+    after: |
+      export class Duration {
+        constructor(readonly seconds: number) {}
+
+        plus(other: Duration): Duration {
+          return new Duration(this.seconds + other.seconds);
+        }
+
+        isLongerThan(other: Duration): boolean {
+          return this.seconds > other.seconds;
+        }
+
+        toString(): string {
+          const minutes = Math.floor(this.seconds / 60);
+          return `${minutes}:${String(this.seconds % 60).padStart(2, "0")}`;
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: the survey tool's export layout and the NPS scoring rules share one function, so a new survey tool means editing the scoring
+  inputs:
+    file: src/feedback/nps.ts
+    after: |
+      interface TypeformExport {
+        form_response: {
+          definition: { fields: { id: string; ref: string; type: string }[] };
+          answers: { field: { id: string }; type: string; number?: number }[];
+        }[];
+      }
+
+      const PROMOTER_MIN_SCORE = 9;
+      const DETRACTOR_MAX_SCORE = 6;
+
+      export function netPromoterScore(exportJson: string): number {
+        const payload: TypeformExport = JSON.parse(exportJson);
+        const scores: number[] = [];
+        for (const response of payload.form_response) {
+          const question = response.definition.fields.find((f) => f.ref === "recommend" && f.type === "opinion_scale");
+          const answer = response.answers.find((a) => a.field.id === question?.id && a.type === "number");
+          if (answer?.number !== undefined) scores.push(answer.number);
+        }
+        if (scores.length === 0) return 0;
+        const promoters = scores.filter((score) => score >= PROMOTER_MIN_SCORE).length;
+        const detractors = scores.filter((score) => score <= DETRACTOR_MAX_SCORE).length;
+        return Math.round(((promoters - detractors) / scores.length) * 100);
+      }
+  expected_output:
+    outcome: invalid
+- name: an order handler parses the request, calls the service and sends its answer
+  inputs:
+    file: src/orders/handlers.ts
+    after: |
+      import type { Request, Response } from "express";
+      import { z } from "zod";
+      import { orders } from "./service";
+
+      const cancelBody = z.object({ reason: z.string().min(1) });
+
+      export async function cancelOrder(req: Request, res: Response): Promise<void> {
+        const { reason } = cancelBody.parse(req.body);
+        const order = await orders.cancel(req.params.orderId, reason);
+        res.status(200).json(order);
+      }
+  expected_output:
+    outcome: valid
+- name: a subtitle reader parses cue timings and text, all of the one file format
+  inputs:
+    file: src/media/vtt.ts
+    after: |
+      export interface Cue {
+        startMs: number;
+        endMs: number;
+        text: string;
+      }
+
+      function toMs(stamp: string): number {
+        const [h, m, s] = stamp.split(":");
+        return (Number(h) * 3600 + Number(m) * 60 + Number(s)) * 1000;
+      }
+
+      export function readCues(vtt: string): Cue[] {
+        return vtt
+          .split(/\n\n+/)
+          .filter((block) => block.includes("-->"))
+          .map((block) => {
+            const [timing, ...lines] = block.split("\n");
+            const [start, end] = timing.split(" --> ");
+            return { startMs: toMs(start), endMs: toMs(end.split(" ")[0]), text: lines.join("\n") };
+          });
+      }
+  expected_output:
+    outcome: valid
