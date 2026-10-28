@@ -10,17 +10,16 @@ back is `git mv` of its files into `python/`, in a commit whose CI passes. A jud
 moves its skill, binding and eval, once:
 
 - every `invalid` and `valid` eval case passes 20 of 20 runs (`codeguard eval --repeat 20`)
-  on `claude-sonnet-5-5` through the `claude` CLI, checked before the commit; CI then
-  repeats 3 runs.
+  on `claude-sonnet-5-5` through the `claude` CLI, checked before the commit;
+- every case passes CI's 3 runs on each provider in its matrix. That is `claude-cli`
+  for now; `gemini` (`gemini-3.1-pro-preview` on Vertex AI, `--provider gemini`) comes
+  back once codeguard's Gemini judge is faster and steadier, and a failure on either
+  then fails the build.
 
-Two checks come after a rule ships and don't hold up the next rule. The README's rule
-table tracks both for each rule, and the plan isn't done until every rule has passed
-both:
+One check comes after a rule ships and doesn't hold up the next rule. The README's
+rule table tracks it for each rule, and the plan isn't done until every rule has
+passed it:
 
-- **Gemini**: every case passes CI's `gemini` leg, 3 runs on `gemini-3.1-pro-preview`
-  on Vertex AI (`--provider gemini`). The binding still names the model that judges
-  reviews; passing on both shows the test reads the same to two models. A failure there
-  shows as a failed job without failing the build.
 - **Validation**: the rule ships as a `warning`, and its findings on real changes, read
   from codeguard's Logfire traces, show it flags what it should. A validated rule's
   binding moves to `error`.
