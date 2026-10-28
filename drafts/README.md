@@ -2,7 +2,8 @@
 
 Judge rules and pattern rules that codeguard doesn't load. codeguard validates only the
 ruleset directories named in `codeguard-package.yaml`, so nothing here runs. The gates
-the drafts' bindings name are in `python/gates/`, where `codeguard test` tests them.
+the drafts' bindings name are in `python/gates/`, or `general/gates/` for
+`nontrivial-function`, where `codeguard test` tests them.
 
 Each draft keeps its `python/` layout and its binding's `skill:` path, so adding a rule
 back is `git mv` of its files into `python/`, in a commit whose CI passes. A judge rule
@@ -13,6 +14,10 @@ moves its skill, binding and eval, once:
   `gemini-3.1-pro-preview` on Vertex AI, checked before the commit; CI then repeats 3
   runs in one `eval` matrix job per provider. The binding still names the model
   that judges reviews; passing on both shows the test reads the same to two models.
+
+A promoted judge rule ships as a `warning` that awaits validation from its findings on
+real changes, read from codeguard's Logfire traces. Validation doesn't hold up the next
+rule: the next rule starts once this one passes the bar above.
 
 A pattern rule moves its rule, binding, test and snapshot, once its rule tests have a
 case for each branch and `codeguard test` passes.

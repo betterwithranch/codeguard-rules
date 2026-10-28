@@ -33,8 +33,9 @@ the languages it runs on.
 |---|---|
 | `dry` | Don't Repeat Yourself: code the change adds doesn't state a computation, process, set or outside shape again when the file or a module it imports already states it |
 
-`dry` is a `warning` while its findings on real changes are reviewed: they print but
-don't block. Its binding's `severity` moves it to `error`.
+`dry` is a `warning` and awaits validation: its findings on real changes, read from
+codeguard's Logfire traces, show whether it flags what it should. Until then they print
+but don't block. Once validated, its binding's `severity` moves it to `error`.
 
 Its evals have cases in each language, reported apart as `dry (python)` and
 `dry (typescript)`. Gates in `general/gates/` are ast-grep rules for one language each;
