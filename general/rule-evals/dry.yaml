@@ -404,7 +404,7 @@ cases:
           return trial_end - timedelta(days=3)
   expected_output:
     outcome: invalid
-- name: a coupon check spells out the code pattern the coupon module defines
+- name: a discount repeats the coupon module's steps for recognising a coupon code, so a change to which codes count must be made in both
   inputs:
     file: checkout/discounts.py
     unchanged:
@@ -412,11 +412,12 @@ cases:
       checkout/coupons.py: |
         import re
 
-        COUPON_CODE = re.compile(r"[A-Z]{4}-\d{4}")
-
 
         def is_coupon_code(text: str) -> bool:
-            return COUPON_CODE.fullmatch(text) is not None
+            code = text.strip().upper()
+            if code.startswith("TEST-"):
+                return False
+            return re.fullmatch(r"[A-Z]{4}-\d{4}", code) is not None
     before: |
       from checkout.coupons import is_coupon_code
     after: |
@@ -426,7 +427,8 @@ cases:
 
 
       def discount_cents(code: str, subtotal_cents: int) -> int:
-          if re.fullmatch(r"[A-Z]{4}-\d{4}", code) is None:
+          normalized = code.strip().upper()
+          if normalized.startswith("TEST-") or re.fullmatch(r"[A-Z]{4}-\d{4}", normalized) is None:
               return 0
           return subtotal_cents // 10
   expected_output:
