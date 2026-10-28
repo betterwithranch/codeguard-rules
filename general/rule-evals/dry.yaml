@@ -619,3 +619,205 @@ cases:
       export type PaymentEvent = z.infer<typeof PaymentEventSchema>;
   expected_output:
     outcome: valid
+- name: a function recomputes the lease end the lease class computes, so a change to notice periods misses renewals
+  inputs:
+    file: src/leasing/renewals.ts
+    unchanged:
+      src/leasing/lease.ts: |
+        const DAY_MS = 86_400_000;
+
+        export class Lease {
+          constructor(
+            readonly startsOn: Date,
+            readonly termDays: number,
+            readonly noticeDays: number,
+          ) {}
+
+          endsOn(): Date {
+            return new Date(this.startsOn.getTime() + (this.termDays + this.noticeDays) * DAY_MS);
+          }
+        }
+    before: |
+      import { Lease } from "./lease";
+    after: |
+      import { Lease } from "./lease";
+
+      const DAY_MS = 86_400_000;
+
+      export function renewalOpensOn(lease: Lease): Date {
+        const leaseEnd = new Date(lease.startsOn.getTime() + (lease.termDays + lease.noticeDays) * DAY_MS);
+        return new Date(leaseEnd.getTime() - 30 * DAY_MS);
+      }
+  expected_output:
+    outcome: invalid
+- name: renewal opens a month before the end the lease computes
+  inputs:
+    file: src/leasing/renewals.ts
+    unchanged:
+      src/leasing/lease.ts: |
+        const DAY_MS = 86_400_000;
+
+        export class Lease {
+          constructor(
+            readonly startsOn: Date,
+            readonly termDays: number,
+            readonly noticeDays: number,
+          ) {}
+
+          endsOn(): Date {
+            return new Date(this.startsOn.getTime() + (this.termDays + this.noticeDays) * DAY_MS);
+          }
+        }
+    before: |
+      import { Lease } from "./lease";
+    after: |
+      import { Lease } from "./lease";
+
+      const DAY_MS = 86_400_000;
+
+      export function renewalOpensOn(lease: Lease): Date {
+        return new Date(lease.endsOn().getTime() - 30 * DAY_MS);
+      }
+  expected_output:
+    outcome: valid
+- name: a retry parses, validates and writes the upload itself, so a new import stage skips retried uploads
+  inputs:
+    file: src/imports/retry.ts
+    unchanged:
+      src/imports/importJob.ts: |
+        import type { Parser } from "./parser";
+        import type { Validator } from "./validator";
+        import type { Writer } from "./writer";
+
+        export class ImportJob {
+          constructor(
+            readonly parser: Parser,
+            readonly validator: Validator,
+            readonly writer: Writer,
+          ) {}
+
+          async run(upload: Buffer): Promise<void> {
+            const records = this.parser.parse(upload);
+            const accepted = this.validator.check(records);
+            await this.writer.write(accepted);
+          }
+        }
+    before: |
+      import type { ImportJob } from "./importJob";
+
+      export class RetryQueue {
+        constructor(private readonly job: ImportJob) {}
+      }
+    after: |
+      import type { ImportJob } from "./importJob";
+
+      export class RetryQueue {
+        constructor(private readonly job: ImportJob) {}
+
+        async retry(failed: Buffer[]): Promise<void> {
+          for (const upload of failed) {
+            const records = this.job.parser.parse(upload);
+            const accepted = this.job.validator.check(records);
+            await this.job.writer.write(accepted);
+          }
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: a retry hands each failed upload to the import job
+  inputs:
+    file: src/imports/retry.ts
+    unchanged:
+      src/imports/importJob.ts: |
+        import type { Parser } from "./parser";
+        import type { Validator } from "./validator";
+        import type { Writer } from "./writer";
+
+        export class ImportJob {
+          constructor(
+            readonly parser: Parser,
+            readonly validator: Validator,
+            readonly writer: Writer,
+          ) {}
+
+          async run(upload: Buffer): Promise<void> {
+            const records = this.parser.parse(upload);
+            const accepted = this.validator.check(records);
+            await this.writer.write(accepted);
+          }
+        }
+    before: |
+      import type { ImportJob } from "./importJob";
+
+      export class RetryQueue {
+        constructor(private readonly job: ImportJob) {}
+      }
+    after: |
+      import type { ImportJob } from "./importJob";
+
+      export class RetryQueue {
+        constructor(private readonly job: ImportJob) {}
+
+        async retry(failed: Buffer[]): Promise<void> {
+          for (const upload of failed) {
+            await this.job.run(upload);
+          }
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a checkout summary works out shipping inside its own body, so a rate change misses the summary
+  inputs:
+    file: src/checkout/summary.ts
+    unchanged:
+      src/checkout/shipping.ts: |
+        export const ZONE_RATES = { domestic: 450, international: 1800 } as const;
+        export const FREE_SHIPPING_FROM_CENTS = 5000;
+
+        export function shippingCents(subtotalCents: number, zone: keyof typeof ZONE_RATES): number {
+          if (zone === "domestic" && subtotalCents >= FREE_SHIPPING_FROM_CENTS) {
+            return 0;
+          }
+          return ZONE_RATES[zone];
+        }
+    before: |
+      import { FREE_SHIPPING_FROM_CENTS, ZONE_RATES } from "./shipping";
+    after: |
+      import { FREE_SHIPPING_FROM_CENTS, ZONE_RATES } from "./shipping";
+
+      export function summaryLines(subtotalCents: number, zone: keyof typeof ZONE_RATES): string[] {
+        let shipping: number = ZONE_RATES[zone];
+        if (zone === "domestic" && subtotalCents >= FREE_SHIPPING_FROM_CENTS) {
+          shipping = 0;
+        }
+        const total = subtotalCents + shipping;
+        return [`Subtotal: ${subtotalCents}`, `Shipping: ${shipping}`, `Total: ${total}`];
+      }
+  expected_output:
+    outcome: invalid
+- name: a checkout summary asks the shipping module for the charge and lays out its own lines
+  inputs:
+    file: src/checkout/summary.ts
+    unchanged:
+      src/checkout/shipping.ts: |
+        export const ZONE_RATES = { domestic: 450, international: 1800 } as const;
+        export const FREE_SHIPPING_FROM_CENTS = 5000;
+
+        export function shippingCents(subtotalCents: number, zone: keyof typeof ZONE_RATES): number {
+          if (zone === "domestic" && subtotalCents >= FREE_SHIPPING_FROM_CENTS) {
+            return 0;
+          }
+          return ZONE_RATES[zone];
+        }
+    before: |
+      import { ZONE_RATES, shippingCents } from "./shipping";
+    after: |
+      import { ZONE_RATES, shippingCents } from "./shipping";
+
+      export function summaryLines(subtotalCents: number, zone: keyof typeof ZONE_RATES): string[] {
+        const shipping = shippingCents(subtotalCents, zone);
+        const total = subtotalCents + shipping;
+        return [`Subtotal: ${subtotalCents}`, `Shipping: ${shipping}`, `Total: ${total}`];
+      }
+  expected_output:
+    outcome: valid
