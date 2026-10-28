@@ -34,6 +34,7 @@ the languages it runs on.
 | `dry` | Don't Repeat Yourself: code the change adds doesn't state a computation, process, set or outside shape again when the file or a module it imports already states it | Not yet | Not yet |
 | `domain-logic-separate-from-io` | Domain logic separate from I/O: a domain decision is made in code that does no I/O, so a function the change adds or edits doesn't decide and read or change state outside the program in the same body | Not yet | Not yet |
 | `single-responsibility` | Single responsibility: a function or class has one reason to change, so a function's own body doesn't hold the details of two concerns (business rules, an outside system, a data format) and a class's methods don't serve two | Not yet | Not yet |
+| `no-repeated-switches` | No repeated switches: behaviour chosen by which kind a value is (its class, or an enum member or tag naming its variant) is chosen in one place, unless the type checker proves every place covers every kind | Not yet | Not yet |
 
 Each rule passes 20 of 20 eval runs on Claude before it ships. Two checks follow, and
 don't hold up the next rule:

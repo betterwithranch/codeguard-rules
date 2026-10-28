@@ -1,0 +1,71 @@
+id: kind-switch
+valid:
+# A single if without elif
+- |
+  def fee(order):
+      if order.rush:
+          return 500
+      return 0
+# A subscript by a name
+- |
+  def label(labels, key):
+      return labels[key]
+# A dict keyed by strings
+- |
+  LIMITS = {"small": 1, "large": 5}
+invalid:
+# isinstance call
+- |
+  def fee(parcel):
+      if isinstance(parcel, Envelope):
+          return 100
+      return 400
+# issubclass call
+- |
+  def fee(parcel_type):
+      if issubclass(parcel_type, Envelope):
+          return 100
+      return 400
+# match statement on classes
+- |
+  def fee(parcel):
+      match parcel:
+          case Envelope():
+              return 100
+          case Box():
+              return 400
+# match statement on enum members
+- |
+  def fee(parcel):
+      match parcel.size:
+          case Size.SMALL:
+              return 100
+          case Size.LARGE:
+              return 400
+# if/elif chain on a tag
+- |
+  def fee(parcel):
+      if parcel.size == "small":
+          return 100
+      elif parcel.size == "large":
+          return 400
+# type() comparison
+- |
+  def fee(parcel):
+      if type(parcel) is Envelope:
+          return 100
+      return 400
+# lookup by type()
+- |
+  def fee(parcel):
+      return FEES[type(parcel)]
+# lookup by a field
+- |
+  def fee(parcel):
+      return FEES[parcel.size]
+# dict keyed by enum members
+- |
+  FEES = {Size.SMALL: 100, Size.LARGE: 400}
+# dict keyed by classes
+- |
+  FEES = {Envelope: 100, Box: 400}

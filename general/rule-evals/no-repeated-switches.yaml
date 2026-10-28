@@ -1,0 +1,739 @@
+cases:
+- name: a second isinstance chain over the notification channels means a new channel must be found in both, and gets email's limits where it's missed
+  inputs:
+    file: notify/channels.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class EmailChannel:
+          address: str
+
+
+      @dataclass(frozen=True)
+      class SmsChannel:
+          phone: str
+
+
+      @dataclass(frozen=True)
+      class PushChannel:
+          device_token: str
+
+
+      Channel = EmailChannel | SmsChannel | PushChannel
+
+
+      def cost_per_message_cents(channel: Channel) -> int:
+          if isinstance(channel, SmsChannel):
+              return 4
+          elif isinstance(channel, PushChannel):
+              return 1
+          else:
+              return 0
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class EmailChannel:
+          address: str
+
+
+      @dataclass(frozen=True)
+      class SmsChannel:
+          phone: str
+
+
+      @dataclass(frozen=True)
+      class PushChannel:
+          device_token: str
+
+
+      Channel = EmailChannel | SmsChannel | PushChannel
+
+
+      def cost_per_message_cents(channel: Channel) -> int:
+          if isinstance(channel, SmsChannel):
+              return 4
+          elif isinstance(channel, PushChannel):
+              return 1
+          else:
+              return 0
+
+
+      def max_body_length(channel: Channel) -> int:
+          if isinstance(channel, SmsChannel):
+              return 160
+          elif isinstance(channel, PushChannel):
+              return 240
+          else:
+              return 100_000
+  expected_output:
+    outcome: invalid
+- name: a WhatsApp channel is added to the one isinstance chain that prices the notification channels
+  inputs:
+    file: notify/channels.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class EmailChannel:
+          address: str
+
+
+      @dataclass(frozen=True)
+      class SmsChannel:
+          phone: str
+
+
+      @dataclass(frozen=True)
+      class PushChannel:
+          device_token: str
+
+
+      Channel = EmailChannel | SmsChannel | PushChannel
+
+
+      def cost_per_message_cents(channel: Channel) -> int:
+          if isinstance(channel, SmsChannel):
+              return 4
+          elif isinstance(channel, PushChannel):
+              return 1
+          else:
+              return 0
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class EmailChannel:
+          address: str
+
+
+      @dataclass(frozen=True)
+      class SmsChannel:
+          phone: str
+
+
+      @dataclass(frozen=True)
+      class PushChannel:
+          device_token: str
+
+
+      @dataclass(frozen=True)
+      class WhatsAppChannel:
+          phone: str
+
+
+      Channel = EmailChannel | SmsChannel | PushChannel | WhatsAppChannel
+
+
+      def cost_per_message_cents(channel: Channel) -> int:
+          if isinstance(channel, SmsChannel):
+              return 4
+          elif isinstance(channel, PushChannel):
+              return 1
+          elif isinstance(channel, WhatsAppChannel):
+              return 2
+          else:
+              return 0
+  expected_output:
+    outcome: valid
+- name: a second match on the coverage tier falls back to premium's limit, so a new tier missed there pays out the top limit
+  inputs:
+    file: insurance/policy.py
+    before: |
+      from dataclasses import dataclass
+      from enum import Enum
+
+
+      class Coverage(Enum):
+          BASIC = "basic"
+          STANDARD = "standard"
+          PREMIUM = "premium"
+
+
+      @dataclass(frozen=True)
+      class Policy:
+          holder: str
+          coverage: Coverage
+
+
+      def deductible_dollars(policy: Policy) -> int:
+          match policy.coverage:
+              case Coverage.BASIC:
+                  return 1000
+              case Coverage.STANDARD:
+                  return 500
+              case _:
+                  return 250
+    after: |
+      from dataclasses import dataclass
+      from enum import Enum
+
+
+      class Coverage(Enum):
+          BASIC = "basic"
+          STANDARD = "standard"
+          PREMIUM = "premium"
+
+
+      @dataclass(frozen=True)
+      class Policy:
+          holder: str
+          coverage: Coverage
+
+
+      def deductible_dollars(policy: Policy) -> int:
+          match policy.coverage:
+              case Coverage.BASIC:
+                  return 1000
+              case Coverage.STANDARD:
+                  return 500
+              case _:
+                  return 250
+
+
+      def claim_limit_dollars(policy: Policy) -> int:
+          match policy.coverage:
+              case Coverage.BASIC:
+                  return 10_000
+              case Coverage.STANDARD:
+                  return 50_000
+              case _:
+                  return 250_000
+  expected_output:
+    outcome: invalid
+- name: both coverage matches end in assert_never, so the type checker names each one when a tier is added
+  inputs:
+    file: insurance/policy.py
+    before: |
+      from dataclasses import dataclass
+      from enum import Enum
+      from typing import assert_never
+
+
+      class Coverage(Enum):
+          BASIC = "basic"
+          STANDARD = "standard"
+          PREMIUM = "premium"
+
+
+      @dataclass(frozen=True)
+      class Policy:
+          holder: str
+          coverage: Coverage
+
+
+      def deductible_dollars(policy: Policy) -> int:
+          match policy.coverage:
+              case Coverage.BASIC:
+                  return 1000
+              case Coverage.STANDARD:
+                  return 500
+              case Coverage.PREMIUM:
+                  return 250
+              case _:
+                  assert_never(policy.coverage)
+    after: |
+      from dataclasses import dataclass
+      from enum import Enum
+      from typing import assert_never
+
+
+      class Coverage(Enum):
+          BASIC = "basic"
+          STANDARD = "standard"
+          PREMIUM = "premium"
+
+
+      @dataclass(frozen=True)
+      class Policy:
+          holder: str
+          coverage: Coverage
+
+
+      def deductible_dollars(policy: Policy) -> int:
+          match policy.coverage:
+              case Coverage.BASIC:
+                  return 1000
+              case Coverage.STANDARD:
+                  return 500
+              case Coverage.PREMIUM:
+                  return 250
+              case _:
+                  assert_never(policy.coverage)
+
+
+      def claim_limit_dollars(policy: Policy) -> int:
+          match policy.coverage:
+              case Coverage.BASIC:
+                  return 10_000
+              case Coverage.STANDARD:
+                  return 50_000
+              case Coverage.PREMIUM:
+                  return 250_000
+              case _:
+                  assert_never(policy.coverage)
+  expected_output:
+    outcome: valid
+- name: the statement switches on the ledger entry classes the entries module already switches on, so a new entry type prints as a payout
+  inputs:
+    file: ledger/statement.py
+    unchanged:
+      ledger/entries.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Charge:
+            amount_cents: int
+
+
+        @dataclass(frozen=True)
+        class Refund:
+            amount_cents: int
+
+
+        @dataclass(frozen=True)
+        class Payout:
+            amount_cents: int
+
+
+        Entry = Charge | Refund | Payout
+
+
+        def ledger_account(entry: Entry) -> str:
+            match entry:
+                case Charge():
+                    return "4000-revenue"
+                case Refund():
+                    return "4100-returns"
+                case _:
+                    return "1000-cash"
+    after: |
+      from ledger.entries import Charge, Entry, Refund
+
+
+      def statement_line(entry: Entry) -> str:
+          if isinstance(entry, Charge):
+              return f"Charge      {entry.amount_cents / 100:>10.2f}"
+          elif isinstance(entry, Refund):
+              return f"Refund     -{entry.amount_cents / 100:>10.2f}"
+          else:
+              return f"Payout      {entry.amount_cents / 100:>10.2f}"
+  expected_output:
+    outcome: invalid
+- name: the module chooses a shipment's tracking page by its carrier class in one place
+  inputs:
+    file: shipping/tracking.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class UpsShipment:
+          tracking_number: str
+
+
+      @dataclass(frozen=True)
+      class DhlShipment:
+          waybill: str
+
+
+      Shipment = UpsShipment | DhlShipment
+
+
+      def tracking_url(shipment: Shipment) -> str:
+          if isinstance(shipment, UpsShipment):
+              return f"https://www.ups.com/track?tracknum={shipment.tracking_number}"
+          elif isinstance(shipment, DhlShipment):
+              return f"https://www.dhl.com/track?AWB={shipment.waybill}"
+          else:
+              raise ValueError(f"no tracking page for {shipment!r}")
+  expected_output:
+    outcome: valid
+- name: a webhook parser turns the payload's type string into the matching billing event, which decides what kind to create, not what one does
+  inputs:
+    file: billing/webhooks.py
+    unchanged:
+      billing/events.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class SeatAdded:
+            seats: int
+
+
+        @dataclass(frozen=True)
+        class SeatRemoved:
+            seats: int
+
+
+        BillingEvent = SeatAdded | SeatRemoved
+
+
+        def seat_delta(event: BillingEvent) -> int:
+            match event:
+                case SeatAdded(seats=seats):
+                    return seats
+                case SeatRemoved(seats=seats):
+                    return -seats
+    after: |
+      from billing.events import BillingEvent, SeatAdded, SeatRemoved
+
+
+      def parse_event(payload: dict[str, str]) -> BillingEvent:
+          match payload["type"]:
+              case "seat.added":
+                  return SeatAdded(seats=int(payload["seats"]))
+              case "seat.removed":
+                  return SeatRemoved(seats=int(payload["seats"]))
+              case other:
+                  raise ValueError(f"unknown billing event type {other!r}")
+  expected_output:
+    outcome: valid
+- name: adding an import to the statement module
+  inputs:
+    file: ledger/statement.py
+    before: |
+      from ledger.entries import Entry
+    after: |
+      from decimal import Decimal
+
+      from ledger.entries import Entry
+  expected_output:
+    outcome: skipped
+- name: a second switch on the reward kind defaults to points, so a new reward kind is labelled as points per dollar
+  inputs:
+    file: src/rewards/reward.ts
+    before: |
+      type Reward =
+        | { kind: "cashback"; percent: number }
+        | { kind: "miles"; perDollar: number }
+        | { kind: "points"; perDollar: number };
+
+      export function rewardValueCents(reward: Reward, spendCents: number): number {
+        switch (reward.kind) {
+          case "cashback":
+            return Math.round((spendCents * reward.percent) / 100);
+          case "miles":
+            return Math.round((spendCents / 100) * reward.perDollar * 1.2);
+          default:
+            return Math.round((spendCents / 100) * reward.perDollar);
+        }
+      }
+    after: |
+      type Reward =
+        | { kind: "cashback"; percent: number }
+        | { kind: "miles"; perDollar: number }
+        | { kind: "points"; perDollar: number };
+
+      export function rewardValueCents(reward: Reward, spendCents: number): number {
+        switch (reward.kind) {
+          case "cashback":
+            return Math.round((spendCents * reward.percent) / 100);
+          case "miles":
+            return Math.round((spendCents / 100) * reward.perDollar * 1.2);
+          default:
+            return Math.round((spendCents / 100) * reward.perDollar);
+        }
+      }
+
+      export function rewardLabel(reward: Reward): string {
+        switch (reward.kind) {
+          case "cashback":
+            return `${reward.percent}% cash back`;
+          case "miles":
+            return `${reward.perDollar} miles per dollar`;
+          default:
+            return `${reward.perDollar} points per dollar`;
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: both switches on the reward kind end in a never check, so the compiler flags each one when a kind is added
+  inputs:
+    file: src/rewards/reward.ts
+    before: |
+      type Reward =
+        | { kind: "cashback"; percent: number }
+        | { kind: "miles"; perDollar: number }
+        | { kind: "points"; perDollar: number };
+
+      function assertNever(value: never): never {
+        throw new Error(`unhandled reward ${JSON.stringify(value)}`);
+      }
+
+      export function rewardValueCents(reward: Reward, spendCents: number): number {
+        switch (reward.kind) {
+          case "cashback":
+            return Math.round((spendCents * reward.percent) / 100);
+          case "miles":
+            return Math.round((spendCents / 100) * reward.perDollar * 1.2);
+          case "points":
+            return Math.round((spendCents / 100) * reward.perDollar);
+          default:
+            return assertNever(reward);
+        }
+      }
+    after: |
+      type Reward =
+        | { kind: "cashback"; percent: number }
+        | { kind: "miles"; perDollar: number }
+        | { kind: "points"; perDollar: number };
+
+      function assertNever(value: never): never {
+        throw new Error(`unhandled reward ${JSON.stringify(value)}`);
+      }
+
+      export function rewardValueCents(reward: Reward, spendCents: number): number {
+        switch (reward.kind) {
+          case "cashback":
+            return Math.round((spendCents * reward.percent) / 100);
+          case "miles":
+            return Math.round((spendCents / 100) * reward.perDollar * 1.2);
+          case "points":
+            return Math.round((spendCents / 100) * reward.perDollar);
+          default:
+            return assertNever(reward);
+        }
+      }
+
+      export function rewardLabel(reward: Reward): string {
+        switch (reward.kind) {
+          case "cashback":
+            return `${reward.percent}% cash back`;
+          case "miles":
+            return `${reward.perDollar} miles per dollar`;
+          case "points":
+            return `${reward.perDollar} points per dollar`;
+          default:
+            return assertNever(reward);
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a second instanceof chain over the vehicle classes means a new vehicle needs no truck licence wherever the chain is missed
+  inputs:
+    file: src/fleet/vehicle.ts
+    before: |
+      export class Van {
+        constructor(readonly payloadKg: number) {}
+      }
+
+      export class Truck {
+        constructor(readonly axles: number) {}
+      }
+
+      export class CargoBike {}
+
+      export type Vehicle = Van | Truck | CargoBike;
+
+      export function hourlyRateCents(vehicle: Vehicle): number {
+        if (vehicle instanceof Truck) {
+          return 9000 + vehicle.axles * 1000;
+        } else if (vehicle instanceof Van) {
+          return 6000;
+        }
+        return 2500;
+      }
+    after: |
+      export class Van {
+        constructor(readonly payloadKg: number) {}
+      }
+
+      export class Truck {
+        constructor(readonly axles: number) {}
+      }
+
+      export class CargoBike {}
+
+      export type Vehicle = Van | Truck | CargoBike;
+
+      export function hourlyRateCents(vehicle: Vehicle): number {
+        if (vehicle instanceof Truck) {
+          return 9000 + vehicle.axles * 1000;
+        } else if (vehicle instanceof Van) {
+          return 6000;
+        }
+        return 2500;
+      }
+
+      export function needsTruckLicence(vehicle: Vehicle): boolean {
+        if (vehicle instanceof Truck) {
+          return true;
+        } else if (vehicle instanceof Van) {
+          return vehicle.payloadKg > 3500;
+        }
+        return false;
+      }
+  expected_output:
+    outcome: invalid
+- name: each vehicle class answers whether it needs a truck licence, and the interface makes a new class answer too
+  inputs:
+    file: src/fleet/vehicle.ts
+    before: |
+      export interface Vehicle {
+        hourlyRateCents(): number;
+      }
+
+      export class Van implements Vehicle {
+        constructor(readonly payloadKg: number) {}
+
+        hourlyRateCents(): number {
+          return 6000;
+        }
+      }
+
+      export class Truck implements Vehicle {
+        constructor(readonly axles: number) {}
+
+        hourlyRateCents(): number {
+          return 9000 + this.axles * 1000;
+        }
+      }
+
+      export class CargoBike implements Vehicle {
+        hourlyRateCents(): number {
+          return 2500;
+        }
+      }
+    after: |
+      export interface Vehicle {
+        hourlyRateCents(): number;
+        needsTruckLicence(): boolean;
+      }
+
+      export class Van implements Vehicle {
+        constructor(readonly payloadKg: number) {}
+
+        hourlyRateCents(): number {
+          return 6000;
+        }
+
+        needsTruckLicence(): boolean {
+          return this.payloadKg > 3500;
+        }
+      }
+
+      export class Truck implements Vehicle {
+        constructor(readonly axles: number) {}
+
+        hourlyRateCents(): number {
+          return 9000 + this.axles * 1000;
+        }
+
+        needsTruckLicence(): boolean {
+          return true;
+        }
+      }
+
+      export class CargoBike implements Vehicle {
+        hourlyRateCents(): number {
+          return 2500;
+        }
+
+        needsTruckLicence(): boolean {
+          return false;
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a second if chain on the plan gives an unlisted plan enterprise support, so a new plan gets a one-hour response by default
+  inputs:
+    file: src/billing/plan.ts
+    before: |
+      export enum Plan {
+        Free,
+        Team,
+        Enterprise,
+      }
+
+      export function seatLimit(plan: Plan): number {
+        if (plan === Plan.Free) {
+          return 3;
+        } else if (plan === Plan.Team) {
+          return 50;
+        } else {
+          return 10_000;
+        }
+      }
+    after: |
+      export enum Plan {
+        Free,
+        Team,
+        Enterprise,
+      }
+
+      export function seatLimit(plan: Plan): number {
+        if (plan === Plan.Free) {
+          return 3;
+        } else if (plan === Plan.Team) {
+          return 50;
+        } else {
+          return 10_000;
+        }
+      }
+
+      export function supportResponseHours(plan: Plan): number {
+        if (plan === Plan.Free) {
+          return 72;
+        } else if (plan === Plan.Team) {
+          return 24;
+        } else {
+          return 1;
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: each plan behaviour is a Record over every plan, so the compiler demands an entry when a plan is added
+  inputs:
+    file: src/billing/plan.ts
+    before: |
+      export enum Plan {
+        Free,
+        Team,
+        Enterprise,
+      }
+
+      const SEAT_LIMIT: Record<Plan, number> = {
+        [Plan.Free]: 3,
+        [Plan.Team]: 50,
+        [Plan.Enterprise]: 10_000,
+      };
+
+      export function seatLimit(plan: Plan): number {
+        return SEAT_LIMIT[plan];
+      }
+    after: |
+      export enum Plan {
+        Free,
+        Team,
+        Enterprise,
+      }
+
+      const SEAT_LIMIT: Record<Plan, number> = {
+        [Plan.Free]: 3,
+        [Plan.Team]: 50,
+        [Plan.Enterprise]: 10_000,
+      };
+
+      export function seatLimit(plan: Plan): number {
+        return SEAT_LIMIT[plan];
+      }
+
+      const SUPPORT_RESPONSE_HOURS: Record<Plan, number> = {
+        [Plan.Free]: 72,
+        [Plan.Team]: 24,
+        [Plan.Enterprise]: 1,
+      };
+
+      export function supportResponseHours(plan: Plan): number {
+        return SUPPORT_RESPONSE_HOURS[plan];
+      }
+  expected_output:
+    outcome: valid

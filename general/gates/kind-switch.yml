@@ -1,0 +1,35 @@
+id: kind-switch
+language: python
+rule:
+  any:
+  - kind: call
+    has:
+      field: function
+      regex: ^(isinstance|issubclass)$
+  - kind: match_statement
+  - kind: if_statement
+    has:
+      kind: elif_clause
+  - kind: comparison_operator
+    has:
+      kind: call
+      has:
+        field: function
+        regex: ^type$
+  - kind: subscript
+    has:
+      field: subscript
+      any:
+      - kind: attribute
+      - kind: call
+        has:
+          field: function
+          regex: ^type$
+  - kind: dictionary
+    has:
+      kind: pair
+      has:
+        field: key
+        any:
+        - kind: attribute
+        - kind: identifier
