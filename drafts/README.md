@@ -2,17 +2,27 @@
 
 Judge rules and pattern rules that codeguard doesn't load. codeguard validates only the
 ruleset directories named in `codeguard-package.yaml`, so nothing here runs. The gates
-the drafts' bindings name are in `python/gates/`, where `codeguard test` tests them.
+the drafts' bindings name are in `python/gates/`, or `general/gates/` for
+`nontrivial-function`, where `codeguard test` tests them.
 
 Each draft keeps its `python/` layout and its binding's `skill:` path, so adding a rule
 back is `git mv` of its files into `python/`, in a commit whose CI passes. A judge rule
 moves its skill, binding and eval, once:
 
 - every `invalid` and `valid` eval case passes 20 of 20 runs (`codeguard eval --repeat 20`)
-  on each eval provider, `claude-sonnet-5-5` through the `claude` CLI and
-  `gemini-3.1-pro-preview` on Vertex AI, checked before the commit; CI then repeats 3
-  runs in one `eval` matrix job per provider. The binding still names the model
-  that judges reviews; passing on both shows the test reads the same to two models.
+  on `claude-sonnet-5-5` through the `claude` CLI, checked before the commit;
+- every case passes CI's 3 runs on each provider in its matrix. That is `claude-cli`
+  for now; `gemini` (`gemini-3.1-pro-preview` on Vertex AI, `--provider gemini`) comes
+  back once codeguard's Gemini judge is faster and steadier, and a failure on either
+  then fails the build.
+
+One check comes after a rule ships and doesn't hold up the next rule. The README's
+rule table tracks it for each rule, and the plan isn't done until every rule has
+passed it:
+
+- **Validation**: the rule ships as a `warning`, and its findings on real changes, read
+  from codeguard's Logfire traces, show it flags what it should. A validated rule's
+  binding moves to `error`.
 
 A pattern rule moves its rule, binding, test and snapshot, once its rule tests have a
 case for each branch and `codeguard test` passes.
@@ -20,9 +30,8 @@ case for each branch and `codeguard test` passes.
 A rule is shown accurate only by its own cases. Reviewing other code, codeguard's
 included, is not part of the bar.
 
-No judge rule is added back until both providers can be checked: this environment and
-CI need Google Cloud credentials for Vertex AI, and CI's `eval` matrix then gains
-`gemini`.
+Running the Gemini check needs Google Cloud credentials for Vertex AI where the eval
+runs.
 
 Rules are added back highest value first: rules about architecture and design before
 rules about style.

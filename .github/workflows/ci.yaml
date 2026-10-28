@@ -51,8 +51,12 @@ jobs:
           echo "rules=$(echo $rules)" >> "$GITHUB_OUTPUT"
         env:
           BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
-      - if: steps.affected.outputs.rules
+      - if: steps.affected.outputs.rules && matrix.provider == 'claude-cli'
         run: npm install --global @anthropic-ai/claude-code
+      - if: steps.affected.outputs.rules && matrix.provider == 'gemini'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GOOGLE_CREDENTIALS }}
       - name: codeguard eval on the affected judge rules, 3 times each
         if: steps.affected.outputs.rules
         working-directory: rules
@@ -64,3 +68,6 @@ jobs:
           RULES: ${{ steps.affected.outputs.rules }}
           PROVIDER: ${{ matrix.provider }}
           CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          LOGFIRE_TOKEN: ${{ secrets.LOGFIRE_TOKEN }}
+          GOOGLE_CLOUD_PROJECT: ${{ vars.GOOGLE_CLOUD_PROJECT }}
+          GOOGLE_CLOUD_LOCATION: global

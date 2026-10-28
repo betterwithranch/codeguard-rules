@@ -29,12 +29,16 @@ convention in no language's terms, and a supplement beside it for each language,
 gets the skill and the supplement for the file's language. Its binding's `paths` name
 the languages it runs on.
 
-| Rule | Checks |
-|---|---|
-| `dry` | Don't Repeat Yourself: code the change adds doesn't state a computation, process, set or outside shape again when the file or a module it imports already states it |
+| Rule | Checks | Validated |
+|---|---|---|
+| `dry` | Don't Repeat Yourself: code the change adds doesn't state a computation, process, set or outside shape again when the file or a module it imports already states it | Not yet |
 
-`dry` is a `warning` while its findings on real changes are reviewed: they print but
-don't block. Its binding's `severity` moves it to `error`.
+Each rule passes 20 of 20 eval runs on Claude before it ships, and CI's 3 runs before it
+merges. One check follows, and doesn't hold up the next rule:
+
+- **Validated**: its findings on real changes, read from codeguard's Logfire traces,
+  show it flags what it should. Until then it's a `warning`: its findings print but don't
+  block. Once validated, its binding's `severity` moves it to `error`.
 
 Its evals have cases in each language, reported apart as `dry (python)` and
 `dry (typescript)`. Gates in `general/gates/` are ast-grep rules for one language each;
@@ -153,7 +157,8 @@ CI judges only the rules a change can affect: a rule whose skill, binding, eval 
 trigger's gate changed, or every rule when `codeguard-package.yaml`, the workflow or
 `scripts/affected_judge_rules.py` changed. That script prints the affected rules, and
 CI passes each to `codeguard eval --rule`. The `eval` job runs once per provider in its
-matrix (`claude-cli` today). Locally, `codeguard eval --rule <id> --repeat 20` judges one
+matrix, `claude-cli`. Gemini is out of the matrix until codeguard's Gemini judge
+is faster and steadier; its auth step stays, so adding `gemini` back turns it on. Locally, `codeguard eval --rule <id> --repeat 20` judges one
 rule, and `--provider gemini` judges it with Gemini instead of its binding's model.
 
 [Which test to write](https://github.com/jig-code/codeguard#which-test-to-write)
@@ -168,7 +173,11 @@ re-run or loosen the gate. [CLAUDE.md](CLAUDE.md) has the details.
 
 The rules are tested only by their own cases, through codeguard, so they are shown
 accurate as codeguard runs them. CI's `test` job runs `codeguard test`, then its `eval`
-job runs `codeguard eval --repeat 3` with Claude; a case that fails or isn't judged in
-any run fails the build. The `eval` job needs the repository secret `CLAUDE_CODE_OAUTH_TOKEN`.
+job runs `codeguard eval --repeat 3` with each provider; a case that fails or isn't
+judged in any run fails the build. The `eval` job needs, in the repository's Actions
+settings, the secret `CLAUDE_CODE_OAUTH_TOKEN` for Claude, and for Gemini the secret
+`GOOGLE_CREDENTIALS` (a service account key with the Vertex AI User role) and the
+variable `GOOGLE_CLOUD_PROJECT`. codeguard's README, under "Judge with Gemini on Google
+Cloud", has the setup.
 CI runs the codeguard release in `CODEGUARD_REF` in `.github/workflows/ci.yaml`, so
 moving to a new release is a change here, which judges every rule.

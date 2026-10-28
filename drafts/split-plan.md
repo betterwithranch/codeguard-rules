@@ -170,3 +170,12 @@ language (`no-middle-man`, `builder-pattern`), 1 pattern rule in each of Python
 and TypeScript (`union-declares-discriminator`), and 2 Python-only pattern rules. 9 wait
 for the language-server tier, 9 are left to a linter, 7 are dropped. The test drafts are
 planned after these.
+
+## Last tasks
+
+One check runs after each rule ships and doesn't hold up the next rule; the README's
+rule table tracks it. The plan is done when every rule has passed it:
+
+- **Validation**: every rule's findings on real changes, from codeguard's Logfire data,
+  show it flags what it should and nothing else. A validated rule's binding moves from
+  `warning` to `error`.
