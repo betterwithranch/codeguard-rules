@@ -10,14 +10,20 @@ back is `git mv` of its files into `python/`, in a commit whose CI passes. A jud
 moves its skill, binding and eval, once:
 
 - every `invalid` and `valid` eval case passes 20 of 20 runs (`codeguard eval --repeat 20`)
-  on each eval provider, `claude-sonnet-5-5` through the `claude` CLI and
-  `gemini-3.1-pro-preview` on Vertex AI, checked before the commit; CI then repeats 3
-  runs in one `eval` matrix job per provider. The binding still names the model
-  that judges reviews; passing on both shows the test reads the same to two models.
+  on `claude-sonnet-5-5` through the `claude` CLI, checked before the commit; CI then
+  repeats 3 runs.
 
-A promoted judge rule ships as a `warning` that awaits validation from its findings on
-real changes, read from codeguard's Logfire traces. Validation doesn't hold up the next
-rule: the next rule starts once this one passes the bar above.
+Two checks come after a rule ships and don't hold up the next rule. The README's rule
+table tracks both for each rule, and the plan isn't done until every rule has passed
+both:
+
+- **Gemini**: every case passes 20 of 20 runs on `gemini-3.1-pro-preview` on Vertex AI
+  (`--provider gemini`). The binding still names the model that judges reviews; passing
+  on both shows the test reads the same to two models. CI's `gemini` leg repeats 3 runs
+  and reports a failure without failing the build.
+- **Validation**: the rule ships as a `warning`, and its findings on real changes, read
+  from codeguard's Logfire traces, show it flags what it should. A validated rule's
+  binding moves to `error`.
 
 A pattern rule moves its rule, binding, test and snapshot, once its rule tests have a
 case for each branch and `codeguard test` passes.
@@ -25,8 +31,8 @@ case for each branch and `codeguard test` passes.
 A rule is shown accurate only by its own cases. Reviewing other code, codeguard's
 included, is not part of the bar.
 
-CI's `eval` matrix runs both providers. Checking a rule on Gemini before the commit needs
-Google Cloud credentials for Vertex AI where the eval runs.
+Running the Gemini check needs Google Cloud credentials for Vertex AI where the eval
+runs.
 
 Rules are added back highest value first: rules about architecture and design before
 rules about style.

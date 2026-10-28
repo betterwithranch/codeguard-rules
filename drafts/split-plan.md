@@ -171,8 +171,12 @@ and TypeScript (`union-declares-discriminator`), and 2 Python-only pattern rules
 for the language-server tier, 9 are left to a linter, 7 are dropped. The test drafts are
 planned after these.
 
-## Last task
+## Last tasks
 
-Validate every rule from codeguard's Logfire data: each rule's findings on real changes
-show it flags what it should and nothing else. A validated rule's binding moves from
-`warning` to `error`. Rules wait for this at `warning` and don't hold up the next rule.
+Two checks run after each rule ships and don't hold up the next rule; the README's rule
+table tracks them. The plan is done when every rule has passed both:
+
+- **Gemini**: every judge rule's eval cases pass 20 of 20 runs with `--provider gemini`.
+- **Validation**: every rule's findings on real changes, from codeguard's Logfire data,
+  show it flags what it should and nothing else. A validated rule's binding moves from
+  `warning` to `error`.
