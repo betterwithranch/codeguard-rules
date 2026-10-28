@@ -31,7 +31,7 @@ the languages it runs on.
 
 | Rule | Checks | Gemini | Validated |
 |---|---|---|---|
-| `dry` | Don't Repeat Yourself: code the change adds doesn't state a computation, process, set or outside shape again when the file or a module it imports already states it | Passed | Not yet |
+| `dry` | Don't Repeat Yourself: code the change adds doesn't state a computation, process, set or outside shape again when the file or a module it imports already states it | Not yet | Not yet |
 
 Each rule passes 20 of 20 eval runs on Claude before it ships. Two checks follow, and
 don't hold up the next rule:
