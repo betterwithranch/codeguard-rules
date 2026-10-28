@@ -1,0 +1,41 @@
+id: shared-instance
+valid:
+# Instance created inside a function
+- |
+  def create_validator():
+      validator = ExampleValidator()
+      return validator
+# Module constant that is not a call
+- |
+  LIMIT = 3
+# Default that is not a call
+- |
+  def check(order, strict=False):
+      pass
+invalid:
+# Module-level instance
+- |
+  validator = ExampleValidator(region="eu")
+# Annotated module-level instance
+- |
+  validator: ExampleValidator = ExampleValidator()
+# Module-level result of a factory function
+- |
+  validator = create_validator()
+# Class attribute instance
+- |
+  class ExampleService:
+      validator = ExampleValidator()
+# Default argument instance
+- |
+  def check(order, validator=ExampleValidator()):
+      pass
+# Typed default argument instance
+- |
+  def check(order, validator: ExampleValidator = ExampleValidator()):
+      pass
+# Cached factory function
+- |
+  @cache
+  def get_validator():
+      return ExampleValidator()

@@ -1,0 +1,204 @@
+cases:
+- name: the duplicate check keeps one import's SKUs in a module-level set, so the next import reports every SKU as a duplicate
+  inputs:
+    file: catalog/importer.py
+    after: |
+      from catalog.models import ProductRow
+
+      _seen_skus: set[str] = set()
+
+
+      def duplicate_skus(rows: list[ProductRow]) -> list[str]:
+          duplicates = []
+          for row in rows:
+              if row.sku in _seen_skus:
+                  duplicates.append(row.sku)
+              _seen_skus.add(row.sku)
+          return duplicates
+  expected_output:
+    outcome: invalid
+- name: the duplicate check keeps each import's SKUs in a set of its own
+  inputs:
+    file: catalog/importer.py
+    after: |
+      import logging
+
+      from catalog.models import ProductRow
+
+      log = logging.getLogger(__name__)
+
+
+      def duplicate_skus(rows: list[ProductRow]) -> list[str]:
+          seen: set[str] = set()
+          duplicates = []
+          for row in rows:
+              if row.sku in seen:
+                  duplicates.append(row.sku)
+              seen.add(row.sku)
+          log.info("found %d duplicate SKUs", len(duplicates))
+          return duplicates
+  expected_output:
+    outcome: valid
+- name: a cached fare calculator adds every journey to its own running total, so each rider's fare includes everyone before them
+  inputs:
+    file: transit/fares.py
+    after: |
+      from functools import lru_cache
+
+      from transit.models import Journey
+
+
+      class FareCalculator:
+          def __init__(self) -> None:
+              self.total_cents = 0
+
+          def fare_cents(self, journeys: list[Journey]) -> int:
+              for journey in journeys:
+                  self.total_cents += 150 + 20 * journey.zones
+              return self.total_cents
+
+
+      @lru_cache
+      def fare_calculator() -> FareCalculator:
+          return FareCalculator()
+  expected_output:
+    outcome: invalid
+- name: a cached fare calculator works each fare out in the call and stores nothing on itself
+  inputs:
+    file: transit/fares.py
+    after: |
+      from functools import lru_cache
+
+      from transit.models import Journey
+
+
+      class FareCalculator:
+          def __init__(self, base_cents: int, per_zone_cents: int) -> None:
+              self.base_cents = base_cents
+              self.per_zone_cents = per_zone_cents
+
+          def fare_cents(self, journeys: list[Journey]) -> int:
+              return sum(self.base_cents + self.per_zone_cents * journey.zones for journey in journeys)
+
+
+      @lru_cache
+      def fare_calculator() -> FareCalculator:
+          return FareCalculator(base_cents=150, per_zone_cents=20)
+  expected_output:
+    outcome: valid
+- name: a task puts its tenant in a module-level dict for its helpers to read, so two jobs on one worker read each other's tenant
+  inputs:
+    file: reports/tasks.py
+    after: |
+      from reports.storage import load_orders, save_report
+
+      _job: dict[str, str] = {}
+
+
+      def _report_title() -> str:
+          return f"Orders for {_job['tenant']}"
+
+
+      def build_tenant_report(tenant_id: str) -> None:
+          _job["tenant"] = tenant_id
+          orders = load_orders(tenant_id)
+          save_report(tenant_id, _report_title(), orders)
+  expected_output:
+    outcome: invalid
+- name: exchange rates are memoized by date and currency in a module dict only the lookup uses
+  inputs:
+    file: money/rates.py
+    after: |
+      from datetime import date
+      from decimal import Decimal
+
+      from money.ecb import fetch_rate
+
+      _rates: dict[tuple[date, str], Decimal] = {}
+
+
+      def rate_on(day: date, currency: str) -> Decimal:
+          key = (day, currency)
+          if key not in _rates:
+              _rates[key] = fetch_rate(day, currency)
+          return _rates[key]
+  expected_output:
+    outcome: valid
+- name: formats a journey's zones
+  inputs:
+    file: transit/labels.py
+    after: |
+      from transit.models import Journey
+
+
+      def zone_label(journey: Journey) -> str:
+          return f"{journey.zones} zones"
+  expected_output:
+    outcome: skipped
+- name: middleware stores the request's locale in a module-level variable, so concurrent requests format prices in each other's locale
+  inputs:
+    file: web/locale.ts
+    after: |
+      import type { NextFunction, Request, Response } from "express";
+
+      let requestLocale = "en-GB";
+
+      export function localeMiddleware(req: Request, _res: Response, next: NextFunction): void {
+        requestLocale = req.acceptsLanguages()[0] ?? "en-GB";
+        next();
+      }
+
+      export function formatPrice(cents: number, currency: string): string {
+        return new Intl.NumberFormat(requestLocale, { style: "currency", currency }).format(cents / 100);
+      }
+  expected_output:
+    outcome: invalid
+- name: middleware keeps the request's locale on the response's locals for that request
+  inputs:
+    file: web/locale.ts
+    after: |
+      import type { NextFunction, Request, Response } from "express";
+
+      export function localeMiddleware(req: Request, res: Response, next: NextFunction): void {
+        res.locals.locale = req.acceptsLanguages()[0] ?? "en-GB";
+        next();
+      }
+
+      export function formatPrice(locale: string, cents: number, currency: string): string {
+        return new Intl.NumberFormat(locale, { style: "currency", currency }).format(cents / 100);
+      }
+  expected_output:
+    outcome: valid
+- name: a module-wide CSV exporter appends each export to its own buffer, so the second download holds the first one's rows too
+  inputs:
+    file: exports/csv.ts
+    after: |
+      export class CsvExporter {
+        private buffer = "";
+
+        export(rows: string[][]): string {
+          for (const row of rows) {
+            this.buffer += row.join(",") + "\n";
+          }
+          return this.buffer;
+        }
+      }
+
+      export const csvExporter = new CsvExporter();
+  expected_output:
+    outcome: invalid
+- name: a module-wide CSV exporter builds each export in the call
+  inputs:
+    file: exports/csv.ts
+    after: |
+      export class CsvExporter {
+        constructor(private readonly separator: string) {}
+
+        export(rows: string[][]): string {
+          return rows.map((row) => row.join(this.separator) + "\n").join("");
+        }
+      }
+
+      export const csvExporter = new CsvExporter(",");
+  expected_output:
+    outcome: valid
