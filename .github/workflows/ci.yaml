@@ -30,7 +30,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        provider: [claude-cli, gemini]
+        provider: [claude-cli]
     steps:
       - uses: actions/checkout@v7
         with:

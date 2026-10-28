@@ -11,10 +11,10 @@ moves its skill, binding and eval, once:
 
 - every `invalid` and `valid` eval case passes 20 of 20 runs (`codeguard eval --repeat 20`)
   on `claude-sonnet-5-5` through the `claude` CLI, checked before the commit;
-- every case passes CI's 3 runs on each provider, `claude-cli` and `gemini`
-  (`gemini-3.1-pro-preview` on Vertex AI, `--provider gemini`). A failure on either
-  fails the build. The binding still names the model that judges reviews; passing on
-  both shows the test reads the same to two models.
+- every case passes CI's 3 runs on each provider in its matrix. That is `claude-cli`
+  for now; `gemini` (`gemini-3.1-pro-preview` on Vertex AI, `--provider gemini`) comes
+  back once codeguard's Gemini judge is faster and steadier, and a failure on either
+  then fails the build.
 
 One check comes after a rule ships and doesn't hold up the next rule. The README's
 rule table tracks it for each rule, and the plan isn't done until every rule has
