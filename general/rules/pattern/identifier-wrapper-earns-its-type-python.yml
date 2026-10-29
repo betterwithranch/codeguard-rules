@@ -1,0 +1,96 @@
+id: identifier-wrapper-earns-its-type-python
+language: python
+severity: warning
+message: This identifier wrapper adds no behaviour or check to the value it holds.
+note: |
+  A class that only holds one identifier adds a type to learn and protects nothing: it
+  accepts any value the plain type would. Give it a check (a validator, a pattern, a
+  __post_init__ that rejects bad values) or behaviour of its own, or use the plain value,
+  or a typing.NewType that the type checker keeps apart from other identifiers. Matched:
+  a class named ...Id, ...Key or ...Code whose body holds one annotated field with no
+  default and no constraint, as a plain class, dataclass, pydantic model, NamedTuple,
+  TypedDict or msgspec Struct; and a subclass of str, int or UUID with an empty body.
+  Enums and ORM models are not matched.
+metadata:
+  why: A wrapper with no behaviour or check adds a type to learn and protects nothing.
+utils:
+  plain-field:
+    kind: expression_statement
+    has:
+      kind: assignment
+      has: {field: type, regex: '[\s\S]'}
+      not:
+        any:
+        - has: {field: right, regex: '[\s\S]'}
+        - has:
+            field: type
+            any:
+            - regex: \bAnnotated\b
+            - has: {kind: call, stopBy: end}
+  typed-field:
+    kind: expression_statement
+    has:
+      kind: assignment
+      has: {field: type, regex: '[\s\S]'}
+  docstring:
+    kind: expression_statement
+    has: {kind: string}
+  ellipsis-statement:
+    kind: expression_statement
+    has: {kind: ellipsis}
+  one-field-body:
+    kind: block
+    all:
+    - has: {matches: plain-field}
+    - not:
+        has:
+          matches: typed-field
+          follows: {matches: typed-field, stopBy: end}
+    - not:
+        has:
+          regex: '[\s\S]'
+          not:
+            any:
+            - matches: typed-field
+            - matches: docstring
+            - kind: expression_statement
+              has: {kind: assignment}
+  empty-body:
+    kind: block
+    not:
+      has:
+        regex: '[\s\S]'
+        not:
+          any:
+          - kind: pass_statement
+          - matches: docstring
+          - matches: ellipsis-statement
+  record-bases:
+    kind: argument_list
+    not:
+      has:
+        any:
+        - kind: identifier
+        - kind: attribute
+        - kind: subscript
+        not:
+          regex: ^(pydantic\.)?BaseModel$|^(typing\.)?(NamedTuple|TypedDict)$|^(msgspec\.)?Struct$
+  value-base:
+    kind: argument_list
+    all:
+    - has: {regex: ^(str|int|UUID|uuid\.UUID)$}
+    - not:
+        has: {nthChild: 2, regex: '[\s\S]'}
+rule:
+  kind: class_definition
+  any:
+  - all:
+    - has: {field: name, regex: (Id|ID|Key|Code)$}
+    - has: {field: body, matches: one-field-body}
+    - not:
+        has:
+          field: superclasses
+          not: {matches: record-bases}
+  - all:
+    - has: {field: superclasses, matches: value-base}
+    - has: {field: body, matches: empty-body}

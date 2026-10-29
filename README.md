@@ -72,6 +72,7 @@ start as `warning`s and skip test files:
 | `no-class-level-mutable-container` | No class-level mutable container: a list, dict or set bound in a class body isn't mutated through `self`, which every instance shares (Python only) |
 | `union-declares-discriminator-python`, `union-declares-discriminator-typescript` | Union declares discriminator: a pydantic field typed as a union of models defined in the file names its discriminator, and a `z.union` of object schemas sharing a literal field is a `z.discriminatedUnion` (the syntactic form of `discriminated-unions`) |
 | `builder-pattern-python`, `builder-pattern-typescript` | Builder pattern: a class named `...Builder` has a method that stores a part of its product on the instance, before a separate call returns it |
+| `identifier-wrapper-earns-its-type-python` | Identifier wrapper earns its type: a class that holds one identifier (a one-field `...Id`, `...Key` or `...Code` record, or an empty `str`, `int` or `UUID` subclass) adds behaviour or a check (Python only) |
 
 Each judge rule passes 20 of 20 eval runs on Claude before it ships, and CI's 3 runs
 before it merges. One check follows, and doesn't hold up the next rule:

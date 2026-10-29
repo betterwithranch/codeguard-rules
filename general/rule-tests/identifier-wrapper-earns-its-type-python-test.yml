@@ -1,0 +1,111 @@
+id: identifier-wrapper-earns-its-type-python
+valid:
+  # A wrapper with a method of its own
+  - |
+    @dataclass(frozen=True)
+    class ExampleId:
+        value: str
+
+        def short(self):
+            return self.value[:8]
+
+  # A wrapper with a validator
+  - |
+    class ExampleKey(BaseModel):
+        value: str
+
+        @field_validator("value")
+        @classmethod
+        def has_prefix(cls, value):
+            return value
+  # A field with a pattern constraint
+  - |
+    class ExampleCode(BaseModel):
+        value: str = Field(pattern=r"^ex_")
+
+  # A field with an Annotated constraint
+  - |
+    class ExampleId(BaseModel):
+        value: Annotated[str, StringConstraints(min_length=8)]
+
+  # A field with a constrained type call
+  - |
+    class ExampleId(BaseModel):
+        value: constr(min_length=8)
+
+  # Two fields
+  - |
+    @dataclass(frozen=True)
+    class ExampleKey:
+        tenant: str
+        value: str
+
+  # An enum
+  - |
+    class ExampleCode(Enum):
+        value: str
+
+  # An ORM model
+  - |
+    class ExampleCode(models.Model):
+        value: str
+
+  # A one-field class not named for an identifier
+  - |
+    @dataclass(frozen=True)
+    class ExampleAmount:
+        value: int
+
+  # A str subclass with a method
+  - |
+    class ExampleId(str):
+        def short(self):
+            return self[:8]
+
+  # A str and Enum subclass
+  - |
+    class ExampleCode(str, Enum):
+        pass
+
+  # A float subclass
+  - |
+    class ExampleRatio(float):
+        pass
+
+invalid:
+  # A dataclass with one field
+  - |
+    @dataclass(frozen=True)
+    class ExampleId:
+        value: str
+
+  # A pydantic model with one field and a docstring
+  - |
+    class ExampleKey(BaseModel):
+        """The key of an example."""
+        value: str
+
+  # A NamedTuple with one field
+  - |
+    class ExampleCode(NamedTuple):
+        value: str
+
+  # A msgspec Struct with a keyword base argument and a class constant
+  - |
+    class ExampleId(msgspec.Struct, frozen=True):
+        PREFIX = "ex_"
+        value: str
+
+  # A str subclass with pass
+  - |
+    class ExampleId(str):
+        pass
+
+  # A UUID subclass with a docstring
+  - |
+    class ExampleRef(uuid.UUID):
+        """A reference to an example."""
+
+  # An int subclass with an ellipsis
+  - |
+    class ExampleNumber(int): ...
