@@ -1,0 +1,173 @@
+cases:
+- name: a reload and an override both write the module's feature flags
+  inputs:
+    file: flags/flags.py
+    after: |
+      from flags.client import fetch_flags
+
+      _flags: dict[str, bool] = {}
+
+
+      def reload_flags() -> None:
+          _flags.clear()
+          _flags.update(fetch_flags())
+
+
+      def override_flag(name: str, enabled: bool) -> None:
+          _flags[name] = enabled
+
+
+      def is_enabled(name: str) -> bool:
+          return _flags.get(name, False)
+  expected_output:
+    outcome: invalid
+- name: one function memoizes users in a module cache that others read
+  inputs:
+    file: accounts/lookup.py
+    after: |
+      from accounts.client import fetch_user
+      from accounts.user import User
+
+      _users: dict[str, User] = {}
+
+
+      def get_user(user_id: str) -> User:
+          if user_id not in _users:
+              _users[user_id] = fetch_user(user_id)
+          return _users[user_id]
+
+
+      def cached_count() -> int:
+          return len(_users)
+  expected_output:
+    outcome: valid
+- name: one function records the last sync time that a status function reads
+  inputs:
+    file: sync/status.py
+    after: |
+      from datetime import datetime, timezone
+
+      from sync.client import pull_changes
+
+      _last_sync: datetime | None = None
+
+
+      def sync() -> int:
+          global _last_sync
+          changed = pull_changes()
+          _last_sync = datetime.now(timezone.utc)
+          return changed
+
+
+      def status() -> str:
+          if _last_sync is None:
+              return "never synced"
+          return f"last synced {_last_sync.isoformat()}"
+  expected_output:
+    outcome: valid
+- name: two functions rebind the module's maintenance flag
+  inputs:
+    file: ops/maintenance.py
+    after: |
+      from ops.settings import Settings
+
+      _maintenance = False
+
+
+      def start_maintenance() -> None:
+          global _maintenance
+          _maintenance = True
+
+
+      def apply_settings(settings: Settings) -> None:
+          global _maintenance
+          _maintenance = settings.maintenance
+
+
+      def in_maintenance() -> bool:
+          return _maintenance
+  expected_output:
+    outcome: invalid
+- name: exporters register themselves into a module registry at import
+  inputs:
+    file: exports/registry.py
+    after: |
+      from collections.abc import Callable
+
+      from exports.report import Report
+
+      Exporter = Callable[[Report], bytes]
+
+      _exporters: dict[str, Exporter] = {}
+
+
+      def register(name: str) -> Callable[[Exporter], Exporter]:
+          def add(exporter: Exporter) -> Exporter:
+              _exporters[name] = exporter
+              return exporter
+
+          return add
+
+
+      def export(report: Report, name: str) -> bytes:
+          return _exporters[name](report)
+  expected_output:
+    outcome: valid
+- name: a function formats a byte count
+  inputs:
+    file: exports/size.py
+    after: |
+      def human_size(size: int) -> str:
+          for unit in ("B", "KB", "MB"):
+              if size < 1024:
+                  return f"{size} {unit}"
+              size //= 1024
+          return f"{size} GB"
+  expected_output:
+    outcome: skipped
+- name: an admin handler sets a field on the settings object another module exports
+  inputs:
+    file: admin/maintenance.ts
+    unchanged:
+      config/settings.ts: |
+        export const settings = {
+          maintenance: false,
+          retryLimit: 3,
+        };
+
+        export function loadSettings(raw: { maintenance: boolean; retryLimit: number }): void {
+          settings.maintenance = raw.maintenance;
+          settings.retryLimit = raw.retryLimit;
+        }
+    after: |
+      import { settings } from "../config/settings";
+
+      export function handleMaintenanceToggle(request: { enabled: boolean }): { ok: true } {
+        settings.maintenance = request.enabled;
+        return { ok: true };
+      }
+  expected_output:
+    outcome: invalid
+- name: one function memoizes prices in a module map
+  inputs:
+    file: pricing/prices.ts
+    after: |
+      import { fetchPrice } from "./client";
+
+      const prices = new Map<string, number>();
+
+      export async function priceOf(sku: string): Promise<number> {
+        const cached = prices.get(sku);
+        if (cached !== undefined) {
+          return cached;
+        }
+        const price = await fetchPrice(sku);
+        prices.set(sku, price);
+        return price;
+      }
+
+      export function knownSkus(): string[] {
+        return [...prices.keys()];
+      }
+  expected_output:
+    outcome: valid
