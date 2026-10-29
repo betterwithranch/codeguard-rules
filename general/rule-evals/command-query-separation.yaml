@@ -1,0 +1,148 @@
+cases:
+- name: an unread count marks the messages read before returning how many there were
+  inputs:
+    file: inbox/service.py
+    after: |
+      from datetime import UTC, datetime
+
+      from inbox.models import Message
+
+
+      class InboxService:
+          def unread_count(self, user_id: int) -> int:
+              unread = Message.objects.filter(recipient_id=user_id, read_at__isnull=True)
+              count = unread.count()
+              unread.update(read_at=datetime.now(UTC))
+              return count
+  expected_output:
+    outcome: invalid
+- name: an eligibility check records the check on the customer and returns whether they qualify
+  inputs:
+    file: loyalty/eligibility.py
+    after: |
+      from datetime import date
+
+      from loyalty.models import Customer
+
+      THRESHOLD_CENTS = 50_000
+
+
+      def is_eligible(customer: Customer, today: date) -> bool:
+          customer.last_checked_on = today
+          customer.save(update_fields=["last_checked_on"])
+          return customer.lifetime_spend_cents >= THRESHOLD_CENTS
+  expected_output:
+    outcome: invalid
+- name: a create function saves an order and returns its id
+  inputs:
+    file: orders/service.py
+    after: |
+      from orders.models import Order
+
+
+      def create_order(customer_id: int, total_cents: int) -> int:
+          order = Order.objects.create(customer_id=customer_id, total_cents=total_cents)
+          return order.id
+  expected_output:
+    outcome: valid
+- name: a query totals the open invoices without changing them
+  inputs:
+    file: billing/queries.py
+    after: |
+      from billing.models import Invoice
+
+
+      def open_balance_cents(customer_id: int) -> int:
+          invoices = Invoice.objects.filter(customer_id=customer_id, paid_on__isnull=True)
+          return sum(invoice.total_cents for invoice in invoices)
+  expected_output:
+    outcome: valid
+- name: a builder method sets a header and returns the builder
+  inputs:
+    file: http/builder.py
+    after: |
+      class RequestBuilder:
+          def __init__(self, url: str) -> None:
+              self._url = url
+              self._headers: dict[str, str] = {}
+
+          def with_header(self, name: str, value: str) -> "RequestBuilder":
+              self._headers[name] = value
+              return self
+  expected_output:
+    outcome: valid
+- name: a job queue claims the next job and returns it
+  inputs:
+    file: jobs/queue.py
+    after: |
+      from collections import deque
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Job:
+          id: str
+          payload: dict[str, str]
+
+
+      class JobQueue:
+          def __init__(self) -> None:
+              self._jobs: deque[Job] = deque()
+
+          def claim_next(self) -> Job | None:
+              if not self._jobs:
+                  return None
+              return self._jobs.popleft()
+  expected_output:
+    outcome: valid
+- name: a method marks a message read without returning anything
+  inputs:
+    file: inbox/message.py
+    after: |
+      from datetime import UTC, datetime
+
+
+      class Message:
+          def __init__(self, body: str) -> None:
+              self.body = body
+              self.read_at: datetime | None = None
+
+          def mark_read(self) -> None:
+              self.read_at = datetime.now(UTC)
+  expected_output:
+    outcome: skipped
+- name: a function marks an inbox read and returns how many messages were unread
+  inputs:
+    file: inbox/inbox.ts
+    after: |
+      export interface Message {
+        body: string;
+        readAt?: Date;
+      }
+
+      export function takeUnreadCount(messages: Message[]): number {
+        let count = 0;
+        for (const message of messages) {
+          if (!message.readAt) {
+            message.readAt = new Date();
+            count++;
+          }
+        }
+        return count;
+      }
+  expected_output:
+    outcome: invalid
+- name: a function counts the unread messages without changing them
+  inputs:
+    file: inbox/inbox.ts
+    after: |
+      export interface Message {
+        body: string;
+        readAt?: Date;
+      }
+
+      export function unreadCount(messages: Message[]): number {
+        return messages.filter((message) => !message.readAt).length;
+      }
+  expected_output:
+    outcome: valid

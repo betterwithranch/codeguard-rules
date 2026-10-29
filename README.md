@@ -55,6 +55,7 @@ the languages it runs on.
 | `no-stamp-coupling` | No stamp coupling: a function takes the values it reads, not a bundle it mostly ignores, so its signature says what it depends on. | Not yet |
 | `high-cohesion` | High cohesion: a module's public classes belong to its one concept, so knowledge sits where its next change will look. | Not yet |
 | `packages-under-import-contract` | Packages under import contract: a package the change adds is under the project's import-boundary configuration, so the boundary tool keeps it from importing its siblings. | Not yet |
+| `command-query-separation` | Command-query separation: a function either changes state or returns an answer, not both, so asking never changes anything. | Not yet |
 
 Pattern rules (ast-grep), one per language where a convention's form is syntax. They
 start as `warning`s and skip test files:
