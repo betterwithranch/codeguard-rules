@@ -1,0 +1,23 @@
+id: union-alias
+language: python
+rule:
+  any:
+  - kind: type_alias_statement
+  - kind: subscript
+    has:
+      field: value
+      regex: ^(typing\.)?Union$
+  - kind: generic_type
+    regex: ^(typing\.)?Union\[
+  - kind: binary_operator
+    regex: ^[A-Z][\w.]*(\[[^|]*\])? *\| *[A-Z]
+    not:
+      regex: ^[\w.]+ *\| *None$
+  - kind: keyword_argument
+    has:
+      field: name
+      regex: ^(discriminator|tag|tag_field)$
+  - kind: call
+    has:
+      field: function
+      regex: (^|\.)(Discriminator|Tag|TypeAdapter)$
