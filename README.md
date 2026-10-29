@@ -74,8 +74,8 @@ start as `warning`s and skip test files:
 | `builder-pattern-python`, `builder-pattern-typescript` | Builder pattern: a class named `...Builder` has a method that stores a part of its product on the instance, before a separate call returns it |
 | `identifier-wrapper-earns-its-type-python` | Identifier wrapper earns its type: a class that holds one identifier (a one-field `...Id`, `...Key` or `...Code` record, or an empty `str`, `int` or `UUID` subclass) adds behaviour or a check (Python only) |
 
-Each judge rule passes 20 of 20 eval runs on Claude before it ships, and CI's 3 runs
-before it merges. Each is a `warning`: its findings print but don't block.
+A judge rule ships once its evals pass as [codeguard's testing guide](https://github.com/jig-code/codeguard/blob/main/docs/testing.md#changing-a-rule-package) requires. Each is a
+`warning`: its findings print but don't block.
 
 A rule's evals have cases in each language, reported apart, such as `dry (python)` and
 `dry (typescript)`. Gates in `general/gates/` are ast-grep rules for one language each;
@@ -116,8 +116,7 @@ code skip test files:
 The `python` ruleset has no judge rules yet. Its judge rules, and some pattern rules, are drafts in
 `drafts/python/`, which codeguard doesn't load. A draft moves into a ruleset one rule at a time, in the order in
 [drafts/split-plan.md](drafts/split-plan.md), highest
-value first: a judge rule once it passes every eval case 20 of 20 runs on each eval
-provider, a pattern rule once its rule tests cover each branch and pass. codeguard's
+value first, once its tests pass as [codeguard's testing guide](https://github.com/jig-code/codeguard/blob/main/docs/testing.md#changing-a-rule-package) requires. codeguard's
 `writing-rules` skill has the steps, and [drafts/README.md](drafts/README.md) the
 conditions.
 
@@ -190,10 +189,12 @@ A Claude Code session here installs codeguard at the release CI pins (`CODEGUARD
 in `.github/workflows/ci.yaml`) when it starts, through `.claude/hooks/session-start.sh`,
 so local runs match CI. Moving to a new codeguard release is that one line.
 
-CI judges only the rules a change can affect: a rule whose skill, binding, eval or a
-trigger's gate changed, or every rule when `codeguard-package.yaml`, the workflow or
-`scripts/affected_judge_rules.py` changed. That script prints the affected rules, and
-CI passes each to `codeguard eval --rule`. The `eval` job runs once per provider in its
+CI judges the rules a change can affect, as [codeguard's testing guide](https://github.com/jig-code/codeguard/blob/main/docs/testing.md#changing-a-rule-package) requires: a rule whose
+skill, binding, eval or a trigger's gate changed, 20 times, and when
+`codeguard-package.yaml`, the workflow (which pins the codeguard version) or
+`scripts/affected_judge_rules.py` changed, every other rule 3 times. That script prints
+each affected rule with its runs, and CI passes them to `codeguard eval --rule`. The
+`eval` job runs once per provider in its
 matrix, `claude-cli`. Gemini is out of the matrix until codeguard's Gemini judge
 is faster and steadier; its auth step stays, so adding `gemini` back turns it on. Locally, `codeguard eval --rule <id> --repeat 20` judges one
 rule, and `--provider gemini` judges it with Gemini instead of its binding's model.
@@ -210,8 +211,8 @@ re-run or loosen the gate. [CLAUDE.md](CLAUDE.md) has the details.
 
 The rules are tested only by their own cases, through codeguard, so they are shown
 accurate as codeguard runs them. CI's `test` job runs `codeguard test`, then its `eval`
-job runs `codeguard eval --repeat 3` with each provider; a case that fails or isn't
-judged in any run fails the build. The `eval` job needs, in the repository's Actions
+job runs `codeguard eval` on the affected rules with each provider; a case that fails or
+isn't judged in any run fails the build. The `eval` job needs, in the repository's Actions
 settings, the secret `CLAUDE_CODE_OAUTH_TOKEN` for Claude, and for Gemini the secret
 `GOOGLE_CREDENTIALS` (a service account key with the Vertex AI User role) and the
 variable `GOOGLE_CLOUD_PROJECT`. codeguard's README, under "Judge with Gemini on Google

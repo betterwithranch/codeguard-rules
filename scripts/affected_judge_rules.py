@@ -1,9 +1,11 @@
-"""Print the judge rules a diff can change the verdicts of, one id per line.
+"""Print the judge rules a diff can change the verdicts of, one per line: the runs its
+eval needs, then the rule's id.
 
 A judge rule's verdicts change with its skill, its binding (which names its model), its
-eval, and the gates its binding triggers on. A change to the package config, the CI
-workflow or this script can change every rule's. CI passes each id to
-`codeguard eval --rule`, and skips the eval when none is printed.
+eval, and the gates its binding triggers on; such a rule runs 20 times. A change to the
+package config, the CI workflow (which pins the codeguard version) or this script can
+change every rule's, so every other rule runs 3 times. CI passes each id to
+`codeguard eval --rule` with its `--repeat`, and skips the eval when none is printed.
 
 Usage: affected_judge_rules.py <base>
 """
@@ -15,6 +17,8 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
+CHANGED_RULE_RUNS = 20
+EVERY_RULE_RUNS = 3
 EVERY_RULE = {"codeguard-package.yaml", ".github/workflows/ci.yaml", "scripts/affected_judge_rules.py"}
 
 
@@ -34,9 +38,7 @@ def judge_triggers(ruleset: Path) -> dict[str, set[str]]:
     return rules
 
 
-def affected(ruleset: str, rules: dict[str, set[str]], paths: set[str]) -> set[str]:
-    if paths & EVERY_RULE:
-        return set(rules)
+def changed(ruleset: str, rules: dict[str, set[str]], paths: set[str]) -> set[str]:
     kept: set[str] = set()
     for path in paths:
         parts = Path(path).parts
@@ -54,8 +56,13 @@ def main(base: str) -> None:
     rulesets = yaml.safe_load((ROOT / "codeguard-package.yaml").read_text())["rulesets"]
     paths = changed_paths(base)
     for name in rulesets:
-        for rule in sorted(affected(name, judge_triggers(ROOT / name), paths)):
-            print(rule)
+        rules = judge_triggers(ROOT / name)
+        kept = changed(name, rules, paths)
+        for rule in sorted(rules):
+            if rule in kept:
+                print(CHANGED_RULE_RUNS, rule)
+            elif paths & EVERY_RULE:
+                print(EVERY_RULE_RUNS, rule)
 
 
 if __name__ == "__main__":
