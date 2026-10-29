@@ -23,9 +23,9 @@ name, and [basedpyright](https://docs.basedpyright.com) with these rules on:
 
 ### `general`
 
-Architecture rules for any language. Each is one judge rule: its `SKILL.md` states the
-convention in no language's terms, and a supplement beside it for each language,
-`python.md` and `typescript.md`, gives that language's forms and examples. The judge
+Architecture rules for any language. Most are judge rules. A judge rule's `SKILL.md`
+states the convention in no language's terms, and a supplement beside it for each
+language, `python.md` and `typescript.md`, gives that language's forms and examples. The judge
 gets the skill and the supplement for the file's language. Its binding's `paths` name
 the languages it runs on.
 
@@ -44,8 +44,15 @@ the languages it runs on.
 | `make-illegal-states-unrepresentable` | A type's optional fields aren't tied to the values of its status or kind field | Not yet |
 | `composition-over-inheritance` | A class inherits only from a type it is a kind of, not to reuse its code | Not yet |
 
-Each rule passes 20 of 20 eval runs on Claude before it ships, and CI's 3 runs before it
-merges. One check follows, and doesn't hold up the next rule:
+Pattern rules (ast-grep), one per language where a convention's form is syntax. They
+start as `warning`s and skip test files:
+
+| Rule | Checks |
+|---|---|
+| `no-middle-man-python`, `no-middle-man-typescript` | No middle man: a class without a base doesn't forward every method to the same collaborator |
+
+Each judge rule passes 20 of 20 eval runs on Claude before it ships, and CI's 3 runs
+before it merges. One check follows, and doesn't hold up the next rule:
 
 - **Validated**: its findings on real changes, read from codeguard's Logfire traces,
   show it flags what it should. Until then it's a `warning`: its findings print but don't

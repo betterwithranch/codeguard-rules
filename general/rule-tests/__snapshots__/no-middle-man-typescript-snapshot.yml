@@ -1,0 +1,154 @@
+id: no-middle-man-typescript
+snapshots:
+  "class ExampleService {\n  constructor(private readonly repository: ExampleRepository) {}\n\n  get(id: string) {\n    return this.repository.get(id);\n  }\n\n  save(example: Example) {\n    this.repository.save(example);\n  }\n}\n":
+    labels:
+    - source: |-
+        class ExampleService {
+          constructor(private readonly repository: ExampleRepository) {}
+        
+          get(id: string) {
+            return this.repository.get(id);
+          }
+        
+          save(example: Example) {
+            this.repository.save(example);
+          }
+        }
+      style: primary
+      start: 0
+      end: 217
+    - source: this.repository.save(example)
+      style: secondary
+      start: 181
+      end: 210
+    - source: this.repository.save(example);
+      style: secondary
+      start: 181
+      end: 211
+    - source: |-
+        {
+            this.repository.save(example);
+          }
+      style: secondary
+      start: 175
+      end: 215
+    - source: this.repository.get(id)
+      style: secondary
+      start: 120
+      end: 143
+    - source: return this.repository.get(id);
+      style: secondary
+      start: 113
+      end: 144
+    - source: |-
+        {
+            return this.repository.get(id);
+          }
+      style: secondary
+      start: 107
+      end: 148
+    - source: |-
+        get(id: string) {
+            return this.repository.get(id);
+          }
+      style: secondary
+      start: 91
+      end: 148
+    - source: |-
+        save(example: Example) {
+            this.repository.save(example);
+          }
+      style: secondary
+      start: 152
+      end: 215
+    - source: |-
+        {
+          constructor(private readonly repository: ExampleRepository) {}
+        
+          get(id: string) {
+            return this.repository.get(id);
+          }
+        
+          save(example: Example) {
+            this.repository.save(example);
+          }
+        }
+      style: secondary
+      start: 21
+      end: 217
+  "export class ExampleService {\n  constructor(private readonly repository: ExampleRepository) {}\n\n  async get(id: string) {\n    return await this.repository.get(id);\n  }\n\n  async save(example: Example) {\n    await this.repository.save(example);\n  }\n}\n":
+    labels:
+    - source: |-
+        class ExampleService {
+          constructor(private readonly repository: ExampleRepository) {}
+        
+          async get(id: string) {
+            return await this.repository.get(id);
+          }
+        
+          async save(example: Example) {
+            await this.repository.save(example);
+          }
+        }
+      style: primary
+      start: 7
+      end: 248
+    - source: await this.repository.save(example)
+      style: secondary
+      start: 206
+      end: 241
+    - source: await this.repository.save(example);
+      style: secondary
+      start: 206
+      end: 242
+    - source: |-
+        {
+            await this.repository.save(example);
+          }
+      style: secondary
+      start: 200
+      end: 246
+    - source: await this.repository.get(id)
+      style: secondary
+      start: 133
+      end: 162
+    - source: return await this.repository.get(id);
+      style: secondary
+      start: 126
+      end: 163
+    - source: |-
+        {
+            return await this.repository.get(id);
+          }
+      style: secondary
+      start: 120
+      end: 167
+    - source: |-
+        async get(id: string) {
+            return await this.repository.get(id);
+          }
+      style: secondary
+      start: 98
+      end: 167
+    - source: |-
+        async save(example: Example) {
+            await this.repository.save(example);
+          }
+      style: secondary
+      start: 171
+      end: 246
+    - source: |-
+        {
+          constructor(private readonly repository: ExampleRepository) {}
+        
+          async get(id: string) {
+            return await this.repository.get(id);
+          }
+        
+          async save(example: Example) {
+            await this.repository.save(example);
+          }
+        }
+      style: secondary
+      start: 28
+      end: 248

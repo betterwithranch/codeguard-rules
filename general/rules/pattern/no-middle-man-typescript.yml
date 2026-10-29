@@ -1,0 +1,53 @@
+id: no-middle-man-typescript
+language: typescript
+severity: warning
+message: Every method of this class only forwards to the same collaborator.
+note: |
+  The class adds nothing: every method passes its call to the same collaborator. Have
+  callers use the collaborator directly, or give the class work of its own. A class
+  that extends or implements another is not matched, since forwarding there adapts the
+  collaborator to that type.
+metadata:
+  why: A layer that only forwards is one more place to read and change, and hides which object does the work.
+utils:
+  forwarding-call:
+    any:
+    - pattern: this.$C.$_M($$$)
+    - pattern: await this.$C.$_M($$$)
+  forwarding-method:
+    kind: method_definition
+    not:
+      has: {field: name, regex: ^constructor$}
+    has:
+      field: body
+      kind: statement_block
+      all:
+      - not:
+          has: {nthChild: 2}
+      - has:
+          nthChild: 1
+          any:
+          - kind: return_statement
+            has: {matches: forwarding-call}
+          - kind: expression_statement
+            has: {matches: forwarding-call}
+rule:
+  kind: class_declaration
+  not:
+    has: {kind: class_heritage}
+  has:
+    field: body
+    kind: class_body
+    all:
+    - has:
+        matches: forwarding-method
+        follows:
+          stopBy: end
+          matches: forwarding-method
+    - not:
+        has:
+          kind: method_definition
+          not:
+            any:
+            - matches: forwarding-method
+            - has: {field: name, regex: ^constructor$}
