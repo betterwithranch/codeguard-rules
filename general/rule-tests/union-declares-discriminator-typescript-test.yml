@@ -1,0 +1,42 @@
+id: union-declares-discriminator-typescript
+valid:
+  # A discriminated union
+  - |
+    const exampleA = z.object({ kind: z.literal("a"), name: z.string() });
+    const exampleB = z.object({ kind: z.literal("b"), code: z.number() });
+    export const example = z.discriminatedUnion("kind", [exampleA, exampleB]);
+
+  # A union of plain values
+  - |
+    export const example = z.union([z.string(), z.number()]);
+
+  # A union of object schemas with no literal field
+  - |
+    const exampleA = z.object({ name: z.string() });
+    const exampleB = z.object({ code: z.number() });
+    export const example = z.union([exampleA, exampleB]);
+
+  # A union of schemas imported from elsewhere
+  - |
+    import { exampleA, exampleB } from "./examples";
+    export const example = z.union([exampleA, exampleB]);
+
+  # Object schemas whose literal fields have different keys
+  - |
+    const exampleA = z.object({ kind: z.literal("a"), name: z.string() });
+    const exampleB = z.object({ type: z.literal("b"), code: z.number() });
+    export const example = z.union([exampleA, exampleB]);
+
+invalid:
+  # A union of named object schemas sharing a literal field
+  - |
+    const exampleA = z.object({ kind: z.literal("a"), name: z.string() });
+    const exampleB = z.object({ kind: z.literal("b"), code: z.number() });
+    export const example = z.union([exampleA, exampleB]);
+
+  # A union of inline object schemas sharing a literal field
+  - |
+    export const example = z.union([
+      z.object({ kind: z.literal("a"), name: z.string() }),
+      z.object({ kind: z.literal("b"), code: z.number() }),
+    ]);

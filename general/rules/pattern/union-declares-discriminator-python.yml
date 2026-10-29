@@ -1,0 +1,52 @@
+id: union-declares-discriminator-python
+language: python
+severity: warning
+message: This field is a union of pydantic models defined in this file, with no discriminator named.
+note: |
+  Without a discriminator pydantic tries each model in turn: parsing is slower, a payload
+  that fits two models becomes whichever is tried first, and a payload that fits none
+  fails with an error per model. Give each model a `Literal` tag field and name it:
+  `payment: CardPayment | BankPayment = Field(discriminator="kind")`.
+metadata:
+  why: With the tag named, the parser reads one field, picks the model, and reports errors against that model alone.
+utils:
+  model-class:
+    kind: class_definition
+    all:
+    - has: {field: name, pattern: $B}
+    - has: {field: superclasses, kind: argument_list, regex: \bBaseModel\b}
+  names-discriminator:
+    any:
+    - kind: keyword_argument
+      has: {field: name, regex: ^discriminator$}
+    - kind: call
+      has: {field: function, regex: (^|\.)Discriminator$}
+rule:
+  kind: assignment
+  all:
+  - has:
+      field: type
+      has:
+        kind: binary_operator
+        has: {field: right, kind: identifier, pattern: $B}
+  - not:
+      has:
+        field: right
+        any:
+        - matches: names-discriminator
+        - has: {stopBy: end, matches: names-discriminator}
+  - inside:
+      kind: expression_statement
+      inside:
+        kind: block
+        inside:
+          kind: class_definition
+          field: body
+          inside:
+            stopBy: end
+            kind: module
+            has:
+              any:
+              - matches: model-class
+              - kind: decorated_definition
+                has: {field: definition, matches: model-class}

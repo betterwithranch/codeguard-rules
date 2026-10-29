@@ -1,0 +1,118 @@
+id: union-declares-discriminator-python
+valid:
+  # A discriminator named with Field
+  - |
+    from typing import Literal
+    from pydantic import BaseModel, Field
+
+    class ExampleA(BaseModel):
+        kind: Literal["a"] = "a"
+
+    class ExampleB(BaseModel):
+        kind: Literal["b"] = "b"
+
+    class ExampleHolder(BaseModel):
+        value: ExampleA | ExampleB = Field(discriminator="kind")
+
+  # A discriminator named with Discriminator
+  - |
+    from typing import Literal
+    from pydantic import BaseModel, Discriminator
+
+    class ExampleA(BaseModel):
+        kind: Literal["a"] = "a"
+
+    class ExampleB(BaseModel):
+        kind: Literal["b"] = "b"
+
+    class ExampleHolder(BaseModel):
+        value: ExampleA | ExampleB = Discriminator("kind")
+
+  # A union with None
+  - |
+    from pydantic import BaseModel
+
+    class ExampleA(BaseModel):
+        name: str
+
+    class ExampleHolder(BaseModel):
+        value: ExampleA | None = None
+
+  # A union of plain values
+  - |
+    from decimal import Decimal
+    from pydantic import BaseModel
+
+    class ExampleHolder(BaseModel):
+        amount: Decimal | int
+
+  # A union of classes that aren't pydantic models
+  - |
+    from dataclasses import dataclass
+
+    @dataclass
+    class ExampleA:
+        name: str
+
+    @dataclass
+    class ExampleB:
+        code: int
+
+    @dataclass
+    class ExampleHolder:
+        value: ExampleA | ExampleB
+
+  # A union of models imported from elsewhere
+  - |
+    from pydantic import BaseModel
+    from examples.models import ExampleA, ExampleB
+
+    class ExampleHolder(BaseModel):
+        value: ExampleA | ExampleB
+
+invalid:
+  # A field typed as a union of two models with no default
+  - |
+    from typing import Literal
+    from pydantic import BaseModel
+
+    class ExampleA(BaseModel):
+        kind: Literal["a"] = "a"
+
+    class ExampleB(BaseModel):
+        kind: Literal["b"] = "b"
+
+    class ExampleHolder(BaseModel):
+        value: ExampleA | ExampleB
+
+  # A Field default with no discriminator
+  - |
+    from typing import Literal
+    from pydantic import BaseModel, Field
+
+    class ExampleA(BaseModel):
+        kind: Literal["a"] = "a"
+
+    class ExampleB(BaseModel):
+        kind: Literal["b"] = "b"
+
+    class ExampleHolder(BaseModel):
+        value: ExampleA | ExampleB = Field(description="the example")
+
+  # A union of three models, the last a decorated class
+  - |
+    from typing import Literal
+    from pydantic import BaseModel
+
+    class ExampleA(BaseModel):
+        kind: Literal["a"] = "a"
+
+    class ExampleB(BaseModel):
+        kind: Literal["b"] = "b"
+
+    @some_decorator
+    class ExampleC(BaseModel):
+        kind: Literal["c"] = "c"
+
+    class ExampleHolder(BaseModel):
+        value: ExampleA | ExampleB | ExampleC

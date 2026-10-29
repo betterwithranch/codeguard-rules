@@ -1,0 +1,176 @@
+id: union-declares-discriminator-typescript
+snapshots:
+  "const exampleA = z.object({ kind: z.literal(\"a\"), name: z.string() });\nconst exampleB = z.object({ kind: z.literal(\"b\"), code: z.number() });\nexport const example = z.union([exampleA, exampleB]);\n":
+    labels:
+    - source: z.union([exampleA, exampleB])
+      style: primary
+      start: 165
+      end: 194
+    - source: exampleA
+      style: secondary
+      start: 6
+      end: 14
+    - source: kind
+      style: secondary
+      start: 28
+      end: 32
+    - source: z.literal("a")
+      style: secondary
+      start: 34
+      end: 48
+    - source: "kind: z.literal(\"a\")"
+      style: secondary
+      start: 28
+      end: 48
+    - source: "{ kind: z.literal(\"a\"), name: z.string() }"
+      style: secondary
+      start: 26
+      end: 68
+    - source: "{ kind: z.literal(\"a\"), name: z.string() }"
+      style: secondary
+      start: 26
+      end: 68
+    - source: "z.object({ kind: z.literal(\"a\"), name: z.string() })"
+      style: secondary
+      start: 17
+      end: 69
+    - source: "exampleA = z.object({ kind: z.literal(\"a\"), name: z.string() })"
+      style: secondary
+      start: 6
+      end: 69
+    - source: |
+        const exampleA = z.object({ kind: z.literal("a"), name: z.string() });
+        const exampleB = z.object({ kind: z.literal("b"), code: z.number() });
+        export const example = z.union([exampleA, exampleB]);
+      style: secondary
+      start: 0
+      end: 196
+    - source: exampleA
+      style: secondary
+      start: 174
+      end: 182
+    - source: exampleB
+      style: secondary
+      start: 77
+      end: 85
+    - source: kind
+      style: secondary
+      start: 99
+      end: 103
+    - source: z.literal("b")
+      style: secondary
+      start: 105
+      end: 119
+    - source: "kind: z.literal(\"b\")"
+      style: secondary
+      start: 99
+      end: 119
+    - source: "{ kind: z.literal(\"b\"), code: z.number() }"
+      style: secondary
+      start: 97
+      end: 139
+    - source: "{ kind: z.literal(\"b\"), code: z.number() }"
+      style: secondary
+      start: 97
+      end: 139
+    - source: "z.object({ kind: z.literal(\"b\"), code: z.number() })"
+      style: secondary
+      start: 88
+      end: 140
+    - source: "exampleB = z.object({ kind: z.literal(\"b\"), code: z.number() })"
+      style: secondary
+      start: 77
+      end: 140
+    - source: |
+        const exampleA = z.object({ kind: z.literal("a"), name: z.string() });
+        const exampleB = z.object({ kind: z.literal("b"), code: z.number() });
+        export const example = z.union([exampleA, exampleB]);
+      style: secondary
+      start: 0
+      end: 196
+    - source: exampleB
+      style: secondary
+      start: 184
+      end: 192
+    - source: "[exampleA, exampleB]"
+      style: secondary
+      start: 173
+      end: 193
+    - source: "[exampleA, exampleB]"
+      style: secondary
+      start: 173
+      end: 193
+  "export const example = z.union([\n  z.object({ kind: z.literal(\"a\"), name: z.string() }),\n  z.object({ kind: z.literal(\"b\"), code: z.number() }),\n]);\n":
+    labels:
+    - source: |-
+        z.union([
+          z.object({ kind: z.literal("a"), name: z.string() }),
+          z.object({ kind: z.literal("b"), code: z.number() }),
+        ])
+      style: primary
+      start: 23
+      end: 147
+    - source: kind
+      style: secondary
+      start: 46
+      end: 50
+    - source: z.literal("a")
+      style: secondary
+      start: 52
+      end: 66
+    - source: "kind: z.literal(\"a\")"
+      style: secondary
+      start: 46
+      end: 66
+    - source: "{ kind: z.literal(\"a\"), name: z.string() }"
+      style: secondary
+      start: 44
+      end: 86
+    - source: "{ kind: z.literal(\"a\"), name: z.string() }"
+      style: secondary
+      start: 44
+      end: 86
+    - source: "z.object({ kind: z.literal(\"a\"), name: z.string() })"
+      style: secondary
+      start: 35
+      end: 87
+    - source: kind
+      style: secondary
+      start: 102
+      end: 106
+    - source: z.literal("b")
+      style: secondary
+      start: 108
+      end: 122
+    - source: "kind: z.literal(\"b\")"
+      style: secondary
+      start: 102
+      end: 122
+    - source: "{ kind: z.literal(\"b\"), code: z.number() }"
+      style: secondary
+      start: 100
+      end: 142
+    - source: "{ kind: z.literal(\"b\"), code: z.number() }"
+      style: secondary
+      start: 100
+      end: 142
+    - source: "z.object({ kind: z.literal(\"b\"), code: z.number() })"
+      style: secondary
+      start: 91
+      end: 143
+    - source: |-
+        [
+          z.object({ kind: z.literal("a"), name: z.string() }),
+          z.object({ kind: z.literal("b"), code: z.number() }),
+        ]
+      style: secondary
+      start: 31
+      end: 146
+    - source: |-
+        [
+          z.object({ kind: z.literal("a"), name: z.string() }),
+          z.object({ kind: z.literal("b"), code: z.number() }),
+        ]
+      style: secondary
+      start: 31
+      end: 146

@@ -1,0 +1,61 @@
+id: union-declares-discriminator-typescript
+language: typescript
+severity: warning
+message: This z.union of object schemas sharing a literal field names no discriminator.
+note: |
+  Without a discriminator zod tries each schema in turn: parsing is slower, and a payload
+  that fits none fails with an error per schema. The schemas already share a literal
+  tag, so name it: `z.discriminatedUnion("kind", [cardPayment, bankPayment])`.
+metadata:
+  why: With the tag named, the parser reads one field, picks the schema, and reports errors against that schema alone.
+utils:
+  tagged-object:
+    kind: call_expression
+    pattern: z.object($$$)
+    has:
+      field: arguments
+      has:
+        kind: object
+        has:
+          kind: pair
+          all:
+          - has: {field: key, pattern: $K}
+          - has: {field: value, pattern: z.literal($$$)}
+  first-tagged:
+    any:
+    - matches: tagged-object
+    - kind: identifier
+      pattern: $S1
+      inside:
+        stopBy: end
+        kind: program
+        has:
+          stopBy: end
+          kind: variable_declarator
+          all:
+          - has: {field: name, pattern: $S1}
+          - has: {field: value, matches: tagged-object}
+  second-tagged:
+    any:
+    - matches: tagged-object
+    - kind: identifier
+      pattern: $S2
+      inside:
+        stopBy: end
+        kind: program
+        has:
+          stopBy: end
+          kind: variable_declarator
+          all:
+          - has: {field: name, pattern: $S2}
+          - has: {field: value, matches: tagged-object}
+rule:
+  kind: call_expression
+  pattern: z.union($$$)
+  has:
+    field: arguments
+    has:
+      kind: array
+      all:
+      - has: {nthChild: 1, matches: first-tagged}
+      - has: {nthChild: 2, matches: second-tagged}
