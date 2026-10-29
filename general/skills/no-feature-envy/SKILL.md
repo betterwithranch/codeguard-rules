@@ -40,7 +40,9 @@ function's or method's definition, or the expression.
   needs knowledge the type doesn't have.
 - Code that reads one field of the value.
 - Code that copies fields into another shape without deciding anything: building a
-  response, a row, a message or a display.
+  response, a row, a message or a display. An answer it works out from two or more of
+  the fields on the way, such as a count or a status it then puts in the message, is
+  still a violation.
 - A type that is not the program's.
 
 ## Why
