@@ -66,6 +66,7 @@ start as `warning`s and skip test files:
 | Rule | Checks |
 |---|---|
 | `no-middle-man-python`, `no-middle-man-typescript` | No middle man: a class without a base doesn't forward every method to the same collaborator |
+| `no-class-level-mutable-container` | No class-level mutable container: a list, dict or set bound in a class body isn't mutated through `self`, which every instance shares (Python only) |
 
 Each judge rule passes 20 of 20 eval runs on Claude before it ships, and CI's 3 runs
 before it merges. One check follows, and doesn't hold up the next rule:
