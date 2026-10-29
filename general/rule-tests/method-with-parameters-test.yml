@@ -1,0 +1,70 @@
+id: method-with-parameters
+valid:
+# Method with only self
+- |
+  class ExampleQuoter:
+      def total(self):
+          return 1
+# Class method with only cls
+- |
+  class ExampleQuoter:
+      @classmethod
+      def default(cls):
+          return cls()
+# Constructor taking a collaborator
+- |
+  class ExampleQuoter:
+      def __init__(self, example_provider):
+          self._example_provider = example_provider
+# Module-level function
+- |
+  def example_quote(example_provider, example_shipment):
+      return example_provider.rate(example_shipment)
+invalid:
+# Method with a plain parameter
+- |
+  class ExampleQuoter:
+      def quote(self, example_provider):
+          return example_provider.rate()
+# Method with a typed parameter
+- |
+  class ExampleQuoter:
+      def quote(self, example_provider: ExampleProvider) -> int:
+          return example_provider.rate()
+# Method with a defaulted parameter
+- |
+  class ExampleQuoter:
+      def quote(self, example_provider=None):
+          return example_provider
+# Method with a typed defaulted parameter
+- |
+  class ExampleQuoter:
+      def quote(self, example_provider: ExampleProvider | None = None):
+          return example_provider
+# Method with *args
+- |
+  class ExampleQuoter:
+      def quote(self, *example_providers):
+          return example_providers
+# Method with **kwargs
+- |
+  class ExampleQuoter:
+      def quote(self, **example_options):
+          return example_options
+# Static method with one parameter
+- |
+  class ExampleQuoter:
+      @staticmethod
+      def quote(example_provider):
+          return example_provider.rate()
+# Class method with a parameter
+- |
+  class ExampleQuoter:
+      @classmethod
+      def quote(cls, example_provider):
+          return example_provider.rate()
+# Async method
+- |
+  class ExampleQuoter:
+      async def quote(self, example_client):
+          return await example_client.fetch()

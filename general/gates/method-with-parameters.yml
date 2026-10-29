@@ -1,0 +1,31 @@
+id: method-with-parameters
+language: python
+rule:
+  kind: function_definition
+  any:
+  - inside:
+      kind: block
+      inside:
+        kind: class_definition
+  - inside:
+      kind: decorated_definition
+      inside:
+        kind: block
+        inside:
+          kind: class_definition
+  not:
+    has:
+      field: name
+      regex: ^__init__$
+  has:
+    field: parameters
+    has:
+      any:
+      - kind: identifier
+      - kind: typed_parameter
+      - kind: default_parameter
+      - kind: typed_default_parameter
+      - kind: list_splat_pattern
+      - kind: dictionary_splat_pattern
+      not:
+        regex: ^(self|cls)$
