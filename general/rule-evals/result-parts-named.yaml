@@ -1,0 +1,182 @@
+cases:
+- name: a shipping quote returns its fee and delivery date as a tuple
+  inputs:
+    file: shipping/quotes.py
+    after: |
+      from datetime import date, timedelta
+      from decimal import Decimal
+
+      from shipping.parcel import Parcel
+
+
+      def quote(parcel: Parcel, shipped_on: date) -> tuple[Decimal, date]:
+          fee = Decimal("4.50") + Decimal("0.80") * parcel.weight_kg
+          days = 2 if parcel.express else 5
+          return fee, shipped_on + timedelta(days=days)
+  expected_output:
+    outcome: invalid
+- name: an edit replaces a shipping quote's tuple with a dataclass
+  inputs:
+    file: shipping/quotes.py
+    before: |
+      from datetime import date, timedelta
+      from decimal import Decimal
+
+      from shipping.parcel import Parcel
+
+
+      def quote(parcel: Parcel, shipped_on: date) -> tuple[Decimal, date]:
+          fee = Decimal("4.50") + Decimal("0.80") * parcel.weight_kg
+          days = 2 if parcel.express else 5
+          return fee, shipped_on + timedelta(days=days)
+    after: |
+      from dataclasses import dataclass
+      from datetime import date, timedelta
+      from decimal import Decimal
+
+      from shipping.parcel import Parcel
+
+
+      @dataclass(frozen=True)
+      class Quote:
+          fee: Decimal
+          delivers_on: date
+
+
+      def quote(parcel: Parcel, shipped_on: date) -> Quote:
+          fee = Decimal("4.50") + Decimal("0.80") * parcel.weight_kg
+          days = 2 if parcel.express else 5
+          return Quote(fee=fee, delivers_on=shipped_on + timedelta(days=days))
+  expected_output:
+    outcome: valid
+- name: a validator returns a flag and its errors in a dict
+  inputs:
+    file: signup/validation.py
+    after: |
+      import re
+
+      EMAIL = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+      def check_signup(email: str, password: str) -> dict[str, object]:
+          errors: list[str] = []
+          if not EMAIL.match(email):
+              errors.append("email is not valid")
+          if len(password) < 12:
+              errors.append("password is shorter than 12 characters")
+          return {"valid": not errors, "errors": errors}
+  expected_output:
+    outcome: invalid
+- name: a function returns the centre of a rectangle as x and y
+  inputs:
+    file: layout/geometry.py
+    after: |
+      from layout.shapes import Rect
+
+
+      def centre(rect: Rect) -> tuple[float, float]:
+          return rect.left + rect.width / 2, rect.top + rect.height / 2
+  expected_output:
+    outcome: valid
+- name: a Django view returns its template context
+  inputs:
+    file: orders/views.py
+    after: |
+      from django.views.generic import TemplateView
+
+      from orders.models import Order
+
+
+      class OrderHistoryView(TemplateView):
+          template_name = "orders/history.html"
+
+          def get_context_data(self, **kwargs: object) -> dict[str, object]:
+              orders = Order.objects.filter(customer=self.request.user).order_by("-placed_at")
+              return {**super().get_context_data(**kwargs), "orders": orders, "count": orders.count()}
+  expected_output:
+    outcome: valid
+- name: a function returns a tuple of orders
+  inputs:
+    file: orders/selection.py
+    after: |
+      from orders.models import Order
+
+
+      def overdue(orders: list[Order], days: int) -> tuple[Order, ...]:
+          return tuple(order for order in orders if order.age_days() > days)
+  expected_output:
+    outcome: valid
+- name: a function returns one number
+  inputs:
+    file: orders/totals.py
+    after: |
+      from orders.models import Order
+
+
+      def total_cents(orders: list[Order]) -> int:
+          return sum(order.total_cents for order in orders)
+  expected_output:
+    outcome: skipped
+- name: a CSV parser returns its rows and warnings as a tuple
+  inputs:
+    file: imports/csv.ts
+    after: |
+      export interface Row {
+        sku: string;
+        quantity: number;
+      }
+
+      export function parseCsv(text: string): [Row[], string[]] {
+        const rows: Row[] = [];
+        const warnings: string[] = [];
+        for (const [index, line] of text.trim().split("\n").entries()) {
+          const [sku, quantity] = line.split(",");
+          const parsed = Number(quantity);
+          if (!sku || Number.isNaN(parsed)) {
+            warnings.push(`line ${index + 1} skipped`);
+            continue;
+          }
+          rows.push({ sku, quantity: parsed });
+        }
+        return [rows, warnings];
+      }
+  expected_output:
+    outcome: invalid
+- name: a React hook returns its value and setter
+  inputs:
+    file: ui/useToggle.ts
+    after: |
+      import { useCallback, useState } from "react";
+
+      export function useToggle(initial: boolean): [boolean, () => void] {
+        const [on, setOn] = useState(initial);
+        const toggle = useCallback(() => setOn((value) => !value), []);
+        return [on, toggle];
+      }
+  expected_output:
+    outcome: valid
+- name: a CSV parser returns an object naming its rows and warnings
+  inputs:
+    file: imports/csv.ts
+    after: |
+      export interface Row {
+        sku: string;
+        quantity: number;
+      }
+
+      export function parseCsv(text: string): { rows: Row[]; warnings: string[] } {
+        const rows: Row[] = [];
+        const warnings: string[] = [];
+        for (const [index, line] of text.trim().split("\n").entries()) {
+          const [sku, quantity] = line.split(",");
+          const parsed = Number(quantity);
+          if (!sku || Number.isNaN(parsed)) {
+            warnings.push(`line ${index + 1} skipped`);
+            continue;
+          }
+          rows.push({ sku, quantity: parsed });
+        }
+        return { rows, warnings };
+      }
+  expected_output:
+    outcome: valid

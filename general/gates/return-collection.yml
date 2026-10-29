@@ -1,0 +1,18 @@
+id: return-collection
+language: python
+rule:
+  any:
+  - kind: return_statement
+    has:
+      any:
+      - kind: tuple
+      - kind: expression_list
+      - kind: dictionary
+      - kind: call
+        has:
+          field: function
+          regex: ^dict$
+  - kind: function_definition
+    has:
+      field: return_type
+      regex: ^(tuple|dict|Tuple|Dict)\[
