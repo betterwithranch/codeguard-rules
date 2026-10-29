@@ -1,0 +1,151 @@
+cases:
+- name: a function named for processing data marks each shipment delivered
+  inputs:
+    file: shipping/tracking.py
+    after: |
+      from datetime import UTC, datetime
+
+      from shipping.models import Shipment
+
+
+      def process_data(shipments: list[Shipment]) -> None:
+          now = datetime.now(UTC)
+          for shipment in shipments:
+              shipment.status = "delivered"
+              shipment.delivered_at = now
+              shipment.save(update_fields=["status", "delivered_at"])
+  expected_output:
+    outcome: invalid
+- name: a class named a data helper computes shipping rates
+  inputs:
+    file: shipping/rates.py
+    after: |
+      from decimal import Decimal
+
+      PER_KG = {"EU": Decimal("1.20"), "UK": Decimal("1.50"), "US": Decimal("2.10")}
+      BASE = Decimal("3.00")
+
+
+      class DataHelper:
+          def rate(self, region: str, weight_kg: Decimal) -> Decimal:
+              return BASE + PER_KG[region] * weight_kg
+
+          def express_rate(self, region: str, weight_kg: Decimal) -> Decimal:
+              return self.rate(region, weight_kg) * 2
+  expected_output:
+    outcome: invalid
+- name: an alternative constructor is named for the admin dashboard that calls it
+  inputs:
+    file: reports/summary.py
+    after: |
+      from dataclasses import dataclass
+      from datetime import date, timedelta
+      from typing import Self
+
+
+      @dataclass(frozen=True)
+      class SalesSummary:
+          start: date
+          end: date
+          include_refunds: bool
+
+          @classmethod
+          def for_admin_dashboard(cls, today: date) -> Self:
+              return cls(start=today - timedelta(days=30), end=today, include_refunds=True)
+  expected_output:
+    outcome: invalid
+- name: a function named for marking shipments delivered does so
+  inputs:
+    file: shipping/tracking.py
+    after: |
+      from datetime import UTC, datetime
+
+      from shipping.models import Shipment
+
+
+      def mark_delivered(shipments: list[Shipment]) -> None:
+          now = datetime.now(UTC)
+          for shipment in shipments:
+              shipment.status = "delivered"
+              shipment.delivered_at = now
+              shipment.save(update_fields=["status", "delivered_at"])
+  expected_output:
+    outcome: valid
+- name: an alternative constructor is named for the period it covers
+  inputs:
+    file: reports/summary.py
+    after: |
+      from dataclasses import dataclass
+      from datetime import date, timedelta
+      from typing import Self
+
+
+      @dataclass(frozen=True)
+      class SalesSummary:
+          start: date
+          end: date
+          include_refunds: bool
+
+          @classmethod
+          def last_30_days(cls, today: date) -> Self:
+              return cls(start=today - timedelta(days=30), end=today, include_refunds=True)
+  expected_output:
+    outcome: valid
+- name: a management command's handle method imports the day's orders
+  inputs:
+    file: orders/management/commands/import_orders.py
+    after: |
+      from datetime import date
+
+      from django.core.management.base import BaseCommand
+
+      from orders.importer import import_orders_for
+
+
+      class Command(BaseCommand):
+          help = "Import the day's orders from the warehouse feed."
+
+          def handle(self, *args: object, **options: object) -> None:
+              count = import_orders_for(date.today())
+              self.stdout.write(f"imported {count} orders")
+  expected_output:
+    outcome: valid
+- name: a constant is added
+  inputs:
+    file: shipping/constants.py
+    after: |
+      DELIVERY_WINDOW_DAYS = 5
+  expected_output:
+    outcome: skipped
+- name: a function named for handling items refunds each cancelled order
+  inputs:
+    file: orders/refunds.ts
+    after: |
+      import { payments } from "./payments";
+      import type { Order } from "./order";
+
+      export async function handleItems(orders: Order[]): Promise<void> {
+        for (const order of orders) {
+          if (order.status === "cancelled") {
+            await payments.refund(order.paymentId, order.totalCents);
+          }
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: a function named for refunding cancelled orders does so
+  inputs:
+    file: orders/refunds.ts
+    after: |
+      import { payments } from "./payments";
+      import type { Order } from "./order";
+
+      export async function refundCancelled(orders: Order[]): Promise<void> {
+        for (const order of orders) {
+          if (order.status === "cancelled") {
+            await payments.refund(order.paymentId, order.totalCents);
+          }
+        }
+      }
+  expected_output:
+    outcome: valid
