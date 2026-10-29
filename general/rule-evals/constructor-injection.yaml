@@ -1,0 +1,159 @@
+cases:
+- name: an invoice service method takes the tax rate provider on each call
+  inputs:
+    file: billing/invoices.py
+    after: |
+      from decimal import Decimal
+
+      from billing.repository import InvoiceRepository
+      from billing.tax import TaxRateProvider
+
+
+      class InvoiceService:
+          def __init__(self, invoices: InvoiceRepository) -> None:
+              self._invoices = invoices
+
+          def total_with_tax(self, invoice_id: str, rates: TaxRateProvider) -> Decimal:
+              invoice = self._invoices.get(invoice_id)
+              rate = rates.rate_for(invoice.region)
+              return invoice.subtotal * (1 + rate)
+  expected_output:
+    outcome: invalid
+- name: an invoice service takes the tax rate provider in its constructor
+  inputs:
+    file: billing/invoices.py
+    after: |
+      from decimal import Decimal
+
+      from billing.repository import InvoiceRepository
+      from billing.tax import TaxRateProvider
+
+
+      class InvoiceService:
+          def __init__(self, invoices: InvoiceRepository, rates: TaxRateProvider) -> None:
+              self._invoices = invoices
+              self._rates = rates
+
+          def total_with_tax(self, invoice_id: str) -> Decimal:
+              invoice = self._invoices.get(invoice_id)
+              rate = self._rates.rate_for(invoice.region)
+              return invoice.subtotal * (1 + rate)
+  expected_output:
+    outcome: valid
+- name: a method calls methods on the order it is given
+  inputs:
+    file: shipping/weights.py
+    after: |
+      from decimal import Decimal
+
+      from orders.models import Order
+
+
+      class ShippingWeights:
+          def __init__(self, packaging_grams: int) -> None:
+              self._packaging_grams = packaging_grams
+
+          def total_grams(self, order: Order) -> int:
+              return sum(line.weight_grams() for line in order.lines()) + self._packaging_grams
+
+          def kilograms(self, order: Order) -> Decimal:
+              return Decimal(self.total_grams(order)) / 1000
+  expected_output:
+    outcome: valid
+- name: an async method takes the HTTP client on each call
+  inputs:
+    file: fx/rates.py
+    after: |
+      from decimal import Decimal
+
+      import httpx
+
+
+      class ExchangeRates:
+          def __init__(self, base: str) -> None:
+              self._base = base
+              self._rates: dict[str, Decimal] = {}
+
+          async def refresh(self, client: httpx.AsyncClient) -> None:
+              response = await client.get(f"https://rates.example.com/latest/{self._base}")
+              response.raise_for_status()
+              self._rates = {k: Decimal(str(v)) for k, v in response.json().items()}
+
+          def rate(self, code: str) -> Decimal:
+              return self._rates[code]
+  expected_output:
+    outcome: invalid
+- name: a handler implements the protocol's method that takes the bus
+  inputs:
+    file: orders/handlers.py
+    unchanged:
+      messaging/handler.py: |
+        from typing import Protocol
+
+        from messaging.bus import MessageBus
+        from messaging.event import Event
+
+
+        class EventHandler(Protocol):
+            def handle(self, event: Event, bus: MessageBus) -> None: ...
+    after: |
+      from messaging.bus import MessageBus
+      from messaging.handler import EventHandler
+      from orders.events import OrderPlaced, ReserveStock
+
+
+      class ReserveStockOnOrderPlaced(EventHandler):
+          def handle(self, event: OrderPlaced, bus: MessageBus) -> None:
+              for line in event.lines:
+                  bus.send(ReserveStock(sku=line.sku, quantity=line.quantity))
+  expected_output:
+    outcome: valid
+- name: a module function takes a mailer
+  inputs:
+    file: accounts/welcome.py
+    after: |
+      from accounts.mailer import Mailer
+      from accounts.models import User
+
+
+      def send_welcome(user: User, mailer: Mailer) -> None:
+          mailer.send(user.email, "Welcome", f"Hello {user.first_name}")
+  expected_output:
+    outcome: skipped
+- name: a notifier method takes the mailer on each call
+  inputs:
+    file: accounts/notifier.ts
+    after: |
+      import { Mailer } from "./mailer";
+      import { UserRepository } from "./users";
+
+      export class PasswordResetNotifier {
+        constructor(private readonly users: UserRepository) {}
+
+        async notify(userId: string, mailer: Mailer): Promise<void> {
+          const user = await this.users.get(userId);
+          await mailer.send(user.email, "Reset your password", resetLink(user));
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: a notifier takes the mailer in its constructor
+  inputs:
+    file: accounts/notifier.ts
+    after: |
+      import { Mailer } from "./mailer";
+      import { UserRepository } from "./users";
+
+      export class PasswordResetNotifier {
+        constructor(
+          private readonly users: UserRepository,
+          private readonly mailer: Mailer,
+        ) {}
+
+        async notify(userId: string): Promise<void> {
+          const user = await this.users.get(userId);
+          await this.mailer.send(user.email, "Reset your password", resetLink(user));
+        }
+      }
+  expected_output:
+    outcome: valid
