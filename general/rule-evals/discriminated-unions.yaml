@@ -1,0 +1,184 @@
+cases:
+- name: a pydantic field is a union of tagged payment models with no discriminator named
+  inputs:
+    file: payments/schemas.py
+    after: |
+      from decimal import Decimal
+      from typing import Literal
+
+      from pydantic import BaseModel
+
+
+      class CardPayment(BaseModel):
+          kind: Literal["card"] = "card"
+          card_token: str
+
+
+      class BankPayment(BaseModel):
+          kind: Literal["bank"] = "bank"
+          iban: str
+
+
+      class CheckoutIn(BaseModel):
+          amount: Decimal
+          payment: CardPayment | BankPayment
+  expected_output:
+    outcome: invalid
+- name: a variant of a discriminated union declares its tag as a plain string
+  inputs:
+    file: payments/schemas.py
+    after: |
+      from decimal import Decimal
+      from typing import Literal
+
+      from pydantic import BaseModel, Field
+
+
+      class CardPayment(BaseModel):
+          kind: Literal["card"] = "card"
+          card_token: str
+
+
+      class BankPayment(BaseModel):
+          kind: str = "bank"
+          iban: str
+
+
+      class CheckoutIn(BaseModel):
+          amount: Decimal
+          payment: CardPayment | BankPayment = Field(discriminator="kind")
+  expected_output:
+    outcome: invalid
+- name: two variants of a discriminated union share a tag value
+  inputs:
+    file: events/schemas.py
+    after: |
+      from typing import Annotated, Literal
+
+      from pydantic import BaseModel, Field
+
+
+      class OrderPlaced(BaseModel):
+          type: Literal["order"] = "order"
+          order_id: str
+
+
+      class OrderCancelled(BaseModel):
+          type: Literal["order"] = "order"
+          order_id: str
+          reason: str
+
+
+      Event = Annotated[OrderPlaced | OrderCancelled, Field(discriminator="type")]
+  expected_output:
+    outcome: invalid
+- name: a pydantic field names its discriminator over uniquely tagged models
+  inputs:
+    file: payments/schemas.py
+    after: |
+      from decimal import Decimal
+      from typing import Literal
+
+      from pydantic import BaseModel, Field
+
+
+      class CardPayment(BaseModel):
+          kind: Literal["card"] = "card"
+          card_token: str
+
+
+      class BankPayment(BaseModel):
+          kind: Literal["bank"] = "bank"
+          iban: str
+
+
+      class CheckoutIn(BaseModel):
+          amount: Decimal
+          payment: CardPayment | BankPayment = Field(discriminator="kind")
+  expected_output:
+    outcome: valid
+- name: a union of dataclasses the program builds is told apart by class
+  inputs:
+    file: billing/charges.py
+    after: |
+      from dataclasses import dataclass
+      from decimal import Decimal
+
+
+      @dataclass(frozen=True)
+      class FlatFee:
+          amount: Decimal
+
+
+      @dataclass(frozen=True)
+      class Percentage:
+          rate: Decimal
+
+
+      Charge = FlatFee | Percentage
+
+
+      def apply(charge: Charge, subtotal: Decimal) -> Decimal:
+          match charge:
+              case FlatFee(amount=amount):
+                  return subtotal + amount
+              case Percentage(rate=rate):
+                  return subtotal * (1 + rate)
+  expected_output:
+    outcome: valid
+- name: a pydantic field accepts a decimal or a builtin integer
+  inputs:
+    file: pricing/schemas.py
+    after: |
+      from decimal import Decimal
+
+      from pydantic import BaseModel
+
+
+      class PriceIn(BaseModel):
+          sku: str
+          amount: Decimal | int
+          currency: str
+  expected_output:
+    outcome: skipped
+- name: a function formats a price
+  inputs:
+    file: pricing/format.py
+    after: |
+      from decimal import Decimal
+
+
+      def format_price(amount: Decimal, currency: str) -> str:
+          return f"{amount:.2f} {currency}"
+  expected_output:
+    outcome: skipped
+- name: a zod union of tagged object schemas names no discriminator
+  inputs:
+    file: payments/schema.ts
+    after: |
+      import { z } from "zod";
+
+      const cardPayment = z.object({ kind: z.literal("card"), cardToken: z.string() });
+      const bankPayment = z.object({ kind: z.literal("bank"), iban: z.string() });
+
+      export const checkoutSchema = z.object({
+        amount: z.number().positive(),
+        payment: z.union([cardPayment, bankPayment]),
+      });
+  expected_output:
+    outcome: invalid
+- name: a zod discriminated union of uniquely tagged object schemas
+  inputs:
+    file: payments/schema.ts
+    after: |
+      import { z } from "zod";
+
+      const cardPayment = z.object({ kind: z.literal("card"), cardToken: z.string() });
+      const bankPayment = z.object({ kind: z.literal("bank"), iban: z.string() });
+
+      export const checkoutSchema = z.object({
+        amount: z.number().positive(),
+        payment: z.discriminatedUnion("kind", [cardPayment, bankPayment]),
+      });
+  expected_output:
+    outcome: valid

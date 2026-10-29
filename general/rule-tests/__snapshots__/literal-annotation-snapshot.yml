@@ -1,0 +1,60 @@
+id: literal-annotation
+snapshots:
+  ? |
+    class Card(BaseModel):
+        kind: Literal['card'] = 'card'
+  : labels:
+    - source: Literal['card']
+      style: primary
+      start: 33
+      end: 48
+  ? |
+    class Card(BaseModel):
+        kind: str = 'card'
+  : labels:
+    - source: 'kind: str = ''card'''
+      style: primary
+      start: 27
+      end: 45
+    - source: str
+      style: secondary
+      start: 33
+      end: 36
+    - source: '''card'''
+      style: secondary
+      start: 39
+      end: 45
+    - source: |-
+        class Card(BaseModel):
+            kind: str = 'card'
+      style: secondary
+      start: 0
+      end: 45
+    - source: 'kind: str = ''card'''
+      style: secondary
+      start: 27
+      end: 45
+    - source: 'kind: str = ''card'''
+      style: secondary
+      start: 27
+      end: 45
+  ? |
+    class Card(BaseModel):
+        kind: typing.Literal['card'] = 'card'
+  : labels:
+    - source: typing.Literal['card']
+      style: primary
+      start: 33
+      end: 55
+    - source: typing.Literal
+      style: secondary
+      start: 33
+      end: 47
+  ? |
+    class Card(TypedDict):
+        kind: Literal['card']
+  : labels:
+    - source: Literal['card']
+      style: primary
+      start: 33
+      end: 48

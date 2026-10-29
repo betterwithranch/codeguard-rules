@@ -1,0 +1,102 @@
+id: union-alias
+snapshots:
+  ? |
+    Payment = Annotated[Annotated[Card, Tag('card')] | Annotated[Transfer, Tag('transfer')], Discriminator(kind_of)]
+  : labels:
+    - source: Annotated[Card, Tag('card')] | Annotated[Transfer, Tag('transfer')]
+      style: primary
+      start: 20
+      end: 87
+  ? |
+    Payment = Annotated[Card | Transfer, Discriminator(payment_kind)]
+  : labels:
+    - source: Card | Transfer
+      style: primary
+      start: 20
+      end: 35
+  ? |
+    Payment = Card | Transfer
+  : labels:
+    - source: Card | Transfer
+      style: primary
+      start: 10
+      end: 25
+  ? |
+    class Card(Struct, tag='card'):
+        token: str
+  : labels:
+    - source: tag='card'
+      style: primary
+      start: 19
+      end: 29
+    - source: tag
+      style: secondary
+      start: 19
+      end: 22
+  ? |
+    class Order(BaseModel):
+        payment: Card | Transfer
+  : labels:
+    - source: Card | Transfer
+      style: primary
+      start: 37
+      end: 52
+  ? |
+    class Order(BaseModel):
+        payment: Card | Transfer | None = None
+  : labels:
+    - source: Card | Transfer | None
+      style: primary
+      start: 37
+      end: 59
+  ? |
+    class Order(BaseModel):
+        payments: list[Card | Transfer]
+  : labels:
+    - source: Card | Transfer
+      style: primary
+      start: 43
+      end: 58
+  ? |
+    events = TypeAdapter(list[Created | Deleted])
+  : labels:
+    - source: TypeAdapter(list[Created | Deleted])
+      style: primary
+      start: 9
+      end: 45
+    - source: TypeAdapter
+      style: secondary
+      start: 9
+      end: 20
+  ? |
+    payment: Payment = Field(discriminator='kind')
+  : labels:
+    - source: discriminator='kind'
+      style: primary
+      start: 25
+      end: 45
+    - source: discriminator
+      style: secondary
+      start: 25
+      end: 38
+  ? |
+    payment: Union[Card, Transfer]
+  : labels:
+    - source: Union[Card, Transfer]
+      style: primary
+      start: 9
+      end: 30
+  ? |
+    sample = msgspec.json.decode(raw, type=CpuSample | MemorySample)
+  : labels:
+    - source: CpuSample | MemorySample
+      style: primary
+      start: 39
+      end: 63
+  ? |
+    type Payment = Card | Transfer
+  : labels:
+    - source: type Payment = Card | Transfer
+      style: primary
+      start: 0
+      end: 30
