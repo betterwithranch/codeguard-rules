@@ -1,0 +1,239 @@
+id: derived-argument
+language: python
+rule:
+  kind: argument_list
+  any:
+  - has:
+      any:
+      - kind: identifier
+        pattern: $X
+      - kind: keyword_argument
+        has:
+          field: value
+          kind: identifier
+          pattern: $X
+      follows:
+        any:
+        - any:
+          - kind: call
+            has:
+              field: arguments
+              has:
+                any:
+                - kind: identifier
+                  pattern: $X
+                - kind: keyword_argument
+                  has:
+                    field: value
+                    kind: identifier
+                    pattern: $X
+          - kind: attribute
+            has:
+              field: object
+              kind: identifier
+              pattern: $X
+          - kind: subscript
+            has:
+              field: value
+              kind: identifier
+              pattern: $X
+        - kind: keyword_argument
+          has:
+            any:
+            - kind: call
+              has:
+                field: arguments
+                has:
+                  any:
+                  - kind: identifier
+                    pattern: $X
+                  - kind: keyword_argument
+                    has:
+                      field: value
+                      kind: identifier
+                      pattern: $X
+            - kind: attribute
+              has:
+                field: object
+                kind: identifier
+                pattern: $X
+            - kind: subscript
+              has:
+                field: value
+                kind: identifier
+                pattern: $X
+            field: value
+        stopBy: end
+  - has:
+      any:
+      - kind: identifier
+        pattern: $X
+      - kind: keyword_argument
+        has:
+          field: value
+          kind: identifier
+          pattern: $X
+      precedes:
+        any:
+        - any:
+          - kind: call
+            has:
+              field: arguments
+              has:
+                any:
+                - kind: identifier
+                  pattern: $X
+                - kind: keyword_argument
+                  has:
+                    field: value
+                    kind: identifier
+                    pattern: $X
+          - kind: attribute
+            has:
+              field: object
+              kind: identifier
+              pattern: $X
+          - kind: subscript
+            has:
+              field: value
+              kind: identifier
+              pattern: $X
+        - kind: keyword_argument
+          has:
+            any:
+            - kind: call
+              has:
+                field: arguments
+                has:
+                  any:
+                  - kind: identifier
+                    pattern: $X
+                  - kind: keyword_argument
+                    has:
+                      field: value
+                      kind: identifier
+                      pattern: $X
+            - kind: attribute
+              has:
+                field: object
+                kind: identifier
+                pattern: $X
+            - kind: subscript
+              has:
+                field: value
+                kind: identifier
+                pattern: $X
+            field: value
+        stopBy: end
+  - has:
+      any:
+      - kind: identifier
+        pattern: $V
+      - kind: keyword_argument
+        has:
+          field: value
+          kind: identifier
+          pattern: $V
+      follows:
+        any:
+        - kind: identifier
+          pattern: $X
+        - kind: keyword_argument
+          has:
+            field: value
+            kind: identifier
+            pattern: $X
+        inside:
+          kind: function_definition
+          stopBy: end
+          has:
+            field: body
+            stopBy: end
+            kind: assignment
+            all:
+            - has:
+                field: left
+                kind: identifier
+                pattern: $V
+            - has:
+                any:
+                - kind: call
+                  has:
+                    field: arguments
+                    has:
+                      any:
+                      - kind: identifier
+                        pattern: $X
+                      - kind: keyword_argument
+                        has:
+                          field: value
+                          kind: identifier
+                          pattern: $X
+                - kind: attribute
+                  has:
+                    field: object
+                    kind: identifier
+                    pattern: $X
+                - kind: subscript
+                  has:
+                    field: value
+                    kind: identifier
+                    pattern: $X
+                field: right
+        stopBy: end
+  - has:
+      any:
+      - kind: identifier
+        pattern: $V
+      - kind: keyword_argument
+        has:
+          field: value
+          kind: identifier
+          pattern: $V
+      precedes:
+        any:
+        - kind: identifier
+          pattern: $X
+        - kind: keyword_argument
+          has:
+            field: value
+            kind: identifier
+            pattern: $X
+        inside:
+          kind: function_definition
+          stopBy: end
+          has:
+            field: body
+            stopBy: end
+            kind: assignment
+            all:
+            - has:
+                field: left
+                kind: identifier
+                pattern: $V
+            - has:
+                any:
+                - kind: call
+                  has:
+                    field: arguments
+                    has:
+                      any:
+                      - kind: identifier
+                        pattern: $X
+                      - kind: keyword_argument
+                        has:
+                          field: value
+                          kind: identifier
+                          pattern: $X
+                - kind: attribute
+                  has:
+                    field: object
+                    kind: identifier
+                    pattern: $X
+                - kind: subscript
+                  has:
+                    field: value
+                    kind: identifier
+                    pattern: $X
+                field: right
+        stopBy: end
