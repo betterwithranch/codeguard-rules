@@ -1,0 +1,75 @@
+id: multi-class-module
+valid:
+# One public class
+- |
+  class Order:
+      pass
+# One public class and a private class
+- |
+  class Order:
+      pass
+
+
+  class _Line:
+      pass
+# One public class and a function
+- |
+  class Order:
+      pass
+
+
+  def total():
+      return 1
+# A nested class
+- |
+  class Order:
+      class Line:
+          pass
+# One public class and a call that is not a class factory
+- |
+  class Order:
+      pass
+
+
+  DEFAULT = Order()
+invalid:
+# Two public classes
+- |
+  class Order:
+      pass
+
+
+  class Invoice:
+      pass
+# A decorated public class and a plain one
+- |
+  @dataclass
+  class Order:
+      pass
+
+
+  class Invoice:
+      pass
+# A plain public class and a decorated one after it
+- |
+  class Order:
+      pass
+
+
+  @dataclass
+  class Invoice:
+      pass
+# A public class and a functional NamedTuple
+- |
+  class Order:
+      pass
+
+
+  Line = NamedTuple("Line", [("sku", str)])
+# A public class and a functional Enum
+- |
+  Status = Enum("Status", "OPEN SHIPPED")
+
+
+  class Order:
+      pass
