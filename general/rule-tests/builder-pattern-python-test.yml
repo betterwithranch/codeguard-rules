@@ -1,0 +1,116 @@
+id: builder-pattern-python
+valid:
+  # A part method that assigns an attribute of self
+  - |
+    class ExampleBuilder:
+        def __init__(self):
+            self._name = None
+
+        def name(self, name):
+            self._name = name
+            return self
+
+        def build(self):
+            return Example(self._name)
+
+  # A part method that appends to a list on self
+  - |
+    class ExampleBuilder:
+        def __init__(self):
+            self._lines = []
+
+        def line(self, text):
+            self._lines.append(text)
+            return self
+
+        def build(self):
+            return Example(self._lines)
+
+  # A part method that sets a key on a dict on self
+  - |
+    class ExampleBuilder:
+        def __init__(self):
+            self._headers = {}
+
+        def header(self, key, value):
+            self._headers[key] = value
+            return self
+
+        def build(self):
+            return Example(self._headers)
+
+  # A part method that adds to a counter on self
+  - |
+    class ExampleBuilder:
+        def __init__(self):
+            self._total = 0
+
+        def add(self, amount):
+            self._total += amount
+
+        def build(self):
+            return Example(self._total)
+
+  # A decorated part method
+  - |
+    class ExampleBuilder:
+        def __init__(self):
+            self._name = None
+
+        @traced
+        def name(self, name):
+            self._name = name
+            return self
+
+        def build(self):
+            return Example(self._name)
+
+  # A class whose name doesn't end in Builder
+  - |
+    class ExampleFactory:
+        def build(self, name):
+            return Example(name)
+
+invalid:
+  # One build call from arguments
+  - |
+    class ExampleBuilder:
+        def build(self, name, total):
+            return Example(name, total)
+
+  # build() that only uses what the constructor took
+  - |
+    class ExampleBuilder:
+        def __init__(self, name):
+            self._name = name
+
+        def build(self):
+            return Example(self._name)
+
+  # A static method that makes the product
+  - |
+    class ExampleBuilder:
+        @staticmethod
+        def create(name):
+            return Example(name)
+
+  # A class method that sets an attribute on the class
+  - |
+    class ExampleBuilder:
+        @classmethod
+        def configure(cls, name):
+            cls.name = name
+
+        def build(self):
+            return Example(self.name)
+
+  # build() that caches its product on self
+  - |
+    class ExampleBuilder:
+        def __init__(self, name):
+            self._name = name
+            self._built = None
+
+        def build(self):
+            self._built = Example(self._name)
+            return self._built

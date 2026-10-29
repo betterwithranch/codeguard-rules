@@ -1,0 +1,117 @@
+id: builder-pattern-typescript
+valid:
+  # A part method that assigns a property of this
+  - |
+    class ExampleBuilder {
+      private name = "";
+
+      withName(name: string): this {
+        this.name = name;
+        return this;
+      }
+
+      build(): Example {
+        return new Example(this.name);
+      }
+    }
+
+  # A part method that pushes onto an array on this
+  - |
+    class ExampleBuilder {
+      private lines: string[] = [];
+
+      line(text: string): this {
+        this.lines.push(text);
+        return this;
+      }
+
+      build(): Example {
+        return new Example(this.lines);
+      }
+    }
+
+  # A part method that sets a key on a record on this
+  - |
+    class ExampleBuilder {
+      private headers: Record<string, string> = {};
+
+      header(key: string, value: string): this {
+        this.headers[key] = value;
+        return this;
+      }
+
+      build(): Example {
+        return new Example(this.headers);
+      }
+    }
+
+  # A part method that adds to a counter on this
+  - |
+    class ExampleBuilder {
+      private total = 0;
+
+      add(amount: number): this {
+        this.total += amount;
+        return this;
+      }
+
+      build(): Example {
+        return new Example(this.total);
+      }
+    }
+
+  # A class whose name doesn't end in Builder
+  - |
+    class ExampleFactory {
+      build(name: string): Example {
+        return new Example(name);
+      }
+    }
+
+invalid:
+  # One build call from arguments
+  - |
+    class ExampleBuilder {
+      build(name: string, total: number): Example {
+        return new Example(name, total);
+      }
+    }
+
+  # build() that only uses what the constructor took
+  - |
+    class ExampleBuilder {
+      constructor(private readonly name: string) {
+        this.name = name;
+      }
+
+      build(): Example {
+        return new Example(this.name);
+      }
+    }
+
+  # A static method that sets a static property
+  - |
+    class ExampleBuilder {
+      static defaults: string[] = [];
+
+      static configure(name: string): void {
+        this.defaults.push(name);
+      }
+
+      build(): Example {
+        return new Example(ExampleBuilder.defaults);
+      }
+    }
+
+  # An exported builder whose build() caches its product
+  - |
+    export class ExampleBuilder {
+      private built?: Example;
+
+      constructor(private readonly name: string) {}
+
+      build(): Example {
+        this.built = new Example(this.name);
+        return this.built;
+      }
+    }

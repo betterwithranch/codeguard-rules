@@ -1,0 +1,43 @@
+id: builder-pattern-typescript
+language: typescript
+severity: warning
+message: This Builder class has no method that stores a part of its product.
+note: |
+  A class named ...Builder assembles its product step by step: methods that store parts
+  on the instance, then a separate call such as build() that returns the product. This
+  class makes its product in one call. Give it methods that store the parts, or name it
+  for what it makes (a factory, or a function such as makeInvoice). A part method is any
+  method other than the constructor, build, create, make or a static method that sets,
+  adds to or updates a property of this.
+metadata:
+  why: A builder that makes its product in one call is a constructor with a misleading name.
+utils:
+  stores-part:
+    any:
+    - kind: assignment_expression
+      has:
+        field: left
+        any:
+        - pattern: this.$_
+        - kind: subscript_expression
+          has: {field: object, pattern: this.$_}
+    - kind: augmented_assignment_expression
+      has: {field: left, pattern: this.$_}
+    - kind: call_expression
+      all:
+      - pattern: this.$_.$M($$$)
+      - has:
+          field: function
+          has: {field: property, regex: ^(push|unshift|add|set|splice)$}
+  part-method:
+    kind: method_definition
+    not:
+      any:
+      - has: {field: name, regex: ^(constructor|build|create|make)$}
+      - has: {regex: ^static$}
+    has: {matches: stores-part, stopBy: end}
+rule:
+  kind: class_declaration
+  has: {field: name, regex: Builder$}
+  not:
+    has: {field: body, matches: part-method, stopBy: end}

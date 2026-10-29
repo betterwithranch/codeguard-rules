@@ -1,0 +1,45 @@
+id: builder-pattern-python
+language: python
+severity: warning
+message: This Builder class has no method that stores a part of its product.
+note: |
+  A class named ...Builder assembles its product step by step: methods that store parts
+  on the instance, then a separate call such as build() that returns the product. This
+  class makes its product in one call. Give it methods that store the parts, or name it
+  for what it makes (a factory, or a function such as make_invoice). A part method is
+  any method other than __init__, build, create, make, __call__ or a static or class
+  method that sets, adds to or updates an attribute of self.
+metadata:
+  why: A builder that makes its product in one call is a constructor with a misleading name.
+utils:
+  stores-part:
+    any:
+    - kind: assignment
+      has:
+        field: left
+        any:
+        - pattern: self.$_
+        - kind: subscript
+          has: {field: value, pattern: self.$_}
+    - kind: augmented_assignment
+      has: {field: left, pattern: self.$_}
+    - kind: call
+      all:
+      - pattern: self.$_.$M($$$)
+      - has:
+          field: function
+          has: {field: attribute, regex: ^(append|extend|add|update|insert|setdefault)$}
+  part-method:
+    kind: function_definition
+    not:
+      any:
+      - has: {field: name, regex: ^(__init__|__call__|build|create|make)$}
+      - inside:
+          kind: decorated_definition
+          has: {kind: decorator, regex: (staticmethod|classmethod)}
+    has: {matches: stores-part, stopBy: end}
+rule:
+  kind: class_definition
+  has: {field: name, regex: Builder$}
+  not:
+    has: {field: body, matches: part-method, stopBy: end}
