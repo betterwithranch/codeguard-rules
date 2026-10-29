@@ -1,0 +1,152 @@
+cases:
+- name: a tax function takes the checkout context to read two of its six fields
+  inputs:
+    file: checkout/tax.py
+    after: |
+      from dataclasses import dataclass
+      from decimal import Decimal
+
+      RATES = {"EU": Decimal("0.21"), "UK": Decimal("0.20"), "US": Decimal("0.07")}
+
+
+      @dataclass(frozen=True)
+      class CheckoutContext:
+          customer_id: str
+          subtotal_cents: int
+          region: str
+          coupon_code: str | None
+          locale: str
+          session_id: str
+
+
+      def tax_cents(context: CheckoutContext) -> int:
+          rate = RATES[context.region]
+          return int(context.subtotal_cents * rate)
+  expected_output:
+    outcome: invalid
+- name: a helper takes the application settings to read one timeout
+  inputs:
+    file: integrations/http.py
+    unchanged:
+      app/settings.py: |
+        from pydantic_settings import BaseSettings
+
+
+        class Settings(BaseSettings):
+            database_url: str
+            redis_url: str
+            http_timeout: float = 10.0
+            sentry_dsn: str | None = None
+            debug: bool = False
+            allowed_hosts: list[str] = []
+    after: |
+      import httpx
+
+      from app.settings import Settings
+
+
+      def make_client(settings: Settings) -> httpx.Client:
+          return httpx.Client(timeout=settings.http_timeout)
+  expected_output:
+    outcome: invalid
+- name: a function reads one field of the invoice it decides about
+  inputs:
+    file: billing/overdue.py
+    after: |
+      from dataclasses import dataclass
+      from datetime import date
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          number: str
+          customer_id: str
+          total_cents: int
+          issued_on: date
+          due_on: date
+          paid_on: date | None
+
+
+      def days_overdue(invoice: Invoice, today: date) -> int:
+          return max((today - invoice.due_on).days, 0)
+  expected_output:
+    outcome: valid
+- name: a Django view reads the user from its request
+  inputs:
+    file: accounts/views.py
+    after: |
+      from django.http import HttpRequest, JsonResponse
+      from django.views import View
+
+
+      class ProfileView(View):
+          def get(self, request: HttpRequest) -> JsonResponse:
+              return JsonResponse({"email": request.user.email})
+  expected_output:
+    outcome: valid
+- name: a function reads most of the checkout context's fields
+  inputs:
+    file: checkout/receipt.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class CheckoutContext:
+          customer_id: str
+          subtotal_cents: int
+          region: str
+          coupon_code: str | None
+
+
+      def receipt_header(context: CheckoutContext) -> str:
+          coupon = context.coupon_code or "none"
+          return (
+              f"customer {context.customer_id} ({context.region}), "
+              f"subtotal {context.subtotal_cents / 100:.2f}, coupon {coupon}"
+          )
+  expected_output:
+    outcome: valid
+- name: a function totals a list of prices
+  inputs:
+    file: checkout/totals.py
+    after: |
+      def total_cents(prices: list[int]) -> int:
+          return sum(prices)
+  expected_output:
+    outcome: skipped
+- name: a retry helper takes the app config to read one of its fields
+  inputs:
+    file: jobs/retry.ts
+    after: |
+      export interface AppConfig {
+        databaseUrl: string;
+        redisUrl: string;
+        retryBaseMs: number;
+        sentryDsn?: string;
+        logLevel: "debug" | "info" | "warn";
+        port: number;
+      }
+
+      export function retryDelay(config: AppConfig, attempt: number): number {
+        return config.retryBaseMs * 2 ** attempt;
+      }
+  expected_output:
+    outcome: invalid
+- name: an overdue check reads one field of the invoice interface
+  inputs:
+    file: billing/overdue.ts
+    after: |
+      export interface Invoice {
+        number: string;
+        customerId: string;
+        totalCents: number;
+        issuedOn: Date;
+        dueOn: Date;
+      }
+
+      export function isOverdue(invoice: Invoice, today: Date): boolean {
+        return invoice.dueOn < today;
+      }
+  expected_output:
+    outcome: valid
