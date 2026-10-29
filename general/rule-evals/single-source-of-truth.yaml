@@ -1,0 +1,215 @@
+cases:
+- name: an order stores whether it shipped beside the time it shipped
+  inputs:
+    file: shipping/order.py
+    after: |
+      from dataclasses import dataclass
+      from datetime import datetime
+
+
+      @dataclass
+      class Order:
+          reference: str
+          shipped_at: datetime | None = None
+          is_shipped: bool = False
+
+          def ship(self, now: datetime) -> None:
+              self.shipped_at = now
+              self.is_shipped = True
+  expected_output:
+    outcome: invalid
+- name: an order computes whether it shipped from the time it shipped
+  inputs:
+    file: shipping/order.py
+    after: |
+      from dataclasses import dataclass
+      from datetime import datetime
+
+
+      @dataclass
+      class Order:
+          reference: str
+          is_gift: bool = False
+          shipped_at: datetime | None = None
+
+          @property
+          def is_shipped(self) -> bool:
+              return self.shipped_at is not None
+
+          def ship(self, now: datetime) -> None:
+              self.shipped_at = now
+  expected_output:
+    outcome: valid
+- name: a cart keeps a count of its items beside the items
+  inputs:
+    file: cart/cart.py
+    after: |
+      from cart.item import CartItem
+
+
+      class Cart:
+          def __init__(self) -> None:
+              self.items: list[CartItem] = []
+              self.item_count = 0
+
+          def add(self, item: CartItem) -> None:
+              self.items.append(item)
+              self.item_count += 1
+  expected_output:
+    outcome: invalid
+- name: a shipment copies its customer's email beside the customer
+  inputs:
+    file: shipping/shipment.py
+    unchanged:
+      accounts/customer.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Customer:
+            id: str
+            name: str
+            email: str
+    after: |
+      from dataclasses import dataclass
+
+      from accounts.customer import Customer
+
+
+      @dataclass
+      class Shipment:
+          tracking_number: str
+          customer: Customer
+          customer_email: str
+  expected_output:
+    outcome: invalid
+- name: an order line records the unit price paid beside the product
+  inputs:
+    file: orders/line.py
+    unchanged:
+      catalog/product.py: |
+        from dataclasses import dataclass
+        from decimal import Decimal
+
+
+        @dataclass
+        class Product:
+            sku: str
+            name: str
+            price: Decimal
+    after: |
+      from dataclasses import dataclass
+      from decimal import Decimal
+
+      from catalog.product import Product
+
+
+      @dataclass(frozen=True)
+      class OrderLine:
+          product: Product
+          quantity: int
+          unit_price_paid: Decimal
+  expected_output:
+    outcome: valid
+- name: a Django order keeps a foreign key to its customer
+  inputs:
+    file: orders/models.py
+    after: |
+      from django.db import models
+
+
+      class Order(models.Model):
+          customer = models.ForeignKey("accounts.Customer", on_delete=models.PROTECT)
+          reference = models.CharField(max_length=32)
+          placed_at = models.DateTimeField()
+  expected_output:
+    outcome: valid
+- name: a function formats an order reference
+  inputs:
+    file: orders/format.py
+    after: |
+      def format_reference(prefix: str, number: int) -> str:
+          return f"{prefix}-{number:06d}"
+  expected_output:
+    outcome: skipped
+- name: a component keeps a selected count in state beside the selected ids
+  inputs:
+    file: inbox/MessageList.tsx
+    after: |
+      import { useState } from "react";
+
+      export function MessageList({ messages }: { messages: Message[] }) {
+        const [selectedIds, setSelectedIds] = useState<string[]>([]);
+        const [selectedCount, setSelectedCount] = useState(0);
+
+        function toggle(id: string) {
+          if (selectedIds.includes(id)) {
+            setSelectedIds(selectedIds.filter((s) => s !== id));
+            setSelectedCount(selectedCount - 1);
+          } else {
+            setSelectedIds([...selectedIds, id]);
+            setSelectedCount(selectedCount + 1);
+          }
+        }
+
+        return (
+          <ul>
+            <li>{selectedCount} selected</li>
+            {messages.map((m) => (
+              <li key={m.id} onClick={() => toggle(m.id)}>
+                {m.subject}
+              </li>
+            ))}
+          </ul>
+        );
+      }
+  expected_output:
+    outcome: invalid
+- name: a component computes the selected count from the selected ids
+  inputs:
+    file: inbox/MessageList.tsx
+    after: |
+      import { useState } from "react";
+
+      export function MessageList({ messages }: { messages: Message[] }) {
+        const [selectedIds, setSelectedIds] = useState<string[]>([]);
+        const selectedCount = selectedIds.length;
+
+        function toggle(id: string) {
+          setSelectedIds(
+            selectedIds.includes(id)
+              ? selectedIds.filter((s) => s !== id)
+              : [...selectedIds, id],
+          );
+        }
+
+        return (
+          <ul>
+            <li>{selectedCount} selected</li>
+            {messages.map((m) => (
+              <li key={m.id} onClick={() => toggle(m.id)}>
+                {m.subject}
+              </li>
+            ))}
+          </ul>
+        );
+      }
+  expected_output:
+    outcome: valid
+- name: a subscription class stores whether it is active beside its cancellation time
+  inputs:
+    file: billing/subscription.ts
+    after: |
+      export class Subscription {
+        cancelledAt?: Date;
+        isActive = true;
+
+        constructor(readonly customerId: string, readonly plan: string) {}
+
+        cancel(now: Date): void {
+          this.cancelledAt = now;
+          this.isActive = false;
+        }
+      }
+  expected_output:
+    outcome: invalid

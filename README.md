@@ -41,8 +41,9 @@ the languages it runs on.
 | `liskov-substitution` | Liskov substitution: a subclass keeps every promise its base class makes, so an override the change adds doesn't raise where the base doesn't, ignore an argument, accept or return less, or stub out the base's work | Not yet |
 | `no-shotgun-surgery` | No shotgun surgery: one type owns each job on a concept, so a type the change adds or edits doesn't do a job another type already does to the same concept | Not yet |
 | `construction-in-its-home` | Construction in its home: what a new instance holds is decided by its type, its module, its factory or its source's mapper, so code the change adds doesn't build a program type from a source elsewhere or supply a default for one of its fields | Not yet |
-| `make-illegal-states-unrepresentable` | A type's optional fields aren't tied to the values of its status or kind field | Not yet |
-| `composition-over-inheritance` | A class inherits only from a type it is a kind of, not to reuse its code | Not yet |
+| `make-illegal-states-unrepresentable` | Make illegal states unrepresentable: a type's fields can't hold a combination the domain forbids, so a type the change adds or edits doesn't keep optional fields that must be set for some values of its status or kind field and empty for others | Not yet |
+| `composition-over-inheritance` | Composition over inheritance: a class inherits only from a type it is a kind of, so a class the change adds doesn't inherit from a program class just to reuse its code | Not yet |
+| `single-source-of-truth` | Single source of truth: a class doesn't store a value it can derive from one other value it holds, so a field the change adds doesn't repeat what another field, or a held object's field, already says | Not yet |
 
 Pattern rules (ast-grep), one per language where a convention's form is syntax. They
 start as `warning`s and skip test files:
