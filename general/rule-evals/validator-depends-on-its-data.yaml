@@ -1,0 +1,187 @@
+cases:
+- name: a pydantic validator checks the SKU against a catalog passed in the validation context
+  inputs:
+    file: orders/schemas.py
+    after: |
+      from pydantic import BaseModel, Field, ValidationInfo, field_validator
+
+
+      class OrderLineIn(BaseModel):
+          sku: str
+          quantity: int = Field(gt=0)
+
+          @field_validator("sku")
+          @classmethod
+          def sku_exists(cls, value: str, info: ValidationInfo) -> str:
+              catalog = info.context["catalog"]
+              if not catalog.has(value):
+                  raise ValueError(f"unknown sku {value}")
+              return value
+  expected_output:
+    outcome: invalid
+- name: a pydantic validator checks the currency against the application settings
+  inputs:
+    file: billing/schemas.py
+    after: |
+      from decimal import Decimal
+
+      from django.conf import settings
+      from pydantic import BaseModel, field_validator
+
+
+      class PriceIn(BaseModel):
+          amount: Decimal
+          currency: str
+
+          @field_validator("currency")
+          @classmethod
+          def supported_currency(cls, value: str) -> str:
+              if value not in settings.SUPPORTED_CURRENCIES:
+                  raise ValueError(f"unsupported currency {value}")
+              return value
+  expected_output:
+    outcome: invalid
+- name: a pydantic model checks its amount, currency and dates against its own values and constants
+  inputs:
+    file: billing/schemas.py
+    after: |
+      from datetime import date
+      from decimal import Decimal
+
+      from pydantic import BaseModel, field_validator, model_validator
+
+      CURRENCIES = frozenset({"EUR", "GBP", "USD"})
+
+
+      class DiscountIn(BaseModel):
+          amount: Decimal
+          currency: str
+          starts_on: date
+          ends_on: date
+
+          @field_validator("amount")
+          @classmethod
+          def positive(cls, value: Decimal) -> Decimal:
+              if value <= 0:
+                  raise ValueError("amount must be positive")
+              return value
+
+          @field_validator("currency")
+          @classmethod
+          def known_currency(cls, value: str) -> str:
+              if value not in CURRENCIES:
+                  raise ValueError(f"unsupported currency {value}")
+              return value
+
+          @model_validator(mode="after")
+          def ends_after_start(self) -> "DiscountIn":
+              if self.ends_on <= self.starts_on:
+                  raise ValueError("a discount must end after it starts")
+              return self
+  expected_output:
+    outcome: valid
+- name: a dataclass checks the product exists in the database after it is built
+  inputs:
+    file: cart/lines.py
+    after: |
+      from dataclasses import dataclass
+
+      from catalog.models import Product
+
+
+      @dataclass(frozen=True)
+      class CartLine:
+          sku: str
+          quantity: int
+
+          def __post_init__(self) -> None:
+              if self.quantity <= 0:
+                  raise ValueError("quantity must be positive")
+              if not Product.objects.filter(sku=self.sku, active=True).exists():
+                  raise ValueError(f"no active product {self.sku}")
+  expected_output:
+    outcome: invalid
+- name: a Django form checks the email isn't already registered
+  inputs:
+    file: accounts/forms.py
+    after: |
+      from django import forms
+      from django.contrib.auth import get_user_model
+
+
+      class SignupForm(forms.Form):
+          email = forms.EmailField()
+          password = forms.CharField(widget=forms.PasswordInput)
+
+          def clean_email(self) -> str:
+              email = self.cleaned_data["email"].lower()
+              if get_user_model().objects.filter(email=email).exists():
+                  raise forms.ValidationError("an account with this email already exists")
+              return email
+  expected_output:
+    outcome: valid
+- name: a Django model's clean checks no other post has its slug
+  inputs:
+    file: blog/models.py
+    after: |
+      from django.core.exceptions import ValidationError
+      from django.db import models
+
+
+      class Post(models.Model):
+          title = models.CharField(max_length=200)
+          slug = models.SlugField()
+
+          def clean(self) -> None:
+              others = Post.objects.filter(slug=self.slug).exclude(pk=self.pk)
+              if others.exists():
+                  raise ValidationError({"slug": "another post already uses this slug"})
+  expected_output:
+    outcome: valid
+- name: a function rounds a price
+  inputs:
+    file: billing/rounding.py
+    after: |
+      from decimal import ROUND_HALF_UP, Decimal
+
+
+      def round_price(amount: Decimal) -> Decimal:
+          return amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+  expected_output:
+    outcome: skipped
+- name: a zod schema refines the SKU by querying the database
+  inputs:
+    file: orders/schema.ts
+    after: |
+      import { z } from "zod";
+      import { prisma } from "../db";
+
+      export const orderLineSchema = z.object({
+        sku: z.string().refine(
+          async (sku) => (await prisma.product.count({ where: { sku, active: true } })) > 0,
+          { message: "unknown sku" },
+        ),
+        quantity: z.number().int().positive(),
+      });
+  expected_output:
+    outcome: invalid
+- name: a zod schema refines its dates against each other
+  inputs:
+    file: billing/schema.ts
+    after: |
+      import { z } from "zod";
+
+      const CURRENCIES = ["EUR", "GBP", "USD"] as const;
+
+      export const discountSchema = z
+        .object({
+          amount: z.number().positive(),
+          currency: z.enum(CURRENCIES),
+          startsOn: z.coerce.date(),
+          endsOn: z.coerce.date(),
+        })
+        .refine((discount) => discount.endsOn > discount.startsOn, {
+          message: "a discount must end after it starts",
+        });
+  expected_output:
+    outcome: valid

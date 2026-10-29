@@ -1,0 +1,71 @@
+id: validator
+valid:
+# A property
+- |
+  @property
+  def total(self):
+      return 1
+# A method with another name
+- |
+  class Shipment(BaseModel):
+      def cleanup(self):
+          return None
+# A module-level function named clean
+- |
+  def clean(value):
+      return value.strip()
+# A keyword argument with another name
+- |
+  sku: str = attrs.field(converter=str.upper)
+invalid:
+# pydantic field_validator
+- |
+  @field_validator('sku')
+  def check(cls, value):
+      return value
+# pydantic model_validator
+- |
+  @model_validator(mode='after')
+  def check(self):
+      return self
+# pydantic v1 root_validator
+- |
+  @root_validator
+  def check(cls, values):
+      return values
+# attrs field validator decorator
+- |
+  @sku.validator
+  def _check_sku(self, attribute, value):
+      pass
+# dataclass __post_init__
+- |
+  class Shipment:
+      def __post_init__(self):
+          pass
+# attrs __attrs_post_init__
+- |
+  class Shipment:
+      def __attrs_post_init__(self):
+          pass
+# pydantic model_post_init
+- |
+  class Shipment(BaseModel):
+      def model_post_init(self, context):
+          pass
+# Django model clean
+- |
+  class Shipment(models.Model):
+      def clean(self):
+          pass
+# Django model clean_field
+- |
+  class Shipment(models.Model):
+      def clean_sku(self):
+          return self.sku
+# attrs validator argument
+- |
+  sku: str = attrs.field(validator=check_sku)
+# Django field validators argument
+- |
+  sku = models.CharField(max_length=12, validators=[check_sku])
