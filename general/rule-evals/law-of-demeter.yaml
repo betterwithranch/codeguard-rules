@@ -1,0 +1,172 @@
+cases:
+- name: checkout reaches through the order and its customer to charge the account
+  inputs:
+    file: checkout/service.py
+    unchanged:
+      checkout/models.py: |
+        class Account:
+            def __init__(self, balance_cents: int) -> None:
+                self.balance_cents = balance_cents
+
+            def charge(self, amount_cents: int) -> None:
+                if amount_cents > self.balance_cents:
+                    raise ValueError("insufficient balance")
+                self.balance_cents -= amount_cents
+
+
+        class Customer:
+            def __init__(self, name: str, account: Account) -> None:
+                self.name = name
+                self.account = account
+
+
+        class Order:
+            def __init__(self, customer: Customer, total_cents: int) -> None:
+                self.customer = customer
+                self.total_cents = total_cents
+                self.paid = False
+    after: |
+      from checkout.models import Order
+
+
+      def pay(order: Order) -> None:
+          order.customer.account.charge(order.total_cents)
+          order.paid = True
+  expected_output:
+    outcome: invalid
+- name: a discount reaches through the cart's owner to their loyalty tier's rate
+  inputs:
+    file: pricing/discounts.py
+    unchanged:
+      pricing/models.py: |
+        from decimal import Decimal
+
+
+        class LoyaltyTier:
+            def __init__(self, name: str, rate: Decimal) -> None:
+                self.name = name
+                self.rate = rate
+
+            def discount_for(self, subtotal_cents: int) -> int:
+                return int(subtotal_cents * self.rate)
+
+
+        class Member:
+            def __init__(self, email: str, tier: LoyaltyTier) -> None:
+                self.email = email
+                self.tier = tier
+
+
+        class Cart:
+            def __init__(self, owner: Member, subtotal_cents: int) -> None:
+                self.owner = owner
+                self.subtotal_cents = subtotal_cents
+    after: |
+      from pricing.models import Cart
+
+
+      def discounted_total(cart: Cart) -> int:
+          discount = cart.owner.tier.discount_for(cart.subtotal_cents)
+          return cart.subtotal_cents - discount
+  expected_output:
+    outcome: invalid
+- name: checkout asks the order to charge its customer
+  inputs:
+    file: checkout/service.py
+    after: |
+      from checkout.models import Order
+
+
+      def pay(order: Order) -> None:
+          order.charge_customer()
+          order.paid = True
+  expected_output:
+    outcome: valid
+- name: a report reads the year of an invoice's issue date
+  inputs:
+    file: reports/yearly.py
+    after: |
+      from collections import Counter
+
+      from billing.models import Invoice
+
+
+      def invoices_per_year(invoices: list[Invoice]) -> Counter[int]:
+          return Counter(invoice.issued_on.year for invoice in invoices)
+  expected_output:
+    outcome: valid
+- name: a view reads the signed-in user's email from the request
+  inputs:
+    file: accounts/views.py
+    after: |
+      from django.http import HttpRequest, JsonResponse
+
+
+      def profile(request: HttpRequest) -> JsonResponse:
+          return JsonResponse({"email": request.user.email})
+  expected_output:
+    outcome: valid
+- name: a report chains a dataframe pipeline
+  inputs:
+    file: reports/sales.py
+    after: |
+      import pandas as pd
+
+
+      def sales_by_region(orders: pd.DataFrame) -> pd.DataFrame:
+          return orders.groupby("region")["total"].sum().reset_index().sort_values("total")
+  expected_output:
+    outcome: valid
+- name: a function adds two numbers
+  inputs:
+    file: pricing/math.py
+    after: |
+      def add_cents(a: int, b: int) -> int:
+          return a + b
+  expected_output:
+    outcome: skipped
+- name: a pay function reaches through the order class and its customer to charge the account
+  inputs:
+    file: checkout/pay.ts
+    unchanged:
+      checkout/models.ts: |
+        export class Account {
+          constructor(private balanceCents: number) {}
+
+          charge(amountCents: number): void {
+            if (amountCents > this.balanceCents) throw new Error("insufficient balance");
+            this.balanceCents -= amountCents;
+          }
+        }
+
+        export class Customer {
+          constructor(readonly name: string, readonly account: Account) {}
+        }
+
+        export class Order {
+          paid = false;
+          constructor(readonly customer: Customer, readonly totalCents: number) {}
+        }
+    after: |
+      import type { Order } from "./models";
+
+      export function pay(order: Order): void {
+        order.customer.account.charge(order.totalCents);
+        order.paid = true;
+      }
+  expected_output:
+    outcome: invalid
+- name: a function filters and maps active items to their ids
+  inputs:
+    file: catalog/ids.ts
+    after: |
+      export interface Item {
+        id: string;
+        active: boolean;
+      }
+
+      export function activeIds(items: Item[]): string[] {
+        return items.filter((item) => item.active).map((item) => item.id);
+      }
+  expected_output:
+    outcome: valid
