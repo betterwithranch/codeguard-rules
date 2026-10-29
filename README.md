@@ -48,6 +48,7 @@ the languages it runs on.
 | `no-disinformation` | No disinformation: a name claims nothing its body doesn't do, so a function, method or class name the change adds or renames has no verb, noun or qualifier its body makes false | Not yet |
 | `claim-check` | Claim check: a stored record crosses a task or queue boundary as its identity, so code the change adds doesn't pass a stored record, or a copy of all its fields, to work that runs later or in another process | Not yet |
 | `constructor-injection` | Constructor injection: a method's collaborators come through its object's constructor, so a method the change adds or edits doesn't take a client, repository, provider or other collaborator as a parameter on each call | Not yet |
+| `result-parts-named` | Result parts named: a function's result names what each of its parts means, so a return the change adds doesn't hand back parts that answer different questions in a tuple or an unchecked map | Not yet |
 
 Pattern rules (ast-grep), one per language where a convention's form is syntax. They
 start as `warning`s and skip test files:
