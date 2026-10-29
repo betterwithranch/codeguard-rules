@@ -1,0 +1,23 @@
+id: deferred-call
+language: python
+rule:
+  any:
+  - kind: call
+    has:
+      field: function
+      kind: attribute
+      has:
+        field: attribute
+        regex: ^(delay|apply_async|s|si|send_task|enqueue|enqueue_call|enqueue_at|enqueue_in|send|send_message|publish|put|put_nowait|submit|start_workflow|execute_workflow|start_child_workflow|execute_child_workflow|execute_activity|start_activity|signal_workflow)$
+  - kind: call
+    has:
+      field: function
+      regex: ^(execute_activity|start_activity|execute_child_workflow|start_child_workflow)$
+  - kind: decorated_definition
+    all:
+    - has:
+        kind: decorator
+        regex: (task|actor|activity|workflow|job)\b
+    - has:
+        field: definition
+        kind: function_definition

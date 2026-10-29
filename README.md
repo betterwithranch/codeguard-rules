@@ -46,6 +46,7 @@ the languages it runs on.
 | `single-source-of-truth` | Single source of truth: a class doesn't store a value it can derive from one other value it holds, so a field the change adds doesn't repeat what another field, or a held object's field, already says | Not yet |
 | `single-writer` | Single writer: module-level state has one writer, so code the change adds doesn't write module-level state that another function, or code in another module, also writes | Not yet |
 | `no-disinformation` | No disinformation: a name claims nothing its body doesn't do, so a function, method or class name the change adds or renames has no verb, noun or qualifier its body makes false | Not yet |
+| `claim-check` | Claim check: a stored record crosses a task or queue boundary as its identity, so code the change adds doesn't pass a stored record, or a copy of all its fields, to work that runs later or in another process | Not yet |
 
 Pattern rules (ast-grep), one per language where a convention's form is syntax. They
 start as `warning`s and skip test files:
