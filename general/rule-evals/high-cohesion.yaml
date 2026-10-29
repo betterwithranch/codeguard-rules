@@ -1,0 +1,181 @@
+cases:
+- name: a retry policy with its own behavior sits beside the notification dispatcher
+  inputs:
+    file: notifications/dispatcher.py
+    after: |
+      import time
+
+      from notifications.channels import Channel
+
+
+      class RetryBackoffPolicy:
+          def __init__(self, base_seconds: float, max_attempts: int) -> None:
+              self.base_seconds = base_seconds
+              self.max_attempts = max_attempts
+
+          def delay(self, attempt: int) -> float:
+              return self.base_seconds * 2**attempt
+
+
+      class NotificationDispatcher:
+          def __init__(self, channel: Channel, policy: RetryBackoffPolicy) -> None:
+              self._channel = channel
+              self._policy = policy
+
+          def dispatch(self, recipient: str, message: str) -> None:
+              for attempt in range(self._policy.max_attempts):
+                  if self._channel.send(recipient, message):
+                      return
+                  time.sleep(self._policy.delay(attempt))
+  expected_output:
+    outcome: invalid
+- name: an enums module groups three unrelated enumerations
+  inputs:
+    file: shop/enums.py
+    after: |
+      from enum import StrEnum
+
+
+      class CarrierCode(StrEnum):
+          DHL = "dhl"
+          UPS = "ups"
+
+
+      class RefundReason(StrEnum):
+          DAMAGED = "damaged"
+          LATE = "late"
+
+
+      class InvoiceStatus(StrEnum):
+          DRAFT = "draft"
+          SENT = "sent"
+          PAID = "paid"
+  expected_output:
+    outcome: invalid
+- name: an errors module holds one exception hierarchy
+  inputs:
+    file: payments/errors.py
+    after: |
+      class PaymentError(Exception):
+          pass
+
+
+      class CardDeclined(PaymentError):
+          def __init__(self, code: str) -> None:
+              super().__init__(f"card declined: {code}")
+              self.code = code
+
+
+      class InsufficientFunds(PaymentError):
+          pass
+  expected_output:
+    outcome: valid
+- name: an exporter module holds the exporter and the result it returns
+  inputs:
+    file: reports/exporter.py
+    after: |
+      import csv
+      from dataclasses import dataclass
+      from pathlib import Path
+
+
+      @dataclass(frozen=True)
+      class ExportResult:
+          path: Path
+          rows: int
+
+
+      class CsvExporter:
+          def __init__(self, directory: Path) -> None:
+              self._directory = directory
+
+          def run(self, name: str, rows: list[dict[str, str]]) -> ExportResult:
+              path = self._directory / f"{name}.csv"
+              with path.open("w", newline="") as handle:
+                  writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
+                  writer.writeheader()
+                  writer.writerows(rows)
+              return ExportResult(path=path, rows=len(rows))
+  expected_output:
+    outcome: valid
+- name: a Django models module holds the shop's models
+  inputs:
+    file: shop/models.py
+    after: |
+      from django.db import models
+
+
+      class Customer(models.Model):
+          email = models.EmailField(unique=True)
+
+
+      class Order(models.Model):
+          customer = models.ForeignKey(Customer, on_delete=models.CASCADE)
+          total_cents = models.PositiveIntegerField()
+
+
+      class Carrier(models.Model):
+          code = models.CharField(max_length=10)
+  expected_output:
+    outcome: valid
+- name: a module holds one class
+  inputs:
+    file: reports/clock.py
+    after: |
+      from datetime import UTC, datetime
+
+
+      class SystemClock:
+          def now(self) -> datetime:
+              return datetime.now(UTC)
+  expected_output:
+    outcome: skipped
+- name: a retry policy class with its own behavior is exported beside the dispatcher
+  inputs:
+    file: notifications/dispatcher.ts
+    after: |
+      import type { Channel } from "./channels";
+
+      export class RetryBackoffPolicy {
+        constructor(
+          readonly baseMs: number,
+          readonly maxAttempts: number,
+        ) {}
+
+        delay(attempt: number): number {
+          return this.baseMs * 2 ** attempt;
+        }
+      }
+
+      export class NotificationDispatcher {
+        constructor(
+          private readonly channel: Channel,
+          private readonly policy: RetryBackoffPolicy,
+        ) {}
+
+        async dispatch(recipient: string, message: string): Promise<void> {
+          for (let attempt = 0; attempt < this.policy.maxAttempts; attempt++) {
+            if (await this.channel.send(recipient, message)) return;
+            await new Promise((resolve) => setTimeout(resolve, this.policy.delay(attempt)));
+          }
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: a payment module exports the variants of its payment union
+  inputs:
+    file: payments/payment.ts
+    after: |
+      export interface CardPayment {
+        kind: "card";
+        cardToken: string;
+      }
+
+      export interface BankPayment {
+        kind: "bank";
+        iban: string;
+      }
+
+      export type Payment = CardPayment | BankPayment;
+  expected_output:
+    outcome: valid

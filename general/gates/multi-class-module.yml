@@ -1,0 +1,37 @@
+id: multi-class-module
+language: python
+rule:
+  any:
+  - inside:
+      kind: module
+    any: &public-class
+    - kind: class_definition
+      has: &public-name
+        field: name
+        regex: ^[^_]
+    - kind: decorated_definition
+      has:
+        field: definition
+        kind: class_definition
+        has: *public-name
+    - kind: expression_statement
+      has:
+        kind: assignment
+        all:
+        - has:
+            field: left
+            regex: ^[A-Z]
+        - has:
+            field: right
+            kind: call
+            has:
+              field: function
+              regex: (^|\.)(NamedTuple|namedtuple|TypedDict|Enum|StrEnum|IntEnum)$
+    all:
+    - any:
+      - follows:
+          stopBy: end
+          any: *public-class
+      - precedes:
+          stopBy: end
+          any: *public-class
