@@ -38,6 +38,7 @@ the languages it runs on.
 | `no-feature-envy` | No feature envy: a domain answer computed from one type's data lives in that type's module, so code elsewhere doesn't work an answer out from one value's fields alone | Not yet |
 | `fail-fast` | Fail fast: a failure, missing data or an impossible state is reported where it's found, so code the change adds doesn't swallow an error, default data that should exist, clamp an impossible value or drop the items that failed | Not yet |
 | `no-shared-mutable-state` | No shared mutable state: data belonging to one call or use is kept where only that call or use sees it, so code the change adds doesn't keep one call's data in module-level state or store each use's results on a shared instance | Not yet |
+| `liskov-substitution` | Liskov substitution: a subclass keeps every promise its base class makes, so an override the change adds doesn't raise where the base doesn't, ignore an argument, accept or return less, or stub out the base's work | Not yet |
 
 Each rule passes 20 of 20 eval runs on Claude before it ships, and CI's 3 runs before it
 merges. One check follows, and doesn't hold up the next rule:

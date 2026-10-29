@@ -1,0 +1,223 @@
+cases:
+- name: a read-only storage raises on delete, which its base storage carries out
+  inputs:
+    file: files/storage.py
+    after: |
+      from pathlib import Path
+
+
+      class Storage:
+          def __init__(self, root: Path) -> None:
+              self.root = root
+
+          def delete(self, name: str) -> None:
+              (self.root / name).unlink(missing_ok=True)
+
+
+      class ReadOnlyStorage(Storage):
+          def delete(self, name: str) -> None:
+              raise PermissionError(f"{self.root} is read-only")
+  expected_output:
+    outcome: invalid
+- name: an audited storage records the delete and then has its base storage carry it out
+  inputs:
+    file: files/storage.py
+    after: |
+      import logging
+      from pathlib import Path
+
+      log = logging.getLogger(__name__)
+
+
+      class Storage:
+          def __init__(self, root: Path) -> None:
+              self.root = root
+
+          def delete(self, name: str) -> None:
+              (self.root / name).unlink(missing_ok=True)
+
+
+      class AuditedStorage(Storage):
+          def delete(self, name: str) -> None:
+              log.info("deleting %s from %s", name, self.root)
+              super().delete(name)
+  expected_output:
+    outcome: valid
+- name: a paginator subclass takes a page size and always cuts pages of 20
+  inputs:
+    file: listing/pages.py
+    after: |
+      from typing import Sequence, TypeVar
+
+      T = TypeVar("T")
+
+
+      class Paginator:
+          def page(self, items: Sequence[T], number: int, size: int) -> Sequence[T]:
+              start = (number - 1) * size
+              return items[start : start + size]
+
+
+      class CatalogPaginator(Paginator):
+          def page(self, items: Sequence[T], number: int, size: int) -> Sequence[T]:
+              start = (number - 1) * 20
+              return items[start : start + 20]
+  expected_output:
+    outcome: invalid
+- name: a paginator subclass cuts pages of the size it's given from any iterable
+  inputs:
+    file: listing/pages.py
+    after: |
+      from itertools import islice
+      from typing import Iterable, Sequence, TypeVar
+
+      T = TypeVar("T")
+
+
+      class Paginator:
+          def page(self, items: Sequence[T], number: int, size: int) -> Sequence[T]:
+              start = (number - 1) * size
+              return items[start : start + size]
+
+
+      class StreamPaginator(Paginator):
+          def page(self, items: Iterable[T], number: int, size: int) -> Sequence[T]:
+              start = (number - 1) * size
+              return list(islice(items, start, start + size))
+  expected_output:
+    outcome: valid
+- name: a ledger subclass posts nothing and returns no balance where its base records the entry
+  inputs:
+    file: accounts/ledger.py
+    after: |
+      from decimal import Decimal
+
+
+      class Ledger:
+          def __init__(self) -> None:
+              self.entries: list[Decimal] = []
+
+          def post(self, amount: Decimal) -> Decimal:
+              """Record the amount and return the new balance."""
+              self.entries.append(amount)
+              return sum(self.entries, Decimal(0))
+
+
+      class ClosedLedger(Ledger):
+          def post(self, amount: Decimal) -> Decimal:
+              pass
+  expected_output:
+    outcome: invalid
+- name: a report writer implements the abstract render method its base leaves to subclasses
+  inputs:
+    file: reports/writers.py
+    after: |
+      from abc import ABC, abstractmethod
+
+
+      class ReportWriter(ABC):
+          @abstractmethod
+          def render(self, rows: list[dict[str, str]]) -> str:
+              """Return the rows as one document."""
+
+          def write(self, path: str, rows: list[dict[str, str]]) -> None:
+              with open(path, "w") as out:
+                  out.write(self.render(rows))
+
+
+      class MarkdownWriter(ReportWriter):
+          def render(self, rows: list[dict[str, str]]) -> str:
+              if not rows:
+                  return ""
+              header = "| " + " | ".join(rows[0]) + " |"
+              lines = ["| " + " | ".join(row.values()) + " |" for row in rows]
+              return "\n".join([header, *lines])
+  expected_output:
+    outcome: valid
+- name: a report writer with no base class renders rows
+  inputs:
+    file: reports/plain.py
+    after: |
+      class PlainWriter:
+          def render(self, rows: list[dict[str, str]]) -> str:
+              return "\n".join(", ".join(row.values()) for row in rows)
+  expected_output:
+    outcome: skipped
+- name: an eco thermostat throws for targets above 21 degrees that its base thermostat accepts
+  inputs:
+    file: devices/thermostat.ts
+    after: |
+      export class Thermostat {
+        protected target = 20;
+
+        setTarget(celsius: number): void {
+          this.target = Math.round(celsius * 2) / 2;
+        }
+      }
+
+      export class EcoThermostat extends Thermostat {
+        setTarget(celsius: number): void {
+          if (celsius > 21) {
+            throw new RangeError("eco mode allows at most 21°C");
+          }
+          super.setTarget(celsius);
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: a logging thermostat logs the target and then has its base thermostat set it
+  inputs:
+    file: devices/thermostat.ts
+    after: |
+      export class Thermostat {
+        protected target = 20;
+
+        setTarget(celsius: number): void {
+          this.target = Math.round(celsius * 2) / 2;
+        }
+      }
+
+      export class LoggingThermostat extends Thermostat {
+        setTarget(celsius: number): void {
+          console.info(`target set to ${celsius}°C`);
+          super.setTarget(celsius);
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a price label subclass takes a currency and always prints dollars
+  inputs:
+    file: pricing/labels.ts
+    after: |
+      export class PriceLabel {
+        text(cents: number, currency: string): string {
+          return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(cents / 100);
+        }
+      }
+
+      export class ShelfLabel extends PriceLabel {
+        text(cents: number, currency: string): string {
+          return `$${(cents / 100).toFixed(2)}`;
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: a price label implements the abstract text method its base leaves to subclasses
+  inputs:
+    file: pricing/labels.ts
+    after: |
+      export abstract class PriceLabel {
+        abstract text(cents: number, currency: string): string;
+
+        html(cents: number, currency: string): string {
+          return `<span class="price">${this.text(cents, currency)}</span>`;
+        }
+      }
+
+      export class ShelfLabel extends PriceLabel {
+        text(cents: number, currency: string): string {
+          return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(cents / 100);
+        }
+      }
+  expected_output:
+    outcome: valid
