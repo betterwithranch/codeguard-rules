@@ -1,0 +1,141 @@
+cases:
+- name: a view passes the order model to a receipt task
+  inputs:
+    file: orders/views.py
+    after: |
+      from django.http import HttpRequest, HttpResponse
+      from django.shortcuts import get_object_or_404, redirect
+
+      from orders.models import Order
+      from orders.tasks import send_receipt
+
+
+      def complete_order(request: HttpRequest, order_id: int) -> HttpResponse:
+          order = get_object_or_404(Order, id=order_id, customer=request.user)
+          order.complete()
+          send_receipt.delay(order)
+          return redirect("order-detail", order_id=order.id)
+  expected_output:
+    outcome: invalid
+- name: a view passes the order id to a receipt task that loads the order
+  inputs:
+    file: orders/views.py
+    unchanged:
+      orders/tasks.py: |
+        from celery import shared_task
+
+        from orders.emails import email_receipt
+        from orders.models import Order
+
+
+        @shared_task
+        def send_receipt(order_id: int) -> None:
+            order = Order.objects.get(id=order_id)
+            email_receipt(order)
+    after: |
+      from django.http import HttpRequest, HttpResponse
+      from django.shortcuts import get_object_or_404, redirect
+
+      from orders.models import Order
+      from orders.tasks import send_receipt
+
+
+      def complete_order(request: HttpRequest, order_id: int) -> HttpResponse:
+          order = get_object_or_404(Order, id=order_id, customer=request.user)
+          order.complete()
+          send_receipt.delay(order.id)
+          return redirect("order-detail", order_id=order.id)
+  expected_output:
+    outcome: valid
+- name: a signal handler queues a dump of the product for reindexing
+  inputs:
+    file: catalog/signals.py
+    after: |
+      from django.db.models.signals import post_save
+      from django.dispatch import receiver
+      from django.forms.models import model_to_dict
+
+      from catalog.models import Product
+      from catalog.tasks import reindex_product
+
+
+      @receiver(post_save, sender=Product)
+      def queue_reindex(sender: type[Product], instance: Product, **kwargs: object) -> None:
+          reindex_product.delay(model_to_dict(instance))
+  expected_output:
+    outcome: invalid
+- name: a service publishes an event with the order's id and total
+  inputs:
+    file: orders/placing.py
+    after: |
+      from orders.events import EventPublisher
+      from orders.models import Order
+
+
+      def announce_placed(order: Order, publisher: EventPublisher) -> None:
+          publisher.publish(
+              "order.placed",
+              {"order_id": order.id, "total_cents": order.total_cents},
+          )
+  expected_output:
+    outcome: valid
+- name: a report renders orders on a thread pool
+  inputs:
+    file: reports/render.py
+    after: |
+      from concurrent.futures import ThreadPoolExecutor
+
+      from orders.models import Order
+      from reports.pdf import render_order_pdf
+
+
+      def render_all(orders: list[Order]) -> list[bytes]:
+          with ThreadPoolExecutor(max_workers=4) as pool:
+              futures = [pool.submit(render_order_pdf, order) for order in orders]
+              return [future.result() for future in futures]
+  expected_output:
+    outcome: valid
+- name: a function formats an order number
+  inputs:
+    file: orders/numbers.py
+    after: |
+      def order_number(year: int, sequence: int) -> str:
+          return f"{year}-{sequence:06d}"
+  expected_output:
+    outcome: skipped
+- name: a handler queues the whole order loaded from Prisma
+  inputs:
+    file: orders/complete.ts
+    after: |
+      import { Queue } from "bullmq";
+      import { prisma } from "../db";
+
+      const receipts = new Queue("receipts");
+
+      export async function completeOrder(orderId: string): Promise<void> {
+        const order = await prisma.order.update({
+          where: { id: orderId },
+          data: { status: "completed" },
+        });
+        await receipts.add("send-receipt", { order });
+      }
+  expected_output:
+    outcome: invalid
+- name: a handler queues the order's id
+  inputs:
+    file: orders/complete.ts
+    after: |
+      import { Queue } from "bullmq";
+      import { prisma } from "../db";
+
+      const receipts = new Queue("receipts");
+
+      export async function completeOrder(orderId: string): Promise<void> {
+        const order = await prisma.order.update({
+          where: { id: orderId },
+          data: { status: "completed" },
+        });
+        await receipts.add("send-receipt", { orderId: order.id });
+      }
+  expected_output:
+    outcome: valid
