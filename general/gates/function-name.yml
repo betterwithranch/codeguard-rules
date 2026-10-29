@@ -1,0 +1,7 @@
+id: function-name
+language: python
+rule:
+  kind: identifier
+  inside:
+    kind: function_definition
+    field: name

@@ -1,0 +1,26 @@
+id: class-name
+valid:
+# Base class in a class header
+- |
+  Order
+# Function name
+- |
+  def submit(order):
+      return order
+# Instantiation
+- |
+  order = Order()
+invalid:
+# Class name
+- |
+  class OrderSubmitter:
+      pass
+# Class name with bases
+- |
+  class OrderSubmitter(Base):
+      pass
+# Nested class name
+- |
+  class Order:
+      class Line:
+          pass
