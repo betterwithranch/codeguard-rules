@@ -1,0 +1,245 @@
+cases:
+- name: a module is added in a new package the independence contract leaves out
+  inputs:
+    file: shop/returns/policy.py
+    unchanged:
+      .importlinter: |
+        [importlinter]
+        root_package = shop
+
+        [importlinter:contract:features]
+        name = Feature packages are independent
+        type = independence
+        modules =
+            shop.billing
+            shop.shipping
+            shop.catalog
+      shop/billing/invoices.py: |
+        from shop.money import Money
+
+
+        def invoice_total(lines: list[Money]) -> Money:
+            return sum(lines, Money.zero())
+    after: |
+      from datetime import date, timedelta
+
+      from shop.billing.invoices import invoice_total
+
+      RETURN_WINDOW = timedelta(days=30)
+
+
+      def can_return(delivered_on: date, today: date) -> bool:
+          return today - delivered_on <= RETURN_WINDOW
+  expected_output:
+    outcome: invalid
+- name: a module is added in a new package the contract covers by wildcard
+  inputs:
+    file: shop/returns/policy.py
+    unchanged:
+      .importlinter: |
+        [importlinter]
+        root_package = shop
+
+        [importlinter:contract:features]
+        name = Feature packages are independent
+        type = independence
+        modules =
+            shop.*
+    after: |
+      from datetime import date, timedelta
+
+      from shop.money import Money
+
+      RETURN_WINDOW = timedelta(days=30)
+
+
+      def can_return(delivered_on: date, today: date) -> bool:
+          return today - delivered_on <= RETURN_WINDOW
+  expected_output:
+    outcome: valid
+- name: a module is added in a package the contract lists
+  inputs:
+    file: shop/shipping/rates.py
+    unchanged:
+      .importlinter: |
+        [importlinter]
+        root_package = shop
+
+        [importlinter:contract:features]
+        name = Feature packages are independent
+        type = independence
+        modules =
+            shop.billing
+            shop.shipping
+            shop.catalog
+    after: |
+      from decimal import Decimal
+
+      from shop.money import Money
+
+      PER_KG = Decimal("1.20")
+
+
+      def shipping_rate(weight_kg: Decimal) -> Money:
+          return Money(weight_kg * PER_KG)
+  expected_output:
+    outcome: valid
+- name: a module is added in a project with no import-boundary configuration
+  inputs:
+    file: shop/returns/policy.py
+    unchanged:
+      pyproject.toml: |
+        [project]
+        name = "shop"
+        version = "1.0.0"
+        dependencies = ["django>=5"]
+
+        [tool.ruff]
+        line-length = 100
+    after: |
+      from datetime import date, timedelta
+
+      from shop.money import Money
+
+      RETURN_WINDOW = timedelta(days=30)
+
+
+      def can_return(delivered_on: date, today: date) -> bool:
+          return today - delivered_on <= RETURN_WINDOW
+  expected_output:
+    outcome: valid
+- name: an existing module in a package the contract leaves out gains a function
+  inputs:
+    file: shop/returns/policy.py
+    unchanged:
+      .importlinter: |
+        [importlinter]
+        root_package = shop
+
+        [importlinter:contract:features]
+        name = Feature packages are independent
+        type = independence
+        modules =
+            shop.billing
+            shop.shipping
+            shop.catalog
+    before: |
+      from datetime import date, timedelta
+
+      RETURN_WINDOW = timedelta(days=30)
+
+
+      def can_return(delivered_on: date, today: date) -> bool:
+          return today - delivered_on <= RETURN_WINDOW
+    after: |
+      from datetime import date, timedelta
+
+      from shop.money import Money
+
+      RETURN_WINDOW = timedelta(days=30)
+      RESTOCKING_FEE = Money.of("4.99")
+
+
+      def can_return(delivered_on: date, today: date) -> bool:
+          return today - delivered_on <= RETURN_WINDOW
+
+
+      def refund_amount(paid: Money) -> Money:
+          return paid - RESTOCKING_FEE
+  expected_output:
+    outcome: valid
+- name: a module of constants with no imports is added
+  inputs:
+    file: shop/returns/constants.py
+    unchanged:
+      .importlinter: |
+        [importlinter]
+        root_package = shop
+
+        [importlinter:contract:features]
+        name = Feature packages are independent
+        type = independence
+        modules =
+            shop.billing
+            shop.shipping
+            shop.catalog
+    after: |
+      RETURN_WINDOW_DAYS = 30
+      RESTOCKING_FEE_CENTS = 499
+  expected_output:
+    outcome: skipped
+- name: a feature module is added in a new folder the boundaries elements leave out
+  inputs:
+    file: src/features/returns/policy.ts
+    unchanged:
+      eslint.config.js: |
+        import boundaries from "eslint-plugin-boundaries";
+
+        export default [
+          {
+            plugins: { boundaries },
+            settings: {
+              "boundaries/elements": [
+                { type: "billing", pattern: "src/features/billing" },
+                { type: "shipping", pattern: "src/features/shipping" },
+                { type: "shared", pattern: "src/shared" },
+              ],
+            },
+            rules: {
+              "boundaries/element-types": [
+                "error",
+                {
+                  default: "disallow",
+                  rules: [
+                    { from: "billing", allow: ["shared"] },
+                    { from: "shipping", allow: ["shared"] },
+                  ],
+                },
+              ],
+            },
+          },
+        ];
+    after: |
+      import { daysBetween } from "../../shared/dates";
+
+      const RETURN_WINDOW_DAYS = 30;
+
+      export function canReturn(deliveredOn: Date, today: Date): boolean {
+        return daysBetween(deliveredOn, today) <= RETURN_WINDOW_DAYS;
+      }
+  expected_output:
+    outcome: invalid
+- name: a feature module is added in a folder the boundaries pattern covers
+  inputs:
+    file: src/features/returns/policy.ts
+    unchanged:
+      eslint.config.js: |
+        import boundaries from "eslint-plugin-boundaries";
+
+        export default [
+          {
+            plugins: { boundaries },
+            settings: {
+              "boundaries/elements": [
+                { type: "feature", pattern: "src/features/*", capture: ["name"] },
+                { type: "shared", pattern: "src/shared" },
+              ],
+            },
+            rules: {
+              "boundaries/element-types": [
+                "error",
+                { default: "disallow", rules: [{ from: "feature", allow: ["shared"] }] },
+              ],
+            },
+          },
+        ];
+    after: |
+      import { daysBetween } from "../../shared/dates";
+
+      const RETURN_WINDOW_DAYS = 30;
+
+      export function canReturn(deliveredOn: Date, today: Date): boolean {
+        return daysBetween(deliveredOn, today) <= RETURN_WINDOW_DAYS;
+      }
+  expected_output:
+    outcome: valid
