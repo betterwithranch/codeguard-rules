@@ -1,0 +1,323 @@
+cases:
+- name: a lending service builds a loan from the book and member fields among its other work
+  inputs:
+    file: library/lending.py
+    unchanged:
+      library/__init__.py: ""
+      library/models.py: |
+        from dataclasses import dataclass
+        from datetime import date
+
+
+        @dataclass(frozen=True)
+        class Loan:
+            book_id: int
+            member_id: int
+            due_on: date
+    after: |
+      from datetime import date, timedelta
+
+      from library.models import Loan
+      from library.repositories import LoanRepository
+      from library.mail import Mailer
+
+
+      class LendingService:
+          def __init__(self, loans: LoanRepository, mailer: Mailer) -> None:
+              self.loans = loans
+              self.mailer = mailer
+
+          def lend(self, book, member, today: date) -> None:
+              loan = Loan(book_id=book.id, member_id=member.id, due_on=today + timedelta(days=21))
+              self.loans.add(loan)
+              self.mailer.send_due_date(member.email, loan.due_on)
+  expected_output:
+    outcome: invalid
+- name: a lending service has the loan's own constructor build it and then stores and mails it
+  inputs:
+    file: library/lending.py
+    unchanged:
+      library/__init__.py: ""
+      library/models.py: |
+        from dataclasses import dataclass
+        from datetime import date, timedelta
+
+
+        @dataclass(frozen=True)
+        class Loan:
+            book_id: int
+            member_id: int
+            due_on: date
+
+            @classmethod
+            def start(cls, book, member, today: date) -> "Loan":
+                return cls(book_id=book.id, member_id=member.id, due_on=today + timedelta(days=21))
+    after: |
+      from datetime import date
+
+      from library.models import Loan
+      from library.repositories import LoanRepository
+      from library.mail import Mailer
+
+
+      class LendingService:
+          def __init__(self, loans: LoanRepository, mailer: Mailer) -> None:
+              self.loans = loans
+              self.mailer = mailer
+
+          def lend(self, book, member, today: date) -> None:
+              loan = Loan.start(book, member, today=today)
+              self.loans.add(loan)
+              self.mailer.send_due_date(member.email, loan.due_on)
+  expected_output:
+    outcome: valid
+- name: a Stripe mapping module translates a charge payload into a payment
+  inputs:
+    file: payments/stripe_mapping.py
+    unchanged:
+      payments/__init__.py: ""
+      payments/models.py: |
+        from dataclasses import dataclass
+        from decimal import Decimal
+
+
+        @dataclass(frozen=True)
+        class Payment:
+            reference: str
+            amount: Decimal
+            currency: str
+            card_last4: str
+    after: |
+      from decimal import Decimal
+      from typing import Any
+
+      from payments.models import Payment
+
+
+      def payment_from_charge(charge: dict[str, Any]) -> Payment:
+          return Payment(
+              reference=charge["id"],
+              amount=Decimal(charge["amount"]) / 100,
+              currency=charge["currency"].upper(),
+              card_last4=charge["payment_method_details"]["card"]["last4"],
+          )
+  expected_output:
+    outcome: valid
+- name: a helpdesk intake function gives the ticket's priority a parameter default and passes it to the field
+  inputs:
+    file: helpdesk/intake.py
+    unchanged:
+      helpdesk/__init__.py: ""
+      helpdesk/models.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Ticket:
+            subject: str
+            requester_email: str
+            priority: str
+    after: |
+      from helpdesk.models import Ticket
+      from helpdesk.queue import enqueue
+
+
+      def open_ticket(subject: str, requester_email: str, priority: str = "normal") -> Ticket:
+          ticket = Ticket(subject=subject, requester_email=requester_email, priority=priority)
+          enqueue(ticket)
+          return ticket
+  expected_output:
+    outcome: invalid
+- name: the ticket declares its priority default and the intake function leaves the field out
+  inputs:
+    file: helpdesk/intake.py
+    unchanged:
+      helpdesk/__init__.py: ""
+      helpdesk/models.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Ticket:
+            subject: str
+            requester_email: str
+            priority: str = "normal"
+    after: |
+      from helpdesk.models import Ticket
+      from helpdesk.queue import enqueue
+
+
+      def open_ticket(subject: str, requester_email: str) -> Ticket:
+          ticket = Ticket(subject=subject, requester_email=requester_email)
+          enqueue(ticket)
+          return ticket
+  expected_output:
+    outcome: valid
+- name: a lending service throws a refusal error carrying the member's id
+  inputs:
+    file: library/lending.ts
+    unchanged:
+      library/errors.ts: |
+        export class LoanRefused extends Error {
+          constructor(readonly memberId: number, readonly reason: string) {
+            super(`member ${memberId}: ${reason}`);
+          }
+        }
+    after: |
+      import { LoanRefused } from "./errors";
+      import type { LoanRepository, Member } from "./ports";
+
+      export class LendingService {
+        constructor(private readonly loans: LoanRepository) {}
+
+        async checkCanBorrow(member: Member): Promise<void> {
+          if ((await this.loans.overdueCount(member.id)) > 0) {
+            throw new LoanRefused(member.id, "has overdue books");
+          }
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a fine calculation returns the fine it worked out as its answer
+  inputs:
+    file: library/fines.py
+    unchanged:
+      library/__init__.py: ""
+      library/models.py: |
+        from dataclasses import dataclass
+        from datetime import date
+        from decimal import Decimal
+
+
+        @dataclass(frozen=True)
+        class Fine:
+            days_late: int
+            amount: Decimal
+    after: |
+      from datetime import date
+      from decimal import Decimal
+
+      from library.models import Fine
+
+
+      def fine_for(due_on: date, returned_on: date) -> Fine:
+          days_late = max((returned_on - due_on).days, 0)
+          amount = min(Decimal("0.25") * days_late, Decimal("10.00"))
+          return Fine(days_late=days_late, amount=Decimal(amount))
+  expected_output:
+    outcome: valid
+- name: a loan period constant changes
+  inputs:
+    file: library/policy.py
+    before: |
+      LOAN_DAYS = 21
+    after: |
+      LOAN_DAYS = 28
+  expected_output:
+    outcome: skipped
+- name: a check-in service builds a boarding pass from the booking's fields among its other work
+  inputs:
+    file: checkin/service.ts
+    unchanged:
+      boarding/pass.ts: |
+        export class BoardingPass {
+          constructor(
+            readonly passenger: string,
+            readonly flight: string,
+            readonly seat: string,
+          ) {}
+        }
+    after: |
+      import { BoardingPass } from "../boarding/pass";
+      import type { Booking, BookingStore, PassPrinter } from "./ports";
+
+      export class CheckInService {
+        constructor(private readonly bookings: BookingStore, private readonly printer: PassPrinter) {}
+
+        async checkIn(reference: string): Promise<void> {
+          const booking = await this.bookings.find(reference);
+          const pass = new BoardingPass(booking.passengerName, booking.flightNumber, booking.seat);
+          await this.bookings.markCheckedIn(reference);
+          await this.printer.print(pass);
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: a check-in service has the boarding pass's static constructor build it from the booking
+  inputs:
+    file: checkin/service.ts
+    unchanged:
+      boarding/pass.ts: |
+        import type { Booking } from "../checkin/ports";
+
+        export class BoardingPass {
+          constructor(
+            readonly passenger: string,
+            readonly flight: string,
+            readonly seat: string,
+          ) {}
+
+          static forBooking(booking: Booking): BoardingPass {
+            return new BoardingPass(booking.passengerName, booking.flightNumber, booking.seat);
+          }
+        }
+    after: |
+      import { BoardingPass } from "../boarding/pass";
+      import type { BookingStore, PassPrinter } from "./ports";
+
+      export class CheckInService {
+        constructor(private readonly bookings: BookingStore, private readonly printer: PassPrinter) {}
+
+        async checkIn(reference: string): Promise<void> {
+          const booking = await this.bookings.find(reference);
+          await this.bookings.markCheckedIn(reference);
+          await this.printer.print(BoardingPass.forBooking(booking));
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a profile handler fills in a missing theme with light when it builds the stored profile
+  inputs:
+    file: profiles/handler.ts
+    unchanged:
+      profiles/profile.ts: |
+        export interface Profile {
+          userId: string;
+          displayName: string;
+          theme: "light" | "dark";
+        }
+    after: |
+      import type { Profile } from "./profile";
+      import type { ProfileStore } from "./store";
+
+      interface ProfileInput {
+        displayName: string;
+        theme?: "light" | "dark";
+      }
+
+      export async function saveProfile(store: ProfileStore, userId: string, input: ProfileInput): Promise<void> {
+        const profile: Profile = {
+          userId,
+          displayName: input.displayName.trim(),
+          theme: input.theme ?? "light",
+        };
+        await store.put(profile);
+      }
+  expected_output:
+    outcome: invalid
+- name: a cart totals function returns a literal of the totals it worked out
+  inputs:
+    file: cart/totals.ts
+    after: |
+      export interface CartTotals {
+        itemCount: number;
+        subtotalCents: number;
+      }
+
+      export function cartTotals(lines: { quantity: number; unitCents: number }[]): CartTotals {
+        const itemCount = lines.reduce((sum, line) => sum + line.quantity, 0);
+        const subtotalCents = lines.reduce((sum, line) => sum + line.quantity * line.unitCents, 0);
+        return { itemCount, subtotalCents };
+      }
+  expected_output:
+    outcome: valid

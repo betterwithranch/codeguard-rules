@@ -1,0 +1,217 @@
+id: defaulted-value
+snapshots:
+  ? |
+    ExampleInvoice(created_at=datetime.now(UTC), total=example_total)
+  : labels:
+    - source: (created_at=datetime.now(UTC), total=example_total)
+      style: primary
+      start: 14
+      end: 65
+    - source: datetime.now
+      style: secondary
+      start: 26
+      end: 38
+    - source: datetime.now(UTC)
+      style: secondary
+      start: 26
+      end: 43
+  ? |
+    ExampleInvoice(invoice_id=str(uuid.uuid4()), total=example_total)
+  : labels:
+    - source: (invoice_id=str(uuid.uuid4()), total=example_total)
+      style: primary
+      start: 14
+      end: 65
+    - source: uuid.uuid4
+      style: secondary
+      start: 30
+      end: 40
+    - source: uuid.uuid4()
+      style: secondary
+      start: 30
+      end: 42
+  ? |
+    ExampleInvoice(uuid4(), example_total)
+  : labels:
+    - source: (uuid4(), example_total)
+      style: primary
+      start: 14
+      end: 38
+    - source: uuid4
+      style: secondary
+      start: 15
+      end: 20
+    - source: uuid4()
+      style: secondary
+      start: 15
+      end: 22
+  ? |
+    ExampleSession(token=secrets.token_hex(16))
+  : labels:
+    - source: (token=secrets.token_hex(16))
+      style: primary
+      start: 14
+      end: 43
+    - source: secrets.token_hex
+      style: secondary
+      start: 21
+      end: 38
+    - source: secrets.token_hex(16)
+      style: secondary
+      start: 21
+      end: 42
+  ? |
+    carrier = carrier if carrier else "fast"
+  : labels:
+    - source: carrier if carrier else "fast"
+      style: primary
+      start: 10
+      end: 40
+  ? |
+    currency = example_data.get("currency", "EUR")
+  : labels:
+    - source: example_data.get("currency", "EUR")
+      style: primary
+      start: 11
+      end: 46
+    - source: example_data.get
+      style: secondary
+      start: 11
+      end: 27
+    - source: '"EUR"'
+      style: secondary
+      start: 40
+      end: 45
+    - source: '"EUR"'
+      style: secondary
+      start: 40
+      end: 45
+  ? |
+    currency = example_data.pop("currency", "EUR")
+  : labels:
+    - source: example_data.pop("currency", "EUR")
+      style: primary
+      start: 11
+      end: 46
+    - source: example_data.pop
+      style: secondary
+      start: 11
+      end: 27
+    - source: '"EUR"'
+      style: secondary
+      start: 40
+      end: 45
+    - source: '"EUR"'
+      style: secondary
+      start: 40
+      end: 45
+  ? |
+    currency = getattr(example_settings, "currency", "EUR")
+  : labels:
+    - source: getattr(example_settings, "currency", "EUR")
+      style: primary
+      start: 11
+      end: 55
+    - source: getattr
+      style: secondary
+      start: 11
+      end: 18
+    - source: '"currency"'
+      style: secondary
+      start: 37
+      end: 47
+    - source: '"currency"'
+      style: secondary
+      start: 37
+      end: 47
+  ? |
+    def example_book(example_id, carrier="fast"):
+        return carrier
+  : labels:
+    - source: carrier="fast"
+      style: primary
+      start: 29
+      end: 43
+  ? |
+    def example_book(example_id: str, carrier: str | None = None):
+        return carrier
+  : labels:
+    - source: 'carrier: str | None = None'
+      style: primary
+      start: 34
+      end: 60
+  ? |
+    example_data.setdefault("currency", "EUR")
+  : labels:
+    - source: example_data.setdefault("currency", "EUR")
+      style: primary
+      start: 0
+      end: 42
+    - source: example_data.setdefault
+      style: secondary
+      start: 0
+      end: 23
+    - source: '"EUR"'
+      style: secondary
+      start: 36
+      end: 41
+    - source: '"EUR"'
+      style: secondary
+      start: 36
+      end: 41
+  ? |
+    example_id = example_id or new_example_id()
+  : labels:
+    - source: example_id or new_example_id()
+      style: primary
+      start: 13
+      end: 43
+  ? |
+    if carrier is None:
+        carrier = "fast"
+  : labels:
+    - source: |-
+        if carrier is None:
+            carrier = "fast"
+      style: primary
+      start: 0
+      end: 40
+    - source: carrier is None
+      style: secondary
+      start: 3
+      end: 18
+  ? |
+    if carrier is None:
+        carrier = DEFAULT_CARRIER
+  : labels:
+    - source: |-
+        if carrier is None:
+            carrier = DEFAULT_CARRIER
+      style: primary
+      start: 0
+      end: 49
+    - source: carrier is None
+      style: secondary
+      start: 3
+      end: 18
+  ? |
+    if not carrier:
+        carrier = "fast"
+  : labels:
+    - source: |-
+        if not carrier:
+            carrier = "fast"
+      style: primary
+      start: 0
+      end: 36
+    - source: not carrier
+      style: secondary
+      start: 3
+      end: 14
+  ? |
+    ok = carrier is not None
+  : labels:
+    - source: carrier is not None
+      style: primary
+      start: 5
+      end: 24
