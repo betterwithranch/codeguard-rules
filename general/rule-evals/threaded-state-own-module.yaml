@@ -1,0 +1,289 @@
+cases:
+- name: a checkout workflow module defines the state its steps thread
+  inputs:
+    file: checkout/workflow.py
+    after: |
+      from dataclasses import dataclass, replace
+
+
+      @dataclass(frozen=True)
+      class CheckoutState:
+          cart_id: str
+          total_cents: int = 0
+          charge_id: str | None = None
+
+
+      def price(state: CheckoutState, prices: dict[str, int]) -> CheckoutState:
+          return replace(state, total_cents=prices[state.cart_id])
+
+
+      def charge(state: CheckoutState, gateway) -> CheckoutState:
+          return replace(state, charge_id=gateway.charge(state.total_cents))
+
+
+      def run(cart_id: str, prices: dict[str, int], gateway) -> CheckoutState:
+          state = CheckoutState(cart_id=cart_id)
+          state = price(state, prices)
+          return charge(state, gateway)
+  expected_output:
+    outcome: invalid
+- name: a langgraph state is declared in the module that builds the graph
+  inputs:
+    file: review/graph.py
+    after: |
+      import operator
+      from typing import Annotated, TypedDict
+
+      from langgraph.graph import END, START, StateGraph
+
+
+      class ReviewState(TypedDict):
+          diff: str
+          findings: Annotated[list[str], operator.add]
+
+
+      def lint(state: ReviewState) -> dict:
+          return {"findings": [line for line in state["diff"].splitlines() if "TODO" in line]}
+
+
+      def summarize(state: ReviewState) -> dict:
+          return {"findings": [f"{len(state['findings'])} findings"]}
+
+
+      def build():
+          graph = StateGraph(ReviewState)
+          graph.add_node("lint", lint)
+          graph.add_node("summarize", summarize)
+          graph.add_edge(START, "lint")
+          graph.add_edge("lint", "summarize")
+          graph.add_edge("summarize", END)
+          return graph.compile()
+  expected_output:
+    outcome: invalid
+- name: an import state model sits in a models module beside an unrelated record
+  inputs:
+    file: imports/models.py
+    unchanged:
+      imports/pipeline.py: |
+        from dataclasses import replace
+
+        from imports.models import ImportState
+
+
+        def parse(state: ImportState, raw: str) -> ImportState:
+            return replace(state, rows=[line.split(",") for line in raw.splitlines()])
+
+
+        def validate(state: ImportState) -> ImportState:
+            bad = [row for row in state.rows if len(row) != 3]
+            return replace(state, errors=[f"bad row: {row}" for row in bad])
+    after: |
+      from dataclasses import dataclass, field
+
+
+      @dataclass(frozen=True)
+      class ImportState:
+          source: str
+          rows: list[list[str]] = field(default_factory=list)
+          errors: list[str] = field(default_factory=list)
+
+
+      @dataclass(frozen=True)
+      class Supplier:
+          name: str
+          email: str
+  expected_output:
+    outcome: invalid
+- name: a step is added to the module that holds the onboarding state
+  inputs:
+    file: onboarding/state.py
+    unchanged:
+      onboarding/flow.py: |
+        from onboarding.state import OnboardingState
+
+
+        def verify_email(state: OnboardingState) -> OnboardingState:
+            return state.model_copy(update={"email_verified": True})
+    before: |
+      from pydantic import BaseModel
+
+
+      class OnboardingState(BaseModel):
+          user_id: str
+          email_verified: bool = False
+          profile_done: bool = False
+    after: |
+      from pydantic import BaseModel
+
+
+      class OnboardingState(BaseModel):
+          user_id: str
+          email_verified: bool = False
+          profile_done: bool = False
+
+
+      def complete_profile(state: OnboardingState, profile: dict) -> OnboardingState:
+          done = bool(profile.get("name")) and bool(profile.get("country"))
+          return state.model_copy(update={"profile_done": done})
+  expected_output:
+    outcome: invalid
+- name: a typescript pipeline module declares the state its steps spread into copies
+  inputs:
+    file: checkout/pipeline.ts
+    after: |
+      export class CheckoutState {
+        constructor(
+          readonly cartId: string,
+          readonly totalCents = 0,
+          readonly chargeId: string | null = null,
+        ) {}
+      }
+
+      export function price(state: CheckoutState, prices: Map<string, number>): CheckoutState {
+        return new CheckoutState(state.cartId, prices.get(state.cartId) ?? 0, state.chargeId);
+      }
+
+      export function charge(state: CheckoutState, chargeId: string): CheckoutState {
+        return new CheckoutState(state.cartId, state.totalCents, chargeId);
+      }
+  expected_output:
+    outcome: invalid
+- name: a state module holds only the checkout state and its update method
+  inputs:
+    file: checkout/state.py
+    unchanged:
+      checkout/workflow.py: |
+        from checkout.state import CheckoutState
+
+
+        def price(state: CheckoutState, prices: dict[str, int]) -> CheckoutState:
+            return state.with_total(prices[state.cart_id])
+    after: |
+      from dataclasses import dataclass, replace
+
+
+      @dataclass(frozen=True)
+      class CheckoutState:
+          cart_id: str
+          total_cents: int = 0
+
+          def with_total(self, total_cents: int) -> "CheckoutState":
+              return replace(self, total_cents=total_cents)
+  expected_output:
+    outcome: valid
+- name: a workflow module adds a step that imports its state from the state module
+  inputs:
+    file: checkout/workflow.py
+    unchanged:
+      checkout/state.py: |
+        from dataclasses import dataclass, replace
+
+
+        @dataclass(frozen=True)
+        class CheckoutState:
+            cart_id: str
+            total_cents: int = 0
+            receipt: str | None = None
+
+            def with_total(self, total_cents: int) -> "CheckoutState":
+                return replace(self, total_cents=total_cents)
+    before: |
+      from checkout.state import CheckoutState
+
+
+      def price(state: CheckoutState, prices: dict[str, int]) -> CheckoutState:
+          return state.with_total(prices[state.cart_id])
+    after: |
+      from dataclasses import replace
+
+      from checkout.state import CheckoutState
+
+
+      def price(state: CheckoutState, prices: dict[str, int]) -> CheckoutState:
+          return state.with_total(prices[state.cart_id])
+
+
+      def receipt(state: CheckoutState) -> CheckoutState:
+          return replace(state, receipt=f"{state.cart_id}: {state.total_cents / 100:.2f}")
+  expected_output:
+    outcome: valid
+- name: a report request is built once and passed to the renderer beside it
+  inputs:
+    file: reports/monthly.py
+    after: |
+      from dataclasses import dataclass
+      from datetime import date
+
+
+      @dataclass(frozen=True)
+      class ReportRequest:
+          month: date
+          account_id: str
+
+
+      def render(request: ReportRequest, rows: list[dict]) -> str:
+          lines = [f"Report for {request.account_id}, {request.month:%B %Y}"]
+          lines += [f"{row['label']}: {row['amount']}" for row in rows]
+          return "\n".join(lines)
+
+
+      def monthly_report(account_id: str, month: date, rows: list[dict]) -> str:
+          return render(ReportRequest(month=month, account_id=account_id), rows)
+  expected_output:
+    outcome: valid
+- name: pipeline settings are read by every step but never updated
+  inputs:
+    file: etl/pipeline.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class PipelineSettings:
+          batch_size: int
+          dry_run: bool
+
+
+      def extract(settings: PipelineSettings, source) -> list[dict]:
+          return source.fetch(limit=settings.batch_size)
+
+
+      def load(settings: PipelineSettings, sink, rows: list[dict]) -> int:
+          if settings.dry_run:
+              return 0
+          return sink.write(rows)
+
+
+      def run(settings: PipelineSettings, source, sink) -> int:
+          return load(settings, sink, extract(settings, source))
+  expected_output:
+    outcome: valid
+- name: a step body in the checkout workflow changes its rounding
+  inputs:
+    file: checkout/workflow.py
+    before: |
+      from dataclasses import dataclass, replace
+
+
+      @dataclass(frozen=True)
+      class CheckoutState:
+          cart_id: str
+          total_cents: int = 0
+
+
+      def price(state: CheckoutState, prices: dict[str, float]) -> CheckoutState:
+          return replace(state, total_cents=int(prices[state.cart_id]))
+    after: |
+      from dataclasses import dataclass, replace
+
+
+      @dataclass(frozen=True)
+      class CheckoutState:
+          cart_id: str
+          total_cents: int = 0
+
+
+      def price(state: CheckoutState, prices: dict[str, float]) -> CheckoutState:
+          return replace(state, total_cents=round(prices[state.cart_id]))
+  expected_output:
+    outcome: skipped

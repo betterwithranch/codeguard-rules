@@ -61,6 +61,7 @@ the languages it runs on.
 | `one-word-per-concept` | One word per concept: one operation goes by one verb, so names predict each other. | Not yet |
 | `comments-explain-why` | Comments explain why: a comment or docstring states a fact from outside the code, so it can't go stale as a restatement of it. | Not yet |
 | `no-value-with-its-source` | No Value With Its Source: a call doesn't pass a value together with the input it was derived from | Not yet |
+| `threaded-state-own-module` | Threaded State Own Module: a workflow's threaded state has a module of its own | Not yet |
 
 Pattern rules (ast-grep), one per language where a convention's form is syntax. They
 start as `warning`s and skip test files:
