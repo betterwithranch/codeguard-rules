@@ -50,6 +50,7 @@ the languages it runs on.
 | `constructor-injection` | Constructor injection: a method's collaborators come through its object's constructor, so a method the change adds or edits doesn't take a client, repository, provider or other collaborator as a parameter on each call | Not yet |
 | `result-parts-named` | Result parts named: a function's result names what each of its parts means, so a return the change adds doesn't hand back parts that answer different questions in a tuple or an unchecked map | Not yet |
 | `validator-depends-on-its-data` | Validator depends on its data: a data model's validator uses only the model and its input, so it parses the same anywhere and its tests need no setup. | Not yet |
+| `no-recheck-of-guaranteed-condition` | No recheck of guaranteed condition: a check doesn't re-test what earlier code or a validator already guarantees, so one place owns each guarantee. | Not yet |
 
 Pattern rules (ast-grep), one per language where a convention's form is syntax. They
 start as `warning`s and skip test files:
