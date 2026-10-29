@@ -42,6 +42,7 @@ the languages it runs on.
 | `no-shotgun-surgery` | No shotgun surgery: one type owns each job on a concept, so a type the change adds or edits doesn't do a job another type already does to the same concept | Not yet |
 | `construction-in-its-home` | Construction in its home: what a new instance holds is decided by its type, its module, its factory or its source's mapper, so code the change adds doesn't build a program type from a source elsewhere or supply a default for one of its fields | Not yet |
 | `make-illegal-states-unrepresentable` | A type's optional fields aren't tied to the values of its status or kind field | Not yet |
+| `composition-over-inheritance` | A class inherits only from a type it is a kind of, not to reuse its code | Not yet |
 
 Each rule passes 20 of 20 eval runs on Claude before it ships, and CI's 3 runs before it
 merges. One check follows, and doesn't hold up the next rule:

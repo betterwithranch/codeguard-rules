@@ -1,0 +1,197 @@
+cases:
+- name: an invoice notifier inherits the email client to call its send method
+  inputs:
+    file: billing/notifier.py
+    unchanged:
+      messaging/email.py: |
+        import smtplib
+
+
+        class EmailClient:
+            def __init__(self, host: str, sender: str) -> None:
+                self.host = host
+                self.sender = sender
+
+            def send(self, to: str, subject: str, body: str) -> None:
+                with smtplib.SMTP(self.host) as smtp:
+                    smtp.sendmail(self.sender, [to], f"Subject: {subject}\n\n{body}")
+
+            def verify(self, address: str) -> bool:
+                with smtplib.SMTP(self.host) as smtp:
+                    return smtp.verify(address)[0] == 250
+    after: |
+      from billing.invoice import Invoice
+      from messaging.email import EmailClient
+
+
+      class InvoiceNotifier(EmailClient):
+          def notify_issued(self, invoice: Invoice) -> None:
+              self.send(
+                  invoice.customer_email,
+                  f"Invoice {invoice.number}",
+                  f"Your invoice for {invoice.total} is ready.",
+              )
+
+          def notify_overdue(self, invoice: Invoice) -> None:
+              self.send(
+                  invoice.customer_email,
+                  f"Invoice {invoice.number} is overdue",
+                  f"Please pay {invoice.total} by return.",
+              )
+  expected_output:
+    outcome: invalid
+- name: an invoice notifier holds the email client it sends with
+  inputs:
+    file: billing/notifier.py
+    after: |
+      from billing.invoice import Invoice
+      from messaging.email import EmailClient
+
+
+      class InvoiceNotifier:
+          def __init__(self, email: EmailClient) -> None:
+              self._email = email
+
+          def notify_issued(self, invoice: Invoice) -> None:
+              self._email.send(
+                  invoice.customer_email,
+                  f"Invoice {invoice.number}",
+                  f"Your invoice for {invoice.total} is ready.",
+              )
+  expected_output:
+    outcome: valid
+- name: a savings account is an account that earns interest its own way
+  inputs:
+    file: banking/accounts.py
+    after: |
+      from decimal import Decimal
+
+
+      class Account:
+          def __init__(self, balance: Decimal) -> None:
+              self.balance = balance
+
+          def deposit(self, amount: Decimal) -> None:
+              self.balance += amount
+
+          def monthly_interest(self) -> Decimal:
+              return Decimal("0")
+
+
+      class SavingsAccount(Account):
+          def __init__(self, balance: Decimal, annual_rate: Decimal) -> None:
+              super().__init__(balance)
+              self.annual_rate = annual_rate
+
+          def monthly_interest(self) -> Decimal:
+              return self.balance * self.annual_rate / 12
+  expected_output:
+    outcome: valid
+- name: a model, a request schema and an error inherit the framework's bases
+  inputs:
+    file: orders/models.py
+    after: |
+      from django.db import models
+      from pydantic import BaseModel
+
+
+      class TimestampMixin(models.Model):
+          created_at = models.DateTimeField(auto_now_add=True)
+
+          class Meta:
+              abstract = True
+
+
+      class Order(TimestampMixin):
+          reference = models.CharField(max_length=32)
+
+
+      class OrderIn(BaseModel):
+          reference: str
+
+
+      class OrderNotFound(Exception):
+          pass
+  expected_output:
+    outcome: valid
+- name: a method is added to a class whose base is unchanged
+  inputs:
+    file: billing/notifier.py
+    before: |
+      from messaging.email import EmailClient
+
+
+      class InvoiceNotifier(EmailClient):
+          def notify_issued(self, address: str) -> None:
+              self.send(address, "Invoice", "Your invoice is ready.")
+    after: |
+      from messaging.email import EmailClient
+
+
+      class InvoiceNotifier(EmailClient):
+          def notify_issued(self, address: str) -> None:
+              self.send(address, "Invoice", "Your invoice is ready.")
+
+          def notify_paid(self, address: str) -> None:
+              self.send(address, "Receipt", "Thank you for your payment.")
+  expected_output:
+    outcome: skipped
+- name: a checkout controller extends a retry helper to call its retry method
+  inputs:
+    file: checkout/controller.ts
+    after: |
+      export class RetryHelper {
+        constructor(private readonly attempts: number) {}
+
+        protected async withRetries<T>(work: () => Promise<T>): Promise<T> {
+          let lastError: unknown;
+          for (let i = 0; i < this.attempts; i++) {
+            try {
+              return await work();
+            } catch (error) {
+              lastError = error;
+            }
+          }
+          throw lastError;
+        }
+      }
+
+      export class CheckoutController extends RetryHelper {
+        constructor(private readonly payments: PaymentGateway) {
+          super(3);
+        }
+
+        async pay(orderId: string, amountCents: number): Promise<string> {
+          return this.withRetries(() => this.payments.charge(orderId, amountCents));
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: an error class extends Error and a store implements an interface
+  inputs:
+    file: storage/store.ts
+    after: |
+      export interface Storage {
+        read(key: string): Promise<string | undefined>;
+        write(key: string, value: string): Promise<void>;
+      }
+
+      export class StorageUnavailableError extends Error {
+        constructor(readonly key: string) {
+          super(`storage unavailable for ${key}`);
+        }
+      }
+
+      export class MemoryStore implements Storage {
+        private readonly values = new Map<string, string>();
+
+        async read(key: string): Promise<string | undefined> {
+          return this.values.get(key);
+        }
+
+        async write(key: string, value: string): Promise<void> {
+          this.values.set(key, value);
+        }
+      }
+  expected_output:
+    outcome: valid
