@@ -52,6 +52,7 @@ the languages it runs on.
 | `validator-depends-on-its-data` | Validator depends on its data: a data model's validator uses only the model and its input, so it parses the same anywhere and its tests need no setup. | Not yet |
 | `no-recheck-of-guaranteed-condition` | No recheck of guaranteed condition: a check doesn't re-test what earlier code or a validator already guarantees, so one place owns each guarantee. | Not yet |
 | `discriminated-unions` | Discriminated unions: a parsed union's parser picks each variant from one unique tag, so parsing is fast and its errors name one variant. | Not yet |
+| `no-stamp-coupling` | No stamp coupling: a function takes the values it reads, not a bundle it mostly ignores, so its signature says what it depends on. | Not yet |
 
 Pattern rules (ast-grep), one per language where a convention's form is syntax. They
 start as `warning`s and skip test files:

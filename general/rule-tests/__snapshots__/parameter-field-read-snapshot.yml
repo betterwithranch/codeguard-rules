@@ -1,0 +1,271 @@
+id: parameter-field-read
+snapshots:
+  ? |
+    async def example_tax(example_context):
+        return example_context.subtotal
+  : labels:
+    - source: |-
+        async def example_tax(example_context):
+            return example_context.subtotal
+      style: primary
+      start: 0
+      end: 75
+    - source: (example_context)
+      style: secondary
+      start: 21
+      end: 38
+    - source: example_context
+      style: secondary
+      start: 51
+      end: 66
+    - source: example_context.subtotal
+      style: secondary
+      start: 51
+      end: 75
+    - source: |-
+        async def example_tax(example_context):
+            return example_context.subtotal
+      style: secondary
+      start: 0
+      end: 75
+    - source: example_context
+      style: secondary
+      start: 22
+      end: 37
+    - source: example_context
+      style: secondary
+      start: 22
+      end: 37
+  ? |
+    class ExampleCalculator:
+        def example_tax(self, example_context: ExampleContext) -> int:
+            return round(example_context.subtotal * self.rate)
+  : labels:
+    - source: |-
+        def example_tax(self, example_context: ExampleContext) -> int:
+                return round(example_context.subtotal * self.rate)
+      style: primary
+      start: 29
+      end: 150
+    - source: '(self, example_context: ExampleContext)'
+      style: secondary
+      start: 44
+      end: 83
+    - source: 'example_context: ExampleContext'
+      style: secondary
+      start: 51
+      end: 82
+    - source: example_context
+      style: secondary
+      start: 113
+      end: 128
+    - source: example_context.subtotal
+      style: secondary
+      start: 113
+      end: 137
+    - source: |-
+        def example_tax(self, example_context: ExampleContext) -> int:
+                return round(example_context.subtotal * self.rate)
+      style: secondary
+      start: 29
+      end: 150
+    - source: example_context
+      style: secondary
+      start: 51
+      end: 66
+    - source: example_context
+      style: secondary
+      start: 51
+      end: 66
+  ? |
+    def example_tax(example_context):
+        return example_context.subtotal
+  : labels:
+    - source: |-
+        def example_tax(example_context):
+            return example_context.subtotal
+      style: primary
+      start: 0
+      end: 69
+    - source: (example_context)
+      style: secondary
+      start: 15
+      end: 32
+    - source: example_context
+      style: secondary
+      start: 45
+      end: 60
+    - source: example_context.subtotal
+      style: secondary
+      start: 45
+      end: 69
+    - source: |-
+        def example_tax(example_context):
+            return example_context.subtotal
+      style: secondary
+      start: 0
+      end: 69
+    - source: example_context
+      style: secondary
+      start: 16
+      end: 31
+    - source: example_context
+      style: secondary
+      start: 16
+      end: 31
+  ? |
+    def example_tax(example_context: ExampleContext | None = None):
+        return example_context.subtotal
+  : labels:
+    - source: |-
+        def example_tax(example_context: ExampleContext | None = None):
+            return example_context.subtotal
+      style: primary
+      start: 0
+      end: 99
+    - source: '(example_context: ExampleContext | None = None)'
+      style: secondary
+      start: 15
+      end: 62
+    - source: 'example_context: ExampleContext | None = None'
+      style: secondary
+      start: 16
+      end: 61
+    - source: example_context
+      style: secondary
+      start: 75
+      end: 90
+    - source: example_context.subtotal
+      style: secondary
+      start: 75
+      end: 99
+    - source: |-
+        def example_tax(example_context: ExampleContext | None = None):
+            return example_context.subtotal
+      style: secondary
+      start: 0
+      end: 99
+    - source: example_context
+      style: secondary
+      start: 16
+      end: 31
+    - source: example_context
+      style: secondary
+      start: 16
+      end: 31
+  ? |
+    def example_tax(example_context: ExampleContext) -> int:
+        return example_context.subtotal
+  : labels:
+    - source: |-
+        def example_tax(example_context: ExampleContext) -> int:
+            return example_context.subtotal
+      style: primary
+      start: 0
+      end: 92
+    - source: '(example_context: ExampleContext)'
+      style: secondary
+      start: 15
+      end: 48
+    - source: 'example_context: ExampleContext'
+      style: secondary
+      start: 16
+      end: 47
+    - source: example_context
+      style: secondary
+      start: 68
+      end: 83
+    - source: example_context.subtotal
+      style: secondary
+      start: 68
+      end: 92
+    - source: |-
+        def example_tax(example_context: ExampleContext) -> int:
+            return example_context.subtotal
+      style: secondary
+      start: 0
+      end: 92
+    - source: example_context
+      style: secondary
+      start: 16
+      end: 31
+    - source: example_context
+      style: secondary
+      start: 16
+      end: 31
+  ? |
+    def example_tax(example_context=None):
+        return example_context.subtotal
+  : labels:
+    - source: |-
+        def example_tax(example_context=None):
+            return example_context.subtotal
+      style: primary
+      start: 0
+      end: 74
+    - source: (example_context=None)
+      style: secondary
+      start: 15
+      end: 37
+    - source: example_context=None
+      style: secondary
+      start: 16
+      end: 36
+    - source: example_context
+      style: secondary
+      start: 50
+      end: 65
+    - source: example_context.subtotal
+      style: secondary
+      start: 50
+      end: 74
+    - source: |-
+        def example_tax(example_context=None):
+            return example_context.subtotal
+      style: secondary
+      start: 0
+      end: 74
+    - source: example_context
+      style: secondary
+      start: 16
+      end: 31
+    - source: example_context
+      style: secondary
+      start: 16
+      end: 31
+  ? |
+    def example_tax(rates, example_context):
+        return rates[example_context.region] * 2
+  : labels:
+    - source: |-
+        def example_tax(rates, example_context):
+            return rates[example_context.region] * 2
+      style: primary
+      start: 0
+      end: 85
+    - source: (rates, example_context)
+      style: secondary
+      start: 15
+      end: 39
+    - source: example_context
+      style: secondary
+      start: 58
+      end: 73
+    - source: example_context.region
+      style: secondary
+      start: 58
+      end: 80
+    - source: |-
+        def example_tax(rates, example_context):
+            return rates[example_context.region] * 2
+      style: secondary
+      start: 0
+      end: 85
+    - source: example_context
+      style: secondary
+      start: 23
+      end: 38
+    - source: example_context
+      style: secondary
+      start: 23
+      end: 38
