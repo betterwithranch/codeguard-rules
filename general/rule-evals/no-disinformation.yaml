@@ -1,0 +1,136 @@
+cases:
+- name: a function named validate only submits and saves the order
+  inputs:
+    file: orders/submit.py
+    after: |
+      from datetime import datetime, timezone
+
+      from orders.models import Order, OrderStatus
+      from orders.repository import OrderRepository
+
+
+      def validate_order(order: Order, repository: OrderRepository) -> None:
+          order.status = OrderStatus.SUBMITTED
+          order.submitted_at = datetime.now(timezone.utc)
+          repository.save(order)
+  expected_output:
+    outcome: invalid
+- name: a function named submit submits and saves the order
+  inputs:
+    file: orders/submit.py
+    after: |
+      from datetime import datetime, timezone
+
+      from orders.models import Order, OrderStatus
+      from orders.repository import OrderRepository
+
+
+      def submit(order: Order, repository: OrderRepository) -> None:
+          order.status = OrderStatus.SUBMITTED
+          order.submitted_at = datetime.now(timezone.utc)
+          repository.save(order)
+  expected_output:
+    outcome: valid
+- name: a function named for its cache fetches the rates on every call
+  inputs:
+    file: fx/rates.py
+    after: |
+      from decimal import Decimal
+
+      import httpx
+
+
+      def get_cached_rates(base: str) -> dict[str, Decimal]:
+          response = httpx.get(f"https://rates.example.com/latest/{base}", timeout=5.0)
+          response.raise_for_status()
+          return {code: Decimal(str(rate)) for code, rate in response.json().items()}
+  expected_output:
+    outcome: invalid
+- name: a vague name fits what its body does
+  inputs:
+    file: shipping/delivery.py
+    after: |
+      from datetime import datetime
+
+      from shipping.models import Shipment
+
+
+      def handle_shipments(shipments: list[Shipment], now: datetime) -> None:
+          for shipment in shipments:
+              shipment.delivered_at = now
+              shipment.save()
+  expected_output:
+    outcome: valid
+- name: a class named for PDF renders HTML
+  inputs:
+    file: billing/rendering.py
+    after: |
+      from html import escape
+
+      from billing.invoice import Invoice
+
+
+      class PdfInvoiceRenderer:
+          def render(self, invoice: Invoice) -> str:
+              rows = "".join(
+                  f"<tr><td>{escape(line.description)}</td><td>{line.amount}</td></tr>"
+                  for line in invoice.lines
+              )
+              return f"<h1>Invoice {escape(invoice.number)}</h1><table>{rows}</table>"
+  expected_output:
+    outcome: invalid
+- name: a Django model's save hook also sets the slug
+  inputs:
+    file: blog/models.py
+    after: |
+      from django.db import models
+      from django.utils.text import slugify
+
+
+      class Post(models.Model):
+          title = models.CharField(max_length=200)
+          slug = models.SlugField(unique=True)
+
+          def save(self, *args, **kwargs):
+              if not self.slug:
+                  self.slug = slugify(self.title)
+              super().save(*args, **kwargs)
+  expected_output:
+    outcome: valid
+- name: a constant changes
+  inputs:
+    file: blog/settings.py
+    before: |
+      POSTS_PER_PAGE = 10
+    after: |
+      POSTS_PER_PAGE = 20
+  expected_output:
+    outcome: skipped
+- name: a function named delete disables the user instead
+  inputs:
+    file: accounts/users.ts
+    after: |
+      import { UserRepository } from "./repository";
+
+      export async function deleteUser(users: UserRepository, id: string): Promise<void> {
+        const user = await users.get(id);
+        user.disabled = true;
+        user.disabledAt = new Date();
+        await users.save(user);
+      }
+  expected_output:
+    outcome: invalid
+- name: a function named parse parses the amount
+  inputs:
+    file: billing/amount.ts
+    after: |
+      export function parseAmount(text: string): number {
+        const cleaned = text.replace(/[^0-9.]/g, "");
+        const amount = Number.parseFloat(cleaned);
+        if (Number.isNaN(amount)) {
+          throw new Error(`not an amount: ${text}`);
+        }
+        return Math.round(amount * 100);
+      }
+  expected_output:
+    outcome: valid
