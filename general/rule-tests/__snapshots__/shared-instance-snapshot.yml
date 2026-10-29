@@ -1,10 +1,7 @@
 id: shared-instance
 snapshots:
-  ? |
-    @cache
-    def get_validator():
-        return ExampleValidator()
-  : labels:
+  "@cache\ndef get_validator():\n    return ExampleValidator()\n":
+    labels:
     - source: |-
         @cache
         def get_validator():
@@ -12,7 +9,7 @@ snapshots:
       style: primary
       start: 0
       end: 57
-    - source: '@cache'
+    - source: "@cache"
       style: secondary
       start: 0
       end: 6
@@ -22,10 +19,8 @@ snapshots:
       style: secondary
       start: 7
       end: 57
-  ? |
-    class ExampleService:
-        validator = ExampleValidator()
-  : labels:
+  "class ExampleService:\n    validator = ExampleValidator()\n":
+    labels:
     - source: validator = ExampleValidator()
       style: primary
       start: 26
@@ -48,11 +43,9 @@ snapshots:
       style: secondary
       start: 38
       end: 56
-  ? |
-    def check(order, validator: ExampleValidator = ExampleValidator()):
-        pass
-  : labels:
-    - source: 'validator: ExampleValidator = ExampleValidator()'
+  "def check(order, validator: ExampleValidator = ExampleValidator()):\n    pass\n":
+    labels:
+    - source: "validator: ExampleValidator = ExampleValidator()"
       style: primary
       start: 17
       end: 65
@@ -60,10 +53,8 @@ snapshots:
       style: secondary
       start: 47
       end: 65
-  ? |
-    def check(order, validator=ExampleValidator()):
-        pass
-  : labels:
+  "def check(order, validator=ExampleValidator()):\n    pass\n":
+    labels:
     - source: validator=ExampleValidator()
       style: primary
       start: 17
@@ -72,9 +63,8 @@ snapshots:
       style: secondary
       start: 27
       end: 45
-  ? |
-    validator = ExampleValidator(region="eu")
-  : labels:
+  "validator = ExampleValidator(region=\"eu\")\n":
+    labels:
     - source: validator = ExampleValidator(region="eu")
       style: primary
       start: 0
@@ -92,9 +82,8 @@ snapshots:
       style: secondary
       start: 12
       end: 41
-  ? |
-    validator = create_validator()
-  : labels:
+  "validator = create_validator()\n":
+    labels:
     - source: validator = create_validator()
       style: primary
       start: 0
@@ -112,10 +101,9 @@ snapshots:
       style: secondary
       start: 12
       end: 30
-  ? |
-    validator: ExampleValidator = ExampleValidator()
-  : labels:
-    - source: 'validator: ExampleValidator = ExampleValidator()'
+  "validator: ExampleValidator = ExampleValidator()\n":
+    labels:
+    - source: "validator: ExampleValidator = ExampleValidator()"
       style: primary
       start: 0
       end: 48
@@ -124,7 +112,7 @@ snapshots:
       style: secondary
       start: 0
       end: 49
-    - source: 'validator: ExampleValidator = ExampleValidator()'
+    - source: "validator: ExampleValidator = ExampleValidator()"
       style: secondary
       start: 0
       end: 48

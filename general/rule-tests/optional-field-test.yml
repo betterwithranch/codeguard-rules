@@ -1,0 +1,34 @@
+id: optional-field
+valid:
+# A required field
+- |
+  class Parcel:
+      weight_kg: float
+# An optional local variable
+- |
+  def label(parcel):
+      note: str | None = None
+      return note
+# A keyword argument that isn't null
+- |
+  name = models.CharField(max_length=80, blank=True)
+invalid:
+# An optional field written with a union
+- |
+  class Parcel:
+      note: str | None = None
+# An optional field written with Optional
+- |
+  class Parcel:
+      note: Optional[str]
+# An optional attribute set in __init__
+- |
+  class Parcel:
+      def __init__(self):
+          self.note: str | None = None
+# A Django field that allows null
+- |
+  shipped_at = models.DateTimeField(null=True)
+# A SQLAlchemy column that allows null
+- |
+  shipped_at = mapped_column(DateTime, nullable=True)

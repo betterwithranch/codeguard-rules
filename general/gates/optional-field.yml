@@ -1,0 +1,22 @@
+id: optional-field
+language: python
+rule:
+  any:
+  - kind: assignment
+    has:
+      field: type
+      regex: \bNone\b|\bOptional\[
+    any:
+    - inside:
+        kind: expression_statement
+        inside:
+          kind: block
+          inside:
+            kind: class_definition
+            field: body
+    - has:
+        field: left
+        kind: attribute
+        regex: ^self\.
+  - kind: keyword_argument
+    regex: ^(null|nullable)\s*=\s*True$
