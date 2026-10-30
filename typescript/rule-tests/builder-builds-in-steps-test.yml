@@ -1,0 +1,255 @@
+id: builder-builds-in-steps
+valid:
+  # stores-part, assignment: a part method that assigns a property of this
+  - |
+    class ExampleBuilder {
+      private name = "";
+
+      withName(name: string): this {
+        this.name = name;
+        return this;
+      }
+
+      build(): Example {
+        return new Example(this.name);
+      }
+    }
+
+  # stores-part, subscript assignment: a part method that sets a key on a record on this
+  - |
+    class ExampleBuilder {
+      private headers: Record<string, string> = {};
+
+      header(key: string, value: string): this {
+        this.headers[key] = value;
+        return this;
+      }
+
+      build(): Example {
+        return new Example(this.headers);
+      }
+    }
+
+  # stores-part, augmented assignment: a part method that adds to a counter on this
+  - |
+    class ExampleBuilder {
+      private total = 0;
+
+      add(amount: number): this {
+        this.total += amount;
+        return this;
+      }
+
+      build(): Example {
+        return new Example(this.total);
+      }
+    }
+
+  # stores-part, mutating call: a part method that pushes onto an array on this
+  - |
+    class ExampleBuilder {
+      private lines: string[] = [];
+
+      line(text: string): this {
+        this.lines.push(text);
+        return this;
+      }
+
+      build(): Example {
+        return new Example(this.lines);
+      }
+    }
+
+  # part-method, arrow-function property: a part stored by an arrow property
+  - |
+    class ExampleBuilder {
+      private name = "";
+
+      withName = (name: string): this => {
+        this.name = name;
+        return this;
+      };
+
+      build(): Example {
+        return new Example(this.name);
+      }
+    }
+
+  # returns-new-builder: an immutable builder that returns a new builder
+  - |
+    class ExampleBuilder {
+      constructor(private readonly name: string = "") {}
+
+      withName(name: string): ExampleBuilder {
+        return new ExampleBuilder(name);
+      }
+
+      build(): Example {
+        return new Example(this.name);
+      }
+    }
+
+  # builder-class, abstract class: an abstract builder with a part method
+  - |
+    abstract class ExampleBuilder {
+      protected name = "";
+
+      withName(name: string): this {
+        this.name = name;
+        return this;
+      }
+
+      abstract build(): Example;
+    }
+
+  # builder-class, name: a class whose name doesn't end in Builder
+  - |
+    class ExampleFactory {
+      build(name: string): Example {
+        return new Example(name);
+      }
+    }
+
+invalid:
+  # builder-class, class declaration: one build call from arguments
+  - |
+    class ExampleBuilder {
+      build(name: string, total: number): Example {
+        return new Example(name, total);
+      }
+    }
+
+  # builder-class, abstract class: an abstract builder that makes its product in one call
+  - |
+    abstract class ExampleBuilder {
+      build(name: string): Example {
+        return new Example(name);
+      }
+    }
+
+  # builder-class, named class expression: a class expression named ...Builder
+  - |
+    const exampleBuilder = class ExampleBuilder {
+      build(name: string): Example {
+        return new Example(name);
+      }
+    };
+
+  # builder-class, class expression bound to a ...Builder name
+  - |
+    const ExampleBuilder = class {
+      build(name: string): Example {
+        return new Example(name);
+      }
+    };
+
+  # part-method, constructor excluded: build() only uses what the constructor took
+  - |
+    class ExampleBuilder {
+      constructor(private readonly name: string) {}
+
+      build(): Example {
+        return new Example(this.name);
+      }
+    }
+
+  # part-method, build excluded: build() caches its product
+  - |
+    export class ExampleBuilder {
+      private built?: Example;
+
+      constructor(private readonly name: string) {}
+
+      build(): Example {
+        this.built = new Example(this.name);
+        return this.built;
+      }
+    }
+
+  # part-method, create excluded: create() caches its product
+  - |
+    class ExampleBuilder {
+      private created?: Example;
+
+      constructor(private readonly name: string) {}
+
+      create(): Example {
+        this.created = new Example(this.name);
+        return this.created;
+      }
+    }
+
+  # part-method, make excluded: make() counts the products it made
+  - |
+    class ExampleBuilder {
+      private made = 0;
+
+      constructor(private readonly name: string) {}
+
+      make(): Example {
+        this.made += 1;
+        return new Example(this.name);
+      }
+    }
+
+  # part-method, static excluded: a static method that pushes onto a static property
+  - |
+    class ExampleBuilder {
+      static defaults: string[] = [];
+
+      static configure(name: string): void {
+        this.defaults.push(name);
+      }
+
+      build(): Example {
+        return new Example(ExampleBuilder.defaults);
+      }
+    }
+
+  # part-method, arrow-function property only: an object property whose method stores on the object
+  - |
+    class ExampleBuilder {
+      private readonly counter = {
+        count: 0,
+        bump(): void {
+          this.count += 1;
+        },
+      };
+
+      constructor(private readonly name: string) {}
+
+      build(): Example {
+        this.counter.bump();
+        return new Example(this.name);
+      }
+    }
+
+  # stores-part, this only: another method stores to a local
+  - |
+    class ExampleBuilder {
+      constructor(private readonly name: string) {}
+
+      label(suffix: string): string {
+        let label = this.name;
+        label += suffix;
+        return label;
+      }
+
+      build(): Example {
+        return new Example(this.name);
+      }
+    }
+
+  # stores-part, mutating call: a method calls a non-mutating method on this's property
+  - |
+    class ExampleBuilder {
+      constructor(private readonly name: string) {}
+
+      initial(): string {
+        return this.name.toUpperCase().slice(0, 1);
+      }
+
+      build(): Example {
+        return new Example(this.name);
+      }
+    }

@@ -1,0 +1,72 @@
+id: builder-builds-in-steps
+language: typescript
+severity: warning
+message: This Builder class has no method that stores a part of its product.
+note: |
+  A class named ...Builder assembles its product step by step: methods that store parts
+  on the instance, or return a new builder holding them, then a separate call such as
+  build() that returns the product. This class makes its product in one call. Give it
+  methods that store the parts, or name it for what it makes (a factory, or a function
+  such as makeInvoice). A part method is any method or arrow-function property other
+  than the constructor, build, create, make or a static one that sets, adds to or
+  updates a property of this, or returns a new builder (new ...Builder(...)).
+metadata:
+  why: |
+    A builder that makes its product in one call is a constructor with a misleading name.
+    The rule matches a class by its name because here the name is the convention: only a
+    class named ...Builder promises step-by-step assembly, so only such a class can break
+    that promise.
+utils:
+  stores-part:
+    any:
+    - kind: assignment_expression
+      has:
+        field: left
+        any:
+        - pattern: this.$_
+        - kind: subscript_expression
+          has: {field: object, pattern: this.$_}
+    - kind: augmented_assignment_expression
+      has: {field: left, pattern: this.$_}
+    - kind: call_expression
+      all:
+      - pattern: this.$_.$M($$$)
+      - has:
+          field: function
+          has: {field: property, regex: ^(push|unshift|add|set|splice)$}
+  returns-new-builder:
+    kind: return_statement
+    has:
+      kind: new_expression
+      has: {field: constructor, regex: Builder$}
+  part-method:
+    any:
+    - kind: method_definition
+    - kind: public_field_definition
+      has: {field: value, kind: arrow_function}
+    not:
+      any:
+      - has: {field: name, regex: ^(constructor|build|create|make)$}
+      - has: {regex: ^static$}
+    has:
+      stopBy: end
+      any:
+      - matches: stores-part
+      - matches: returns-new-builder
+  builder-class:
+    all:
+    - any:
+      - kind: class_declaration
+      - kind: abstract_class_declaration
+      - kind: class
+    - any:
+      - has: {field: name, regex: Builder$}
+      - inside:
+          kind: variable_declarator
+          has: {field: name, regex: Builder$}
+rule:
+  matches: builder-class
+  not:
+    has:
+      field: body
+      has: {matches: part-method}
