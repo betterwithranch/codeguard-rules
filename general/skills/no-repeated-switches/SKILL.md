@@ -24,8 +24,9 @@ kind, is not checked complete.
 - A switch the change adds or edits that chooses among two or more of the same kinds as
   another switch in the file, or in a module the file imports, when either of them is not
   checked complete. Adding a kind then means finding every switch by hand, and the one
-  that's missed falls through to its default without an error. Report it on the first
-  line of the switch the change adds or edits.
+  that's missed takes its default, or a table's missing entry, with no error until that
+  kind reaches it at run time. Report it on the first line of the switch the change adds
+  or edits.
 
 ## Not a violation
 
@@ -46,8 +47,8 @@ kind, is not checked complete.
 
 When several places each decide what every kind does, a new kind must be added to each.
 The compiler or type checker can't point to the place that was missed unless the switch
-is checked complete, so the new kind silently takes a default it was never meant to, far
-from the change that added it.
+is checked complete, so the new kind takes a default it was never meant to, or reaches a
+table with no entry for it, far from the change that added it.
 
 Source: Martin Fowler, Repeated Switches (*Refactoring*, 2nd ed., 2018); the open/closed
 principle (Bertrand Meyer, *Object-Oriented Software Construction*, 1988; Robert C.

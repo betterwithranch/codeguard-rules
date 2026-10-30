@@ -319,11 +319,12 @@ cases:
 
       def statement_line(entry: Entry) -> str:
           if isinstance(entry, Charge):
-              return f"Charge      {entry.amount_cents / 100:>10.2f}"
+              label = "Charge"
           elif isinstance(entry, Refund):
-              return f"Refund     -{entry.amount_cents / 100:>10.2f}"
+              label = "Refund"
           else:
-              return f"Payout      {entry.amount_cents / 100:>10.2f}"
+              label = "Payout"
+          return f"{label:<10}{entry.amount_cents / 100:>10.2f}"
   expected_output:
     outcome: invalid
 - name: the module chooses a shipment's tracking page by its carrier class in one place
@@ -343,7 +344,12 @@ cases:
           waybill: str
 
 
-      Shipment = UpsShipment | DhlShipment
+      @dataclass(frozen=True)
+      class RoyalMailShipment:
+          reference: str
+
+
+      Shipment = UpsShipment | DhlShipment | RoyalMailShipment
 
 
       def tracking_url(shipment: Shipment) -> str:
@@ -352,7 +358,7 @@ cases:
           elif isinstance(shipment, DhlShipment):
               return f"https://www.dhl.com/track?AWB={shipment.waybill}"
           else:
-              raise ValueError(f"no tracking page for {shipment!r}")
+              return f"https://www.royalmail.com/track-your-item#/tracking-results/{shipment.reference}"
   expected_output:
     outcome: valid
 - name: a webhook parser turns the payload's type string into the matching billing event, which decides what kind to create, not what one does
@@ -396,7 +402,7 @@ cases:
                   raise ValueError(f"unknown billing event type {other!r}")
   expected_output:
     outcome: valid
-- name: adding an import to the statement module
+- name: an added import chooses nothing by kind, so no switch is there for the rule to judge
   inputs:
     file: ledger/statement.py
     before: |
@@ -407,6 +413,367 @@ cases:
       from ledger.entries import Entry
   expected_output:
     outcome: skipped
+- name: the new late-fee match on the media type ends in a default while the loan-period match ends in assert_never, so a new media type is caught in one and charged the default fee in the other
+  inputs:
+    file: library/loans.py
+    before: |
+      from enum import Enum
+      from typing import assert_never
+
+
+      class Media(Enum):
+          BOOK = "book"
+          DVD = "dvd"
+          MAGAZINE = "magazine"
+
+
+      def loan_days(media: Media) -> int:
+          match media:
+              case Media.BOOK:
+                  return 21
+              case Media.DVD:
+                  return 7
+              case Media.MAGAZINE:
+                  return 14
+              case _:
+                  assert_never(media)
+    after: |
+      from enum import Enum
+      from typing import assert_never
+
+
+      class Media(Enum):
+          BOOK = "book"
+          DVD = "dvd"
+          MAGAZINE = "magazine"
+
+
+      def loan_days(media: Media) -> int:
+          match media:
+              case Media.BOOK:
+                  return 21
+              case Media.DVD:
+                  return 7
+              case Media.MAGAZINE:
+                  return 14
+              case _:
+                  assert_never(media)
+
+
+      def late_fee_cents_per_day(media: Media) -> int:
+          match media:
+              case Media.DVD:
+                  return 100
+              case Media.MAGAZINE:
+                  return 10
+              case _:
+                  return 25
+  expected_output:
+    outcome: invalid
+- name: summing withdrawals over a customer's accounts picks out the savings accounts with one isinstance check, which narrows to one kind rather than choosing among them
+  inputs:
+    file: banking/accounts.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class CheckingAccount:
+          balance_cents: int
+
+
+      @dataclass(frozen=True)
+      class SavingsAccount:
+          balance_cents: int
+          withdrawals_this_month: int
+
+
+      @dataclass(frozen=True)
+      class BrokerageAccount:
+          cash_cents: int
+
+
+      Account = CheckingAccount | SavingsAccount | BrokerageAccount
+
+
+      def monthly_fee_cents(account: Account) -> int:
+          if isinstance(account, CheckingAccount):
+              return 500
+          elif isinstance(account, SavingsAccount):
+              return 0
+          else:
+              return 1500
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class CheckingAccount:
+          balance_cents: int
+
+
+      @dataclass(frozen=True)
+      class SavingsAccount:
+          balance_cents: int
+          withdrawals_this_month: int
+
+
+      @dataclass(frozen=True)
+      class BrokerageAccount:
+          cash_cents: int
+
+
+      Account = CheckingAccount | SavingsAccount | BrokerageAccount
+
+
+      def monthly_fee_cents(account: Account) -> int:
+          if isinstance(account, CheckingAccount):
+              return 500
+          elif isinstance(account, SavingsAccount):
+              return 0
+          else:
+              return 1500
+
+
+      def savings_withdrawals_this_month(accounts: list[Account]) -> int:
+          return sum(
+              account.withdrawals_this_month
+              for account in accounts
+              if isinstance(account, SavingsAccount)
+          )
+  expected_output:
+    outcome: valid
+- name: two if/elif chains on a parcel's weight in grams choose by a number's range, not by a kind, so no new kind can slip past either
+  inputs:
+    file: postage/weight.py
+    before: |
+      def postage_cents(weight_grams: int) -> int:
+          if weight_grams <= 100:
+              return 95
+          elif weight_grams <= 750:
+              return 210
+          else:
+              return 480
+    after: |
+      def postage_cents(weight_grams: int) -> int:
+          if weight_grams <= 100:
+              return 95
+          elif weight_grams <= 750:
+              return 210
+          else:
+              return 480
+
+
+      def packaging_for(weight_grams: int) -> str:
+          if weight_grams <= 100:
+              return "padded envelope"
+          elif weight_grams <= 750:
+              return "small box"
+          else:
+              return "large box"
+  expected_output:
+    outcome: valid
+- name: a second table keyed by the course enum has no type demanding a key per course, so a new course fails only when its first plate is sent to the pass
+  inputs:
+    file: kitchen/courses.py
+    before: |
+      from enum import Enum
+
+
+      class Course(Enum):
+          STARTER = "starter"
+          MAIN = "main"
+          DESSERT = "dessert"
+
+
+      PREP_MINUTES: dict[Course, int] = {
+          Course.STARTER: 10,
+          Course.MAIN: 25,
+          Course.DESSERT: 15,
+      }
+
+
+      def prep_minutes(course: Course) -> int:
+          return PREP_MINUTES[course]
+    after: |
+      from enum import Enum
+
+
+      class Course(Enum):
+          STARTER = "starter"
+          MAIN = "main"
+          DESSERT = "dessert"
+
+
+      PREP_MINUTES: dict[Course, int] = {
+          Course.STARTER: 10,
+          Course.MAIN: 25,
+          Course.DESSERT: 15,
+      }
+
+
+      def prep_minutes(course: Course) -> int:
+          return PREP_MINUTES[course]
+
+
+      PLATING_STATION: dict[Course, str] = {
+          Course.STARTER: "cold line",
+          Course.MAIN: "hot pass",
+          Course.DESSERT: "pastry",
+      }
+
+
+      def plating_station(course: Course) -> str:
+          return PLATING_STATION[course]
+  expected_output:
+    outcome: invalid
+- name: each sensor class defining its own alarm threshold chooses nothing by kind, so no switch is there for the rule to judge
+  inputs:
+    file: monitoring/sensors.py
+    before: |
+      from dataclasses import dataclass
+      from typing import Protocol
+
+
+      class Sensor(Protocol):
+          def reading_label(self, value: float) -> str: ...
+
+
+      @dataclass(frozen=True)
+      class Thermometer:
+          room: str
+
+          def reading_label(self, value: float) -> str:
+              return f"{self.room}: {value:.1f} °C"
+
+
+      @dataclass(frozen=True)
+      class Hygrometer:
+          room: str
+
+          def reading_label(self, value: float) -> str:
+              return f"{self.room}: {value:.0f}% humidity"
+
+
+      @dataclass(frozen=True)
+      class Barometer:
+          site: str
+
+          def reading_label(self, value: float) -> str:
+              return f"{self.site}: {value:.0f} hPa"
+    after: |
+      from dataclasses import dataclass
+      from typing import Protocol
+
+
+      class Sensor(Protocol):
+          def reading_label(self, value: float) -> str: ...
+
+          def alarm_threshold(self) -> float: ...
+
+
+      @dataclass(frozen=True)
+      class Thermometer:
+          room: str
+
+          def reading_label(self, value: float) -> str:
+              return f"{self.room}: {value:.1f} °C"
+
+          def alarm_threshold(self) -> float:
+              return 30.0
+
+
+      @dataclass(frozen=True)
+      class Hygrometer:
+          room: str
+
+          def reading_label(self, value: float) -> str:
+              return f"{self.room}: {value:.0f}% humidity"
+
+          def alarm_threshold(self) -> float:
+              return 70.0
+
+
+      @dataclass(frozen=True)
+      class Barometer:
+          site: str
+
+          def reading_label(self, value: float) -> str:
+              return f"{self.site}: {value:.0f} hPa"
+
+          def alarm_threshold(self) -> float:
+              return 980.0
+  expected_output:
+    outcome: skipped
+- name: a chained conditional expression over the room classes repeats the match that prices them, so a new room type gets a single room's cleaning time
+  inputs:
+    file: hotel/rooms.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Suite:
+          number: int
+
+
+      @dataclass(frozen=True)
+      class DoubleRoom:
+          number: int
+
+
+      @dataclass(frozen=True)
+      class SingleRoom:
+          number: int
+
+
+      Room = Suite | DoubleRoom | SingleRoom
+
+
+      def nightly_rate_cents(room: Room) -> int:
+          match room:
+              case Suite():
+                  return 42_000
+              case DoubleRoom():
+                  return 18_000
+              case _:
+                  return 11_000
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Suite:
+          number: int
+
+
+      @dataclass(frozen=True)
+      class DoubleRoom:
+          number: int
+
+
+      @dataclass(frozen=True)
+      class SingleRoom:
+          number: int
+
+
+      Room = Suite | DoubleRoom | SingleRoom
+
+
+      def nightly_rate_cents(room: Room) -> int:
+          match room:
+              case Suite():
+                  return 42_000
+              case DoubleRoom():
+                  return 18_000
+              case _:
+                  return 11_000
+
+
+      def cleaning_minutes(room: Room) -> int:
+          return 90 if isinstance(room, Suite) else 45 if isinstance(room, DoubleRoom) else 30
+  expected_output:
+    outcome: invalid
 - name: a second switch on the reward kind defaults to points, so a new reward kind is labelled as points per dollar
   inputs:
     file: src/rewards/reward.ts
@@ -737,3 +1104,309 @@ cases:
       }
   expected_output:
     outcome: valid
+- name: the new previewable switch on the document format ends in a default while the MIME type switch ends in a never check, so a new format is caught in one and quietly not previewed in the other
+  inputs:
+    file: src/documents/format.ts
+    before: |
+      export type Document =
+        | { format: "pdf"; pages: number }
+        | { format: "docx"; words: number }
+        | { format: "html"; url: string };
+
+      function assertNever(value: never): never {
+        throw new Error(`unhandled document ${JSON.stringify(value)}`);
+      }
+
+      export function mimeType(document: Document): string {
+        switch (document.format) {
+          case "pdf":
+            return "application/pdf";
+          case "docx":
+            return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+          case "html":
+            return "text/html";
+          default:
+            return assertNever(document);
+        }
+      }
+    after: |
+      export type Document =
+        | { format: "pdf"; pages: number }
+        | { format: "docx"; words: number }
+        | { format: "html"; url: string };
+
+      function assertNever(value: never): never {
+        throw new Error(`unhandled document ${JSON.stringify(value)}`);
+      }
+
+      export function mimeType(document: Document): string {
+        switch (document.format) {
+          case "pdf":
+            return "application/pdf";
+          case "docx":
+            return "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+          case "html":
+            return "text/html";
+          default:
+            return assertNever(document);
+        }
+      }
+
+      export function previewable(document: Document): boolean {
+        switch (document.format) {
+          case "pdf":
+            return document.pages <= 200;
+          case "html":
+            return true;
+          default:
+            return false;
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: totalling card interchange fees over a batch picks out card payments with one tag check, which narrows to one kind rather than choosing among them
+  inputs:
+    file: src/payments/batch.ts
+    before: |
+      export type Payment =
+        | { kind: "card"; amountCents: number; interchangeFeeCents: number }
+        | { kind: "bank"; amountCents: number; iban: string }
+        | { kind: "wallet"; amountCents: number; walletId: string };
+
+      export function settlementDays(payment: Payment): number {
+        switch (payment.kind) {
+          case "card":
+            return 2;
+          case "bank":
+            return 3;
+          default:
+            return 1;
+        }
+      }
+    after: |
+      export type Payment =
+        | { kind: "card"; amountCents: number; interchangeFeeCents: number }
+        | { kind: "bank"; amountCents: number; iban: string }
+        | { kind: "wallet"; amountCents: number; walletId: string };
+
+      export function settlementDays(payment: Payment): number {
+        switch (payment.kind) {
+          case "card":
+            return 2;
+          case "bank":
+            return 3;
+          default:
+            return 1;
+        }
+      }
+
+      export function interchangeFeesCents(payments: readonly Payment[]): number {
+        let total = 0;
+        for (const payment of payments) {
+          if (payment.kind === "card") {
+            total += payment.interchangeFeeCents;
+          }
+        }
+        return total;
+      }
+  expected_output:
+    outcome: valid
+- name: two if chains on the carrier API's HTTP status code choose by an outside system's status, not by a kind of the program's own
+  inputs:
+    file: src/carrier/status.ts
+    before: |
+      export function shouldRetry(status: number): boolean {
+        if (status === 429) {
+          return true;
+        } else if (status >= 500) {
+          return true;
+        } else {
+          return false;
+        }
+      }
+    after: |
+      export function shouldRetry(status: number): boolean {
+        if (status === 429) {
+          return true;
+        } else if (status >= 500) {
+          return true;
+        } else {
+          return false;
+        }
+      }
+
+      export function logLevel(status: number): "info" | "warn" | "error" {
+        if (status >= 500) {
+          return "error";
+        } else if (status >= 400) {
+          return "warn";
+        } else {
+          return "info";
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a second table of map tile kinds typed Record<string, number> lets a new tile kind read undefined as its movement cost
+  inputs:
+    file: src/map/tile.ts
+    before: |
+      export type Tile =
+        | { kind: "road"; lanes: number }
+        | { kind: "water"; depthMetres: number }
+        | { kind: "forest"; density: number };
+
+      const TILE_COLOUR: Record<string, string> = {
+        road: "#9e9e9e",
+        water: "#2196f3",
+        forest: "#2e7d32",
+      };
+
+      export function tileColour(tile: Tile): string {
+        return TILE_COLOUR[tile.kind];
+      }
+    after: |
+      export type Tile =
+        | { kind: "road"; lanes: number }
+        | { kind: "water"; depthMetres: number }
+        | { kind: "forest"; density: number };
+
+      const TILE_COLOUR: Record<string, string> = {
+        road: "#9e9e9e",
+        water: "#2196f3",
+        forest: "#2e7d32",
+      };
+
+      export function tileColour(tile: Tile): string {
+        return TILE_COLOUR[tile.kind];
+      }
+
+      const MOVEMENT_COST: Record<string, number> = {
+        road: 1,
+        water: 5,
+        forest: 3,
+      };
+
+      export function movementCost(tile: Tile): number {
+        return MOVEMENT_COST[tile.kind];
+      }
+  expected_output:
+    outcome: invalid
+- name: a function turning a discounts table row's kind column into the matching discount decides which kind to create, not what one does
+  inputs:
+    file: src/pricing/discountRow.ts
+    unchanged:
+      src/pricing/discount.ts: |
+        export type Discount =
+          | { kind: "percent"; percent: number }
+          | { kind: "fixed"; amountCents: number };
+
+        export function discountedCents(discount: Discount, priceCents: number): number {
+          switch (discount.kind) {
+            case "percent":
+              return Math.round(priceCents * (1 - discount.percent / 100));
+            case "fixed":
+              return priceCents - discount.amountCents;
+          }
+        }
+    after: |
+      import type { Discount } from "./discount";
+
+      export interface DiscountRow {
+        kind: string;
+        value: number;
+      }
+
+      export function discountFromRow(row: DiscountRow): Discount {
+        switch (row.kind) {
+          case "percent":
+            return { kind: "percent", percent: row.value };
+          case "fixed":
+            return { kind: "fixed", amountCents: row.value };
+          default:
+            throw new Error(`unknown discount kind ${row.kind}`);
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: the receipt line reads the fare from the one switch on the ticket kind instead of switching again
+  inputs:
+    file: src/transit/ticket.ts
+    before: |
+      export type Ticket =
+        | { kind: "adult"; zones: number }
+        | { kind: "child"; zones: number }
+        | { kind: "senior"; zones: number };
+
+      export function fareCents(ticket: Ticket): number {
+        switch (ticket.kind) {
+          case "child":
+            return 120 * ticket.zones;
+          case "senior":
+            return 100 * ticket.zones;
+          default:
+            return 250 * ticket.zones;
+        }
+      }
+    after: |
+      export type Ticket =
+        | { kind: "adult"; zones: number }
+        | { kind: "child"; zones: number }
+        | { kind: "senior"; zones: number };
+
+      export function fareCents(ticket: Ticket): number {
+        switch (ticket.kind) {
+          case "child":
+            return 120 * ticket.zones;
+          case "senior":
+            return 100 * ticket.zones;
+          default:
+            return 250 * ticket.zones;
+        }
+      }
+
+      export function receiptLine(ticket: Ticket): string {
+        return `${ticket.zones}-zone ${ticket.kind} ticket  ${(fareCents(ticket) / 100).toFixed(2)}`;
+      }
+  expected_output:
+    outcome: valid
+- name: a chained conditional on the weather alert's severity repeats the switch that sets its siren, so a new severity gets the advisory's banner colour
+  inputs:
+    file: src/weather/alert.ts
+    before: |
+      export type Alert =
+        | { severity: "warning"; region: string }
+        | { severity: "watch"; region: string }
+        | { severity: "advisory"; region: string };
+
+      export function sirenSeconds(alert: Alert): number {
+        switch (alert.severity) {
+          case "warning":
+            return 180;
+          case "watch":
+            return 60;
+          default:
+            return 0;
+        }
+      }
+    after: |
+      export type Alert =
+        | { severity: "warning"; region: string }
+        | { severity: "watch"; region: string }
+        | { severity: "advisory"; region: string };
+
+      export function sirenSeconds(alert: Alert): number {
+        switch (alert.severity) {
+          case "warning":
+            return 180;
+          case "watch":
+            return 60;
+          default:
+            return 0;
+        }
+      }
+
+      export function bannerColour(alert: Alert): string {
+        return alert.severity === "warning" ? "#d32f2f" : alert.severity === "watch" ? "#f57c00" : "#fbc02d";
+      }
+  expected_output:
+    outcome: invalid

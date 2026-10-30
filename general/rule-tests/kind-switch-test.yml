@@ -6,13 +6,45 @@ valid:
       if order.rush:
           return 500
       return 0
-# A subscript by a name
+# A subscript by a name on a lowercase local
 - |
   def label(labels, key):
       return labels[key]
 # A dict keyed by strings
 - |
   LIMITS = {"small": 1, "large": 5}
+# isinstance arm: a call to another builtin that tests a value
+- |
+  def run(task):
+      if callable(task):
+          return task()
+      return task
+# type() comparison arm: a comparison on another call
+- |
+  def first(items):
+      if len(items) == 0:
+          return None
+      return items[0]
+# type() subscript arm: a table indexed by another call
+- |
+  def fee(fees, items):
+      return fees[len(items)]
+# constant table subscript arm: an uppercase name that is called, not indexed
+- |
+  def fee(parcel):
+      return FEE_FOR(parcel)
+# constant table get arm: get on a lowercase local
+- |
+  def fee(fees, size):
+      return fees.get(size)
+# constant table get arm: another method on an uppercase name
+- |
+  def sizes():
+      return FEES.keys()
+# conditional chain arm: a single conditional expression
+- |
+  def fee(parcel):
+      return 500 if parcel.rush else 0
 invalid:
 # isinstance call
 - |
@@ -49,6 +81,10 @@ invalid:
           return 100
       elif parcel.size == "large":
           return 400
+# conditional expression chain on a tag
+- |
+  def fee(parcel):
+      return 100 if parcel.size == "small" else 400 if parcel.size == "large" else 900
 # type() comparison
 - |
   def fee(parcel):
@@ -63,6 +99,14 @@ invalid:
 - |
   def fee(parcel):
       return FEES[parcel.size]
+# lookup in a constant table by a name
+- |
+  def handle(kind, parcel):
+      return HANDLERS[kind](parcel)
+# get from a constant table
+- |
+  def handle(kind, parcel):
+      return HANDLERS.get(kind)
 # dict keyed by enum members
 - |
   FEES = {Size.SMALL: 100, Size.LARGE: 400}

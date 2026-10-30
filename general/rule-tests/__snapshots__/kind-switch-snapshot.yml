@@ -90,6 +90,16 @@ snapshots:
       style: primary
       start: 21
       end: 125
+  "def fee(parcel):\n    return 100 if parcel.size == \"small\" else 400 if parcel.size == \"large\" else 900\n":
+    labels:
+    - source: 100 if parcel.size == "small" else 400 if parcel.size == "large" else 900
+      style: primary
+      start: 28
+      end: 101
+    - source: 400 if parcel.size == "large" else 900
+      style: secondary
+      start: 63
+      end: 101
   "def fee(parcel):\n    return FEES[parcel.size]\n":
     labels:
     - source: FEES[parcel.size]
@@ -124,3 +134,31 @@ snapshots:
       style: secondary
       start: 29
       end: 39
+  "def handle(kind, parcel):\n    return HANDLERS.get(kind)\n":
+    labels:
+    - source: HANDLERS.get(kind)
+      style: primary
+      start: 37
+      end: 55
+    - source: HANDLERS
+      style: secondary
+      start: 37
+      end: 45
+    - source: get
+      style: secondary
+      start: 46
+      end: 49
+    - source: HANDLERS.get
+      style: secondary
+      start: 37
+      end: 49
+  "def handle(kind, parcel):\n    return HANDLERS[kind](parcel)\n":
+    labels:
+    - source: HANDLERS[kind]
+      style: primary
+      start: 37
+      end: 51
+    - source: HANDLERS
+      style: secondary
+      start: 37
+      end: 45
