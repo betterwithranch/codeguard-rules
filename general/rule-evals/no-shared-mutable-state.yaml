@@ -9,6 +9,7 @@ cases:
 
 
       def duplicate_skus(rows: list[ProductRow]) -> list[str]:
+          """Return the SKUs that appear more than once in this import's rows."""
           duplicates = []
           for row in rows:
               if row.sku in _seen_skus:
