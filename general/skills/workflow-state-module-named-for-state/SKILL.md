@@ -24,8 +24,11 @@ the workflow (`checkout/state`).
 A module that holds only a state model and is named for something else: a kind of code
 (`checkout/models`, `checkout/types`), or a different concept.
 
-The change must add the state model, or change its declaration line or its fields.
-Report it on the first line of the state model the change adds or changes.
+The change must add the state model, or change its declaration line or its fields. A
+change to the state model's fields in a module that was already misnamed is a violation
+too: every change to the state is a change to the module that holds it, and is the time
+to give that module the state's name. Report it on the first line of the state model the
+change adds or changes.
 
 ## Not a violation
 

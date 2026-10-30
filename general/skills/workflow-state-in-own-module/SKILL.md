@@ -33,8 +33,10 @@ changes it is a step, not one of its methods.
 
 ## Violation
 
-A state model whose module also defines workflow code, or a public type that isn't part
-of the state model's declaration.
+A state model whose module also defines anything outside the state model's
+declaration: workflow code, or any other public type, whether or not it belongs to the
+same workflow or domain. Every public type in the module other than the state model and
+its declaration breaks the convention.
 
 The change must add the state model, change its declaration line or its fields, or add a
 definition to its module. Report it on the first line of the state model the change adds
