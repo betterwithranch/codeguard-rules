@@ -1,4 +1,4 @@
-rule: no-class-level-mutable-container
+rule: no-mutating-class-attribute-through-self
 paths: ["**/*.py"]
 exclude_paths:
   - "**/test_*.py"

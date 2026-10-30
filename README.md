@@ -23,9 +23,9 @@ name, and [basedpyright](https://docs.basedpyright.com) with these rules on:
 
 ### `general`
 
-Architecture rules for any language. Each is one judge rule: its `SKILL.md` states the
-convention in no language's terms, and a supplement beside it for each language,
-`python.md` and `typescript.md`, gives that language's forms and examples. The judge
+Architecture rules for any language. Most are judge rules. A judge rule's `SKILL.md`
+states the convention in no language's terms, and a supplement beside it for each
+language, `python.md` and `typescript.md`, gives that language's forms and examples. The judge
 gets the skill and the supplement for the file's language. Its binding's `paths` name
 the languages it runs on.
 
@@ -59,6 +59,13 @@ the languages it runs on.
 | `law-of-demeter` | Law of Demeter: a function doesn't reach through one object into another's parts, so it depends only on its direct collaborators. | Not yet |
 | `intention-revealing-names` | Intention-revealing names: a name says what its body mainly does, so readers needn't open the body to learn it. | Not yet |
 | `one-word-per-concept` | One word per concept: one operation goes by one verb, so names predict each other. | Not yet |
+
+Pattern rules (ast-grep), one per language where a convention's form is syntax. They
+start as `warning`s and skip test files:
+
+| Rule | Checks |
+|---|---|
+| `no-middle-man-python`, `no-middle-man-typescript` | No middle man: a class without a base doesn't forward every method to the same collaborator |
 
 Each judge rule passes 20 of 20 eval runs on Claude before it ships, and CI's 3 runs
 before it merges. One check follows, and doesn't hold up the next rule:

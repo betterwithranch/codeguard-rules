@@ -1,0 +1,93 @@
+id: no-mutating-class-attribute-through-self
+language: python
+severity: warning
+message: This method mutates a container bound in the class body, which every instance shares.
+note: |
+  A list, dict or set bound in the class body is one object shared by every instance, so
+  mutating it through `self` (or an item of it, `self.by_key[key].append(...)`) changes it
+  for all of them. Give each instance its own in `__init__` (or a dataclass
+  `field(default_factory=list)`), or, when sharing is the point, annotate it `ClassVar`
+  and mutate it through the class (`type(self).registry[...]`). Ruff's RUF012 accepts the
+  `ClassVar` annotation alone; this reports the mutation through `self` either way.
+  A container `__init__` rebinds on `self` is per instance and isn't reported. A field
+  annotated without `ClassVar` in a class with a base (a pydantic or msgspec model) isn't
+  reported: those libraries copy the default for each instance.
+metadata:
+  why: >-
+    Every instance shares the one container, so one instance's change shows up in all of
+    them. RUF012 flags the binding and is satisfied by a ClassVar annotation, which
+    leaves the shared mutation through self in place; this flags the mutation.
+utils:
+  container:
+    any:
+    - kind: list
+    - kind: dictionary
+    - kind: set
+    - kind: list_comprehension
+    - kind: dictionary_comprehension
+    - kind: set_comprehension
+    - kind: call
+      has:
+        field: function
+        regex: ^(collections\.)?(list|dict|set|defaultdict|deque|OrderedDict|Counter)$
+  self-attribute:
+    pattern: self.$N
+  self-item:
+    kind: subscript
+    has: {field: value, matches: self-attribute}
+  self-container:
+    any:
+    - matches: self-attribute
+    - matches: self-item
+  model-field:
+    all:
+    - has: {field: type, not: {regex: '^(typing\.)?ClassVar\b'}}
+    - inside:
+        stopBy: {kind: class_definition}
+        kind: class_definition
+        has: {field: superclasses, kind: argument_list}
+rule:
+  any:
+  - kind: call
+    has:
+      field: function
+      kind: attribute
+      all:
+      - has: {field: object, matches: self-container}
+      - has:
+          field: attribute
+          regex: ^(append|extend|insert|add|update|setdefault|pop|popitem|remove|discard|clear|appendleft|extendleft)$
+  - kind: assignment
+    has: {field: left, matches: self-item}
+  - kind: augmented_assignment
+    has: {field: left, matches: self-container}
+  - kind: delete_statement
+    has:
+      stopBy: end
+      matches: self-item
+  inside:
+    stopBy: end
+    kind: class_definition
+    has:
+      field: body
+      has:
+        kind: expression_statement
+        has:
+          kind: assignment
+          all:
+          - has: {field: left, pattern: $N}
+          - has: {field: right, matches: container}
+          - not: {matches: model-field}
+    not:
+      has:
+        field: body
+        has:
+          kind: function_definition
+          all:
+          - has: {field: name, regex: ^__init__$}
+          - has:
+              field: body
+              has:
+                stopBy: end
+                kind: assignment
+                has: {field: left, pattern: self.$N}
