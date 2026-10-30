@@ -1,4 +1,4 @@
-id: union-declares-discriminator-python
+id: union-declares-discriminator
 language: python
 severity: warning
 message: This field is a union of pydantic models defined in this file, with no discriminator named.

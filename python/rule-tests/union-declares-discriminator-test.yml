@@ -1,4 +1,4 @@
-id: union-declares-discriminator-python
+id: union-declares-discriminator
 valid:
   # A discriminator named with Field
   - |

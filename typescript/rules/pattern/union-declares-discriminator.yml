@@ -1,4 +1,4 @@
-id: union-declares-discriminator-typescript
+id: union-declares-discriminator
 language: typescript
 severity: warning
 message: This z.union of object schemas sharing a literal field names no discriminator.

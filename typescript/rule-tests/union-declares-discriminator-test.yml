@@ -1,4 +1,4 @@
-id: union-declares-discriminator-typescript
+id: union-declares-discriminator
 valid:
   # A discriminated union
   - |

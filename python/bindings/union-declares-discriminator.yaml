@@ -1,4 +1,4 @@
-rule: union-declares-discriminator-python
+rule: union-declares-discriminator
 paths: ["**/*.py"]
 exclude_paths:
   - "**/test_*.py"

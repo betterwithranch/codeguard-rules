@@ -1,4 +1,4 @@
-id: union-declares-discriminator-python
+id: union-declares-discriminator
 snapshots:
   "from typing import Literal\nfrom pydantic import BaseModel\n\nclass ExampleA(BaseModel):\n    kind: Literal[\"a\"] = \"a\"\n\nclass ExampleB(BaseModel):\n    kind: Literal[\"b\"] = \"b\"\n\n@some_decorator\nclass ExampleC(BaseModel):\n    kind: Literal[\"c\"] = \"c\"\n\nclass ExampleHolder(BaseModel):\n    value: ExampleA | ExampleB | ExampleC\n":
     labels:

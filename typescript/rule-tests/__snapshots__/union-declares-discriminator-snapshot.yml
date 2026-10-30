@@ -1,4 +1,4 @@
-id: union-declares-discriminator-typescript
+id: union-declares-discriminator
 snapshots:
   "const exampleA = z.object({ kind: z.literal(\"a\"), name: z.string() });\nconst exampleB = z.object({ kind: z.literal(\"b\"), code: z.number() });\nexport const example = z.union([exampleA, exampleB]);\n":
     labels:
