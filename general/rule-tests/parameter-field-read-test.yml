@@ -18,6 +18,22 @@ valid:
   def example_total(example_id):
       example_context = load(example_id)
       return example_context.amount
+# Typed parameter whose annotation's class is read, not the parameter
+- |
+  def example_total(amount: Decimal) -> Decimal:
+      return Decimal.from_float(1.5) * amount
+# Generic annotation whose argument class is read, not the parameter
+- |
+  def example_total(rates: dict[str, Decimal], region: str) -> Decimal:
+      return Decimal.from_float(1.5) * rates[region]
+# Typed defaulted parameter whose default and annotation are read, not the parameter
+- |
+  def example_total(amount: Decimal = ZERO) -> Decimal:
+      return ZERO.max(Decimal.from_float(1.5)) + amount
+# Defaulted parameter whose default is read, not the parameter
+- |
+  def example_total(rounding=ROUNDING):
+      return ROUNDING.mode
 invalid:
 # Field read of a plain parameter
 - |

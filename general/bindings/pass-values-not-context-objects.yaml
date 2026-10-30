@@ -1,4 +1,4 @@
-skill: general/skills/no-stamp-coupling
+skill: general/skills/pass-values-not-context-objects
 severity: warning
 paths: ["**/*.py", "**/*.ts", "**/*.tsx"]
 exclude_paths:

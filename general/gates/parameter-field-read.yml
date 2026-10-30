@@ -11,7 +11,8 @@ rule:
       any:
       - inside:
           kind: parameters
-      - inside:
+      - nthChild: 1
+        inside:
           kind: typed_parameter
           inside:
             kind: parameters

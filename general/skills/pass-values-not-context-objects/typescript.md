@@ -1,8 +1,8 @@
 # In TypeScript
 
-Bundles include a project's `Config`, `AppContext` or environment object, an Express
-`Request` or a `NextRequest` taken by a helper, and a context object a module threads
-through its calls.
+Context and settings objects include a project's `Config`, `AppContext` or environment
+object, an Express `Request` or a `NextRequest` taken by a helper, and a context object a
+module threads through its calls.
 
 ## Violation
 

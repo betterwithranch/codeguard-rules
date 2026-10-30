@@ -1,0 +1,636 @@
+cases:
+- name: an output-path helper takes the whole command context to read only its working directory
+  inputs:
+    file: cli/paths.py
+    after: |
+      from collections.abc import Mapping
+      from dataclasses import dataclass
+      from datetime import datetime
+      from pathlib import Path
+      from typing import TextIO
+
+
+      @dataclass(frozen=True)
+      class CommandContext:
+          cwd: Path
+          env: Mapping[str, str]
+          stdout: TextIO
+          stderr: TextIO
+          verbose: bool
+          started_at: datetime
+
+
+      def output_path(ctx: CommandContext, file_name: str) -> Path:
+          return ctx.cwd / file_name
+  expected_output:
+    outcome: invalid
+- name: a sign-in line reads exactly half of the request context's fields, three of six
+  inputs:
+    file: accounts/sign_in_line.py
+    after: |
+      import logging
+      from dataclasses import dataclass
+      from datetime import datetime
+      from uuid import UUID
+      from zoneinfo import ZoneInfo
+
+      from sqlalchemy.orm import Session
+
+
+      @dataclass(frozen=True)
+      class RequestContext:
+          user_id: UUID
+          locale: str
+          timezone: ZoneInfo
+          feature_flags: frozenset[str]
+          db: Session
+          logger: logging.Logger
+
+
+      def sign_in_line(ctx: RequestContext, signed_in_at: datetime) -> str:
+          local_time = signed_in_at.astimezone(ctx.timezone)
+          return f"{ctx.user_id} ({ctx.locale}) signed in at {local_time:%H:%M}"
+  expected_output:
+    outcome: invalid
+- name: a sign-in line reads more than half of the request context's fields, four of six
+  inputs:
+    file: accounts/sign_in_banner.py
+    after: |
+      import logging
+      from dataclasses import dataclass
+      from datetime import datetime
+      from uuid import UUID
+      from zoneinfo import ZoneInfo
+
+      from sqlalchemy.orm import Session
+
+
+      @dataclass(frozen=True)
+      class RequestContext:
+          user_id: UUID
+          locale: str
+          timezone: ZoneInfo
+          feature_flags: frozenset[str]
+          db: Session
+          logger: logging.Logger
+
+
+      def sign_in_banner(ctx: RequestContext, signed_in_at: datetime) -> str:
+          local_time = signed_in_at.astimezone(ctx.timezone)
+          channel = "beta" if "beta" in ctx.feature_flags else "stable"
+          return f"{ctx.user_id} ({ctx.locale}, {channel}) signed in at {local_time:%H:%M}"
+  expected_output:
+    outcome: valid
+- name: an SMTP opener takes the app config declared in another module to read two of its six fields
+  inputs:
+    file: mail/smtp.py
+    unchanged:
+      app/config.py: |
+        from pathlib import Path
+
+        from pydantic_settings import BaseSettings
+
+
+        class AppConfig(BaseSettings):
+            database_url: str
+            redis_url: str
+            smtp_host: str
+            smtp_port: int
+            upload_dir: Path
+            log_level: str
+    after: |
+      import smtplib
+
+      from app.config import AppConfig
+
+
+      def open_smtp(config: AppConfig) -> smtplib.SMTP:
+          return smtplib.SMTP(config.smtp_host, config.smtp_port)
+  expected_output:
+    outcome: invalid
+- name: a helper takes the whole Django request to read only its path
+  inputs:
+    file: accounts/areas.py
+    after: |
+      from django.http import HttpRequest
+
+
+      def is_admin_area(request: HttpRequest) -> bool:
+          return request.path.startswith("/admin/")
+  expected_output:
+    outcome: invalid
+- name: a helper calls a method of the Django request to build an absolute link
+  inputs:
+    file: blog/links.py
+    after: |
+      from django.http import HttpRequest
+
+
+      def share_link(request: HttpRequest, slug: str) -> str:
+          return request.build_absolute_uri(f"/posts/{slug}/")
+  expected_output:
+    outcome: valid
+- name: a Django view reads one query parameter from the request the framework passes it
+  inputs:
+    file: library/views.py
+    after: |
+      from django.http import HttpRequest, JsonResponse
+
+      TITLES = ("Dune", "Emma", "Middlemarch", "Ulysses")
+
+
+      def find_titles(query: str) -> list[str]:
+          return [title for title in TITLES if query.lower() in title.lower()]
+
+
+      def search(request: HttpRequest) -> JsonResponse:
+          query = request.GET.get("q")
+          if query is None:
+              return JsonResponse({"error": "q is required"}, status=400)
+          return JsonResponse({"results": find_titles(query)})
+  expected_output:
+    outcome: valid
+- name: a renewal check reads one field of the subscription it decides about
+  inputs:
+    file: billing/renewals.py
+    after: |
+      from dataclasses import dataclass
+      from datetime import date
+      from uuid import UUID
+
+
+      @dataclass(frozen=True)
+      class Subscription:
+          id: UUID
+          customer_id: UUID
+          plan: str
+          seats: int
+          started_on: date
+          renews_on: date
+
+
+      def renews_within(subscription: Subscription, today: date, days: int) -> bool:
+          return 0 <= (subscription.renews_on - today).days <= days
+  expected_output:
+    outcome: valid
+- name: a stay summary takes three plain values as separate parameters
+  inputs:
+    file: hotel/summary.py
+    after: |
+      from datetime import date
+
+
+      def stay_summary(guest_name: str, check_in: date, nights: int) -> str:
+          return f"{guest_name}: {nights} nights from {check_in.isoformat()}"
+  expected_output:
+    outcome: valid
+- name: a batch runner passes the worker context on to the job runner it calls
+  inputs:
+    file: jobs/batch.py
+    unchanged:
+      jobs/context.py: |
+        import logging
+        from dataclasses import dataclass
+        from datetime import datetime
+
+        from sqlalchemy.orm import Session
+
+
+        @dataclass(frozen=True)
+        class WorkerContext:
+            worker_id: str
+            queue_name: str
+            dry_run: bool
+            started_at: datetime
+            db: Session
+            logger: logging.Logger
+      jobs/runner.py: |
+        from uuid import UUID
+
+        from sqlalchemy import text
+
+        from jobs.context import WorkerContext
+
+
+        def run_job(ctx: WorkerContext, job_id: UUID) -> None:
+            ctx.logger.info("worker %s running %s from %s", ctx.worker_id, job_id, ctx.queue_name)
+            if ctx.dry_run:
+                return
+            ctx.db.execute(text("UPDATE jobs SET started_at = now() WHERE id = :id"), {"id": job_id})
+    after: |
+      from collections.abc import Sequence
+      from uuid import UUID
+
+      from jobs.context import WorkerContext
+      from jobs.runner import run_job
+
+
+      def run_batch(ctx: WorkerContext, job_ids: Sequence[UUID]) -> None:
+          ctx.logger.info("running a batch of %d jobs", len(job_ids))
+          for job_id in job_ids:
+              run_job(ctx, job_id)
+  expected_output:
+    outcome: valid
+- name: a footer reaches through the invoice into its merchant's settings, which is law-of-demeter's
+  inputs:
+    file: billing/footer.py
+    after: |
+      from dataclasses import dataclass
+      from decimal import Decimal
+
+
+      @dataclass(frozen=True)
+      class MerchantSettings:
+          payment_terms_days: int
+          currency: str
+          logo_url: str
+          support_email: str
+          timezone: str
+          send_reminders: bool
+
+
+      @dataclass(frozen=True)
+      class Merchant:
+          name: str
+          settings: MerchantSettings
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          number: str
+          merchant: Merchant
+          total: Decimal
+
+
+      def invoice_footer(invoice: Invoice) -> str:
+          return f"Invoice {invoice.number}: pay within {invoice.merchant.settings.payment_terms_days} days"
+  expected_output:
+    outcome: valid
+- name: an edit swaps a thumbnail helper's upload directory parameter for the whole app config
+  inputs:
+    file: media/thumbnails.py
+    unchanged:
+      app/config.py: |
+        from pathlib import Path
+
+        from pydantic_settings import BaseSettings
+
+
+        class AppConfig(BaseSettings):
+            database_url: str
+            redis_url: str
+            smtp_host: str
+            smtp_port: int
+            upload_dir: Path
+            log_level: str
+    before: |
+      from pathlib import Path
+      from uuid import UUID
+
+
+      def thumbnail_path(upload_dir: Path, image_id: UUID) -> Path:
+          return upload_dir / "thumbs" / f"{image_id}.webp"
+    after: |
+      from pathlib import Path
+      from uuid import UUID
+
+      from app.config import AppConfig
+
+
+      def thumbnail_path(config: AppConfig, image_id: UUID) -> Path:
+          return config.upload_dir / "thumbs" / f"{image_id}.webp"
+  expected_output:
+    outcome: invalid
+- name: an edit changes how a report title cases its name and leaves the parameters as they were
+  inputs:
+    file: reports/titles.py
+    before: |
+      import logging
+      from dataclasses import dataclass
+      from datetime import datetime
+      from uuid import UUID
+      from zoneinfo import ZoneInfo
+
+      from sqlalchemy.orm import Session
+
+
+      @dataclass(frozen=True)
+      class ReportContext:
+          tenant_id: UUID
+          timezone: ZoneInfo
+          locale: str
+          generated_at: datetime
+          db: Session
+          logger: logging.Logger
+
+
+      def report_title(ctx: ReportContext, name: str) -> str:
+          heading = name.strip().title()
+          return f"{heading} ({ctx.timezone.key})"
+    after: |
+      import logging
+      from dataclasses import dataclass
+      from datetime import datetime
+      from uuid import UUID
+      from zoneinfo import ZoneInfo
+
+      from sqlalchemy.orm import Session
+
+
+      @dataclass(frozen=True)
+      class ReportContext:
+          tenant_id: UUID
+          timezone: ZoneInfo
+          locale: str
+          generated_at: datetime
+          db: Session
+          logger: logging.Logger
+
+
+      def report_title(ctx: ReportContext, name: str) -> str:
+          heading = name.strip().upper()
+          return f"{heading} ({ctx.timezone.key})"
+  expected_output:
+    outcome: valid
+- name: a function totals a list of prices
+  inputs:
+    file: checkout/totals.py
+    after: |
+      def total_cents(prices: list[int]) -> int:
+          return sum(prices)
+  expected_output:
+    outcome: skipped
+- name: a price formatter takes the whole request context to read only its locale
+  inputs:
+    file: src/format/price.ts
+    after: |
+      import type { Pool } from "pg";
+      import type { Logger } from "pino";
+
+      export interface RequestContext {
+        db: Pool;
+        logger: Logger;
+        userId: string;
+        locale: string;
+        featureFlags: ReadonlySet<string>;
+        receivedAt: Date;
+      }
+
+      export function formatPrice(ctx: RequestContext, cents: number, currency: string): string {
+        return new Intl.NumberFormat(ctx.locale, { style: "currency", currency }).format(cents / 100);
+      }
+  expected_output:
+    outcome: invalid
+- name: an import summary reads exactly half of the import context's fields, three of six
+  inputs:
+    file: src/imports/summary.ts
+    after: |
+      import type { Pool } from "pg";
+      import type { Logger } from "pino";
+
+      export interface ImportContext {
+        tenantId: string;
+        sourceFile: string;
+        dryRun: boolean;
+        startedAt: Date;
+        db: Pool;
+        logger: Logger;
+      }
+
+      export function importSummary(ctx: ImportContext, rows: number): string {
+        const mode = ctx.dryRun ? " (dry run)" : "";
+        return `${ctx.tenantId}: ${rows} rows from ${ctx.sourceFile}${mode}`;
+      }
+  expected_output:
+    outcome: invalid
+- name: an import report reads more than half of the import context's fields, four of six
+  inputs:
+    file: src/imports/report.ts
+    after: |
+      import type { Pool } from "pg";
+      import type { Logger } from "pino";
+
+      export interface ImportContext {
+        tenantId: string;
+        sourceFile: string;
+        dryRun: boolean;
+        startedAt: Date;
+        db: Pool;
+        logger: Logger;
+      }
+
+      export function importReport(ctx: ImportContext, rows: number): string {
+        const mode = ctx.dryRun ? " (dry run)" : "";
+        return `${ctx.tenantId}: ${rows} rows from ${ctx.sourceFile}${mode}, started ${ctx.startedAt.toISOString()}`;
+      }
+  expected_output:
+    outcome: valid
+- name: an upload check takes the app config declared in another module to read one of its six fields
+  inputs:
+    file: src/uploads/limit.ts
+    unchanged:
+      src/config.ts: |
+        export interface AppConfig {
+          databaseUrl: string;
+          redisUrl: string;
+          port: number;
+          corsOrigins: readonly string[];
+          sessionSecret: string;
+          uploadLimitBytes: number;
+        }
+    after: |
+      import type { AppConfig } from "../config";
+
+      export function exceedsUploadLimit(config: AppConfig, sizeBytes: number): boolean {
+        return sizeBytes > config.uploadLimitBytes;
+      }
+  expected_output:
+    outcome: invalid
+- name: a cookie helper takes the whole Express request to read only whether it is secure
+  inputs:
+    file: src/http/cookies.ts
+    after: |
+      import type { CookieOptions, Request } from "express";
+
+      export function sessionCookieOptions(req: Request): CookieOptions {
+        return { httpOnly: true, sameSite: "lax", secure: req.secure };
+      }
+  expected_output:
+    outcome: invalid
+- name: an Express route handler reads only the body of the request the framework passes it
+  inputs:
+    file: src/routes/ratings.ts
+    after: |
+      import express, { type Request, type Response } from "express";
+      import { z } from "zod";
+
+      const Rating = z.object({
+        stars: z.number().int().min(1).max(5),
+        comment: z.string().max(500),
+      });
+
+      export const ratings = express.Router();
+
+      ratings.post("/ratings", (req: Request, res: Response) => {
+        const parsed = Rating.safeParse(req.body);
+        if (!parsed.success) {
+          res.status(400).json(parsed.error.flatten());
+          return;
+        }
+        res.status(201).json({ stars: parsed.data.stars });
+      });
+  expected_output:
+    outcome: valid
+- name: a navigation screen reads only its route from the props the navigator passes it
+  inputs:
+    file: src/screens/OrderScreen.tsx
+    after: |
+      import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+      import { Text } from "react-native";
+
+      type RootStackParamList = {
+        Home: undefined;
+        Order: { orderId: string };
+      };
+
+      export function OrderScreen(props: NativeStackScreenProps<RootStackParamList, "Order">) {
+        return <Text>Order {props.route.params.orderId}</Text>;
+      }
+  expected_output:
+    outcome: valid
+- name: a cancellation check reads one field of the booking it decides about
+  inputs:
+    file: src/bookings/cancellation.ts
+    after: |
+      export interface Booking {
+        id: string;
+        guestId: string;
+        roomId: string;
+        startsAt: Date;
+        nights: number;
+        totalCents: number;
+      }
+
+      const FREE_CANCELLATION_MS = 48 * 60 * 60 * 1000;
+
+      export function canCancelForFree(booking: Booking, now: Date): boolean {
+        return booking.startsAt.getTime() - now.getTime() >= FREE_CANCELLATION_MS;
+      }
+  expected_output:
+    outcome: valid
+- name: a shipping label takes three plain values as separate parameters
+  inputs:
+    file: src/shipping/label.ts
+    after: |
+      export function shippingLabel(recipient: string, postcode: string, weightGrams: number): string {
+        return `${recipient.toUpperCase()} ${postcode} ${(weightGrams / 1000).toFixed(2)} kg`;
+      }
+  expected_output:
+    outcome: valid
+- name: a locale switch returns the request context it was given when the locale already matches
+  inputs:
+    file: src/context/locale.ts
+    after: |
+      export interface RequestContext {
+        requestId: string;
+        userId: string;
+        tenantId: string;
+        locale: string;
+        ip: string;
+        receivedAt: Date;
+      }
+
+      export function withLocale(ctx: RequestContext, locale: string): RequestContext {
+        if (ctx.locale === locale) {
+          return ctx;
+        }
+        return { ...ctx, locale };
+      }
+  expected_output:
+    outcome: valid
+- name: an audit trail stores the request context its constructor is given
+  inputs:
+    file: src/audit/trail.ts
+    after: |
+      export interface RequestContext {
+        requestId: string;
+        userId: string;
+        tenantId: string;
+        locale: string;
+        ip: string;
+        receivedAt: Date;
+      }
+
+      export class AuditTrail {
+        constructor(private readonly ctx: RequestContext) {}
+
+        entry(action: string): string {
+          return `${this.ctx.requestId} ${this.ctx.tenantId}/${this.ctx.userId} from ${this.ctx.ip}: ${action}`;
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: an edit swaps a cache key's tenant id parameter for the whole request context
+  inputs:
+    file: src/cache/keys.ts
+    before: |
+      export interface RequestContext {
+        requestId: string;
+        userId: string;
+        tenantId: string;
+        locale: string;
+        ip: string;
+        receivedAt: Date;
+      }
+
+      export function cacheKey(tenantId: string, path: string): string {
+        return `${tenantId}:${path}`;
+      }
+    after: |
+      export interface RequestContext {
+        requestId: string;
+        userId: string;
+        tenantId: string;
+        locale: string;
+        ip: string;
+        receivedAt: Date;
+      }
+
+      export function cacheKey(ctx: RequestContext, path: string): string {
+        return `${ctx.tenantId}:${path}`;
+      }
+  expected_output:
+    outcome: invalid
+- name: an edit changes how a greeting trims its name and leaves the parameters as they were
+  inputs:
+    file: src/greetings/greeting.ts
+    before: |
+      export interface RequestContext {
+        requestId: string;
+        userId: string;
+        tenantId: string;
+        locale: string;
+        ip: string;
+        receivedAt: Date;
+      }
+
+      export function greeting(ctx: RequestContext, name: string): string {
+        const shown = name.trim();
+        return `${ctx.locale.startsWith("fr") ? "Bonjour" : "Hello"}, ${shown}`;
+      }
+    after: |
+      export interface RequestContext {
+        requestId: string;
+        userId: string;
+        tenantId: string;
+        locale: string;
+        ip: string;
+        receivedAt: Date;
+      }
+
+      export function greeting(ctx: RequestContext, name: string): string {
+        const shown = name.trim().slice(0, 40);
+        return `${ctx.locale.startsWith("fr") ? "Bonjour" : "Hello"}, ${shown}`;
+      }
+  expected_output:
+    outcome: valid
