@@ -70,6 +70,19 @@ cases:
     file: flights/availability.py
     unchanged:
       flights/__init__.py: ""
+      flights/models.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass
+        class Flight:
+            number: str
+            capacity: int
+            booked: int = 0
+
+            def __post_init__(self) -> None:
+                if not 0 <= self.booked <= self.capacity:
+                    raise ValueError(f"{self.number}: {self.booked} booked of {self.capacity}")
       flights/booking.py: |
         from flights.models import Flight
 
