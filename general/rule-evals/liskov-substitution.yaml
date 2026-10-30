@@ -1,0 +1,892 @@
+cases:
+- name: a curated playlist raises an error its base never raises when asked to remove a pinned track
+  inputs:
+    file: music/playlists.py
+    after: |
+      from dataclasses import dataclass, field
+
+
+      class PlaylistLocked(Exception):
+          pass
+
+
+      @dataclass
+      class Playlist:
+          tracks: list[str] = field(default_factory=list)
+
+          def remove(self, track: str) -> None:
+              """Remove the track if the playlist has it."""
+              if track in self.tracks:
+                  self.tracks.remove(track)
+
+
+      @dataclass
+      class CuratedPlaylist(Playlist):
+          pinned: set[str] = field(default_factory=set)
+
+          def remove(self, track: str) -> None:
+              if track in self.pinned:
+                  raise PlaylistLocked(f"{track} is pinned to this playlist")
+              super().remove(track)
+  expected_output:
+    outcome: invalid
+- name: a paginator subclass takes a page size and always cuts pages of 20
+  inputs:
+    file: listing/pages.py
+    after: |
+      from typing import Sequence, TypeVar
+
+      T = TypeVar("T")
+
+
+      class Paginator:
+          def page(self, items: Sequence[T], number: int, size: int) -> Sequence[T]:
+              if number < 1:
+                  raise ValueError("pages are numbered from 1")
+              start = (number - 1) * size
+              return items[start : start + size]
+
+
+      class CatalogPaginator(Paginator):
+          def page(self, items: Sequence[T], number: int, size: int) -> Sequence[T]:
+              if number < 1:
+                  raise ValueError("pages are numbered from 1")
+              start = (number - 1) * 20
+              return items[start : start + 20]
+  expected_output:
+    outcome: invalid
+- name: a gift card wallet silently does nothing for the withdrawals its base wallet takes out
+  inputs:
+    file: payments/wallets.py
+    after: |
+      class Wallet:
+          def __init__(self) -> None:
+              self.balance_cents = 0
+
+          def adjust(self, cents: int) -> None:
+              """Add cents to the balance; a negative amount takes them out."""
+              self.balance_cents += cents
+
+
+      class GiftCardWallet(Wallet):
+          def adjust(self, cents: int) -> None:
+              if cents <= 0:
+                  return
+              super().adjust(cents)
+  expected_output:
+    outcome: invalid
+- name: a gift order leaves out the shipping charge its base lists among every order's charges
+  inputs:
+    file: shop/orders.py
+    after: |
+      from dataclasses import dataclass
+      from decimal import Decimal
+
+
+      @dataclass(frozen=True)
+      class Charge:
+          label: str
+          amount: Decimal
+
+
+      class Order:
+          def __init__(self, products: list[Charge], shipping: Decimal) -> None:
+              self.products = products
+              self.shipping = shipping
+
+          def charges(self) -> list[Charge]:
+              """Every charge on the order: its products, then its shipping."""
+              return [*self.products, Charge("shipping", self.shipping)]
+
+
+      class GiftOrder(Order):
+          def charges(self) -> list[Charge]:
+              return list(self.products)
+  expected_output:
+    outcome: invalid
+- name: a closed ledger records nothing and returns a zero balance where its base records the entry
+  inputs:
+    file: accounts/ledger.py
+    after: |
+      from decimal import Decimal
+
+
+      class Ledger:
+          def __init__(self) -> None:
+              self.entries: list[Decimal] = []
+
+          def post(self, amount: Decimal) -> Decimal:
+              """Record the amount and return the new balance."""
+              self.entries.append(amount)
+              return sum(self.entries, Decimal(0))
+
+
+      class ClosedLedger(Ledger):
+          def post(self, amount: Decimal) -> Decimal:
+              return Decimal(0)
+  expected_output:
+    outcome: invalid
+- name: a PDF exporter refuses every report, so the abstract export it supplies can never be called
+  inputs:
+    file: reports/exporters.py
+    after: |
+      from abc import ABC, abstractmethod
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Report:
+          title: str
+          lines: list[str]
+
+
+      class Exporter(ABC):
+          @abstractmethod
+          def export(self, report: Report) -> bytes:
+              """Return the report encoded in this exporter's format."""
+
+
+      class TextExporter(Exporter):
+          def export(self, report: Report) -> bytes:
+              return "".join(f"{line}\n" for line in [report.title, *report.lines]).encode("utf-8")
+
+
+      class PdfExporter(Exporter):
+          def export(self, report: Report) -> bytes:
+              raise NotImplementedError("PDF export isn't available")
+  expected_output:
+    outcome: invalid
+- name: a lab temperature's parse classmethod raises for the Fahrenheit readings its base parses
+  inputs:
+    file: sensors/temperature.py
+    after: |
+      from dataclasses import dataclass
+      from typing import Self
+
+
+      class UnsupportedUnit(Exception):
+          pass
+
+
+      @dataclass(frozen=True)
+      class Temperature:
+          celsius: float
+
+          @classmethod
+          def parse(cls, text: str) -> Self:
+              """Read a reading such as "21C" or "70F"."""
+              value, unit = float(text[:-1]), text[-1]
+              if unit == "C":
+                  return cls(value)
+              if unit == "F":
+                  return cls((value - 32) * 5 / 9)
+              raise ValueError(f"unknown unit in {text!r}")
+
+
+      @dataclass(frozen=True)
+      class LabTemperature(Temperature):
+          @classmethod
+          def parse(cls, text: str) -> Self:
+              if text.endswith("F"):
+                  raise UnsupportedUnit("lab readings are in Celsius")
+              return super().parse(text)
+  expected_output:
+    outcome: invalid
+- name: a cached customer directory asks its base directory and remembers the customers it found
+  inputs:
+    file: crm/directory.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Customer:
+          id: str
+          name: str
+
+
+      class CustomerDirectory:
+          def __init__(self, customers: tuple[Customer, ...]) -> None:
+              self.customers = customers
+
+          def find(self, customer_id: str) -> Customer | None:
+              """The customer with the id, or None when there is none."""
+              for customer in self.customers:
+                  if customer.id == customer_id:
+                      return customer
+              return None
+
+
+      class CachedCustomerDirectory(CustomerDirectory):
+          def __init__(self, customers: tuple[Customer, ...]) -> None:
+              super().__init__(customers)
+              self._found: dict[str, Customer] = {}
+
+          def find(self, customer_id: str) -> Customer | None:
+              if customer_id in self._found:
+                  return self._found[customer_id]
+              customer = super().find(customer_id)
+              if customer is not None:
+                  self._found[customer_id] = customer
+              return customer
+  expected_output:
+    outcome: valid
+- name: a counted inventory answers the same stock count as its base from a running tally
+  inputs:
+    file: warehouse/inventory.py
+    after: |
+      from collections import Counter
+
+
+      class Inventory:
+          def __init__(self) -> None:
+              self.skus: list[str] = []
+
+          def add(self, sku: str) -> None:
+              self.skus.append(sku)
+
+          def count(self, sku: str) -> int:
+              return self.skus.count(sku)
+
+
+      class CountedInventory(Inventory):
+          def __init__(self) -> None:
+              super().__init__()
+              self._counts: Counter[str] = Counter()
+
+          def add(self, sku: str) -> None:
+              super().add(sku)
+              self._counts[sku] += 1
+
+          def count(self, sku: str) -> int:
+              return self._counts[sku]
+  expected_output:
+    outcome: valid
+- name: a paginator subclass cuts pages of the size it's given from any iterable
+  inputs:
+    file: listing/pages.py
+    after: |
+      from itertools import islice
+      from typing import Iterable, Sequence, TypeVar
+
+      T = TypeVar("T")
+
+
+      class Paginator:
+          def page(self, items: Sequence[T], number: int, size: int) -> Sequence[T]:
+              if number < 1:
+                  raise ValueError("pages are numbered from 1")
+              start = (number - 1) * size
+              return items[start : start + size]
+
+
+      class StreamPaginator(Paginator):
+          def page(self, items: Iterable[T], number: int, size: int) -> Sequence[T]:
+              if number < 1:
+                  raise ValueError("pages are numbered from 1")
+              start = (number - 1) * size
+              return list(islice(items, start, start + size))
+  expected_output:
+    outcome: valid
+- name: a roster team returns its members as a sorted list where its base promises any collection
+  inputs:
+    file: org/teams.py
+    after: |
+      from collections.abc import Collection
+
+
+      class Team:
+          def __init__(self, members: set[str]) -> None:
+              self._members = members
+
+          def members(self) -> Collection[str]:
+              return frozenset(self._members)
+
+
+      class RosterTeam(Team):
+          def members(self) -> list[str]:
+              """The members in alphabetical order, for printing the roster."""
+              return sorted(self._members)
+  expected_output:
+    outcome: valid
+- name: a plain text writer implements the abstract render method its base leaves to subclasses
+  inputs:
+    file: reports/writers.py
+    after: |
+      from abc import ABC, abstractmethod
+      from pathlib import Path
+
+
+      class ReportWriter(ABC):
+          @abstractmethod
+          def render(self, lines: list[str]) -> str:
+              """Return the lines as one document."""
+
+          def write(self, path: Path, lines: list[str]) -> None:
+              path.write_text(self.render(lines), encoding="utf-8")
+
+
+      class PlainTextWriter(ReportWriter):
+          def render(self, lines: list[str]) -> str:
+              return "".join(f"{line}\n" for line in lines)
+  expected_output:
+    outcome: valid
+- name: a circle computes the area its base shape leaves to subclasses by raising NotImplementedError
+  inputs:
+    file: geometry/shapes.py
+    after: |
+      import math
+
+
+      class Shape:
+          def area(self) -> float:
+              raise NotImplementedError
+
+          def describe(self) -> str:
+              return f"{type(self).__name__} of area {self.area():.2f}"
+
+
+      class Circle(Shape):
+          def __init__(self, radius: float) -> None:
+              self.radius = radius
+
+          def area(self) -> float:
+              return math.pi * self.radius**2
+  expected_output:
+    outcome: valid
+- name: a UTC clock supplies the now member of the Clock protocol it names as its base
+  inputs:
+    file: timekeeping/clocks.py
+    after: |
+      from datetime import datetime, timezone
+      from typing import Protocol
+
+
+      class Clock(Protocol):
+          def now(self) -> datetime:
+              """The current time, timezone-aware."""
+              ...
+
+
+      class UtcClock(Clock):
+          def now(self) -> datetime:
+              return datetime.now(timezone.utc)
+  expected_output:
+    outcome: valid
+- name: a seat map with holds raises the SeatUnavailable error its base documents for a seat on hold
+  inputs:
+    file: venues/seats.py
+    after: |
+      class SeatUnavailable(Exception):
+          pass
+
+
+      class SeatMap:
+          def __init__(self) -> None:
+              self.booked: set[str] = set()
+
+          def book(self, seat: str) -> None:
+              """Book the seat. Raises SeatUnavailable if the seat is booked or on hold."""
+              if seat in self.booked:
+                  raise SeatUnavailable(seat)
+              self.booked.add(seat)
+
+
+      class HoldingSeatMap(SeatMap):
+          def __init__(self) -> None:
+              super().__init__()
+              self.held: set[str] = set()
+
+          def hold(self, seat: str) -> None:
+              self.held.add(seat)
+
+          def book(self, seat: str) -> None:
+              if seat in self.held:
+                  raise SeatUnavailable(seat)
+              super().book(seat)
+  expected_output:
+    outcome: valid
+- name: a transport subclass rejects attachments, but its base is imported and its promises aren't in the file
+  inputs:
+    file: mail/archive.py
+    after: |
+      from mail.messages import Message
+      from mail.transport import Transport
+
+
+      class AttachmentsNotAllowed(Exception):
+          pass
+
+
+      class ArchiveTransport(Transport):
+          def send(self, message: Message) -> None:
+              if message.attachments:
+                  raise AttachmentsNotAllowed(message.subject)
+              super().send(message)
+  expected_output:
+    outcome: valid
+- name: a fake payment gateway for tests records charges instead of calling the provider
+  inputs:
+    file: payments/gateway.py
+    after: |
+      from decimal import Decimal
+
+      import httpx
+      from pydantic import BaseModel
+
+
+      class ChargeCreated(BaseModel):
+          id: str
+
+
+      class PaymentGateway:
+          def __init__(self, client: httpx.Client) -> None:
+              self.client = client
+
+          def charge(self, card_token: str, amount: Decimal) -> str:
+              """Charge the card and return the provider's charge id."""
+              response = self.client.post("/charges", json={"card": card_token, "amount": str(amount)})
+              response.raise_for_status()
+              return ChargeCreated.model_validate_json(response.content).id
+
+
+      class FakePaymentGateway(PaymentGateway):
+          """Stands in for the gateway in tests: records each charge instead of calling the provider."""
+
+          def __init__(self) -> None:
+              self.charged: list[tuple[str, Decimal]] = []
+
+          def charge(self, card_token: str, amount: Decimal) -> str:
+              self.charged.append((card_token, amount))
+              return f"fake-charge-{len(self.charged)}"
+  expected_output:
+    outcome: valid
+- name: a class with no base class is outside the gate, since none of its methods overrides anything
+  inputs:
+    file: greetings/greeter.py
+    after: |
+      class Greeter:
+          def greet(self, name: str) -> str:
+              return f"Hello, {name}!"
+  expected_output:
+    outcome: skipped
+- name: a class that names only a metaclass has no base class, so it is outside the gate
+  inputs:
+    file: imports/importer.py
+    after: |
+      from abc import ABCMeta, abstractmethod
+
+
+      class Importer(metaclass=ABCMeta):
+          @abstractmethod
+          def load(self, source: str) -> list[str]:
+              """Read the records from the source."""
+  expected_output:
+    outcome: skipped
+- name: an eco thermostat throws for targets above 21 degrees that its base thermostat accepts
+  inputs:
+    file: devices/thermostat.ts
+    after: |
+      export class Thermostat {
+        protected target = 20;
+
+        setTarget(celsius: number): void {
+          this.target = Math.round(celsius * 2) / 2;
+        }
+      }
+
+      export class EcoThermostat extends Thermostat {
+        setTarget(celsius: number): void {
+          if (celsius > 21) {
+            throw new RangeError("eco mode allows at most 21°C");
+          }
+          super.setTarget(celsius);
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: a price label subclass takes a currency and always prints dollars
+  inputs:
+    file: pricing/labels.ts
+    after: |
+      export class PriceLabel {
+        text(cents: number, currency: string): string {
+          return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(cents / 100);
+        }
+      }
+
+      export class ShelfLabel extends PriceLabel {
+        text(cents: number, currency: string): string {
+          return `$${(cents / 100).toFixed(2)}`;
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: a deadline timeline silently does nothing for the negative shifts its base moves earlier
+  inputs:
+    file: src/planning/timeline.ts
+    after: |
+      export class Timeline {
+        private readonly starts = new Map<string, Date>();
+
+        add(title: string, startsAt: Date): void {
+          this.starts.set(title, startsAt);
+        }
+
+        /** Moves the event by the given minutes; negative minutes move it earlier. */
+        shift(title: string, minutes: number): void {
+          const start = this.starts.get(title);
+          if (start === undefined) {
+            throw new Error(`no event named ${title}`);
+          }
+          this.starts.set(title, new Date(start.getTime() + minutes * 60_000));
+        }
+      }
+
+      export class DeadlineTimeline extends Timeline {
+        shift(title: string, minutes: number): void {
+          if (minutes <= 0) {
+            return;
+          }
+          super.shift(title, minutes);
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: a flat directory leaves out the sub-team members its base includes in a team's members
+  inputs:
+    file: src/org/directory.ts
+    after: |
+      export interface Team {
+        name: string;
+        members: string[];
+        subTeams: Team[];
+      }
+
+      export class Directory {
+        /** Every member of the team, including the members of its sub-teams. */
+        members(team: Team): string[] {
+          return [...team.members, ...team.subTeams.flatMap((sub) => this.members(sub))];
+        }
+      }
+
+      export class FlatDirectory extends Directory {
+        members(team: Team): string[] {
+          return [...team.members];
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: a tenant session store purges nothing and reports zero where its base removes expired sessions
+  inputs:
+    file: src/auth/sessions.ts
+    after: |
+      export interface Session {
+        userId: string;
+        expiresAt: Date;
+      }
+
+      export class SessionStore {
+        protected readonly sessions = new Map<string, Session>();
+
+        save(id: string, session: Session): void {
+          this.sessions.set(id, session);
+        }
+
+        /** Removes every session that expired before `now` and returns how many it removed. */
+        purgeExpired(now: Date): number {
+          let removed = 0;
+          for (const [id, session] of this.sessions) {
+            if (session.expiresAt < now) {
+              this.sessions.delete(id);
+              removed += 1;
+            }
+          }
+          return removed;
+        }
+      }
+
+      export class TenantSessionStore extends SessionStore {
+        constructor(readonly tenant: string) {
+          super();
+        }
+
+        purgeExpired(_now: Date): number {
+          return 0;
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: an SMS notifier implements the Notifier interface by refusing every message
+  inputs:
+    file: src/alerts/notifiers.ts
+    after: |
+      export interface Recipient {
+        name: string;
+        phone: string;
+      }
+
+      export interface Notifier {
+        /** Delivers the text to the recipient. */
+        notify(recipient: Recipient, text: string): Promise<void>;
+      }
+
+      export class SmsNotifier implements Notifier {
+        async notify(_recipient: Recipient, _text: string): Promise<void> {
+          throw new Error("SMS delivery is unavailable");
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: a bundle product's label getter returns an empty string where its base prints the name and SKU
+  inputs:
+    file: src/catalog/products.ts
+    after: |
+      export class Product {
+        constructor(
+          readonly name: string,
+          readonly sku: string,
+        ) {}
+
+        /** The name and SKU, as printed on packing slips. */
+        get label(): string {
+          return `${this.name} (${this.sku})`;
+        }
+      }
+
+      export class BundleProduct extends Product {
+        constructor(
+          name: string,
+          sku: string,
+          readonly parts: Product[],
+        ) {
+          super(name, sku);
+        }
+
+        get label(): string {
+          return "";
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: a tracing router resolves through its base router and records the route it found
+  inputs:
+    file: src/web/router.ts
+    after: |
+      export interface Route {
+        name: string;
+        pattern: RegExp;
+      }
+
+      export class Router {
+        constructor(protected readonly routes: Route[]) {}
+
+        /** The first route whose pattern matches the path, or undefined when none does. */
+        resolve(path: string): Route | undefined {
+          return this.routes.find((route) => route.pattern.test(path));
+        }
+      }
+
+      export class TracingRouter extends Router {
+        readonly resolved: string[] = [];
+
+        resolve(path: string): Route | undefined {
+          const route = super.resolve(path);
+          if (route !== undefined) {
+            this.resolved.push(route.name);
+          }
+          return route;
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: an indexed word list answers the same membership question as its base from a set
+  inputs:
+    file: src/spelling/words.ts
+    after: |
+      export class WordList {
+        constructor(protected readonly words: readonly string[]) {}
+
+        contains(word: string): boolean {
+          return this.words.includes(word);
+        }
+      }
+
+      export class IndexedWordList extends WordList {
+        private readonly index: ReadonlySet<string>;
+
+        constructor(words: readonly string[]) {
+          super(words);
+          this.index = new Set(words);
+        }
+
+        contains(word: string): boolean {
+          return this.index.has(word);
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a multi-line word counter also accepts a list of lines and counts a string as its base does
+  inputs:
+    file: src/text/counting.ts
+    after: |
+      export class WordCounter {
+        count(text: string): number {
+          return text.split(/\s+/).filter((word) => word.length > 0).length;
+        }
+      }
+
+      export class MultiLineWordCounter extends WordCounter {
+        count(text: string | readonly string[]): number {
+          return super.count(typeof text === "string" ? text : text.join("\n"));
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a sorted plugin registry returns its names as an array where its base promises any iterable
+  inputs:
+    file: src/plugins/registry.ts
+    after: |
+      export interface Plugin {
+        start(): void;
+      }
+
+      export class PluginRegistry {
+        protected readonly plugins = new Map<string, Plugin>();
+
+        register(name: string, plugin: Plugin): void {
+          this.plugins.set(name, plugin);
+        }
+
+        names(): Iterable<string> {
+          return this.plugins.keys();
+        }
+      }
+
+      export class SortedPluginRegistry extends PluginRegistry {
+        names(): string[] {
+          return [...this.plugins.keys()].sort();
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a price label implements the abstract text method its base leaves to subclasses
+  inputs:
+    file: pricing/labels.ts
+    after: |
+      export abstract class PriceLabel {
+        abstract text(cents: number, currency: string): string;
+
+        html(cents: number, currency: string): string {
+          return `<span class="price">${this.text(cents, currency)}</span>`;
+        }
+      }
+
+      export class ShelfLabel extends PriceLabel {
+        text(cents: number, currency: string): string {
+          return new Intl.NumberFormat("en-US", { style: "currency", currency }).format(cents / 100);
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a feet unit implements the LengthUnit interface by converting the metres it's given
+  inputs:
+    file: src/units/length.ts
+    after: |
+      export interface LengthUnit {
+        /** Converts a length in metres to this unit. */
+        fromMetres(metres: number): number;
+      }
+
+      export class Feet implements LengthUnit {
+        fromMetres(metres: number): number {
+          return metres / 0.3048;
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a price list subclass also reads discontinued prices and throws the UnknownSkuError its base throws
+  inputs:
+    file: src/pricing/priceList.ts
+    after: |
+      export class UnknownSkuError extends Error {
+        constructor(readonly sku: string) {
+          super(`no price for ${sku}`);
+        }
+      }
+
+      export class PriceList {
+        constructor(protected readonly prices: ReadonlyMap<string, number>) {}
+
+        /** The price in cents. Throws UnknownSkuError when the SKU has no price. */
+        priceCents(sku: string): number {
+          const price = this.prices.get(sku);
+          if (price === undefined) {
+            throw new UnknownSkuError(sku);
+          }
+          return price;
+        }
+      }
+
+      export class DiscontinuedPriceList extends PriceList {
+        constructor(
+          prices: ReadonlyMap<string, number>,
+          private readonly lastPrices: ReadonlyMap<string, number>,
+        ) {
+          super(prices);
+        }
+
+        priceCents(sku: string): number {
+          const price = this.prices.get(sku) ?? this.lastPrices.get(sku);
+          if (price === undefined) {
+            throw new UnknownSkuError(sku);
+          }
+          return price;
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: an image uploader rejects other files, but its base is imported and its promises aren't in the file
+  inputs:
+    file: src/media/imageUploader.ts
+    after: |
+      import type { Upload } from "./upload";
+      import { Uploader } from "./uploader";
+
+      export class ImageUploader extends Uploader {
+        async upload(file: Upload): Promise<string> {
+          if (!file.contentType.startsWith("image/")) {
+            throw new TypeError(`${file.name} is not an image`);
+          }
+          return super.upload(file);
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a fake clock for tests reads the time it was set to instead of the system time
+  inputs:
+    file: src/time/clock.ts
+    after: |
+      export class SystemClock {
+        /** The current time. */
+        now(): Date {
+          return new Date();
+        }
+      }
+
+      /** A clock for tests that reads the time it was set to until a test advances it. */
+      export class FakeClock extends SystemClock {
+        constructor(private current: Date) {
+          super();
+        }
+
+        now(): Date {
+          return this.current;
+        }
+
+        advance(ms: number): void {
+          this.current = new Date(this.current.getTime() + ms);
+        }
+      }
+  expected_output:
+    outcome: valid
