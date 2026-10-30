@@ -22,6 +22,12 @@ it holds: the field's declaration, or an assignment that sets it on the instance
 as a constructor setting both, or a method that updates the field to keep it in step
 with its source.
 
+A field that holds the same value as a field of an object the class holds is derived
+from it, unless the code shows the field records that value at one moment, as history:
+something sets it once, when an event happens, and its name or a comment says what it
+records. A field named only for the value it repeats, that nothing sets at a moment of
+its own, is a copy to keep in step.
+
 Report it on the derived field's declaration, or its first assignment where the class
 declares no fields.
 
@@ -32,9 +38,9 @@ declares no fields.
   gift beside when it shipped.
 - A value worked out from several fields or from data outside the class, such as a total
   from a list of lines and a tax rate.
-- A value recorded at a moment that its source may later stop matching, kept as history:
-  the price paid beside the product, the address an order shipped to beside the
-  customer.
+- A value recorded at a moment that its source may later stop matching, kept as history,
+  where the code shows that moment: the price paid, set when the order is placed, beside
+  the product.
 - A key or identifier of an object the class doesn't also hold, and a database model's
   foreign key column beside its relationship to the same row.
 - A different class that copies both values, such as a response or read model built

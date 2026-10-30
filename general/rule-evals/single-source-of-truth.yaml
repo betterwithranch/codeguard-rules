@@ -57,7 +57,40 @@ cases:
               self.item_count += 1
   expected_output:
     outcome: invalid
-- name: a shipment copies its customer's email beside the customer
+- name: a shipment keeps a copy of its customer's email in step with the customer, so a reassignment that forgets one leaves them disagreeing
+  inputs:
+    file: shipping/shipment.py
+    unchanged:
+      accounts/customer.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Customer:
+            id: str
+            name: str
+            email: str
+    after: |
+      from dataclasses import dataclass, field
+
+      from accounts.customer import Customer
+
+
+      @dataclass
+      class Shipment:
+          tracking_number: str
+          customer: Customer
+          customer_email: str = field(init=False)
+
+          def __post_init__(self) -> None:
+              self.customer_email = self.customer.email
+
+          def reassign(self, customer: Customer) -> None:
+              self.customer = customer
+              self.customer_email = customer.email
+  expected_output:
+    outcome: invalid
+- name: a shipment stores its customer's email beside the customer and nothing records it at a moment, so it is a copy to keep in step
   inputs:
     file: shipping/shipment.py
     unchanged:
@@ -83,6 +116,44 @@ cases:
           customer_email: str
   expected_output:
     outcome: invalid
+- name: a shipment records the address its dispatch notice went to when it sends it, kept as history beside the customer
+  inputs:
+    file: shipping/shipment.py
+    unchanged:
+      accounts/customer.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Customer:
+            id: str
+            name: str
+            email: str
+      shipping/notices.py: |
+        from typing import Protocol
+
+
+        class Notifier(Protocol):
+            def send(self, email: str, text: str) -> None: ...
+    after: |
+      from dataclasses import dataclass
+
+      from accounts.customer import Customer
+      from shipping.notices import Notifier
+
+
+      @dataclass
+      class Shipment:
+          tracking_number: str
+          customer: Customer
+          # The address the dispatch notice went to, as it was when it was sent.
+          notified_email: str | None = None
+
+          def send_dispatch_notice(self, notifier: Notifier) -> None:
+              notifier.send(self.customer.email, f"Shipment {self.tracking_number} is on its way")
+              self.notified_email = self.customer.email
+  expected_output:
+    outcome: valid
 - name: an order line records the unit price paid beside the product
   inputs:
     file: orders/line.py
