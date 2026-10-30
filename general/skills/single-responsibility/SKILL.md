@@ -1,6 +1,6 @@
 ---
 name: single-responsibility
-description: A function or class has one reason to change; a function whose own body holds the details of two concerns, or a class whose methods serve two concerns that never touch, is a violation.
+description: A function or class has one reason to change; a function whose own body holds the details of two concerns, or a class whose methods serve two concerns, is a violation.
 ---
 
 # Single Responsibility

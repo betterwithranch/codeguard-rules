@@ -13,8 +13,8 @@ cases:
       def age_group_podiums(chronotrack_xml: str) -> dict[str, list[str]]:
           finishers = []
           for element in ET.fromstring(chronotrack_xml).iter(f"{CHRONOTRACK}Finisher"):
-              hours, minutes, seconds = (int(part) for part in element.get("ChipTime").split(":"))
-              finishers.append((element.get("BibNo"), int(element.get("AgeOnRaceDay")), hours * 3600 + minutes * 60 + seconds))
+              hours, minutes, seconds = (int(part) for part in element.attrib["ChipTime"].split(":"))
+              finishers.append((element.attrib["BibNo"], int(element.attrib["AgeOnRaceDay"]), hours * 3600 + minutes * 60 + seconds))
 
           groups: dict[str, list[tuple[int, str]]] = defaultdict(list)
           for bib, age, chip_seconds in finishers:
@@ -50,9 +50,9 @@ cases:
         def read_finishers(chronotrack_xml: str) -> list[Finisher]:
             finishers = []
             for element in ET.fromstring(chronotrack_xml).iter(f"{CHRONOTRACK}Finisher"):
-                hours, minutes, seconds = (int(part) for part in element.get("ChipTime").split(":"))
+                hours, minutes, seconds = (int(part) for part in element.attrib["ChipTime"].split(":"))
                 seconds_total = hours * 3600 + minutes * 60 + seconds
-                finishers.append(Finisher(element.get("BibNo"), int(element.get("AgeOnRaceDay")), seconds_total))
+                finishers.append(Finisher(element.attrib["BibNo"], int(element.attrib["AgeOnRaceDay"]), seconds_total))
             return finishers
       races/awards.py: |
         from collections import defaultdict
@@ -110,17 +110,20 @@ cases:
           def release(self, number: int) -> None:
               self._holders[number] = None
 
-          def zpl_tag(self, number: int, member_name: str) -> str:
+          def zpl_tag(self, number: int) -> str:
+              member_id = self._holders[number]
+              if member_id is None:
+                  raise ValueError(f"locker {number} is free")
               return (
                   "^XA"
                   f"^FO40,30^A0N,60,60^FDLocker {number}^FS"
-                  f"^FO40,110^A0N,30,30^FD{member_name.upper()[:24]}^FS"
+                  f"^FO40,110^A0N,30,30^FDMember {member_id[:24]}^FS"
                   f"^FO40,160^BCN,80,Y,N,N^FD{number:05d}^FS"
                   "^XZ"
               )
   expected_output:
     outcome: invalid
-- name: locker assignments gain a swap built from their own assign and release
+- name: locker assignments gain a move to the next free locker, built from their own assign and release
   inputs:
     file: gym/lockers.py
     before: |
@@ -254,8 +257,8 @@ cases:
               time = element.find(f"{GPX}time")
               points.append(
                   TrackPoint(
-                      latitude=float(element.get("lat")),
-                      longitude=float(element.get("lon")),
+                      latitude=float(element.attrib["lat"]),
+                      longitude=float(element.attrib["lon"]),
                       elevation_m=float(elevation.text) if elevation is not None else None,
                       recorded_at=datetime.fromisoformat(time.text) if time is not None else None,
                   )
@@ -263,7 +266,190 @@ cases:
           return points
   expected_output:
     outcome: valid
-- name: adds an import
+- name: a refund quote rejects an unpaid ticket, logs and counts the quote as part of working out the refund rules
+  inputs:
+    file: box_office/refunds.py
+    after: |
+      import logging
+      from dataclasses import dataclass
+      from decimal import Decimal
+
+      from prometheus_client import Counter
+
+      log = logging.getLogger(__name__)
+      REFUND_QUOTES = Counter("refund_quotes_total", "Refund amounts quoted at the box office")
+
+
+      @dataclass(frozen=True)
+      class Purchase:
+          ticket_id: str
+          paid: Decimal
+          days_before_show: int
+
+
+      def refund_amount(purchase: Purchase) -> Decimal:
+          if purchase.paid <= 0:
+              raise ValueError(f"ticket {purchase.ticket_id} was not paid for")
+          if purchase.days_before_show >= 14:
+              amount = purchase.paid
+          elif purchase.days_before_show >= 3:
+              amount = (purchase.paid / 2).quantize(Decimal("0.01"))
+          else:
+              amount = Decimal("0.00")
+          log.info("refund quote for ticket %s: %s", purchase.ticket_id, amount)
+          REFUND_QUOTES.inc()
+          return amount
+  expected_output:
+    outcome: valid
+- name: a library suspends an overdue member between loading and saving them, which holds only the suspension rules
+  inputs:
+    file: library/suspensions.py
+    unchanged:
+      library/members.py: |
+        from dataclasses import dataclass
+        from datetime import date
+        from typing import Protocol
+
+
+        @dataclass(frozen=True)
+        class Loan:
+            item_id: str
+            due: date
+
+
+        @dataclass
+        class Member:
+            member_id: str
+            loans: list[Loan]
+            suspended: bool
+
+
+        class MemberRepository(Protocol):
+            def get(self, member_id: str) -> Member: ...
+
+            def save(self, member: Member) -> None: ...
+    after: |
+      from datetime import date
+
+      from library.members import MemberRepository
+
+
+      def suspend_if_overdue(members: MemberRepository, member_id: str, today: date) -> None:
+          member = members.get(member_id)
+          overdue = [loan for loan in member.loans if loan.due < today]
+          if len(overdue) >= 3 or any((today - loan.due).days > 30 for loan in overdue):
+              member.suspended = True
+              members.save(member)
+  expected_output:
+    outcome: valid
+- name: a hotel booking model answers its nights, long-stay status and overlaps from its own columns
+  inputs:
+    file: hotel/models.py
+    after: |
+      from datetime import date
+
+      from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+
+      class Base(DeclarativeBase):
+          pass
+
+
+      LONG_STAY_NIGHTS = 7
+
+
+      class Booking(Base):
+          __tablename__ = "bookings"
+
+          id: Mapped[int] = mapped_column(primary_key=True)
+          room_number: Mapped[str]
+          check_in: Mapped[date]
+          check_out: Mapped[date]
+
+          @property
+          def nights(self) -> int:
+              return (self.check_out - self.check_in).days
+
+          @property
+          def is_long_stay(self) -> bool:
+              return self.nights >= LONG_STAY_NIGHTS
+
+          def overlaps(self, other: "Booking") -> bool:
+              return (
+                  self.room_number == other.room_number
+                  and self.check_in < other.check_out
+                  and other.check_in < self.check_out
+              )
+  expected_output:
+    outcome: valid
+- name: a restaurant wait list gains texting through Twilio's API, which none of its other methods use, so a new SMS vendor means editing the wait list
+  inputs:
+    file: restaurant/wait_list.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Party:
+          party_id: str
+          name: str
+          phone: str
+          size: int
+
+
+      class WaitList:
+          def __init__(self) -> None:
+              self._waiting: list[Party] = []
+
+          def add(self, party: Party) -> None:
+              self._waiting.append(party)
+
+          def seat_next(self, free_seats: int) -> Party | None:
+              for party in self._waiting:
+                  if party.size <= free_seats:
+                      self._waiting.remove(party)
+                      return party
+              return None
+    after: |
+      from dataclasses import dataclass
+
+      import httpx
+
+
+      @dataclass(frozen=True)
+      class Party:
+          party_id: str
+          name: str
+          phone: str
+          size: int
+
+
+      class WaitList:
+          def __init__(self, twilio: httpx.Client, account_sid: str, from_number: str) -> None:
+              self._waiting: list[Party] = []
+              self._twilio = twilio
+              self._account_sid = account_sid
+              self._from_number = from_number
+
+          def add(self, party: Party) -> None:
+              self._waiting.append(party)
+
+          def seat_next(self, free_seats: int) -> Party | None:
+              for party in self._waiting:
+                  if party.size <= free_seats:
+                      self._waiting.remove(party)
+                      return party
+              return None
+
+          def text_table_ready(self, party: Party) -> None:
+              response = self._twilio.post(
+                  f"https://api.twilio.com/2010-04-01/Accounts/{self._account_sid}/Messages.json",
+                  data={"From": self._from_number, "To": party.phone, "Body": f"{party.name}, your table is ready."},
+              )
+              response.raise_for_status()
+  expected_output:
+    outcome: invalid
+- name: an added import is outside every function, so the rule does not run
   inputs:
     file: races/podium.py
     before: |
@@ -443,25 +629,28 @@ cases:
   inputs:
     file: src/feedback/nps.ts
     after: |
-      interface TypeformExport {
-        form_response: {
-          definition: { fields: { id: string; ref: string; type: string }[] };
-          answers: { field: { id: string }; type: string; number?: number }[];
-        }[];
-      }
+      import { z } from "zod";
+
+      const typeformExport = z.object({
+        form_response: z.array(
+          z.object({
+            definition: z.object({ fields: z.array(z.object({ id: z.string(), ref: z.string(), type: z.string() })) }),
+            answers: z.array(z.object({ field: z.object({ id: z.string() }), type: z.string(), number: z.number().optional() })),
+          }),
+        ),
+      });
 
       const PROMOTER_MIN_SCORE = 9;
       const DETRACTOR_MAX_SCORE = 6;
 
       export function netPromoterScore(exportJson: string): number {
-        const payload: TypeformExport = JSON.parse(exportJson);
+        const payload = typeformExport.parse(JSON.parse(exportJson));
         const scores: number[] = [];
         for (const response of payload.form_response) {
           const question = response.definition.fields.find((f) => f.ref === "recommend" && f.type === "opinion_scale");
           const answer = response.answers.find((a) => a.field.id === question?.id && a.type === "number");
           if (answer?.number !== undefined) scores.push(answer.number);
         }
-        if (scores.length === 0) return 0;
         const promoters = scores.filter((score) => score >= PROMOTER_MIN_SCORE).length;
         const detractors = scores.filter((score) => score <= DETRACTOR_MAX_SCORE).length;
         return Math.round(((promoters - detractors) / scores.length) * 100);
@@ -471,6 +660,19 @@ cases:
 - name: an order handler parses the request, calls the service and sends its answer
   inputs:
     file: src/orders/handlers.ts
+    unchanged:
+      src/orders/service.ts: |
+        export interface Order {
+          id: string;
+          status: "open" | "cancelled";
+          cancelReason: string | null;
+        }
+
+        export interface OrderService {
+          cancel(orderId: string, reason: string): Promise<Order>;
+        }
+
+        export declare const orders: OrderService;
     after: |
       import type { Request, Response } from "express";
       import { z } from "zod";
@@ -512,3 +714,179 @@ cases:
       }
   expected_output:
     outcome: valid
+- name: a group ticket handler works out the discount tiers in its own body, so a new price list means editing the HTTP endpoint
+  inputs:
+    file: src/tickets/handlers.ts
+    after: |
+      import type { Request, Response } from "express";
+      import { z } from "zod";
+
+      const quoteQuery = z.object({ tickets: z.coerce.number().int().positive() });
+
+      const FULL_PRICE_CENTS = 4500;
+      const GROUP_OF_10_CENTS = 4000;
+      const GROUP_OF_20_CENTS = 3600;
+
+      export function groupTicketQuote(req: Request, res: Response): void {
+        const { tickets } = quoteQuery.parse(req.query);
+        let unitCents = FULL_PRICE_CENTS;
+        if (tickets >= 20) {
+          unitCents = GROUP_OF_20_CENTS;
+        } else if (tickets >= 10) {
+          unitCents = GROUP_OF_10_CENTS;
+        }
+        res.status(200).json({ totalCents: tickets * unitCents });
+      }
+  expected_output:
+    outcome: invalid
+- name: a late fee rejects a return before the loan, logs and counts the fee as part of working out the fee rules
+  inputs:
+    file: src/library/lateFees.ts
+    after: |
+      import pino from "pino";
+      import { Counter } from "prom-client";
+
+      const log = pino();
+      const lateFeesCharged = new Counter({ name: "late_fees_charged_total", help: "Late fees worked out at return" });
+
+      export interface Loan {
+        itemId: string;
+        borrowedOn: Date;
+        dueOn: Date;
+        returnedOn: Date;
+        isReference: boolean;
+      }
+
+      const DAILY_FEE_CENTS = 25;
+      const REFERENCE_DAILY_FEE_CENTS = 100;
+      const MAX_FEE_CENTS = 1000;
+      const MS_PER_DAY = 86_400_000;
+
+      export function lateFeeCents(loan: Loan): number {
+        if (loan.returnedOn < loan.borrowedOn) {
+          throw new Error(`item ${loan.itemId} was returned before it was borrowed`);
+        }
+        const daysLate = Math.ceil((loan.returnedOn.getTime() - loan.dueOn.getTime()) / MS_PER_DAY);
+        const daily = loan.isReference ? REFERENCE_DAILY_FEE_CENTS : DAILY_FEE_CENTS;
+        const fee = daysLate > 0 ? Math.min(daysLate * daily, MAX_FEE_CENTS) : 0;
+        log.info({ itemId: loan.itemId, fee }, "late fee worked out");
+        lateFeesCharged.inc();
+        return fee;
+      }
+  expected_output:
+    outcome: valid
+- name: a subscription pauses after failed charges between loading and saving it, which holds only the pause rules
+  inputs:
+    file: src/billing/pauseSubscription.ts
+    unchanged:
+      src/billing/subscriptions.ts: |
+        export interface Subscription {
+          id: string;
+          status: "active" | "paused";
+          failedCharges: number;
+          lastChargeAttempt: Date;
+        }
+
+        export interface SubscriptionRepository {
+          find(id: string): Promise<Subscription>;
+          save(subscription: Subscription): Promise<void>;
+        }
+    after: |
+      import type { SubscriptionRepository } from "./subscriptions";
+
+      const MAX_FAILED_CHARGES = 3;
+
+      export async function pauseAfterFailedCharges(subscriptions: SubscriptionRepository, id: string): Promise<void> {
+        const subscription = await subscriptions.find(id);
+        if (subscription.status === "active" && subscription.failedCharges >= MAX_FAILED_CHARGES) {
+          await subscriptions.save({ ...subscription, status: "paused" });
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a gym membership entity answers whether it is active and how long it runs from its own columns
+  inputs:
+    file: src/gym/membership.entity.ts
+    after: |
+      import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
+
+      @Entity()
+      export class Membership {
+        @PrimaryGeneratedColumn()
+        id!: number;
+
+        @Column()
+        memberId!: string;
+
+        @Column()
+        startsOn!: Date;
+
+        @Column()
+        endsOn!: Date;
+
+        @Column()
+        frozen!: boolean;
+
+        isActiveOn(day: Date): boolean {
+          return !this.frozen && this.startsOn <= day && day < this.endsOn;
+        }
+
+        get lengthInDays(): number {
+          return Math.round((this.endsOn.getTime() - this.startsOn.getTime()) / 86_400_000);
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a gradebook gains posting grades to Canvas's API, which none of its other methods use, so an LMS change means editing the gradebook
+  inputs:
+    file: src/school/gradebook.ts
+    before: |
+      export class Gradebook {
+        private readonly scores = new Map<string, number>();
+
+        record(studentId: string, score: number): void {
+          this.scores.set(studentId, score);
+        }
+
+        classAverage(): number {
+          const all = [...this.scores.values()];
+          return all.reduce((sum, score) => sum + score, 0) / all.length;
+        }
+      }
+    after: |
+      export class Gradebook {
+        private readonly scores = new Map<string, number>();
+
+        constructor(
+          private readonly canvasBaseUrl: string,
+          private readonly canvasToken: string,
+        ) {}
+
+        record(studentId: string, score: number): void {
+          this.scores.set(studentId, score);
+        }
+
+        classAverage(): number {
+          const all = [...this.scores.values()];
+          return all.reduce((sum, score) => sum + score, 0) / all.length;
+        }
+
+        async postToCanvas(courseId: string, assignmentId: string): Promise<void> {
+          const gradeData = Object.fromEntries(
+            [...this.scores].map(([studentId, score]) => [studentId, { posted_grade: String(score) }]),
+          );
+          const response = await fetch(
+            `${this.canvasBaseUrl}/api/v1/courses/${courseId}/assignments/${assignmentId}/submissions/update_grades`,
+            {
+              method: "POST",
+              headers: { Authorization: `Bearer ${this.canvasToken}`, "Content-Type": "application/json" },
+              body: JSON.stringify({ grade_data: gradeData }),
+            },
+          );
+          if (!response.ok) {
+            throw new Error(`Canvas rejected the grades: ${response.status}`);
+          }
+        }
+      }
+  expected_output:
+    outcome: invalid
