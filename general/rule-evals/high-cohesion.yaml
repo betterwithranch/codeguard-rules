@@ -99,7 +99,7 @@ cases:
     outcome: invalid
 - name: a dtos module groups three unrelated data classes by kind
   inputs:
-    file: hotel/dtos.py
+    file: common/dtos.py
     after: |
       from dataclasses import dataclass
       from datetime import datetime
@@ -107,47 +107,21 @@ cases:
 
 
       @dataclass(frozen=True)
-      class GuestContact:
-          email: str
-          phone: str
+      class ShipmentWeight:
+          parcel_id: str
+          grams: int
 
 
       @dataclass(frozen=True)
-      class MinibarCharge:
-          item: str
-          price: Decimal
+      class ExchangeRate:
+          currency: str
+          per_euro: Decimal
 
 
       @dataclass(frozen=True)
-      class ShuttleBooking:
-          pickup_at: datetime
-          seats: int
-  expected_output:
-    outcome: invalid
-- name: a geo point the planner takes is also a field of the route, so it is not the planner's own shape
-  inputs:
-    file: routing/planner.py
-    after: |
-      from dataclasses import dataclass
-
-
-      @dataclass(frozen=True)
-      class GeoPoint:
-          latitude: float
-          longitude: float
-
-
-      @dataclass(frozen=True)
-      class Route:
-          stops: tuple[GeoPoint, ...]
-
-
-      class RoutePlanner:
-          def __init__(self, depot: GeoPoint) -> None:
-              self._depot = depot
-
-          def round_trip(self, deliveries: tuple[GeoPoint, ...]) -> Route:
-              return Route(stops=(self._depot, *deliveries, self._depot))
+      class LoginAttempt:
+          username: str
+          attempted_at: datetime
   expected_output:
     outcome: invalid
 - name: editing a line inside a postcode format class that sits beside the label printer
@@ -428,24 +402,29 @@ cases:
       }
   expected_output:
     outcome: invalid
-- name: an Elo rating with behavior of its own is exported beside the match rater that builds it
+- name: a night surcharge with behavior of its own is exported beside the taxi meter that builds it
   inputs:
-    file: chess/match-rater.ts
+    file: taxi/meter.ts
     after: |
-      export class EloRating {
-        constructor(private readonly kFactor: number) {}
+      export class NightSurcharge {
+        constructor(private readonly percent: number) {}
 
-        adjusted(rating: number, opponent: number, score: number): number {
-          const expected = 1 / (1 + 10 ** ((opponent - rating) / 400));
-          return rating + this.kFactor * (score - expected);
+        appliedTo(fareCents: number): number {
+          return Math.round((fareCents * (100 + this.percent)) / 100);
         }
       }
 
-      export class MatchRater {
-        private readonly elo = new EloRating(32);
+      export class TaxiMeter {
+        private readonly nightSurcharge = new NightSurcharge(20);
 
-        ratingAfter(rating: number, opponent: number, won: boolean): number {
-          return this.elo.adjusted(rating, opponent, won ? 1 : 0);
+        constructor(
+          private readonly baseCents: number,
+          private readonly centsPerKm: number,
+        ) {}
+
+        fareCents(distanceKm: number, atNight: boolean): number {
+          const fare = this.baseCents + Math.round(distanceKm * this.centsPerKm);
+          return atNight ? this.nightSurcharge.appliedTo(fare) : fare;
         }
       }
   expected_output:
@@ -485,29 +464,6 @@ cases:
       export interface PayrollRun {
         readonly period: string;
         readonly employeeCount: number;
-      }
-  expected_output:
-    outcome: invalid
-- name: a time range the booking desk takes is also a field of the booking, so it is not the desk's own shape
-  inputs:
-    file: rooms/booking-desk.ts
-    after: |
-      export interface TimeRange {
-        readonly start: Date;
-        readonly end: Date;
-      }
-
-      export interface Booking {
-        readonly roomId: string;
-        readonly slot: TimeRange;
-      }
-
-      export class BookingDesk {
-        constructor(private readonly roomId: string) {}
-
-        bookingFor(slot: TimeRange): Booking {
-          return { roomId: this.roomId, slot };
-        }
       }
   expected_output:
     outcome: invalid

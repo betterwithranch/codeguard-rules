@@ -1,6 +1,6 @@
 ---
 name: high-cohesion
-description: A module's public classes belong to its one concept; a public class with behavior of its own beside the module's primary type, a class unrelated to it, or unrelated classes grouped by construct kind is a violation.
+description: A module's public classes belong to its one concept; a public class the change adds or edits that has behavior of its own beside the module's primary type, is unrelated to it, or is one of unrelated classes grouped by construct kind is a violation.
 ---
 
 # High Cohesion
@@ -15,19 +15,20 @@ belong to them. A public class belongs to the concept when it is one of these:
   exception hierarchy or the subclasses of one abstract base, or the variants of a union
   the module declares;
 - a passive shape of the primary type: a class with no behavior of its own that appears
-  in the primary type's fields or method signatures, and in no other public class of
-  the module.
+  in the primary type's fields or method signatures, or in another passive shape of it.
 
 A class with behavior of its own is its own concept, even when the primary type is its
 only caller or builds it. Judge by the classes the module defines, not its file name: a
-module of enumerations or constants by kind is not one concept.
+module that groups classes by their kind, such as enumerations, constants or data shapes
+of unrelated concepts, is not one concept.
 
 ## Violation
 
 A public class the change adds or edits, in a module whose public classes are not all
 one concept, that falls outside the module's concept: a class with behavior beside the
 primary type, a class unrelated to the primary type, or one of several unrelated
-classes grouped by construct kind.
+classes grouped by construct kind. A change that edits any line inside such a class
+edits the class, even when the class was already in the module before the change.
 
 Report it on the line that declares the class outside the concept, or, when that line
 is unchanged, on a changed line inside the class.
