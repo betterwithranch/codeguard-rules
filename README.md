@@ -40,6 +40,7 @@ the languages it runs on.
 | `no-shared-mutable-state` | No shared mutable state: data belonging to one call or use is kept where only that call or use sees it, so code the change adds doesn't keep one call's data in module-level state or store each use's results on a shared instance | Not yet |
 | `liskov-substitution` | Liskov substitution: a subclass keeps every promise its base class makes, so an override the change adds doesn't raise where the base doesn't, ignore an argument, accept or return less, or stub out the base's work | Not yet |
 | `no-shotgun-surgery` | No shotgun surgery: one type owns each job on a concept, so a type the change adds or edits doesn't do a job another type already does to the same concept | Not yet |
+| `construction-in-its-home` | Construction in its home: what a new instance holds is decided by its type, its module, its factory or its source's mapper, so code the change adds doesn't build a program type from a source elsewhere or supply a default for one of its fields | Not yet |
 
 Each rule passes 20 of 20 eval runs on Claude before it ships, and CI's 3 runs before it
 merges. One check follows, and doesn't hold up the next rule:
