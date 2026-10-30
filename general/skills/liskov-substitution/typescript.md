@@ -19,6 +19,6 @@ member.
 
 - `save(record: Rec): void { this.audit(record); super.save(record); }`.
 - A class implementing an interface's methods by doing the work each one names.
-- An override of an `abstract` method.
+- An implementation of an `abstract` method that does the work it names.
 - A class extending one imported from another module, or a framework class such as
   `Error`.

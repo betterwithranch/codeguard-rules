@@ -5,11 +5,16 @@ valid:
   class FakeQueue:
       def enqueue(self, name, message):
           self.messages.append(message)
+# A class whose only argument is a metaclass, with no base class
+- |
+  class PluginRegistry(metaclass=RegistryMeta):
+      def register(self, plugin):
+          self.plugins.append(plugin)
 # A subclass with only class attributes
 - |
   class SlowFakeQueue(FakeQueue):
       delay = 5
-# A test class's methods
+# A test class's methods: the Test prefix
 - |
   class TestOrders(BaseOrderTest):
       def test_total(self):
@@ -41,9 +46,29 @@ invalid:
   class RecordingMailer(fakes.FakeMailer):
       def send(self, message):
           self.sent_count += 1
+# A subclass of a parameterized base
+- |
+  class TextCache(Cache[str]):
+      def get(self, key):
+          return self.entries[key]
+# A subclass with a base and a metaclass
+- |
+  class Exporter(Base, metaclass=ABCMeta):
+      def export(self, rows):
+          return rows
 # A subclass's __init__
 - |
   class SeededStore(FakeStore):
       def __init__(self):
           super().__init__()
           self.rows = [1]
+# A subclass whose name only ends in Test is not a test class
+- |
+  class ABTest(Experiment):
+      def variant(self, user):
+          return self.variants[0]
+# A subclass whose name only starts with the letters Test is not a test class
+- |
+  class Testimonial(Card):
+      def render(self):
+          return self.quote

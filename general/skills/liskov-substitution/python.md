@@ -7,7 +7,8 @@ names as a base. A method the base leaves for subclasses has `@abstractmethod`, 
 ## Violation
 
 - `def refund(self, payment, amount): raise NotImplementedError("refunds not
-  supported")` where the base's `refund` does the refund.
+  supported")` where the base's `refund` does the refund, or implementing an
+  `@abstractmethod` or `Protocol` member `refund`.
 - `def export(self, rows, include_header=True):` whose body never reads
   `include_header`, where the base's `export` writes the header only when it's true.
 - `def schedule(self, job, at):` that returns `None` for a past `at` the base runs at
@@ -21,5 +22,5 @@ names as a base. A method the base leaves for subclasses has `@abstractmethod`, 
 - An override typed `def parse(self, raw: str | bytes)` over a base's `parse(self, raw:
   str)`.
 - A method implementing an `@abstractmethod`, a `Protocol` member, or a base method
-  whose body is `raise NotImplementedError`.
+  whose body is `raise NotImplementedError`, by doing the work it names.
 - A subclass of a class imported from another module.

@@ -1,6 +1,6 @@
 ---
 name: liskov-substitution
-description: A subclass keeps every promise its base class makes; an override that raises where the base doesn't, ignores an argument, accepts less, returns less, or stubs out an inherited method is a violation.
+description: A subclass keeps every promise its base class makes; an override that raises where the base doesn't, ignores an argument, accepts less, returns less, stubs out an inherited method, or refuses every input is a violation.
 ---
 
 # Liskov Substitution
@@ -13,7 +13,9 @@ method accepts and uses, what it returns, the errors it raises, and the work it 
 A promise is read from the base's code in the file under review: its signature, its
 body, and its docstring or comment. A method the base leaves for subclasses to supply,
 with no body of its own (abstract, a protocol or interface member, or a body that only
-raises "not implemented"), promises its signature and docstring and nothing more.
+raises "not implemented"), promises its signature and docstring and nothing more. That
+is still a promise that the method can be called: an implementation that refuses every
+input breaks it.
 
 An override is a method of the subclass with the same name as a method of the base.
 
@@ -30,6 +32,8 @@ of the base's method:
   returns a value;
 - it stubs the inherited method out: a body that only passes, returns nothing or a
   constant, where the base's method does work.
+- it refuses every input: its body only raises, such as an "unsupported" or "not
+  implemented" error, even where the base leaves the method for subclasses to supply.
 
 Report it at the override.
 
@@ -38,7 +42,8 @@ Report it at the override.
 - An override that keeps the base's promises and adds to them: it calls the base's
   method and does more, or does the same work another way.
 - An override that accepts more or returns a narrower value than the base.
-- An implementation of a method the base leaves for subclasses to supply.
+- An implementation of a method the base leaves for subclasses to supply that does the
+  work its signature and docstring name.
 - An override that raises an error the base's method raises or documents.
 - A class whose base is not in the file under review: its promises can't be read here.
 - A test double: a fake, stub or mock class standing in for the base in tests.

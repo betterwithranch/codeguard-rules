@@ -10,9 +10,11 @@ rule:
         field: superclasses
         kind: argument_list
         has:
-          kind: identifier
-          stopBy: end
+          any:
+          - kind: identifier
+          - kind: attribute
+          - kind: subscript
     - not:
         has:
           field: name
-          regex: ^Test|Tests?$
+          regex: ^(Test([A-Z0-9_].*)?|.*[a-z0-9]Tests)$
