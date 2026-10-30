@@ -1,8 +1,11 @@
 # In TypeScript
 
 Data models are zod schemas, class-validator classes, and io-ts or valibot codecs.
-Validators are zod's `refine`, `superRefine` and `transform` checks, and
-class-validator decorators and custom constraints.
+Validators are zod's `refine`, `superRefine` and `transform` checks, valibot's `check`,
+and class-validator decorators and custom constraints.
+
+Request validation is the route handler, controller or service that handles a request
+after its body is parsed.
 
 ## Violation
 

@@ -1,10 +1,7 @@
 id: validator
 snapshots:
-  ? |
-    @field_validator('sku')
-    def check(cls, value):
-        return value
-  : labels:
+  "@field_validator('sku')\ndef check(cls, value):\n    return value\n":
+    labels:
     - source: |-
         @field_validator('sku')
         def check(cls, value):
@@ -12,15 +9,12 @@ snapshots:
       style: primary
       start: 0
       end: 63
-    - source: '@field_validator(''sku'')'
+    - source: "@field_validator('sku')"
       style: secondary
       start: 0
       end: 23
-  ? |
-    @model_validator(mode='after')
-    def check(self):
-        return self
-  : labels:
+  "@model_validator(mode='after')\ndef check(self):\n    return self\n":
+    labels:
     - source: |-
         @model_validator(mode='after')
         def check(self):
@@ -28,15 +22,12 @@ snapshots:
       style: primary
       start: 0
       end: 63
-    - source: '@model_validator(mode=''after'')'
+    - source: "@model_validator(mode='after')"
       style: secondary
       start: 0
       end: 30
-  ? |
-    @root_validator
-    def check(cls, values):
-        return values
-  : labels:
+  "@root_validator\ndef check(cls, values):\n    return values\n":
+    labels:
     - source: |-
         @root_validator
         def check(cls, values):
@@ -44,15 +35,12 @@ snapshots:
       style: primary
       start: 0
       end: 57
-    - source: '@root_validator'
+    - source: "@root_validator"
       style: secondary
       start: 0
       end: 15
-  ? |
-    @sku.validator
-    def _check_sku(self, attribute, value):
-        pass
-  : labels:
+  "@sku.validator\ndef _check_sku(self, attribute, value):\n    pass\n":
+    labels:
     - source: |-
         @sku.validator
         def _check_sku(self, attribute, value):
@@ -60,15 +48,45 @@ snapshots:
       style: primary
       start: 0
       end: 63
-    - source: '@sku.validator'
+    - source: "@sku.validator"
       style: secondary
       start: 0
       end: 14
-  ? |
-    class Shipment(BaseModel):
-        def model_post_init(self, context):
-            pass
-  : labels:
+  "@validator('sku')\ndef check(cls, value):\n    return value\n":
+    labels:
+    - source: |-
+        @validator('sku')
+        def check(cls, value):
+            return value
+      style: primary
+      start: 0
+      end: 57
+    - source: "@validator('sku')"
+      style: secondary
+      start: 0
+      end: 17
+  "Sku = Annotated[str, AfterValidator(check_sku)]\n":
+    labels:
+    - source: AfterValidator(check_sku)
+      style: primary
+      start: 21
+      end: 46
+    - source: AfterValidator
+      style: secondary
+      start: 21
+      end: 35
+  "Sku = Annotated[str, BeforeValidator(str.strip)]\n":
+    labels:
+    - source: BeforeValidator(str.strip)
+      style: primary
+      start: 21
+      end: 47
+    - source: BeforeValidator
+      style: secondary
+      start: 21
+      end: 36
+  "class Shipment(BaseModel):\n    def model_post_init(self, context):\n        pass\n":
+    labels:
     - source: |-
         def model_post_init(self, context):
                 pass
@@ -92,11 +110,8 @@ snapshots:
       style: secondary
       start: 35
       end: 50
-  ? |
-    class Shipment(models.Model):
-        def clean(self):
-            pass
-  : labels:
+  "class Shipment(models.Model):\n    def clean(self):\n        pass\n":
+    labels:
     - source: |-
         def clean(self):
                 pass
@@ -120,11 +135,8 @@ snapshots:
       style: secondary
       start: 38
       end: 43
-  ? |
-    class Shipment(models.Model):
-        def clean_sku(self):
-            return self.sku
-  : labels:
+  "class Shipment(models.Model):\n    def clean_sku(self):\n        return self.sku\n":
+    labels:
     - source: |-
         def clean_sku(self):
                 return self.sku
@@ -148,11 +160,8 @@ snapshots:
       style: secondary
       start: 38
       end: 47
-  ? |
-    class Shipment:
-        def __attrs_post_init__(self):
-            pass
-  : labels:
+  "class Shipment:\n    def __attrs_post_init__(self):\n        pass\n":
+    labels:
     - source: |-
         def __attrs_post_init__(self):
                 pass
@@ -176,11 +185,8 @@ snapshots:
       style: secondary
       start: 24
       end: 43
-  ? |
-    class Shipment:
-        def __post_init__(self):
-            pass
-  : labels:
+  "class Shipment:\n    def __post_init__(self):\n        pass\n":
+    labels:
     - source: |-
         def __post_init__(self):
                 pass
@@ -204,9 +210,72 @@ snapshots:
       style: secondary
       start: 24
       end: 37
-  ? |
-    sku = models.CharField(max_length=12, validators=[check_sku])
-  : labels:
+  "def check_sku(instance, attribute, value):\n    raise ValueError(value)\n\nsku: str = attrs.field(validator=check_sku)\n":
+    labels:
+    - source: |-
+        def check_sku(instance, attribute, value):
+            raise ValueError(value)
+      style: primary
+      start: 0
+      end: 70
+    - source: check_sku
+      style: secondary
+      start: 4
+      end: 13
+    - source: validator
+      style: secondary
+      start: 95
+      end: 104
+    - source: check_sku
+      style: secondary
+      start: 105
+      end: 114
+    - source: validator=check_sku
+      style: secondary
+      start: 95
+      end: 114
+    - source: |
+        def check_sku(instance, attribute, value):
+            raise ValueError(value)
+        
+        sku: str = attrs.field(validator=check_sku)
+      style: secondary
+      start: 0
+      end: 116
+  "def check_sku(value):\n    return value\n\nSku = Annotated[str, AfterValidator(check_sku)]\n":
+    labels:
+    - source: |-
+        def check_sku(value):
+            return value
+      style: primary
+      start: 0
+      end: 38
+    - source: check_sku
+      style: secondary
+      start: 4
+      end: 13
+    - source: AfterValidator
+      style: secondary
+      start: 61
+      end: 75
+    - source: check_sku
+      style: secondary
+      start: 76
+      end: 85
+    - source: AfterValidator(check_sku)
+      style: secondary
+      start: 61
+      end: 86
+    - source: |
+        def check_sku(value):
+            return value
+        
+        Sku = Annotated[str, AfterValidator(check_sku)]
+      style: secondary
+      start: 0
+      end: 88
+  "sku = models.CharField(max_length=12, validators=[check_sku])\n":
+    labels:
     - source: validators=[check_sku]
       style: primary
       start: 38
@@ -215,9 +284,8 @@ snapshots:
       style: secondary
       start: 38
       end: 48
-  ? |
-    sku: str = attrs.field(validator=check_sku)
-  : labels:
+  "sku: str = attrs.field(validator=check_sku)\n":
+    labels:
     - source: validator=check_sku
       style: primary
       start: 23

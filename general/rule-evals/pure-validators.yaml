@@ -1,0 +1,580 @@
+cases:
+- name: a dataclass needs a staff directory handed in to accept an employee, so it can't be built without one
+  inputs:
+    file: timesheets/entries.py
+    after: |
+      from dataclasses import InitVar, dataclass
+
+      from timesheets.directory import StaffDirectory
+
+
+      @dataclass(frozen=True)
+      class TimesheetEntry:
+          employee_id: str
+          hours: int
+          directory: InitVar[StaffDirectory]
+
+          def __post_init__(self, directory: StaffDirectory) -> None:
+              if not directory.has_employee(self.employee_id):
+                  raise ValueError(f"no employee {self.employee_id}")
+    unchanged:
+      timesheets/directory.py: |
+        class StaffDirectory:
+            def __init__(self, employee_ids: frozenset[str]) -> None:
+                self._employee_ids = employee_ids
+
+            def has_employee(self, employee_id: str) -> bool:
+                return employee_id in self._employee_ids
+  expected_output:
+    outcome: invalid
+- name: a settings model calls the payment gateway over HTTP to accept its URL, so settings fail to load while the gateway is down
+  inputs:
+    file: payments/settings.py
+    after: |
+      import httpx
+      from pydantic import HttpUrl, SecretStr, field_validator
+      from pydantic_settings import BaseSettings
+
+
+      class GatewaySettings(BaseSettings):
+          gateway_url: HttpUrl
+          gateway_api_key: SecretStr
+
+          @field_validator("gateway_url")
+          @classmethod
+          def gateway_answers(cls, value: HttpUrl) -> HttpUrl:
+              response = httpx.get(f"{value}health", timeout=5.0)
+              if response.status_code != 200:
+                  raise ValueError(f"the payment gateway at {value} is not answering")
+              return value
+  expected_output:
+    outcome: invalid
+- name: an attrs validator accepts an overseas address only when an environment variable allows it
+  inputs:
+    file: delivery/addresses.py
+    after: |
+      import os
+
+      import attrs
+
+
+      def shippable_country(_instance: object, _attribute: "attrs.Attribute[str]", value: str) -> None:
+          if value != "GB" and os.environ["SHIP_OVERSEAS"] != "yes":
+              raise ValueError(f"cannot ship to {value}")
+
+
+      @attrs.frozen
+      class DeliveryAddress:
+          street: str
+          postcode: str
+          country: str = attrs.field(validator=shippable_country)
+  expected_output:
+    outcome: invalid
+- name: an AfterValidator accepts only carriers registered while the program runs, so a request parses differently before and after registration
+  inputs:
+    file: shipping/requests.py
+    after: |
+      from typing import Annotated
+
+      from pydantic import AfterValidator, BaseModel
+
+      from shipping.carriers import CARRIER_NAMES
+
+
+      def registered_carrier(name: str) -> str:
+          if name not in CARRIER_NAMES:
+              raise ValueError(f"no carrier is registered as {name}")
+          return name
+
+
+      class ShipmentRequest(BaseModel):
+          tracking_number: str
+          carrier: Annotated[str, AfterValidator(registered_carrier)]
+    unchanged:
+      shipping/carriers.py: |
+        CARRIER_NAMES: set[str] = set()
+
+
+        def register_carrier(name: str) -> None:
+            CARRIER_NAMES.add(name)
+  expected_output:
+    outcome: invalid
+- name: a Django model's clean queries the other coupons to keep its code unique
+  inputs:
+    file: promotions/models.py
+    after: |
+      from django.core.exceptions import ValidationError
+      from django.db import models
+
+
+      class Coupon(models.Model):
+          code = models.CharField(max_length=20)
+          percent_off = models.PositiveSmallIntegerField()
+
+          def clean(self) -> None:
+              if Coupon.objects.filter(code=self.code).exclude(pk=self.pk).exists():
+                  raise ValidationError({"code": "another coupon already uses this code"})
+  expected_output:
+    outcome: invalid
+- name: a Django model's clean reads the holiday table, so a delivery valid today can fail once a holiday is added
+  inputs:
+    file: deliveries/models.py
+    after: |
+      from django.core.exceptions import ValidationError
+      from django.db import models
+
+
+      class Holiday(models.Model):
+          day = models.DateField(unique=True)
+
+
+      class Delivery(models.Model):
+          address = models.TextField()
+          deliver_on = models.DateField()
+
+          def clean(self) -> None:
+              if Holiday.objects.filter(day=self.deliver_on).exists():
+                  raise ValidationError({"deliver_on": "there are no deliveries on a holiday"})
+  expected_output:
+    outcome: invalid
+- name: an edit makes a pydantic validator read its ticket limit from Django settings instead of a constant
+  inputs:
+    file: events/orders.py
+    before: |
+      from pydantic import BaseModel, Field, field_validator
+
+      MAX_TICKETS_PER_ORDER = 8
+
+
+      class TicketOrderIn(BaseModel):
+          event_id: int
+          tickets: int = Field(gt=0)
+
+          @field_validator("tickets")
+          @classmethod
+          def within_limit(cls, value: int) -> int:
+              if value > MAX_TICKETS_PER_ORDER:
+                  raise ValueError(f"an order takes at most {MAX_TICKETS_PER_ORDER} tickets")
+              return value
+    after: |
+      from django.conf import settings
+      from pydantic import BaseModel, Field, field_validator
+
+
+      class TicketOrderIn(BaseModel):
+          event_id: int
+          tickets: int = Field(gt=0)
+
+          @field_validator("tickets")
+          @classmethod
+          def within_limit(cls, value: int) -> int:
+              if value > settings.MAX_TICKETS_PER_ORDER:
+                  raise ValueError(f"an order takes at most {settings.MAX_TICKETS_PER_ORDER} tickets")
+              return value
+  expected_output:
+    outcome: invalid
+- name: a msgspec struct checks its star rating against a constant bound
+  inputs:
+    file: reviews/structs.py
+    after: |
+      import msgspec
+
+      MAX_STARS = 5
+
+
+      class Review(msgspec.Struct, frozen=True):
+          product_id: int
+          stars: int
+          comment: str
+
+          def __post_init__(self) -> None:
+              if not 1 <= self.stars <= MAX_STARS:
+                  raise ValueError(f"a review gives 1 to {MAX_STARS} stars")
+  expected_output:
+    outcome: valid
+- name: a pydantic model validator checks a refund against the amount paid on the same model
+  inputs:
+    file: refunds/schemas.py
+    after: |
+      from decimal import Decimal
+      from typing import Self
+
+      from pydantic import BaseModel, Field, model_validator
+
+
+      class RefundIn(BaseModel):
+          paid: Decimal = Field(gt=0)
+          refunded: Decimal = Field(gt=0)
+
+          @model_validator(mode="after")
+          def refund_within_payment(self) -> Self:
+              if self.refunded > self.paid:
+                  raise ValueError("a refund cannot exceed the amount paid")
+              return self
+  expected_output:
+    outcome: valid
+- name: an attrs validator checks a unit against a set of metric units the module declares
+  inputs:
+    file: recipes/ingredients.py
+    after: |
+      import attrs
+
+      METRIC_UNITS = frozenset({"g", "kg", "ml", "l"})
+
+
+      @attrs.frozen
+      class Ingredient:
+          name: str
+          quantity: float
+          unit: str = attrs.field()
+
+          @unit.validator
+          def _metric_unit(self, _attribute: "attrs.Attribute[str]", value: str) -> None:
+              if value not in METRIC_UNITS:
+                  raise ValueError(f"{value} is not a metric unit")
+  expected_output:
+    outcome: valid
+- name: a Django model keeps gift card codes unique with a unique column, not a query
+  inputs:
+    file: giftcards/models.py
+    after: |
+      from django.core.validators import MaxValueValidator
+      from django.db import models
+
+
+      class GiftCard(models.Model):
+          code = models.CharField(max_length=16, unique=True)
+          balance_pence = models.PositiveIntegerField(validators=[MaxValueValidator(50_000)])
+  expected_output:
+    outcome: valid
+- name: a Django form checks the transfer's recipient account is open, as request validation outside a data model
+  inputs:
+    file: banking/forms.py
+    after: |
+      from django import forms
+
+      from banking.models import Account
+
+
+      class TransferForm(forms.Form):
+          recipient_number = forms.CharField(max_length=8)
+          amount_pence = forms.IntegerField(min_value=1)
+
+          def clean_recipient_number(self) -> str:
+              number: str = self.cleaned_data["recipient_number"]
+              if not Account.objects.filter(number=number, closed=False).exists():
+                  raise forms.ValidationError("no open account has this number")
+              return number
+    unchanged:
+      banking/models.py: |
+        from django.db import models
+
+
+        class Account(models.Model):
+            number = models.CharField(max_length=8, unique=True)
+            closed = models.BooleanField()
+  expected_output:
+    outcome: valid
+- name: a function rounds a price
+  inputs:
+    file: billing/rounding.py
+    after: |
+      from decimal import ROUND_HALF_UP, Decimal
+
+
+      def round_price(amount: Decimal) -> Decimal:
+          return amount.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+  expected_output:
+    outcome: skipped
+- name: a zod superRefine loads the warehouse row to accept a pickup
+  inputs:
+    file: pickups/schema.ts
+    after: |
+      import { z } from "zod";
+      import { prisma } from "../db";
+
+      export const pickupSchema = z
+        .object({
+          warehouseId: z.string().uuid(),
+          pickupOn: z.coerce.date(),
+        })
+        .superRefine(async (pickup, ctx) => {
+          const warehouse = await prisma.warehouse.findUniqueOrThrow({
+            where: { id: pickup.warehouseId },
+          });
+          if (!warehouse.acceptsPickups) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              path: ["warehouseId"],
+              message: "this warehouse takes no pickups",
+            });
+          }
+        });
+    unchanged:
+      db.ts: |
+        import { PrismaClient } from "@prisma/client";
+
+        export const prisma = new PrismaClient();
+  expected_output:
+    outcome: invalid
+- name: a class-validator constraint looks up other creators to keep a handle unique
+  inputs:
+    file: creators/profile-input.ts
+    after: |
+      import {
+        Matches,
+        Validate,
+        ValidatorConstraint,
+        type ValidatorConstraintInterface,
+      } from "class-validator";
+      import { prisma } from "../db";
+
+      @ValidatorConstraint({ name: "handleNotTaken", async: true })
+      export class HandleNotTaken implements ValidatorConstraintInterface {
+        async validate(handle: string): Promise<boolean> {
+          const other = await prisma.creator.findUnique({ where: { handle } });
+          return other === null;
+        }
+      }
+
+      export class CreatorProfileInput {
+        @Matches(/^[a-z0-9_]{3,30}$/)
+        @Validate(HandleNotTaken, { message: "another creator already has this handle" })
+        handle!: string;
+      }
+    unchanged:
+      db.ts: |
+        import { PrismaClient } from "@prisma/client";
+
+        export const prisma = new PrismaClient();
+  expected_output:
+    outcome: invalid
+- name: a zod refine asks an outside VAT service whether the number exists, so parsing fails while the service is down
+  inputs:
+    file: companies/schema.ts
+    after: |
+      import { z } from "zod";
+
+      export const vatRegistrationSchema = z.object({
+        companyName: z.string().min(1),
+        vatNumber: z
+          .string()
+          .regex(/^GB\d{9}$/)
+          .refine(
+            async (vatNumber) => {
+              const response = await fetch(`https://vat-check.example.com/numbers/${vatNumber}`);
+              return response.ok;
+            },
+            { message: "the VAT service doesn't know this number" },
+          ),
+      });
+  expected_output:
+    outcome: invalid
+- name: a zod transform rejects urgent tickets unless an environment variable switches them on
+  inputs:
+    file: support/schema.ts
+    after: |
+      import { z } from "zod";
+
+      export const ticketSchema = z.object({
+        subject: z.string().min(1),
+        priority: z.enum(["low", "normal", "urgent"]).transform((priority, ctx) => {
+          if (priority === "urgent" && process.env.URGENT_TICKETS !== "on") {
+            ctx.addIssue({ code: z.ZodIssueCode.custom, message: "urgent tickets are switched off" });
+            return z.NEVER;
+          }
+          return priority;
+        }),
+      });
+  expected_output:
+    outcome: invalid
+- name: a valibot check accepts only export formats registered while the program runs
+  inputs:
+    file: exports/schema.ts
+    after: |
+      import * as v from "valibot";
+      import { isRegisteredExporter } from "./registry";
+
+      export const exportJobSchema = v.object({
+        reportId: v.pipe(v.string(), v.uuid()),
+        format: v.pipe(
+          v.string(),
+          v.check((format) => isRegisteredExporter(format), "no exporter is registered for this format"),
+        ),
+      });
+    unchanged:
+      exports/registry.ts: |
+        const exporterNames = new Set<string>();
+
+        export function registerExporter(name: string): void {
+          exporterNames.add(name);
+        }
+
+        export function isRegisteredExporter(name: string): boolean {
+          return exporterNames.has(name);
+        }
+  expected_output:
+    outcome: invalid
+- name: a zod schema built from a room directory handed in checks the room is big enough
+  inputs:
+    file: bookings/schema.ts
+    after: |
+      import { z } from "zod";
+      import type { RoomDirectory } from "./rooms";
+
+      export function bookingSchema(rooms: RoomDirectory) {
+        return z
+          .object({
+            roomId: z.string().uuid(),
+            seats: z.number().int().positive(),
+          })
+          .refine((booking) => rooms.capacityOf(booking.roomId) >= booking.seats, {
+            message: "the room is too small for this booking",
+          });
+      }
+    unchanged:
+      bookings/rooms.ts: |
+        export interface RoomDirectory {
+          capacityOf(roomId: string): number;
+        }
+  expected_output:
+    outcome: invalid
+- name: an edit makes a zod schema take its team size limit from environment config instead of a constant
+  inputs:
+    file: teams/schema.ts
+    before: |
+      import { z } from "zod";
+
+      const MAX_TEAM_SIZE = 12;
+
+      export const teamSchema = z.object({
+        name: z.string().min(1),
+        memberIds: z.array(z.string().uuid()).min(1).max(MAX_TEAM_SIZE),
+      });
+    after: |
+      import { z } from "zod";
+      import { config } from "../config";
+
+      export const teamSchema = z.object({
+        name: z.string().min(1),
+        memberIds: z.array(z.string().uuid()).min(1).max(config.MAX_TEAM_SIZE),
+      });
+    unchanged:
+      config.ts: |
+        import { z } from "zod";
+
+        export const config = z
+          .object({ MAX_TEAM_SIZE: z.coerce.number().int().positive() })
+          .parse(process.env);
+  expected_output:
+    outcome: invalid
+- name: a zod superRefine checks an abstract's word count against a constant bound
+  inputs:
+    file: submissions/schema.ts
+    after: |
+      import { z } from "zod";
+
+      const MAX_ABSTRACT_WORDS = 250;
+
+      export const submissionSchema = z.object({
+        title: z.string().min(1),
+        abstract: z.string().superRefine((abstract, ctx) => {
+          const words = abstract.trim().split(/\s+/).length;
+          if (words > MAX_ABSTRACT_WORDS) {
+            ctx.addIssue({
+              code: z.ZodIssueCode.custom,
+              message: `an abstract has at most ${MAX_ABSTRACT_WORDS} words`,
+            });
+          }
+        }),
+      });
+  expected_output:
+    outcome: valid
+- name: a zod refine checks a parcel's insured value against its declared value
+  inputs:
+    file: parcels/schema.ts
+    after: |
+      import { z } from "zod";
+
+      export const parcelSchema = z
+        .object({
+          declaredValuePence: z.number().int().positive(),
+          insuredValuePence: z.number().int().nonnegative(),
+        })
+        .refine((parcel) => parcel.insuredValuePence <= parcel.declaredValuePence, {
+          message: "a parcel can't be insured for more than its declared value",
+          path: ["insuredValuePence"],
+        });
+  expected_output:
+    outcome: valid
+- name: a class-validator class checks a locale against a list of locales the module declares
+  inputs:
+    file: profiles/settings-input.ts
+    after: |
+      import { IsIn, IsString, Length } from "class-validator";
+
+      const SUPPORTED_LOCALES = ["en-GB", "fr-FR", "de-DE"] as const;
+
+      export class ProfileSettingsInput {
+        @IsString()
+        @Length(1, 60)
+        displayName!: string;
+
+        @IsIn(SUPPORTED_LOCALES)
+        locale!: (typeof SUPPORTED_LOCALES)[number];
+      }
+  expected_output:
+    outcome: valid
+- name: a TypeORM entity keeps voucher codes unique with a unique column, not a query
+  inputs:
+    file: vouchers/voucher.entity.ts
+    after: |
+      import { IsString, Length } from "class-validator";
+      import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
+
+      @Entity()
+      export class Voucher {
+        @PrimaryGeneratedColumn("uuid")
+        id!: string;
+
+        @Column({ unique: true })
+        @IsString()
+        @Length(8, 8)
+        code!: string;
+      }
+  expected_output:
+    outcome: valid
+- name: a request handler checks the chosen plan exists after parsing the body, as request validation outside a data model
+  inputs:
+    file: subscriptions/handlers.ts
+    after: |
+      import type { Request, Response } from "express";
+      import { z } from "zod";
+      import { prisma } from "../db";
+
+      const subscribeBody = z.object({
+        accountId: z.string().uuid(),
+        planId: z.string().uuid(),
+      });
+
+      export async function subscribe(req: Request, res: Response): Promise<void> {
+        const parsed = subscribeBody.safeParse(req.body);
+        if (!parsed.success) {
+          res.status(400).json({ issues: parsed.error.issues });
+          return;
+        }
+        const plan = await prisma.plan.findUnique({ where: { id: parsed.data.planId } });
+        if (plan === null) {
+          res.status(404).json({ error: "no such plan" });
+          return;
+        }
+        const subscription = await prisma.subscription.create({ data: parsed.data });
+        res.status(201).json({ id: subscription.id });
+      }
+    unchanged:
+      db.ts: |
+        import { PrismaClient } from "@prisma/client";
+
+        export const prisma = new PrismaClient();
+  expected_output:
+    outcome: valid

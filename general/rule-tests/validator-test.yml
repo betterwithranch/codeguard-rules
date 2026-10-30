@@ -17,6 +17,15 @@ valid:
 # A keyword argument with another name
 - |
   sku: str = attrs.field(converter=str.upper)
+# A function passed as a converter, not a validator
+- |
+  def normalise_sku(value):
+      return value.upper()
+
+  sku: str = attrs.field(converter=normalise_sku)
+# A call to a function whose name only ends in Validator
+- |
+  checker = make_validator(schema)
 invalid:
 # pydantic field_validator
 - |
@@ -28,6 +37,11 @@ invalid:
   @model_validator(mode='after')
   def check(self):
       return self
+# pydantic v1 validator
+- |
+  @validator('sku')
+  def check(cls, value):
+      return value
 # pydantic v1 root_validator
 - |
   @root_validator
@@ -69,3 +83,21 @@ invalid:
 # Django field validators argument
 - |
   sku = models.CharField(max_length=12, validators=[check_sku])
+# pydantic AfterValidator in Annotated
+- |
+  Sku = Annotated[str, AfterValidator(check_sku)]
+# pydantic BeforeValidator in Annotated
+- |
+  Sku = Annotated[str, BeforeValidator(str.strip)]
+# Body of a function passed as validator=
+- |
+  def check_sku(instance, attribute, value):
+      raise ValueError(value)
+
+  sku: str = attrs.field(validator=check_sku)
+# Body of a function passed to AfterValidator
+- |
+  def check_sku(value):
+      return value
+
+  Sku = Annotated[str, AfterValidator(check_sku)]

@@ -18,3 +18,35 @@ rule:
     has:
       field: name
       regex: ^validators?$
+  - kind: call
+    has:
+      field: function
+      regex: ^(\w+\.)?(After|Before|Wrap|Plain)Validator$
+  - kind: function_definition
+    all:
+    - has:
+        field: name
+        pattern: $FUNC
+    - inside:
+        kind: module
+        has:
+          stopBy: end
+          any:
+          - kind: keyword_argument
+            all:
+            - has:
+                field: name
+                regex: ^validators?$
+            - has:
+                field: value
+                stopBy: end
+                pattern: $FUNC
+          - kind: call
+            all:
+            - has:
+                field: function
+                regex: ^(\w+\.)?(After|Before|Wrap|Plain)Validator$
+            - has:
+                field: arguments
+                stopBy: end
+                pattern: $FUNC
