@@ -1,5 +1,85 @@
 id: no-middle-man
 snapshots:
+  "class ExampleService {\n  constructor(private readonly repository: ExampleRepository) {}\n\n  get(id: string) {\n    // Reads through to the store.\n    return this.repository.get(id);\n  }\n\n  save(example: Example) {\n    this.repository.save(example);\n  }\n}\n":
+    labels:
+    - source: |-
+        class ExampleService {
+          constructor(private readonly repository: ExampleRepository) {}
+        
+          get(id: string) {
+            // Reads through to the store.
+            return this.repository.get(id);
+          }
+        
+          save(example: Example) {
+            this.repository.save(example);
+          }
+        }
+      style: primary
+      start: 0
+      end: 252
+    - source: this.repository.save(example)
+      style: secondary
+      start: 216
+      end: 245
+    - source: this.repository.save(example);
+      style: secondary
+      start: 216
+      end: 246
+    - source: |-
+        {
+            this.repository.save(example);
+          }
+      style: secondary
+      start: 210
+      end: 250
+    - source: this.repository.get(id)
+      style: secondary
+      start: 155
+      end: 178
+    - source: return this.repository.get(id);
+      style: secondary
+      start: 148
+      end: 179
+    - source: |-
+        {
+            // Reads through to the store.
+            return this.repository.get(id);
+          }
+      style: secondary
+      start: 107
+      end: 183
+    - source: |-
+        get(id: string) {
+            // Reads through to the store.
+            return this.repository.get(id);
+          }
+      style: secondary
+      start: 91
+      end: 183
+    - source: |-
+        save(example: Example) {
+            this.repository.save(example);
+          }
+      style: secondary
+      start: 187
+      end: 250
+    - source: |-
+        {
+          constructor(private readonly repository: ExampleRepository) {}
+        
+          get(id: string) {
+            // Reads through to the store.
+            return this.repository.get(id);
+          }
+        
+          save(example: Example) {
+            this.repository.save(example);
+          }
+        }
+      style: secondary
+      start: 21
+      end: 252
   "class ExampleService {\n  constructor(private readonly repository: ExampleRepository) {}\n\n  get(id: string) {\n    return this.repository.get(id);\n  }\n\n  save(example: Example) {\n    this.repository.save(example);\n  }\n}\n":
     labels:
     - source: |-

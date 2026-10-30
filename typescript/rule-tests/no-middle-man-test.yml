@@ -67,6 +67,33 @@ valid:
       }
     }
 
+  # A method with a statement before its forwarding call
+  - |
+    class ExampleService {
+      constructor(private readonly repository: ExampleRepository, private readonly log: Logger) {}
+
+      get(id: string) {
+        this.log.info(id);
+        return this.repository.get(id);
+      }
+
+      save(example: Example) {
+        this.repository.save(example);
+      }
+    }
+
+  # A function held in a field counts as work of the class's own
+  - |
+    class ExampleService {
+      constructor(private readonly repository: ExampleRepository) {}
+
+      get = (id: string) => this.repository.get(id);
+
+      save(example: Example) {
+        this.repository.save(example);
+      }
+    }
+
 invalid:
   # Returned and bare forwarding calls
   - |
@@ -93,5 +120,20 @@ invalid:
 
       async save(example: Example) {
         await this.repository.save(example);
+      }
+    }
+
+  # A comment in a forwarding method
+  - |
+    class ExampleService {
+      constructor(private readonly repository: ExampleRepository) {}
+
+      get(id: string) {
+        // Reads through to the store.
+        return this.repository.get(id);
+      }
+
+      save(example: Example) {
+        this.repository.save(example);
       }
     }

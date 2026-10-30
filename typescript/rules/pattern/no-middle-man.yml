@@ -6,9 +6,11 @@ note: |
   The class adds nothing: every method passes its call to the same collaborator. Have
   callers use the collaborator directly, or give the class work of its own. A class
   that extends or implements another is not matched, since forwarding there adapts the
-  collaborator to that type.
+  collaborator to that type. A decorated method, an accessor, and a function held in a
+  field count as work of the class's own: the rule matches only plain methods.
 metadata:
   why: A layer that only forwards is one more place to read and change, and hides which object does the work.
+  severity: A warning, not an error, because a class that forwards on purpose (a seam kept for a planned second implementation, or one a framework requires) looks the same to the pattern.
 utils:
   forwarding-call:
     any:
@@ -23,9 +25,10 @@ utils:
       kind: statement_block
       all:
       - not:
-          has: {nthChild: 2}
+          has:
+            nthChild: {position: 2, ofRule: {not: {kind: comment}}}
       - has:
-          nthChild: 1
+          nthChild: {position: 1, ofRule: {not: {kind: comment}}}
           any:
           - kind: return_statement
             has: {matches: forwarding-call}

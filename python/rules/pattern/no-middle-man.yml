@@ -6,9 +6,11 @@ note: |
   The class adds nothing: every method passes its call to the same collaborator. Have
   callers use the collaborator directly, or give the class work of its own. A class
   with a base class is not matched, since forwarding there adapts the collaborator to
-  the base's interface.
+  the base's interface. A decorated method, a property among them, counts as work of
+  the class's own: the decorator may add behaviour the rule can't see.
 metadata:
   why: A layer that only forwards is one more place to read and change, and hides which object does the work.
+  severity: A warning, not an error, because a class that forwards on purpose (a seam kept for a planned second implementation, or one a framework requires) looks the same to the pattern.
 utils:
   forwarding-call:
     any:
@@ -23,9 +25,10 @@ utils:
       kind: block
       all:
       - not:
-          has: {nthChild: 3}
+          has:
+            nthChild: {position: 3, ofRule: {not: {kind: comment}}}
       - has:
-          nthChild: {position: 1, reverse: true}
+          nthChild: {position: 1, reverse: true, ofRule: {not: {kind: comment}}}
           any:
           - kind: return_statement
             has: {matches: forwarding-call}
@@ -33,20 +36,19 @@ utils:
             has: {matches: forwarding-call}
       - not:
           has:
-            nthChild: 1
+            nthChild: {position: 1, ofRule: {not: {kind: comment}}}
             not:
               any:
-              - nthChild: {position: 1, reverse: true}
+              - nthChild: {position: 1, reverse: true, ofRule: {not: {kind: comment}}}
               - kind: expression_statement
                 has: {kind: string}
-  method:
-    any:
-    - kind: function_definition
-    - kind: decorated_definition
 rule:
   kind: class_definition
   not:
-    has: {field: superclasses, kind: argument_list}
+    has:
+      field: superclasses
+      kind: argument_list
+      has: {nthChild: 1}
   has:
     field: body
     kind: block
