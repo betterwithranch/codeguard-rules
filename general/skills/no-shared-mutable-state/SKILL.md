@@ -29,6 +29,13 @@ Code the change adds or edits that keeps one use's data in shared state:
   results on the instance: they append to a list it holds, add to a total, or set the
   current item on it.
 
+Module-level state that a function both reads and adds to holds that call's data,
+unless the code says the state is meant to serve every use: its name, a comment or a
+docstring says it keeps what every use adds, or its keys are the function's inputs, as
+a cache's are. A name that only says what the state holds doesn't say how long it is
+kept. Without that, what an earlier call left in it is one call's data leaking into the
+next.
+
 Report it where the use's data is written into module-level state, or where the shared
 instance is created.
 
@@ -38,6 +45,8 @@ instance is created.
   handlers, loaded configuration.
 - State meant to outlive every use and serve them all: a cache keyed by its inputs, a
   connection pool, a lock, a metrics counter, an id sequence.
+- Module-level state whose name, comment or docstring says it keeps what every use
+  adds, for as long as the program runs.
 - A shared instance whose methods store nothing on it while working: a stateless
   service, a client, a formatter, a compiled pattern, frozen settings.
 - An object created inside the call, a local container, or data passed as arguments

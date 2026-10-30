@@ -40,6 +40,45 @@ cases:
           return duplicates
   expected_output:
     outcome: valid
+- name: a duplicate check reads and adds to a module-level set that nothing says should outlive one import, so it reports the last import's SKUs as duplicates
+  inputs:
+    file: catalog/importer.py
+    after: |
+      from catalog.models import ProductRow
+
+      _seen_skus: set[str] = set()
+
+
+      def duplicate_skus(rows: list[ProductRow]) -> list[str]:
+          duplicates = []
+          for row in rows:
+              if row.sku in _seen_skus:
+                  duplicates.append(row.sku)
+              _seen_skus.add(row.sku)
+          return duplicates
+  expected_output:
+    outcome: invalid
+- name: a duplicate check reads and adds to a module-level set its name and comment say holds every import's SKUs, so a SKU any earlier import brought in is a duplicate
+  inputs:
+    file: catalog/importer.py
+    after: |
+      from catalog.models import ProductRow
+
+      # Every SKU imported since the process started. A SKU that any earlier import
+      # already brought in is a duplicate, whichever import it came from.
+      _skus_from_every_import: set[str] = set()
+
+
+      def duplicate_skus(rows: list[ProductRow]) -> list[str]:
+          """Return the SKUs in rows that this or any earlier import already brought in."""
+          duplicates = []
+          for row in rows:
+              if row.sku in _skus_from_every_import:
+                  duplicates.append(row.sku)
+              _skus_from_every_import.add(row.sku)
+          return duplicates
+  expected_output:
+    outcome: valid
 - name: a cached fare calculator adds every journey to its own running total, so each rider's fare includes everyone before them
   inputs:
     file: transit/fares.py
