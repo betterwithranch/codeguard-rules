@@ -16,14 +16,6 @@ moves its skill, binding and eval, once:
   back once codeguard's Gemini judge is faster and steadier, and a failure on either
   then fails the build.
 
-One check comes after a rule ships and doesn't hold up the next rule. The README's
-rule table tracks it for each rule, and the plan isn't done until every rule has
-passed it:
-
-- **Validation**: the rule ships as a `warning`, and its findings on real changes, read
-  from codeguard's Logfire traces, show it flags what it should. A validated rule's
-  binding moves to `error`.
-
 A pattern rule moves its rule, binding, test and snapshot, once its rule tests have a
 case for each branch and `codeguard test` passes.
 

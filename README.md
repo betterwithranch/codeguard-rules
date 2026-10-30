@@ -29,46 +29,42 @@ convention in no language's terms, and a supplement beside it for each language,
 gets the skill and the supplement for the file's language. Its binding's `paths` name
 the languages it runs on.
 
-| Rule | Checks | Validated |
-|---|---|---|
-| `dry` | Don't Repeat Yourself: code the change adds doesn't state a computation, process, set or outside shape again when the file or a module it imports already states it | Not yet |
-| `domain-logic-separate-from-io` | Domain logic separate from I/O: a domain decision is made in code that does no I/O, so a function the change adds or edits doesn't decide and read or change state outside the program in the same body | Not yet |
-| `single-responsibility` | Single responsibility: a function or class has one reason to change, so a function's own body doesn't hold the details of two concerns (business rules, an outside system, a data format) and a class's methods don't serve two | Not yet |
-| `no-repeated-switches` | No repeated switches: behaviour chosen by which kind a value is (its class, or an enum member or tag naming its variant) is chosen in one place, unless the type checker proves every place covers every kind | Not yet |
-| `no-feature-envy` | No feature envy: a domain answer computed from one type's data lives in that type's module, so code elsewhere doesn't work an answer out from one value's fields alone | Not yet |
-| `fail-fast` | Fail fast: a failure, missing data or an impossible state is reported where it's found, so code the change adds doesn't swallow an error, default data that should exist, clamp an impossible value or drop the items that failed | Not yet |
-| `no-shared-mutable-state` | No shared mutable state: data belonging to one call or use is kept where only that call or use sees it, so code the change adds doesn't keep one call's data in module-level state or store each use's results on a shared instance | Not yet |
-| `liskov-substitution` | Liskov substitution: a subclass keeps every promise its base class makes, so an override the change adds doesn't raise where the base doesn't, ignore an argument, accept or return less, or stub out the base's work | Not yet |
-| `no-shotgun-surgery` | No shotgun surgery: one type owns each job on a concept, so a type the change adds or edits doesn't do a job another type already does to the same concept | Not yet |
-| `construction-in-its-home` | Construction in its home: what a new instance holds is decided by its type, its module, its factory or its source's mapper, so code the change adds doesn't build a program type from a source elsewhere or supply a default for one of its fields | Not yet |
-| `make-illegal-states-unrepresentable` | Make illegal states unrepresentable: a type's fields can't hold a combination the domain forbids, so a type the change adds or edits doesn't keep optional fields that must be set for some values of its status or kind field and empty for others | Not yet |
-| `composition-over-inheritance` | Composition over inheritance: a class inherits only from a type it is a kind of, so a class the change adds doesn't inherit from a program class just to reuse its code | Not yet |
-| `single-source-of-truth` | Single source of truth: a class doesn't store a value it can derive from one other value it holds, so a field the change adds doesn't repeat what another field, or a held object's field, already says | Not yet |
-| `single-writer` | Single writer: module-level state has one writer, so code the change adds doesn't write module-level state that another function, or code in another module, also writes | Not yet |
-| `no-disinformation` | No disinformation: a name claims nothing its body doesn't do, so a function, method or class name the change adds or renames has no verb, noun or qualifier its body makes false | Not yet |
-| `claim-check` | Claim check: a stored record crosses a task or queue boundary as its identity, so code the change adds doesn't pass a stored record, or a copy of all its fields, to work that runs later or in another process | Not yet |
-| `constructor-injection` | Constructor injection: a method's collaborators come through its object's constructor, so a method the change adds or edits doesn't take a client, repository, provider or other collaborator as a parameter on each call | Not yet |
-| `result-parts-named` | Result parts named: a function's result names what each of its parts means, so a return the change adds doesn't hand back parts that answer different questions in a tuple or an unchecked map | Not yet |
-| `validator-depends-on-its-data` | Validator depends on its data: a data model's validator uses only the model and its input, so it parses the same anywhere and its tests need no setup. | Not yet |
-| `no-recheck-of-guaranteed-condition` | No recheck of guaranteed condition: a check doesn't re-test what earlier code or a validator already guarantees, so one place owns each guarantee. | Not yet |
-| `discriminated-unions` | Discriminated unions: a parsed union's parser picks each variant from one unique tag, so parsing is fast and its errors name one variant. | Not yet |
-| `no-stamp-coupling` | No stamp coupling: a function takes the values it reads, not a bundle it mostly ignores, so its signature says what it depends on. | Not yet |
-| `high-cohesion` | High cohesion: a module's public classes belong to its one concept, so knowledge sits where its next change will look. | Not yet |
-| `packages-under-import-contract` | Packages under import contract: a package the change adds is under the project's import-boundary configuration, so the boundary tool keeps it from importing its siblings. | Not yet |
-| `command-query-separation` | Command-query separation: a function either changes state or returns an answer, not both, so asking never changes anything. | Not yet |
-| `law-of-demeter` | Law of Demeter: a function doesn't reach through one object into another's parts, so it depends only on its direct collaborators. | Not yet |
-| `intention-revealing-names` | Intention-revealing names: a name says what its body mainly does, so readers needn't open the body to learn it. | Not yet |
-| `one-word-per-concept` | One word per concept: one operation goes by one verb, so names predict each other. | Not yet |
-| `comments-explain-why` | Comments explain why: a comment or docstring states a fact from outside the code, so it can't go stale as a restatement of it. | Not yet |
-| `no-value-with-its-source` | No Value With Its Source: a call doesn't pass a value together with the input it was derived from | Not yet |
-| `threaded-state-own-module` | Threaded State Own Module: a workflow's threaded state has a module of its own | Not yet |
+| Rule | Checks |
+|---|---|
+| `dry` | Don't Repeat Yourself: code the change adds doesn't state a computation, process, set or outside shape again when the file or a module it imports already states it |
+| `domain-logic-separate-from-io` | Domain logic separate from I/O: a domain decision is made in code that does no I/O, so a function the change adds or edits doesn't decide and read or change state outside the program in the same body |
+| `single-responsibility` | Single responsibility: a function or class has one reason to change, so a function's own body doesn't hold the details of two concerns (business rules, an outside system, a data format) and a class's methods don't serve two |
+| `no-repeated-switches` | No repeated switches: behaviour chosen by which kind a value is (its class, or an enum member or tag naming its variant) is chosen in one place, unless the type checker proves every place covers every kind |
+| `no-feature-envy` | No feature envy: a domain answer computed from one type's data lives in that type's module, so code elsewhere doesn't work an answer out from one value's fields alone |
+| `fail-fast` | Fail fast: a failure, missing data or an impossible state is reported where it's found, so code the change adds doesn't swallow an error, default data that should exist, clamp an impossible value or drop the items that failed |
+| `no-shared-mutable-state` | No shared mutable state: data belonging to one call or use is kept where only that call or use sees it, so code the change adds doesn't keep one call's data in module-level state or store each use's results on a shared instance |
+| `liskov-substitution` | Liskov substitution: a subclass keeps every promise its base class makes, so an override the change adds doesn't raise where the base doesn't, ignore an argument, accept or return less, or stub out the base's work |
+| `no-shotgun-surgery` | No shotgun surgery: one type owns each job on a concept, so a type the change adds or edits doesn't do a job another type already does to the same concept |
+| `construction-in-its-home` | Construction in its home: what a new instance holds is decided by its type, its module, its factory or its source's mapper, so code the change adds doesn't build a program type from a source elsewhere or supply a default for one of its fields |
+| `make-illegal-states-unrepresentable` | Make illegal states unrepresentable: a type's fields can't hold a combination the domain forbids, so a type the change adds or edits doesn't keep optional fields that must be set for some values of its status or kind field and empty for others |
+| `composition-over-inheritance` | Composition over inheritance: a class inherits only from a type it is a kind of, so a class the change adds doesn't inherit from a program class just to reuse its code |
+| `single-source-of-truth` | Single source of truth: a class doesn't store a value it can derive from one other value it holds, so a field the change adds doesn't repeat what another field, or a held object's field, already says |
+| `single-writer` | Single writer: module-level state has one writer, so code the change adds doesn't write module-level state that another function, or code in another module, also writes |
+| `no-disinformation` | No disinformation: a name claims nothing its body doesn't do, so a function, method or class name the change adds or renames has no verb, noun or qualifier its body makes false |
+| `claim-check` | Claim check: a stored record crosses a task or queue boundary as its identity, so code the change adds doesn't pass a stored record, or a copy of all its fields, to work that runs later or in another process |
+| `constructor-injection` | Constructor injection: a method's collaborators come through its object's constructor, so a method the change adds or edits doesn't take a client, repository, provider or other collaborator as a parameter on each call |
+| `result-parts-named` | Result parts named: a function's result names what each of its parts means, so a return the change adds doesn't hand back parts that answer different questions in a tuple or an unchecked map |
+| `validator-depends-on-its-data` | Validator depends on its data: a data model's validator uses only the model and its input, so it parses the same anywhere and its tests need no setup. |
+| `no-recheck-of-guaranteed-condition` | No recheck of guaranteed condition: a check doesn't re-test what earlier code or a validator already guarantees, so one place owns each guarantee. |
+| `discriminated-unions` | Discriminated unions: a parsed union's parser picks each variant from one unique tag, so parsing is fast and its errors name one variant. |
+| `no-stamp-coupling` | No stamp coupling: a function takes the values it reads, not a bundle it mostly ignores, so its signature says what it depends on. |
+| `high-cohesion` | High cohesion: a module's public classes belong to its one concept, so knowledge sits where its next change will look. |
+| `packages-under-import-contract` | Packages under import contract: a package the change adds is under the project's import-boundary configuration, so the boundary tool keeps it from importing its siblings. |
+| `command-query-separation` | Command-query separation: a function either changes state or returns an answer, not both, so asking never changes anything. |
+| `law-of-demeter` | Law of Demeter: a function doesn't reach through one object into another's parts, so it depends only on its direct collaborators. |
+| `intention-revealing-names` | Intention-revealing names: a name says what its body mainly does, so readers needn't open the body to learn it. |
+| `one-word-per-concept` | One word per concept: one operation goes by one verb, so names predict each other. |
+| `comments-explain-why` | Comments explain why: a comment or docstring states a fact from outside the code, so it can't go stale as a restatement of it. |
+| `no-value-with-its-source` | No Value With Its Source: a call doesn't pass a value together with the input it was derived from |
+| `threaded-state-own-module` | Threaded State Own Module: a workflow's threaded state has a module of its own |
 
 Each judge rule passes 20 of 20 eval runs on Claude before it ships, and CI's 3 runs
-before it merges. One check follows, and doesn't hold up the next rule:
-
-- **Validated**: its findings on real changes, read from codeguard's Logfire traces,
-  show it flags what it should. Until then it's a `warning`: its findings print but don't
-  block. Once validated, its binding's `severity` moves it to `error`.
+before it merges. Each is a `warning`: its findings print but don't block.
 
 A rule's evals have cases in each language, reported apart, such as `dry (python)` and
 `dry (typescript)`. Gates in `general/gates/` are ast-grep rules for one language each;
