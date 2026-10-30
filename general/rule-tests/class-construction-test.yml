@@ -15,6 +15,14 @@ valid:
 - |
   def mark_shipped(order):
       return replace(order, status=shipped_status())
+# Construction passed as an argument with arguments passed through unchanged
+- |
+  def register(self, name):
+      self.handlers.add(Handler(name))
+# Construction as a dict key, not a value
+- |
+  def index(order):
+      return {Key(order.id): order}
 invalid:
 # Returned construction with keyword arguments
 - |
@@ -54,3 +62,20 @@ invalid:
 - |
   def handler_for(name):
       _handlers[name] = Handler(name=name, level=level_for(name))
+# Construction passed as a positional argument
+- |
+  def lend(self, book, member):
+      self.loans.add(Loan(book_id=book.id, member_id=member.id))
+# Construction passed as an argument to an awaited call
+- |
+  async def ship(self, order):
+      await self.repo.add(Shipment(order_id=order.id))
+# Construction passed as a keyword argument's value
+- |
+  def notify(self, order):
+      self.mailer.send(message=Notice(email=order.email))
+# Construction as a dict value
+- |
+  def payload(order):
+      body = {"shipment": Shipment(order_id=order.id)}
+      return body

@@ -36,6 +36,14 @@ rule:
           kind: return_statement
     - inside:
         kind: list_comprehension
+    - inside:
+        kind: argument_list
+    - inside:
+        kind: keyword_argument
+        field: value
+    - inside:
+        kind: pair
+        field: value
   - inside:
       stopBy: end
       kind: function_definition

@@ -1,0 +1,827 @@
+cases:
+- name: a backup scheduler gives retention a parameter default and passes it to the job, so other code building a job picks its own retention
+  inputs:
+    file: backups/scheduler.py
+    unchanged:
+      backups/__init__.py: ""
+      backups/models.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class BackupJob:
+            volume_id: str
+            retention_days: int
+      backups/ports.py: |
+        from typing import Protocol
+
+        from backups.models import BackupJob
+
+
+        class JobQueue(Protocol):
+            def push(self, job: BackupJob) -> None: ...
+    after: |
+      from backups.models import BackupJob
+      from backups.ports import JobQueue
+
+
+      class BackupScheduler:
+          def __init__(self, queue: JobQueue) -> None:
+              self.queue = queue
+
+          def schedule(self, volume_id: str, retention_days: int = 30) -> BackupJob:
+              job = BackupJob(volume_id=volume_id, retention_days=retention_days)
+              self.queue.push(job)
+              return job
+  expected_output:
+    outcome: invalid
+- name: the reminder class gives its repeat field a default in its own constructor, so every reminder built without one repeats the same way
+  inputs:
+    file: reminders/reminder.py
+    unchanged:
+      reminders/__init__.py: ""
+    before: |
+      from datetime import datetime
+      from enum import Enum
+
+
+      class Repeat(Enum):
+          NEVER = "never"
+          DAILY = "daily"
+          WEEKLY = "weekly"
+
+
+      class Reminder:
+          def __init__(self, text: str, due_at: datetime, repeat: Repeat) -> None:
+              self.text = text
+              self.due_at = due_at
+              self.repeat = repeat
+    after: |
+      from datetime import datetime
+      from enum import Enum
+
+
+      class Repeat(Enum):
+          NEVER = "never"
+          DAILY = "daily"
+          WEEKLY = "weekly"
+
+
+      class Reminder:
+          def __init__(self, text: str, due_at: datetime, repeat: Repeat = Repeat.NEVER) -> None:
+              self.text = text
+              self.due_at = due_at
+              self.repeat = repeat
+  expected_output:
+    outcome: valid
+- name: a note function falls back to team visibility in the argument, so other code building a note picks its own visibility
+  inputs:
+    file: helpdesk/notes.py
+    unchanged:
+      helpdesk/__init__.py: ""
+      helpdesk/models.py: |
+        from dataclasses import dataclass
+        from enum import Enum
+
+
+        class Visibility(Enum):
+            PRIVATE = "private"
+            TEAM = "team"
+            CUSTOMER = "customer"
+
+
+        @dataclass(frozen=True)
+        class Note:
+            ticket_id: int
+            text: str
+            visibility: Visibility
+      helpdesk/ports.py: |
+        from typing import Protocol
+
+        from helpdesk.models import Note
+
+
+        class NoteStore(Protocol):
+            def add(self, note: Note) -> None: ...
+    after: |
+      from helpdesk.models import Note, Visibility
+      from helpdesk.ports import NoteStore
+
+
+      def add_note(store: NoteStore, ticket_id: int, text: str, visibility: Visibility | None) -> Note:
+          note = Note(ticket_id=ticket_id, text=text, visibility=visibility or Visibility.TEAM)
+          store.add(note)
+          return note
+  expected_output:
+    outcome: invalid
+- name: a wallet service sets a missing currency to euros before building the wallet, so other code building a wallet picks its own currency
+  inputs:
+    file: wallets/service.py
+    unchanged:
+      wallets/__init__.py: ""
+      wallets/models.py: |
+        from dataclasses import dataclass
+        from enum import Enum
+
+
+        class Currency(Enum):
+            EUR = "EUR"
+            GBP = "GBP"
+            USD = "USD"
+
+
+        @dataclass(frozen=True)
+        class Wallet:
+            owner_id: int
+            currency: Currency
+      wallets/ports.py: |
+        from typing import Protocol
+
+        from wallets.models import Wallet
+
+
+        class WalletStore(Protocol):
+            def add(self, wallet: Wallet) -> None: ...
+    after: |
+      from wallets.models import Currency, Wallet
+      from wallets.ports import WalletStore
+
+
+      class WalletService:
+          def __init__(self, wallets: WalletStore) -> None:
+              self.wallets = wallets
+
+          def open_wallet(self, owner_id: int, currency: Currency | None) -> Wallet:
+              if currency is None:
+                  currency = Currency.EUR
+              wallet = Wallet(owner_id=owner_id, currency=currency)
+              self.wallets.add(wallet)
+              return wallet
+  expected_output:
+    outcome: invalid
+- name: a promotions service generates the code for a field the coupon leaves required, so each place building a coupon makes codes its own way
+  inputs:
+    file: promotions/service.py
+    unchanged:
+      promotions/__init__.py: ""
+      promotions/models.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Coupon:
+            code: str
+            percent_off: int
+      promotions/ports.py: |
+        from typing import Protocol
+
+        from promotions.models import Coupon
+
+
+        class CouponStore(Protocol):
+            def add(self, coupon: Coupon) -> None: ...
+    after: |
+      import secrets
+
+      from promotions.models import Coupon
+      from promotions.ports import CouponStore
+
+
+      class PromotionService:
+          def __init__(self, coupons: CouponStore) -> None:
+              self.coupons = coupons
+
+          def create_coupon(self, percent_off: int) -> Coupon:
+              coupon = Coupon(code=secrets.token_urlsafe(8), percent_off=percent_off)
+              self.coupons.add(coupon)
+              return coupon
+  expected_output:
+    outcome: invalid
+- name: a function added beside the support case class stamps today's date for a field the class leaves required, so cases built anywhere else stamp their own
+  inputs:
+    file: support/case.py
+    unchanged:
+      support/__init__.py: ""
+    before: |
+      from dataclasses import dataclass
+      from datetime import date
+
+
+      @dataclass(frozen=True)
+      class SupportCase:
+          subject: str
+          customer_id: int
+          opened_on: date
+    after: |
+      from dataclasses import dataclass
+      from datetime import date
+
+
+      @dataclass(frozen=True)
+      class SupportCase:
+          subject: str
+          customer_id: int
+          opened_on: date
+
+
+      def open_case(subject: str, customer_id: int) -> SupportCase:
+          return SupportCase(subject=subject, customer_id=customer_id, opened_on=date.today())
+  expected_output:
+    outcome: invalid
+- name: a function added beside the invoice class falls back to the customer's preferred currency, which is other data rather than a default
+  inputs:
+    file: billing/invoice.py
+    unchanged:
+      billing/__init__.py: ""
+      billing/customers.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Customer:
+            id: int
+            preferred_currency: str
+
+
+        @dataclass(frozen=True)
+        class Order:
+            id: int
+            customer_id: int
+            currency: str | None
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          order_id: int
+          currency: str
+    after: |
+      from dataclasses import dataclass
+
+      from billing.customers import Customer, Order
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          order_id: int
+          currency: str
+
+
+      def invoice_for(order: Order, customer: Customer) -> Invoice:
+          return Invoice(order_id=order.id, currency=order.currency or customer.preferred_currency)
+  expected_output:
+    outcome: valid
+- name: a session factory fills the token and start time from its injected collaborators, which are not defaults
+  inputs:
+    file: auth/session_factory.py
+    unchanged:
+      auth/__init__.py: ""
+      auth/models.py: |
+        from dataclasses import dataclass
+        from datetime import datetime
+
+
+        @dataclass(frozen=True)
+        class Session:
+            user_id: int
+            token: str
+            started_at: datetime
+      auth/ports.py: |
+        from datetime import datetime
+        from typing import Protocol
+
+
+        class Clock(Protocol):
+            def now(self) -> datetime: ...
+
+
+        class TokenSource(Protocol):
+            def new_token(self) -> str: ...
+    after: |
+      from auth.models import Session
+      from auth.ports import Clock, TokenSource
+
+
+      class SessionFactory:
+          def __init__(self, clock: Clock, tokens: TokenSource) -> None:
+              self.clock = clock
+              self.tokens = tokens
+
+          def start(self, user_id: int) -> Session:
+              return Session(user_id=user_id, token=self.tokens.new_token(), started_at=self.clock.now())
+  expected_output:
+    outcome: valid
+- name: refunds for a damaged or a late parcel each pass their own reason, a choice the default gate doesn't match
+  inputs:
+    file: returns/refunds.py
+    unchanged:
+      returns/__init__.py: ""
+      returns/models.py: |
+        from dataclasses import dataclass
+        from decimal import Decimal
+        from enum import Enum
+
+
+        class RefundReason(Enum):
+            DAMAGED = "damaged"
+            LATE = "late"
+
+
+        @dataclass(frozen=True)
+        class Refund:
+            order_id: int
+            amount: Decimal
+            reason: RefundReason
+    after: |
+      from decimal import Decimal
+
+      from returns.models import Refund, RefundReason
+
+
+      def refund_damaged(order_id: int, amount: Decimal) -> Refund:
+          return Refund(order_id=order_id, amount=amount, reason=RefundReason.DAMAGED)
+
+
+      def refund_late(order_id: int, amount: Decimal) -> Refund:
+          return Refund(order_id=order_id, amount=amount, reason=RefundReason.LATE)
+  expected_output:
+    outcome: skipped
+- name: a recent-orders query gives its page size a default, which configures the query and reaches no field
+  inputs:
+    file: orders/queries.py
+    unchanged:
+      orders/__init__.py: ""
+      orders/models.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Order:
+            id: int
+            customer_id: int
+      orders/ports.py: |
+        from typing import Protocol
+
+        from orders.models import Order
+
+
+        class OrderStore(Protocol):
+            def latest(self, customer_id: int, limit: int) -> list[Order]: ...
+    after: |
+      from orders.models import Order
+      from orders.ports import OrderStore
+
+
+      def recent_orders(store: OrderStore, customer_id: int, limit: int = 50) -> list[Order]:
+          return store.latest(customer_id, limit=limit)
+  expected_output:
+    outcome: valid
+- name: a dispatch service builds the delivery from the order and courier with no default, leaving the delivery's defaults to the delivery
+  inputs:
+    file: dispatch/service.py
+    unchanged:
+      dispatch/__init__.py: ""
+      dispatch/models.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Order:
+            id: int
+            zone: str
+            address: str
+
+
+        @dataclass(frozen=True)
+        class Courier:
+            id: int
+            name: str
+
+
+        @dataclass(frozen=True)
+        class Delivery:
+            order_id: int
+            courier_id: int
+            address: str
+
+
+        class NoCourierFree(Exception):
+            pass
+      dispatch/ports.py: |
+        from typing import Protocol
+
+        from dispatch.models import Courier, Delivery
+
+
+        class CourierPool(Protocol):
+            def free_courier(self, zone: str) -> Courier | None: ...
+
+
+        class DeliveryStore(Protocol):
+            def add(self, delivery: Delivery) -> None: ...
+    after: |
+      from dispatch.models import Delivery, NoCourierFree, Order
+      from dispatch.ports import CourierPool, DeliveryStore
+
+
+      class DispatchService:
+          def __init__(self, couriers: CourierPool, deliveries: DeliveryStore) -> None:
+              self.couriers = couriers
+              self.deliveries = deliveries
+
+          def dispatch(self, order: Order) -> Delivery:
+              courier = self.couriers.free_courier(order.zone)
+              if courier is None:
+                  raise NoCourierFree(order.zone)
+              delivery = Delivery(order_id=order.id, courier_id=courier.id, address=order.address)
+              self.deliveries.add(delivery)
+              return delivery
+  expected_output:
+    outcome: valid
+- name: an issue tracker gives the watcher's notify level a parameter default and passes it to the constructor, so other code building a watcher picks its own level
+  inputs:
+    file: issues/watching.ts
+    unchanged:
+      issues/watcher.ts: |
+        export type NotifyLevel = "all" | "mentions" | "none";
+
+        export class Watcher {
+          constructor(
+            readonly issueId: string,
+            readonly userId: string,
+            readonly level: NotifyLevel,
+          ) {}
+        }
+      issues/store.ts: |
+        import type { Watcher } from "./watcher";
+
+        export interface WatcherStore {
+          add(watcher: Watcher): Promise<void>;
+        }
+    after: |
+      import { Watcher, type NotifyLevel } from "./watcher";
+      import type { WatcherStore } from "./store";
+
+      export async function watchIssue(
+        store: WatcherStore,
+        issueId: string,
+        userId: string,
+        level: NotifyLevel = "mentions",
+      ): Promise<Watcher> {
+        const watcher = new Watcher(issueId, userId, level);
+        await store.add(watcher);
+        return watcher;
+      }
+  expected_output:
+    outcome: invalid
+- name: the watcher class declares its notify level default and the issue tracker leaves the level out
+  inputs:
+    file: issues/watching.ts
+    unchanged:
+      issues/watcher.ts: |
+        export type NotifyLevel = "all" | "mentions" | "none";
+
+        export class Watcher {
+          constructor(
+            readonly issueId: string,
+            readonly userId: string,
+            readonly level: NotifyLevel = "mentions",
+          ) {}
+        }
+      issues/store.ts: |
+        import type { Watcher } from "./watcher";
+
+        export interface WatcherStore {
+          add(watcher: Watcher): Promise<void>;
+        }
+    after: |
+      import { Watcher } from "./watcher";
+      import type { WatcherStore } from "./store";
+
+      export async function watchIssue(store: WatcherStore, issueId: string, userId: string): Promise<Watcher> {
+        const watcher = new Watcher(issueId, userId);
+        await store.add(watcher);
+        return watcher;
+      }
+  expected_output:
+    outcome: valid
+- name: a profile function falls back to the light theme in the argument, so other code building a profile picks its own theme
+  inputs:
+    file: profiles/save.ts
+    unchanged:
+      profiles/profile.ts: |
+        export type Theme = "light" | "dark";
+
+        export interface Profile {
+          userId: string;
+          displayName: string;
+          theme: Theme;
+        }
+      profiles/store.ts: |
+        import type { Profile } from "./profile";
+
+        export interface ProfileStore {
+          put(profile: Profile): Promise<void>;
+        }
+    after: |
+      import type { Profile, Theme } from "./profile";
+      import type { ProfileStore } from "./store";
+
+      export async function saveProfile(
+        store: ProfileStore,
+        userId: string,
+        displayName: string,
+        theme: Theme | undefined,
+      ): Promise<void> {
+        const profile: Profile = {
+          userId,
+          displayName,
+          theme: theme !== undefined ? theme : "light",
+        };
+        await store.put(profile);
+      }
+  expected_output:
+    outcome: invalid
+- name: a shipping service sets a missing speed to standard before building the shipment, so other code building a shipment picks its own speed
+  inputs:
+    file: shipping/service.ts
+    unchanged:
+      shipping/shipment.ts: |
+        export type ShippingSpeed = "standard" | "express";
+
+        export class Shipment {
+          constructor(readonly orderId: string, readonly speed: ShippingSpeed) {}
+        }
+      shipping/ports.ts: |
+        import type { Shipment } from "./shipment";
+
+        export interface ShipmentQueue {
+          push(shipment: Shipment): Promise<void>;
+        }
+    after: |
+      import { Shipment, type ShippingSpeed } from "./shipment";
+      import type { ShipmentQueue } from "./ports";
+
+      export class ShippingService {
+        constructor(private readonly queue: ShipmentQueue) {}
+
+        async ship(orderId: string, speed: ShippingSpeed | undefined): Promise<void> {
+          let chosen = speed;
+          if (chosen === undefined) {
+            chosen = "standard";
+          }
+          await this.queue.push(new Shipment(orderId, chosen));
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: an audit service stamps the current time for a field the audit entry leaves required, so each place building an entry stamps its own
+  inputs:
+    file: audit/service.ts
+    unchanged:
+      audit/entry.ts: |
+        export class AuditEntry {
+          constructor(
+            readonly actorId: string,
+            readonly action: string,
+            readonly recordedAtMs: number,
+          ) {}
+        }
+      audit/ports.ts: |
+        import type { AuditEntry } from "./entry";
+
+        export interface AuditLog {
+          append(entry: AuditEntry): Promise<void>;
+        }
+    after: |
+      import { AuditEntry } from "./entry";
+      import type { AuditLog } from "./ports";
+
+      export class AuditService {
+        constructor(private readonly log: AuditLog) {}
+
+        async record(actorId: string, action: string): Promise<void> {
+          await this.log.append(new AuditEntry(actorId, action, Date.now()));
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: a static method added to the board class generates the id for a field its constructor leaves required, so boards built with the constructor get none
+  inputs:
+    file: boards/board.ts
+    before: |
+      export class Board {
+        constructor(
+          readonly id: string,
+          readonly title: string,
+        ) {}
+      }
+    after: |
+      import { randomUUID } from "node:crypto";
+
+      export class Board {
+        constructor(
+          readonly id: string,
+          readonly title: string,
+        ) {}
+
+        static open(title: string): Board {
+          return new Board(randomUUID(), title);
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: a function added beside the reply type falls back to the agent's saved signature, which is other data rather than a default
+  inputs:
+    file: support/reply.ts
+    unchanged:
+      support/agent.ts: |
+        export interface Agent {
+          id: string;
+          savedSignature: string;
+        }
+    before: |
+      export interface Reply {
+        ticketId: string;
+        body: string;
+        signature: string;
+      }
+    after: |
+      import type { Agent } from "./agent";
+
+      export interface Reply {
+        ticketId: string;
+        body: string;
+        signature: string;
+      }
+
+      export function draftReply(ticketId: string, body: string, signature: string | undefined, agent: Agent): Reply {
+        return { ticketId, body, signature: signature ?? agent.savedSignature };
+      }
+  expected_output:
+    outcome: valid
+- name: an api key factory fills the key and creation time from its injected collaborators, which are not defaults
+  inputs:
+    file: keys/api-key-factory.ts
+    unchanged:
+      keys/api-key.ts: |
+        export class ApiKey {
+          constructor(
+            readonly ownerId: string,
+            readonly secret: string,
+            readonly createdAt: Date,
+          ) {}
+        }
+      keys/ports.ts: |
+        export interface Clock {
+          now(): Date;
+        }
+
+        export interface SecretGenerator {
+          next(): string;
+        }
+    after: |
+      import { ApiKey } from "./api-key";
+      import type { Clock, SecretGenerator } from "./ports";
+
+      export class ApiKeyFactory {
+        constructor(private readonly clock: Clock, private readonly secrets: SecretGenerator) {}
+
+        create(ownerId: string): ApiKey {
+          return new ApiKey(ownerId, this.secrets.next(), this.clock.now());
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: refunds for a damaged or a late parcel each pass their own reason, which is the call's choice rather than a default
+  inputs:
+    file: returns/refunds.ts
+    unchanged:
+      returns/refund.ts: |
+        export type RefundReason = "damaged" | "late";
+
+        export class Refund {
+          constructor(
+            readonly orderId: string,
+            readonly amountCents: number,
+            readonly reason: RefundReason,
+          ) {}
+        }
+    after: |
+      import { Refund } from "./refund";
+
+      export function refundDamaged(orderId: string, amountCents: number): Refund {
+        return new Refund(orderId, amountCents, "damaged");
+      }
+
+      export function refundLate(orderId: string, amountCents: number): Refund {
+        return new Refund(orderId, amountCents, "late");
+      }
+  expected_output:
+    outcome: valid
+- name: a recent-orders lookup gives its result limit a default, which configures the lookup and reaches no field
+  inputs:
+    file: orders/queries.ts
+    unchanged:
+      orders/order.ts: |
+        export interface Order {
+          id: string;
+          customerId: string;
+        }
+      orders/store.ts: |
+        import type { Order } from "./order";
+
+        export interface OrderStore {
+          latest(customerId: string, limit: number): Promise<Order[]>;
+        }
+    after: |
+      import type { Order } from "./order";
+      import type { OrderStore } from "./store";
+
+      export async function recentOrders(store: OrderStore, customerId: string, limit = 50): Promise<Order[]> {
+        return store.latest(customerId, limit);
+      }
+  expected_output:
+    outcome: valid
+- name: a dispatch service constructs the delivery from the order and courier it found with no default, leaving the delivery's defaults to the delivery
+  inputs:
+    file: dispatch/service.ts
+    unchanged:
+      dispatch/models.ts: |
+        export interface Order {
+          id: string;
+          zone: string;
+          address: string;
+        }
+
+        export interface Courier {
+          id: string;
+        }
+
+        export class Delivery {
+          constructor(
+            readonly orderId: string,
+            readonly courierId: string,
+            readonly address: string,
+          ) {}
+        }
+
+        export class NoCourierFree extends Error {}
+      dispatch/ports.ts: |
+        import type { Courier, Delivery } from "./models";
+
+        export interface CourierPool {
+          freeCourier(zone: string): Promise<Courier | undefined>;
+        }
+
+        export interface DeliveryStore {
+          add(delivery: Delivery): Promise<void>;
+        }
+    after: |
+      import { Delivery, NoCourierFree, type Order } from "./models";
+      import type { CourierPool, DeliveryStore } from "./ports";
+
+      export class DispatchService {
+        constructor(private readonly couriers: CourierPool, private readonly deliveries: DeliveryStore) {}
+
+        async dispatch(order: Order): Promise<Delivery> {
+          const courier = await this.couriers.freeCourier(order.zone);
+          if (courier === undefined) {
+            throw new NoCourierFree(order.zone);
+          }
+          const delivery = new Delivery(order.id, courier.id, order.address);
+          await this.deliveries.add(delivery);
+          return delivery;
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a newsletter signup spreads the defaults the preferences module declares beside its interface
+  inputs:
+    file: newsletter/signup.ts
+    unchanged:
+      newsletter/preferences.ts: |
+        export interface Preferences {
+          subscriberId: string;
+          frequency: "daily" | "weekly";
+          format: "html" | "text";
+        }
+
+        export const DEFAULT_PREFERENCES = { frequency: "weekly", format: "html" } as const;
+      newsletter/store.ts: |
+        import type { Preferences } from "./preferences";
+
+        export interface PreferenceStore {
+          save(preferences: Preferences): Promise<void>;
+        }
+    after: |
+      import { DEFAULT_PREFERENCES, type Preferences } from "./preferences";
+      import type { PreferenceStore } from "./store";
+
+      export async function subscribe(store: PreferenceStore, subscriberId: string): Promise<void> {
+        const preferences: Preferences = { ...DEFAULT_PREFERENCES, subscriberId };
+        await store.save(preferences);
+      }
+  expected_output:
+    outcome: valid

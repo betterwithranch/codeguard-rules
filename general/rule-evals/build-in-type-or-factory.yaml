@@ -1,0 +1,1129 @@
+cases:
+- name: a lending service works out a loan's fields from the book and member among its other work, so a change to how loans are made misses this place
+  inputs:
+    file: library/lending.py
+    unchanged:
+      library/__init__.py: ""
+      library/models.py: |
+        from dataclasses import dataclass
+        from datetime import date
+
+
+        @dataclass(frozen=True)
+        class Book:
+            id: int
+            title: str
+
+
+        @dataclass(frozen=True)
+        class Member:
+            id: int
+            email: str
+
+
+        @dataclass(frozen=True)
+        class Loan:
+            book_id: int
+            member_id: int
+            due_on: date
+      library/ports.py: |
+        from datetime import date
+        from typing import Protocol
+
+        from library.models import Loan
+
+
+        class LoanRepository(Protocol):
+            def add(self, loan: Loan) -> None: ...
+
+
+        class Mailer(Protocol):
+            def send_due_date(self, email: str, due_on: date) -> None: ...
+    after: |
+      from datetime import date, timedelta
+
+      from library.models import Book, Loan, Member
+      from library.ports import LoanRepository, Mailer
+
+
+      class LendingService:
+          def __init__(self, loans: LoanRepository, mailer: Mailer) -> None:
+              self.loans = loans
+              self.mailer = mailer
+
+          def lend(self, book: Book, member: Member, today: date) -> None:
+              loan = Loan(book_id=book.id, member_id=member.id, due_on=today + timedelta(days=21))
+              self.loans.add(loan)
+              self.mailer.send_due_date(member.email, loan.due_on)
+  expected_output:
+    outcome: invalid
+- name: a lending service has the loan's own constructor work out its fields, so how loans are made stays with the loan
+  inputs:
+    file: library/lending.py
+    unchanged:
+      library/__init__.py: ""
+      library/models.py: |
+        from dataclasses import dataclass
+        from datetime import date, timedelta
+
+
+        @dataclass(frozen=True)
+        class Book:
+            id: int
+            title: str
+
+
+        @dataclass(frozen=True)
+        class Member:
+            id: int
+            email: str
+
+
+        @dataclass(frozen=True)
+        class Loan:
+            book_id: int
+            member_id: int
+            due_on: date
+
+            @classmethod
+            def start(cls, book: Book, member: Member, today: date) -> "Loan":
+                return cls(book_id=book.id, member_id=member.id, due_on=today + timedelta(days=21))
+      library/ports.py: |
+        from datetime import date
+        from typing import Protocol
+
+        from library.models import Loan
+
+
+        class LoanRepository(Protocol):
+            def add(self, loan: Loan) -> None: ...
+
+
+        class Mailer(Protocol):
+            def send_due_date(self, email: str, due_on: date) -> None: ...
+    after: |
+      from datetime import date
+
+      from library.models import Book, Loan, Member
+      from library.ports import LoanRepository, Mailer
+
+
+      class LendingService:
+          def __init__(self, loans: LoanRepository, mailer: Mailer) -> None:
+              self.loans = loans
+              self.mailer = mailer
+
+          def lend(self, book: Book, member: Member, today: date) -> None:
+              loan = Loan.start(book, member, today=today)
+              self.loans.add(loan)
+              self.mailer.send_due_date(member.email, loan.due_on)
+  expected_output:
+    outcome: valid
+- name: a function added beside the parcel class builds a parcel from an order line, in the parcel's own module
+  inputs:
+    file: shipping/parcel.py
+    unchanged:
+      shipping/__init__.py: ""
+      shipping/orders.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class OrderLine:
+            sku: str
+            quantity: int
+            unit_grams: int
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Parcel:
+          sku: str
+          weight_grams: int
+    after: |
+      from dataclasses import dataclass
+
+      from shipping.orders import OrderLine
+
+
+      @dataclass(frozen=True)
+      class Parcel:
+          sku: str
+          weight_grams: int
+
+
+      def parcel_for(line: OrderLine) -> Parcel:
+          return Parcel(sku=line.sku, weight_grams=line.quantity * line.unit_grams)
+  expected_output:
+    outcome: valid
+- name: an invoice factory builds each invoice with the number and date its injected collaborators give, which the invoice can't hold itself
+  inputs:
+    file: billing/invoice_factory.py
+    unchanged:
+      billing/__init__.py: ""
+      billing/models.py: |
+        from dataclasses import dataclass
+        from datetime import date
+        from decimal import Decimal
+
+
+        @dataclass(frozen=True)
+        class Order:
+            id: int
+            total: Decimal
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            number: str
+            order_id: int
+            total: Decimal
+            issued_on: date
+      billing/ports.py: |
+        from datetime import date
+        from typing import Protocol
+
+
+        class Calendar(Protocol):
+            def today(self) -> date: ...
+
+
+        class InvoiceNumbers(Protocol):
+            def next_number(self) -> str: ...
+    after: |
+      from billing.models import Invoice, Order
+      from billing.ports import Calendar, InvoiceNumbers
+
+
+      class InvoiceFactory:
+          def __init__(self, calendar: Calendar, numbers: InvoiceNumbers) -> None:
+              self.calendar = calendar
+              self.numbers = numbers
+
+          def issue(self, order: Order) -> Invoice:
+              return Invoice(
+                  number=self.numbers.next_number(),
+                  order_id=order.id,
+                  total=order.total,
+                  issued_on=self.calendar.today(),
+              )
+  expected_output:
+    outcome: valid
+- name: a gym signup service gets the membership card from its factory, a call the construction gate doesn't match
+  inputs:
+    file: gym/signup.py
+    unchanged:
+      gym/__init__.py: ""
+      gym/models.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Athlete:
+            id: int
+            email: str
+
+
+        @dataclass(frozen=True)
+        class MembershipCard:
+            number: str
+            athlete_id: int
+      gym/ports.py: |
+        from typing import Protocol
+
+        from gym.models import Athlete, MembershipCard
+
+
+        class CardFactory(Protocol):
+            def issue(self, athlete: Athlete) -> MembershipCard: ...
+
+
+        class CardStore(Protocol):
+            def add(self, card: MembershipCard) -> None: ...
+    after: |
+      from gym.models import Athlete
+      from gym.ports import CardFactory, CardStore
+
+
+      class SignupService:
+          def __init__(self, cards: CardFactory, store: CardStore) -> None:
+              self.cards = cards
+              self.store = store
+
+          def sign_up(self, athlete: Athlete) -> None:
+              card = self.cards.issue(athlete)
+              self.store.add(card)
+  expected_output:
+    outcome: skipped
+- name: a carrier mapping module translates the carrier's typed scan event into the program's tracking update
+  inputs:
+    file: tracking/carrier_mapping.py
+    unchanged:
+      tracking/__init__.py: ""
+      tracking/carrier.py: |
+        from datetime import datetime
+
+        from pydantic import BaseModel
+
+
+        class CarrierScan(BaseModel):
+            tracking_no: str
+            scanned_at: datetime
+            facility_code: str
+            event_code: str
+      tracking/models.py: |
+        from dataclasses import dataclass
+        from datetime import datetime
+        from enum import Enum
+
+
+        class Stage(Enum):
+            PICKED_UP = "picked_up"
+            IN_TRANSIT = "in_transit"
+            DELIVERED = "delivered"
+
+
+        @dataclass(frozen=True)
+        class TrackingUpdate:
+            tracking_number: str
+            at: datetime
+            location: str
+            stage: Stage
+    after: |
+      from tracking.carrier import CarrierScan
+      from tracking.models import Stage, TrackingUpdate
+
+      STAGES = {"PU": Stage.PICKED_UP, "IT": Stage.IN_TRANSIT, "DL": Stage.DELIVERED}
+
+
+      def tracking_update_from_scan(scan: CarrierScan) -> TrackingUpdate:
+          return TrackingUpdate(
+              tracking_number=scan.tracking_no,
+              at=scan.scanned_at,
+              location=scan.facility_code,
+              stage=STAGES[scan.event_code],
+          )
+  expected_output:
+    outcome: valid
+- name: a device registry builds a device from the serial and owner it is given and stores it, passing its parameters through unchanged
+  inputs:
+    file: devices/registry.py
+    unchanged:
+      devices/__init__.py: ""
+      devices/models.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Device:
+            serial: str
+            owner_id: int
+      devices/ports.py: |
+        from typing import Protocol
+
+        from devices.models import Device
+
+
+        class DeviceStore(Protocol):
+            def add(self, device: Device) -> None: ...
+    after: |
+      from devices.models import Device
+      from devices.ports import DeviceStore
+
+
+      class DeviceRegistry:
+          def __init__(self, store: DeviceStore) -> None:
+              self.store = store
+
+          def register(self, serial: str, owner_id: int) -> Device:
+              device = Device(serial=serial, owner_id=owner_id)
+              self.store.add(device)
+              return device
+  expected_output:
+    outcome: valid
+- name: an export service starts each export job as queued, a value from no source, with the requester it is given
+  inputs:
+    file: exports/service.py
+    unchanged:
+      exports/__init__.py: ""
+      exports/models.py: |
+        from dataclasses import dataclass
+        from enum import Enum
+
+
+        class ExportStatus(Enum):
+            QUEUED = "queued"
+            RUNNING = "running"
+            DONE = "done"
+
+
+        @dataclass(frozen=True)
+        class ExportJob:
+            requested_by: int
+            status: ExportStatus
+      exports/ports.py: |
+        from typing import Protocol
+
+        from exports.models import ExportJob
+
+
+        class ExportQueue(Protocol):
+            def push(self, job: ExportJob) -> None: ...
+    after: |
+      from exports.models import ExportJob, ExportStatus
+      from exports.ports import ExportQueue
+
+
+      class ExportService:
+          def __init__(self, queue: ExportQueue) -> None:
+              self.queue = queue
+
+          def request_export(self, requested_by: int) -> ExportJob:
+              job = ExportJob(requested_by=requested_by, status=ExportStatus.QUEUED)
+              self.queue.push(job)
+              return job
+  expected_output:
+    outcome: valid
+- name: a booking service raises a seat-taken error carrying the seat's code, which the construction gate doesn't match
+  inputs:
+    file: flights/booking.py
+    unchanged:
+      flights/__init__.py: ""
+      flights/models.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Seat:
+            code: str
+            taken: bool
+
+
+        class SeatTaken(Exception):
+            def __init__(self, seat_code: str) -> None:
+                super().__init__(seat_code)
+                self.seat_code = seat_code
+    after: |
+      from flights.models import Seat, SeatTaken
+
+
+      def check_free(seat: Seat) -> None:
+          if seat.taken:
+              raise SeatTaken(seat_code=seat.code)
+  expected_output:
+    outcome: skipped
+- name: a fine calculation returns the fine it worked out from the dates it was given, as its answer
+  inputs:
+    file: library/fines.py
+    unchanged:
+      library/__init__.py: ""
+      library/models.py: |
+        from dataclasses import dataclass
+        from decimal import Decimal
+
+
+        @dataclass(frozen=True)
+        class Fine:
+            days_late: int
+            amount: Decimal
+    after: |
+      from datetime import date
+      from decimal import Decimal
+
+      from library.models import Fine
+
+
+      def fine_for(due_on: date, returned_on: date) -> Fine:
+          days_late = max((returned_on - due_on).days, 0)
+          amount = min(Decimal("0.25") * days_late, Decimal("10.00"))
+          return Fine(days_late=days_late, amount=amount)
+  expected_output:
+    outcome: valid
+- name: pausing copies the subscription with its pause date changed, which the construction gate doesn't match
+  inputs:
+    file: subscriptions/pausing.py
+    unchanged:
+      subscriptions/__init__.py: ""
+      subscriptions/models.py: |
+        from dataclasses import dataclass
+        from datetime import date
+
+
+        @dataclass(frozen=True)
+        class Subscription:
+            customer_id: int
+            plan: str
+            paused_until: date | None
+    after: |
+      import dataclasses
+      from datetime import date
+
+      from subscriptions.models import Subscription
+
+
+      def pause(subscription: Subscription, until: date) -> Subscription:
+          return dataclasses.replace(subscription, paused_until=until)
+  expected_output:
+    outcome: skipped
+- name: a reservation builds the hotel stay from its own fields, so how a stay is made is decided outside the stay
+  inputs:
+    file: hotel/reservation.py
+    unchanged:
+      hotel/__init__.py: ""
+      hotel/stay.py: |
+        from dataclasses import dataclass
+        from datetime import datetime
+
+
+        @dataclass(frozen=True)
+        class Stay:
+            guest_id: int
+            room_number: str
+            nights: int
+            checked_in_at: datetime
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Reservation:
+          guest_id: int
+          room_number: str
+          nights: int
+    after: |
+      from dataclasses import dataclass
+      from datetime import datetime
+
+      from hotel.stay import Stay
+
+
+      @dataclass(frozen=True)
+      class Reservation:
+          guest_id: int
+          room_number: str
+          nights: int
+
+          def check_in(self, at: datetime) -> Stay:
+              return Stay(
+                  guest_id=self.guest_id,
+                  room_number=self.room_number,
+                  nights=self.nights,
+                  checked_in_at=at,
+              )
+  expected_output:
+    outcome: invalid
+- name: a dispute handler builds the refund from the dispute's fields straight into the repository call, so a change to how refunds are made misses this place
+  inputs:
+    file: payments/disputes.py
+    unchanged:
+      payments/__init__.py: ""
+      payments/models.py: |
+        from dataclasses import dataclass
+        from decimal import Decimal
+
+
+        @dataclass(frozen=True)
+        class Dispute:
+            id: str
+            order_id: int
+            disputed_amount: Decimal
+            reason: str
+
+
+        @dataclass(frozen=True)
+        class Refund:
+            order_id: int
+            amount: Decimal
+            note: str
+      payments/ports.py: |
+        from typing import Protocol
+
+        from payments.models import Refund
+
+
+        class RefundRepository(Protocol):
+            async def add(self, refund: Refund) -> None: ...
+
+
+        class Ledger(Protocol):
+            async def close_dispute(self, dispute_id: str) -> None: ...
+    after: |
+      from payments.models import Dispute, Refund
+      from payments.ports import Ledger, RefundRepository
+
+
+      class DisputeHandler:
+          def __init__(self, refunds: RefundRepository, ledger: Ledger) -> None:
+              self.refunds = refunds
+              self.ledger = ledger
+
+          async def accept(self, dispute: Dispute) -> None:
+              await self.refunds.add(Refund(order_id=dispute.order_id, amount=dispute.disputed_amount, note=dispute.reason))
+              await self.ledger.close_dispute(dispute.id)
+  expected_output:
+    outcome: invalid
+- name: a comment handler adds a database record through the ORM session, which is the persistence library's to build
+  inputs:
+    file: blog/comments.py
+    unchanged:
+      blog/__init__.py: ""
+      blog/tables.py: |
+        from sqlalchemy import ForeignKey, String
+        from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+
+        class Base(DeclarativeBase):
+            pass
+
+
+        class Post(Base):
+            __tablename__ = "posts"
+            id: Mapped[int] = mapped_column(primary_key=True)
+            title: Mapped[str] = mapped_column(String(200))
+
+
+        class Reader(Base):
+            __tablename__ = "readers"
+            id: Mapped[int] = mapped_column(primary_key=True)
+            name: Mapped[str] = mapped_column(String(100))
+
+
+        class Comment(Base):
+            __tablename__ = "comments"
+            id: Mapped[int] = mapped_column(primary_key=True)
+            post_id: Mapped[int] = mapped_column(ForeignKey("posts.id"))
+            reader_id: Mapped[int] = mapped_column(ForeignKey("readers.id"))
+            body: Mapped[str] = mapped_column(String(2000))
+    after: |
+      from sqlalchemy.orm import Session
+
+      from blog.tables import Comment, Post, Reader
+
+
+      def add_comment(session: Session, post: Post, reader: Reader, body: str) -> None:
+          session.add(Comment(post_id=post.id, reader_id=reader.id, body=body))
+          session.commit()
+  expected_output:
+    outcome: valid
+- name: a backup job builds its archive path and size limit from library types, which are not the program's
+  inputs:
+    file: backups/job.py
+    unchanged:
+      backups/__init__.py: ""
+      backups/settings.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class BackupSettings:
+            root: str
+            max_gigabytes: int
+    after: |
+      from decimal import Decimal
+      from pathlib import Path
+
+      from backups.settings import BackupSettings
+
+
+      def archive_path(settings: BackupSettings, volume_name: str) -> Path:
+          root = Path(settings.root)
+          return root / f"{volume_name}.tar"
+
+
+      def size_limit_bytes(settings: BackupSettings) -> Decimal:
+          gigabytes = Decimal(settings.max_gigabytes)
+          return gigabytes * 1024**3
+  expected_output:
+    outcome: valid
+- name: a loan period constant changes, which builds nothing
+  inputs:
+    file: library/policy.py
+    before: |
+      LOAN_DAYS = 21
+    after: |
+      LOAN_DAYS = 28
+  expected_output:
+    outcome: skipped
+- name: a check-in service builds a boarding pass from the booking's fields among its other work, so a change to how passes are made misses this place
+  inputs:
+    file: checkin/service.ts
+    unchanged:
+      boarding/pass.ts: |
+        export class BoardingPass {
+          constructor(
+            readonly passenger: string,
+            readonly flight: string,
+            readonly seat: string,
+          ) {}
+        }
+      checkin/ports.ts: |
+        import type { BoardingPass } from "../boarding/pass";
+
+        export interface Booking {
+          passengerName: string;
+          flightNumber: string;
+          seat: string;
+        }
+
+        export interface BookingStore {
+          find(reference: string): Promise<Booking>;
+          markCheckedIn(reference: string): Promise<void>;
+        }
+
+        export interface PassPrinter {
+          print(pass: BoardingPass): Promise<void>;
+        }
+    after: |
+      import { BoardingPass } from "../boarding/pass";
+      import type { BookingStore, PassPrinter } from "./ports";
+
+      export class CheckInService {
+        constructor(private readonly bookings: BookingStore, private readonly printer: PassPrinter) {}
+
+        async checkIn(reference: string): Promise<void> {
+          const booking = await this.bookings.find(reference);
+          const pass = new BoardingPass(booking.passengerName, booking.flightNumber, booking.seat);
+          await this.bookings.markCheckedIn(reference);
+          await this.printer.print(pass);
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: a check-in service has the boarding pass's static constructor build it from the booking, so how passes are made stays with the pass
+  inputs:
+    file: checkin/service.ts
+    unchanged:
+      boarding/pass.ts: |
+        import type { Booking } from "../checkin/ports";
+
+        export class BoardingPass {
+          constructor(
+            readonly passenger: string,
+            readonly flight: string,
+            readonly seat: string,
+          ) {}
+
+          static forBooking(booking: Booking): BoardingPass {
+            return new BoardingPass(booking.passengerName, booking.flightNumber, booking.seat);
+          }
+        }
+      checkin/ports.ts: |
+        import type { BoardingPass } from "../boarding/pass";
+
+        export interface Booking {
+          passengerName: string;
+          flightNumber: string;
+          seat: string;
+        }
+
+        export interface BookingStore {
+          find(reference: string): Promise<Booking>;
+          markCheckedIn(reference: string): Promise<void>;
+        }
+
+        export interface PassPrinter {
+          print(pass: BoardingPass): Promise<void>;
+        }
+    after: |
+      import { BoardingPass } from "../boarding/pass";
+      import type { BookingStore, PassPrinter } from "./ports";
+
+      export class CheckInService {
+        constructor(private readonly bookings: BookingStore, private readonly printer: PassPrinter) {}
+
+        async checkIn(reference: string): Promise<void> {
+          const booking = await this.bookings.find(reference);
+          await this.bookings.markCheckedIn(reference);
+          await this.printer.print(BoardingPass.forBooking(booking));
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a function added beside the shipping label type builds a label from an order, in the label's own module
+  inputs:
+    file: shipping/label.ts
+    unchanged:
+      shipping/order.ts: |
+        export interface Order {
+          id: string;
+          recipientName: string;
+          street: string;
+          postcode: string;
+        }
+    before: |
+      export interface ShippingLabel {
+        orderId: string;
+        addressee: string;
+        addressLines: string[];
+      }
+    after: |
+      import type { Order } from "./order";
+
+      export interface ShippingLabel {
+        orderId: string;
+        addressee: string;
+        addressLines: string[];
+      }
+
+      export function labelFor(order: Order): ShippingLabel {
+        return {
+          orderId: order.id,
+          addressee: order.recipientName,
+          addressLines: [order.street, order.postcode],
+        };
+      }
+  expected_output:
+    outcome: valid
+- name: a permit factory builds each permit with the number and time its injected collaborators give, which the permit can't hold itself
+  inputs:
+    file: permits/permit-factory.ts
+    unchanged:
+      permits/permit.ts: |
+        export class Permit {
+          constructor(
+            readonly number: string,
+            readonly applicantId: string,
+            readonly site: string,
+            readonly grantedAt: Date,
+          ) {}
+        }
+      permits/ports.ts: |
+        export interface Application {
+          applicantId: string;
+          siteAddress: string;
+        }
+
+        export interface Clock {
+          now(): Date;
+        }
+
+        export interface PermitNumbers {
+          next(): string;
+        }
+    after: |
+      import { Permit } from "./permit";
+      import type { Application, Clock, PermitNumbers } from "./ports";
+
+      export class PermitFactory {
+        constructor(private readonly clock: Clock, private readonly numbers: PermitNumbers) {}
+
+        grant(application: Application): Permit {
+          return new Permit(this.numbers.next(), application.applicantId, application.siteAddress, this.clock.now());
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a reception service gets the visitor badge from its factory and prints it
+  inputs:
+    file: reception/service.ts
+    unchanged:
+      reception/ports.ts: |
+        export interface Visitor {
+          id: string;
+          name: string;
+        }
+
+        export interface Badge {
+          number: string;
+          visitorId: string;
+        }
+
+        export interface BadgeFactory {
+          issue(visitor: Visitor): Badge;
+        }
+
+        export interface BadgePrinter {
+          print(badge: Badge): Promise<void>;
+        }
+    after: |
+      import type { BadgeFactory, BadgePrinter, Visitor } from "./ports";
+
+      export class ReceptionService {
+        constructor(private readonly badges: BadgeFactory, private readonly printer: BadgePrinter) {}
+
+        async admit(visitor: Visitor): Promise<void> {
+          const badge = this.badges.issue(visitor);
+          await this.printer.print(badge);
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a storefront mapping module translates the shop's typed order payload into the program's order
+  inputs:
+    file: shop/storefront-mapping.ts
+    unchanged:
+      shop/storefront.ts: |
+        export interface StorefrontOrderPayload {
+          order_number: number;
+          customer: { email: string };
+          total_price_cents: number;
+          line_items: { sku: string; quantity: number }[];
+        }
+      shop/order.ts: |
+        export interface OrderLine {
+          sku: string;
+          quantity: number;
+        }
+
+        export interface Order {
+          reference: string;
+          customerEmail: string;
+          totalCents: number;
+          lines: OrderLine[];
+        }
+    after: |
+      import type { Order } from "./order";
+      import type { StorefrontOrderPayload } from "./storefront";
+
+      export function orderFromStorefront(payload: StorefrontOrderPayload): Order {
+        return {
+          reference: `SF-${payload.order_number}`,
+          customerEmail: payload.customer.email,
+          totalCents: payload.total_price_cents,
+          lines: payload.line_items.map((item) => ({ sku: item.sku, quantity: item.quantity })),
+        };
+      }
+  expected_output:
+    outcome: valid
+- name: a reminder service builds a reminder from the text and time it is given and saves it, passing its parameters through unchanged
+  inputs:
+    file: reminders/service.ts
+    unchanged:
+      reminders/reminder.ts: |
+        export interface Reminder {
+          text: string;
+          remindAt: Date;
+        }
+      reminders/store.ts: |
+        import type { Reminder } from "./reminder";
+
+        export interface ReminderStore {
+          save(reminder: Reminder): Promise<void>;
+        }
+    after: |
+      import type { Reminder } from "./reminder";
+      import type { ReminderStore } from "./store";
+
+      export class ReminderService {
+        constructor(private readonly store: ReminderStore) {}
+
+        async remind(text: string, remindAt: Date): Promise<Reminder> {
+          const reminder: Reminder = { text, remindAt };
+          await this.store.save(reminder);
+          return reminder;
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a moderation service opens each abuse report as pending, a value from no source, with the reporter and reason it is given
+  inputs:
+    file: moderation/service.ts
+    unchanged:
+      moderation/report.ts: |
+        export enum ReportStatus {
+          Pending = "pending",
+          Upheld = "upheld",
+          Dismissed = "dismissed",
+        }
+
+        export class AbuseReport {
+          constructor(
+            readonly reporterId: string,
+            readonly reason: string,
+            readonly status: ReportStatus,
+          ) {}
+        }
+      moderation/ports.ts: |
+        import type { AbuseReport } from "./report";
+
+        export interface ReportQueue {
+          push(report: AbuseReport): Promise<void>;
+        }
+    after: |
+      import { AbuseReport, ReportStatus } from "./report";
+      import type { ReportQueue } from "./ports";
+
+      export class ModerationService {
+        constructor(private readonly queue: ReportQueue) {}
+
+        async fileReport(reporterId: string, reason: string): Promise<void> {
+          await this.queue.push(new AbuseReport(reporterId, reason, ReportStatus.Pending));
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a storage service throws a quota error carrying the workspace's id and usage, which raises rather than builds
+  inputs:
+    file: storage/uploads.ts
+    unchanged:
+      storage/errors.ts: |
+        export class QuotaExceeded extends Error {
+          constructor(readonly workspaceId: string, readonly usedBytes: number) {
+            super(`workspace ${workspaceId} has used ${usedBytes} bytes`);
+          }
+        }
+      storage/ports.ts: |
+        export interface Workspace {
+          id: string;
+          quotaBytes: number;
+        }
+
+        export interface UsageMeter {
+          usedBytes(workspaceId: string): Promise<number>;
+        }
+    after: |
+      import { QuotaExceeded } from "./errors";
+      import type { UsageMeter, Workspace } from "./ports";
+
+      export class UploadGuard {
+        constructor(private readonly meter: UsageMeter) {}
+
+        async checkRoom(workspace: Workspace, incomingBytes: number): Promise<void> {
+          const used = await this.meter.usedBytes(workspace.id);
+          if (used + incomingBytes > workspace.quotaBytes) {
+            throw new QuotaExceeded(workspace.id, used);
+          }
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a cart totals function returns a literal of the totals it worked out, as its answer
+  inputs:
+    file: cart/totals.ts
+    unchanged:
+      cart/types.ts: |
+        export interface CartLine {
+          quantity: number;
+          unitCents: number;
+        }
+
+        export interface CartTotals {
+          itemCount: number;
+          subtotalCents: number;
+        }
+    after: |
+      import type { CartLine, CartTotals } from "./types";
+
+      export function cartTotals(lines: CartLine[]): CartTotals {
+        const itemCount = lines.reduce((sum, line) => sum + line.quantity, 0);
+        const subtotalCents = lines.reduce((sum, line) => sum + line.quantity * line.unitCents, 0);
+        return { itemCount, subtotalCents };
+      }
+  expected_output:
+    outcome: valid
+- name: snoozing copies the alarm with its ring time changed
+  inputs:
+    file: alarms/snooze.ts
+    unchanged:
+      alarms/alarm.ts: |
+        export interface Alarm {
+          id: string;
+          label: string;
+          ringsAt: Date;
+        }
+    after: |
+      import type { Alarm } from "./alarm";
+
+      export function snooze(alarm: Alarm, minutes: number): Alarm {
+        return { ...alarm, ringsAt: new Date(alarm.ringsAt.getTime() + minutes * 60_000) };
+      }
+  expected_output:
+    outcome: valid
+- name: a quote builds the insurance policy from its own fields, so how a policy is made is decided outside the policy
+  inputs:
+    file: insurance/quote.ts
+    unchanged:
+      insurance/policy.ts: |
+        export class Policy {
+          constructor(
+            readonly holderId: string,
+            readonly coverageCents: number,
+            readonly premiumCents: number,
+            readonly startsOn: Date,
+          ) {}
+        }
+    before: |
+      export class Quote {
+        constructor(
+          readonly customerId: string,
+          readonly coverageCents: number,
+          readonly premiumCents: number,
+        ) {}
+      }
+    after: |
+      import { Policy } from "./policy";
+
+      export class Quote {
+        constructor(
+          readonly customerId: string,
+          readonly coverageCents: number,
+          readonly premiumCents: number,
+        ) {}
+
+        accept(startsOn: Date): Policy {
+          return new Policy(this.customerId, this.coverageCents, this.premiumCents, startsOn);
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: a ticket service creates an entity through the ORM repository, which is the persistence library's to build
+  inputs:
+    file: events/tickets.ts
+    unchanged:
+      events/ticket.entity.ts: |
+        import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
+
+        @Entity()
+        export class Ticket {
+          @PrimaryGeneratedColumn()
+          id!: number;
+
+          @Column()
+          eventId!: number;
+
+          @Column()
+          holderEmail!: string;
+        }
+      events/ports.ts: |
+        export interface Buyer {
+          email: string;
+        }
+
+        export interface EventInfo {
+          id: number;
+        }
+    after: |
+      import type { Repository } from "typeorm";
+
+      import type { Buyer, EventInfo } from "./ports";
+      import { Ticket } from "./ticket.entity";
+
+      export class TicketService {
+        constructor(private readonly tickets: Repository<Ticket>) {}
+
+        async sell(event: EventInfo, buyer: Buyer): Promise<Ticket> {
+          const ticket = this.tickets.create({ eventId: event.id, holderEmail: buyer.email });
+          return this.tickets.save(ticket);
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a report link builder makes a URL and a date from library types, which are not the program's
+  inputs:
+    file: reports/link.ts
+    unchanged:
+      reports/config.ts: |
+        export interface ReportConfig {
+          baseUrl: string;
+        }
+    after: |
+      import type { ReportConfig } from "./config";
+
+      export function reportLink(config: ReportConfig, reportId: string, generatedAtMs: number): string {
+        const url = new URL(`/reports/${reportId}`, config.baseUrl);
+        url.searchParams.set("generated", new Date(generatedAtMs).toISOString());
+        return url.toString();
+      }
+  expected_output:
+    outcome: valid
