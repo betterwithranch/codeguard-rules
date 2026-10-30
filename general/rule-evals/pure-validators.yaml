@@ -317,9 +317,9 @@ cases:
         export const prisma = new PrismaClient();
   expected_output:
     outcome: invalid
-- name: a class-validator constraint looks up other creators to keep a handle unique
+- name: a TypeORM entity's class-validator constraint queries the other creators to keep a handle unique
   inputs:
-    file: creators/profile-input.ts
+    file: creators/creator.entity.ts
     after: |
       import {
         Matches,
@@ -327,26 +327,25 @@ cases:
         ValidatorConstraint,
         type ValidatorConstraintInterface,
       } from "class-validator";
-      import { prisma } from "../db";
+      import { BaseEntity, Column, Entity, PrimaryGeneratedColumn } from "typeorm";
 
       @ValidatorConstraint({ name: "handleNotTaken", async: true })
       export class HandleNotTaken implements ValidatorConstraintInterface {
         async validate(handle: string): Promise<boolean> {
-          const other = await prisma.creator.findUnique({ where: { handle } });
-          return other === null;
+          return !(await Creator.existsBy({ handle }));
         }
       }
 
-      export class CreatorProfileInput {
+      @Entity()
+      export class Creator extends BaseEntity {
+        @PrimaryGeneratedColumn("uuid")
+        id!: string;
+
+        @Column()
         @Matches(/^[a-z0-9_]{3,30}$/)
         @Validate(HandleNotTaken, { message: "another creator already has this handle" })
         handle!: string;
       }
-    unchanged:
-      db.ts: |
-        import { PrismaClient } from "@prisma/client";
-
-        export const prisma = new PrismaClient();
   expected_output:
     outcome: invalid
 - name: a zod refine asks an outside VAT service whether the number exists, so parsing fails while the service is down
@@ -439,7 +438,7 @@ cases:
         }
   expected_output:
     outcome: invalid
-- name: an edit makes a zod schema take its team size limit from environment config instead of a constant
+- name: an edit makes a zod schema read its team size limit from an environment variable on every parse instead of a constant
   inputs:
     file: teams/schema.ts
     before: |
@@ -453,19 +452,22 @@ cases:
       });
     after: |
       import { z } from "zod";
-      import { config } from "../config";
 
       export const teamSchema = z.object({
         name: z.string().min(1),
-        memberIds: z.array(z.string().uuid()).min(1).max(config.MAX_TEAM_SIZE),
+        memberIds: z
+          .array(z.string().uuid())
+          .min(1)
+          .superRefine((memberIds, ctx) => {
+            const limit = z.coerce.number().int().positive().parse(process.env.MAX_TEAM_SIZE);
+            if (memberIds.length > limit) {
+              ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: `a team has at most ${limit} members`,
+              });
+            }
+          }),
       });
-    unchanged:
-      config.ts: |
-        import { z } from "zod";
-
-        export const config = z
-          .object({ MAX_TEAM_SIZE: z.coerce.number().int().positive() })
-          .parse(process.env);
   expected_output:
     outcome: invalid
 - name: a zod superRefine checks an abstract's word count against a constant bound
