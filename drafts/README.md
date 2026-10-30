@@ -7,17 +7,10 @@ the drafts' bindings name are in `python/gates/`, or `general/gates/` for
 
 Each draft keeps its `python/` layout and its binding's `skill:` path, so adding a rule
 back is `git mv` of its files into `python/`, in a commit whose CI passes. A judge rule
-moves its skill, binding and eval, once:
-
-- every `invalid` and `valid` eval case passes 20 of 20 runs (`codeguard eval --repeat 20`)
-  on `claude-sonnet-5-5` through the `claude` CLI, checked before the commit;
-- every case passes CI's 3 runs on each provider in its matrix. That is `claude-cli`
-  for now; `gemini` (`gemini-3.1-pro-preview` on Vertex AI, `--provider gemini`) comes
-  back once codeguard's Gemini judge is faster and steadier, and a failure on either
-  then fails the build.
-
-A pattern rule moves its rule, binding, test and snapshot, once its rule tests have a
-case for each branch and `codeguard test` passes.
+moves its skill, binding and eval, and a pattern rule its rule, binding, test and
+snapshot, once its tests pass as [codeguard's testing guide](https://github.com/jig-code/codeguard/blob/main/docs/testing.md#changing-a-rule-package) requires. CI's eval matrix is
+`claude-cli` for now; `gemini` (`gemini-3.1-pro-preview` on Vertex AI, `--provider
+gemini`) comes back once codeguard's Gemini judge is faster and steadier.
 
 A rule is shown accurate only by its own cases. Reviewing other code, codeguard's
 included, is not part of the bar.
