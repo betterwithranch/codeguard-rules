@@ -1,0 +1,33 @@
+id: shared-instance
+language: python
+rule:
+  any:
+  - kind: assignment
+    has:
+      field: right
+      kind: call
+    inside:
+      kind: expression_statement
+      inside:
+        any:
+        - kind: module
+        - kind: block
+          inside:
+            kind: class_definition
+            field: body
+  - kind: default_parameter
+    has:
+      field: value
+      kind: call
+  - kind: typed_default_parameter
+    has:
+      field: value
+      kind: call
+  - kind: decorated_definition
+    all:
+    - has:
+        kind: decorator
+        regex: \b(cache|lru_cache|singleton)\b
+    - has:
+        field: definition
+        kind: function_definition

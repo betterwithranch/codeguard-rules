@@ -1,0 +1,91 @@
+id: global-rebind
+snapshots:
+  "def next_number():\n    global last\n    last += 1\n    return last\n":
+    labels:
+    - source: last += 1
+      style: primary
+      start: 39
+      end: 48
+    - source: last
+      style: secondary
+      start: 39
+      end: 43
+    - source: last
+      style: secondary
+      start: 30
+      end: 34
+    - source: global last
+      style: secondary
+      start: 23
+      end: 34
+    - source: global last
+      style: secondary
+      start: 23
+      end: 34
+    - source: |-
+        def next_number():
+            global last
+            last += 1
+            return last
+      style: secondary
+      start: 0
+      end: 64
+  "def remember(value):\n    global current\n    current = value\n":
+    labels:
+    - source: current = value
+      style: primary
+      start: 44
+      end: 59
+    - source: current
+      style: secondary
+      start: 44
+      end: 51
+    - source: current
+      style: secondary
+      start: 32
+      end: 39
+    - source: global current
+      style: secondary
+      start: 25
+      end: 39
+    - source: global current
+      style: secondary
+      start: 25
+      end: 39
+    - source: |-
+        def remember(value):
+            global current
+            current = value
+      style: secondary
+      start: 0
+      end: 59
+  "def remember(value):\n    global current\n    if value:\n        current = value\n":
+    labels:
+    - source: current = value
+      style: primary
+      start: 62
+      end: 77
+    - source: current
+      style: secondary
+      start: 62
+      end: 69
+    - source: current
+      style: secondary
+      start: 32
+      end: 39
+    - source: global current
+      style: secondary
+      start: 25
+      end: 39
+    - source: global current
+      style: secondary
+      start: 25
+      end: 39
+    - source: |-
+        def remember(value):
+            global current
+            if value:
+                current = value
+      style: secondary
+      start: 0
+      end: 77

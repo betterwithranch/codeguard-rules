@@ -1,0 +1,21 @@
+id: global-rebind
+language: python
+rule:
+  any:
+  - kind: assignment
+  - kind: augmented_assignment
+  all:
+  - has:
+      field: left
+      kind: identifier
+      pattern: $N
+  - inside:
+      kind: function_definition
+      stopBy: end
+      has:
+        field: body
+        has:
+          kind: global_statement
+          has:
+            kind: identifier
+            pattern: $N
