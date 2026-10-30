@@ -1,0 +1,686 @@
+cases:
+- name: a label call passes the postage computed from a parcel with that parcel
+  inputs:
+    file: shipping/labels.py
+    after: |
+      from dataclasses import dataclass
+      from decimal import Decimal
+
+
+      @dataclass(frozen=True)
+      class Parcel:
+          weight_grams: int
+          destination_country: str
+          insured_value: Decimal
+
+
+      def postage_for(parcel: Parcel) -> Decimal:
+          base = Decimal("3.20") if parcel.destination_country == "NL" else Decimal("9.80")
+          return base + Decimal("0.01") * parcel.weight_grams
+
+
+      def label_text(postage: Decimal, parcel: Parcel) -> str:
+          return (
+              f"{parcel.destination_country} | {parcel.weight_grams} g"
+              f" | postage {postage} | insured {parcel.insured_value}"
+          )
+
+
+      def label_parcel(parcel: Parcel) -> str:
+          return label_text(postage_for(parcel), parcel)
+  expected_output:
+    outcome: invalid
+- name: a reminder call passes a member's phone field with the member
+  inputs:
+    file: gym/reminders.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Member:
+          member_id: int
+          phone: str
+          plan: str
+
+
+      def text_reminder(phone: str, member: Member) -> str:
+          return f"SMS to {phone}: member {member.member_id}, your {member.plan} plan renews soon"
+
+
+      def remind(member: Member) -> str:
+          return text_reminder(member.phone, member)
+  expected_output:
+    outcome: invalid
+- name: an alert call passes a reading's temperature key with the reading
+  inputs:
+    file: sensors/alerts.py
+    after: |
+      from typing import TypedDict
+
+
+      class Reading(TypedDict):
+          sensor_id: str
+          celsius: float
+          taken_at: str
+
+
+      def alert_text(celsius: float, reading: Reading) -> str:
+          return f"{reading['sensor_id']} at {reading['taken_at']}: {celsius:.1f} C"
+
+
+      def overheating_alert(reading: Reading) -> str:
+          return alert_text(reading["celsius"], reading)
+  expected_output:
+    outcome: invalid
+- name: a folio call passes a local cost computed from the stay with that stay
+  inputs:
+    file: hotel/folio.py
+    after: |
+      from dataclasses import dataclass
+      from decimal import Decimal
+
+
+      @dataclass(frozen=True)
+      class Stay:
+          guest_name: str
+          nights: int
+          nightly_rate: Decimal
+
+
+      def stay_cost(stay: Stay) -> Decimal:
+          return stay.nightly_rate * stay.nights
+
+
+      def folio_line(cost: Decimal, stay: Stay) -> str:
+          return f"{stay.guest_name}: {stay.nights} nights, {cost}"
+
+
+      def checkout_line(stay: Stay) -> str:
+          cost = stay_cost(stay)
+          return folio_line(cost, stay)
+  expected_output:
+    outcome: invalid
+- name: a method on self passes a runtime computed from the tracks with those tracks
+  inputs:
+    file: music/playlist.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Track:
+          title: str
+          seconds: int
+
+
+      class PlaylistDescriber:
+          def __init__(self, heading: str) -> None:
+              self._heading = heading
+
+          def _runtime(self, tracks: list[Track]) -> int:
+              return sum(track.seconds for track in tracks)
+
+          def _caption(self, runtime: int, tracks: list[Track]) -> str:
+              titles = ", ".join(track.title for track in tracks)
+              return f"{self._heading} ({runtime // 60} min): {titles}"
+
+          def describe(self, tracks: list[Track]) -> str:
+              return self._caption(self._runtime(tracks), tracks)
+  expected_output:
+    outcome: invalid
+- name: a service notice is built with the distance computed from a vehicle and that vehicle
+  inputs:
+    file: fleet/schedule.py
+    unchanged:
+      fleet/models.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Vehicle:
+            plate: str
+            odometer_km: int
+            last_service_km: int
+
+
+        def km_since_service(vehicle: Vehicle) -> int:
+            return vehicle.odometer_km - vehicle.last_service_km
+
+
+        @dataclass(frozen=True)
+        class ServiceNotice:
+            km_since_service: int
+            vehicle: Vehicle
+    after: |
+      from fleet.models import ServiceNotice, Vehicle, km_since_service
+
+
+      def service_notice(vehicle: Vehicle) -> ServiceNotice:
+          return ServiceNotice(km_since_service=km_since_service(vehicle), vehicle=vehicle)
+  expected_output:
+    outcome: invalid
+- name: a payslip function from an imported module gets a salary field with its employee
+  inputs:
+    file: payroll/run.py
+    unchanged:
+      payroll/payslips.py: |
+        from dataclasses import dataclass
+        from decimal import Decimal
+
+
+        @dataclass(frozen=True)
+        class Employee:
+            employee_id: int
+            name: str
+            monthly_salary: Decimal
+
+
+        def payslip(salary: Decimal, employee: Employee) -> str:
+            return f"#{employee.employee_id} {employee.name}: {salary}"
+    after: |
+      from payroll.payslips import Employee, payslip
+
+
+      def payslips_for(staff: list[Employee]) -> list[str]:
+          return [payslip(employee.monthly_salary, employee) for employee in staff]
+  expected_output:
+    outcome: invalid
+- name: an invite call passes a dict built from an attendee's fields with that attendee
+  inputs:
+    file: events/invites.py
+    after: |
+      from dataclasses import dataclass
+      from typing import TypedDict
+
+
+      class Invitee(TypedDict):
+          name: str
+          address: str
+
+
+      @dataclass(frozen=True)
+      class Attendee:
+          attendee_id: int
+          full_name: str
+          email: str
+
+
+      def send_invite(invitee: Invitee, attendee: Attendee) -> str:
+          return f"To {invitee['name']} <{invitee['address']}> (attendee {attendee.attendee_id})"
+
+
+      def invite(attendee: Attendee) -> str:
+          return send_invite({"name": attendee.full_name, "address": attendee.email}, attendee)
+  expected_output:
+    outcome: invalid
+- name: an edit makes a pick call pass a shipment's bin field with the shipment
+  inputs:
+    file: warehouse/picking.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          shipment_id: str
+          bin_code: str
+          quantity: int
+
+
+      def pick_instruction(shipment: Shipment) -> str:
+          return f"Pick {shipment.quantity} for {shipment.shipment_id}"
+
+
+      def instructions(shipments: list[Shipment]) -> list[str]:
+          return [pick_instruction(shipment) for shipment in shipments]
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Shipment:
+          shipment_id: str
+          bin_code: str
+          quantity: int
+
+
+      def pick_instruction(bin_code: str, shipment: Shipment) -> str:
+          return f"Pick {shipment.quantity} from {bin_code} for {shipment.shipment_id}"
+
+
+      def instructions(shipments: list[Shipment]) -> list[str]:
+          return [pick_instruction(shipment.bin_code, shipment) for shipment in shipments]
+  expected_output:
+    outcome: invalid
+- name: a builtin string replace takes a mask computed from the word it replaces
+  inputs:
+    file: moderation/censor.py
+    after: |
+      def mask_for(word: str) -> str:
+          return "*" * len(word)
+
+
+      def censor(text: str, word: str) -> str:
+          return text.replace(word, mask_for(word))
+  expected_output:
+    outcome: valid
+- name: a standard-library copy takes a backup path computed from the file it copies
+  inputs:
+    file: storage/backups.py
+    after: |
+      import shutil
+      from pathlib import Path
+
+
+      def backup_path(source: Path) -> Path:
+          return source.with_name(f"{source.stem}.bak{source.suffix}")
+
+
+      def back_up(source: Path) -> None:
+          shutil.copy(source, backup_path(source))
+  expected_output:
+    outcome: valid
+- name: a logger call takes a row count computed from the path it also logs
+  inputs:
+    file: exports/report.py
+    after: |
+      import logging
+      from pathlib import Path
+
+      logger = logging.getLogger(__name__)
+
+
+      def row_count(path: Path) -> int:
+          with path.open() as handle:
+              return sum(1 for _ in handle)
+
+
+      def report_export(path: Path) -> None:
+          logger.info("exported %d rows to %s", row_count(path), path)
+  expected_output:
+    outcome: valid
+- name: a restocker is built with a ledger collaborator made from the connection it also takes
+  inputs:
+    file: inventory/wiring.py
+    after: |
+      import sqlite3
+
+
+      class StockLedger:
+          def __init__(self, connection: sqlite3.Connection) -> None:
+              self._connection = connection
+
+          def record(self, sku: str, change: int) -> None:
+              self._connection.execute(
+                  "INSERT INTO stock_moves (sku, change) VALUES (?, ?)", (sku, change)
+              )
+
+
+      class Restocker:
+          def __init__(self, ledger: StockLedger, connection: sqlite3.Connection) -> None:
+              self._ledger = ledger
+              self._connection = connection
+
+          def restock(self, sku: str, quantity: int) -> None:
+              self._ledger.record(sku, quantity)
+              self._connection.commit()
+
+
+      def build_restocker(connection: sqlite3.Connection) -> Restocker:
+          return Restocker(ledger=StockLedger(connection), connection=connection)
+  expected_output:
+    outcome: valid
+- name: a loan slip gets a due date derived from the loan day, not from the title it also gets
+  inputs:
+    file: library/loans.py
+    after: |
+      from datetime import date, timedelta
+
+
+      def due_date(borrowed_on: date) -> date:
+          return borrowed_on + timedelta(days=21)
+
+
+      def loan_slip(due: date, title: str) -> str:
+          return f"{title}: due {due.isoformat()}"
+
+
+      def lend(title: str, borrowed_on: date) -> str:
+          return loan_slip(due_date(borrowed_on), title)
+  expected_output:
+    outcome: skipped
+- name: a formatter gets a converted temperature without the reading it came from
+  inputs:
+    file: weather/units.py
+    after: |
+      def to_kelvin(celsius: float) -> float:
+          return celsius + 273.15
+
+
+      def kelvin_text(kelvin: float) -> str:
+          return f"{kelvin:.2f} K"
+
+
+      def describe_temperature(celsius: float) -> str:
+          return kelvin_text(to_kelvin(celsius))
+  expected_output:
+    outcome: skipped
+- name: a typescript enrollment call passes the tuition computed from a course with that course
+  inputs:
+    file: registrar/enroll.ts
+    after: |
+      export interface Course {
+        code: string;
+        credits: number;
+        level: number;
+      }
+
+      export function tuitionFor(course: Course): number {
+        return course.credits * (course.level >= 300 ? 410 : 350);
+      }
+
+      export function enrollmentLine(tuition: number, course: Course): string {
+        return `${course.code} (${course.credits} credits): $${tuition}`;
+      }
+
+      export function enroll(course: Course): string {
+        return enrollmentLine(tuitionFor(course), course);
+      }
+  expected_output:
+    outcome: invalid
+- name: a typescript boarding call passes a flight's gate field with the flight
+  inputs:
+    file: airport/boarding.ts
+    after: |
+      export interface Flight {
+        number: string;
+        gate: string;
+        departsAt: string;
+      }
+
+      export function boardingAnnouncement(gate: string, flight: Flight): string {
+        return `Flight ${flight.number} departing ${flight.departsAt} now boards at gate ${gate}`;
+      }
+
+      export function announce(flight: Flight): string {
+        return boardingAnnouncement(flight.gate, flight);
+      }
+  expected_output:
+    outcome: invalid
+- name: a typescript winner call passes a podium's first entry with the podium
+  inputs:
+    file: races/results.ts
+    after: |
+      export interface Runner {
+        name: string;
+        seconds: number;
+      }
+
+      export type Podium = readonly [Runner, Runner, Runner];
+
+      export function winnerHeadline(winner: Runner, podium: Podium): string {
+        const others = podium.map((runner) => runner.name).join(", ");
+        return `${winner.name} wins in ${winner.seconds}s (podium: ${others})`;
+      }
+
+      export function headline(podium: Podium): string {
+        return winnerHeadline(podium[0], podium);
+      }
+  expected_output:
+    outcome: invalid
+- name: a typescript dispatch call passes a local weight computed from a crate with that crate
+  inputs:
+    file: freight/dispatch.ts
+    after: |
+      export interface Crate {
+        id: string;
+        itemCount: number;
+        kgPerItem: number;
+      }
+
+      export function crateWeight(crate: Crate): number {
+        return crate.itemCount * crate.kgPerItem;
+      }
+
+      export function dispatchNote(weightKg: number, crate: Crate): string {
+        return `Crate ${crate.id}: ${crate.itemCount} items, ${weightKg} kg`;
+      }
+
+      export function dispatch(crate: Crate): string {
+        const weightKg = crateWeight(crate);
+        return dispatchNote(weightKg, crate);
+      }
+  expected_output:
+    outcome: invalid
+- name: a typescript method on this passes a stroke total computed from the rounds with those rounds
+  inputs:
+    file: golf/scorecard.ts
+    after: |
+      export interface Round {
+        course: string;
+        strokes: number;
+      }
+
+      export class ScorecardWriter {
+        constructor(private readonly player: string) {}
+
+        private totalStrokes(rounds: readonly Round[]): number {
+          return rounds.reduce((sum, round) => sum + round.strokes, 0);
+        }
+
+        private summary(totalStrokes: number, rounds: readonly Round[]): string {
+          const courses = rounds.map((round) => round.course).join(", ");
+          return `${this.player}: ${totalStrokes} strokes over ${courses}`;
+        }
+
+        write(rounds: readonly Round[]): string {
+          return this.summary(this.totalStrokes(rounds), rounds);
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: a typescript receipt is built with the vat computed from a basket and that basket
+  inputs:
+    file: till/checkout.ts
+    unchanged:
+      till/receipt.ts: |
+        export interface Basket {
+          id: string;
+          netCents: number;
+          vatRate: number;
+        }
+
+        export function vatCents(basket: Basket): number {
+          return Math.round(basket.netCents * basket.vatRate);
+        }
+
+        export class Receipt {
+          constructor(
+            readonly vatCents: number,
+            readonly basket: Basket,
+          ) {}
+        }
+    after: |
+      import { Basket, Receipt, vatCents } from "./receipt";
+
+      export function checkout(basket: Basket): Receipt {
+        return new Receipt(vatCents(basket), basket);
+      }
+  expected_output:
+    outcome: invalid
+- name: a typescript letter function from an imported module gets a client's first name with the client
+  inputs:
+    file: crm/onboarding.ts
+    unchanged:
+      crm/letters.ts: |
+        export interface Client {
+          id: number;
+          firstName: string;
+          company: string;
+        }
+
+        export function welcomeLetter(firstName: string, client: Client): string {
+          return `Dear ${firstName}, welcome aboard. Your account for ${client.company} is #${client.id}.`;
+        }
+    after: |
+      import { Client, welcomeLetter } from "./letters";
+
+      export function onboard(client: Client): string {
+        return welcomeLetter(client.firstName, client);
+      }
+  expected_output:
+    outcome: invalid
+- name: a typescript call passes an object literal built from a patient's fields with that patient
+  inputs:
+    file: clinic/calls.ts
+    after: |
+      export interface Patient {
+        id: number;
+        name: string;
+        phone: string;
+      }
+
+      export interface CallTarget {
+        name: string;
+        phone: string;
+      }
+
+      export function callScript(target: CallTarget, patient: Patient): string {
+        return `Call ${target.name} on ${target.phone} about patient #${patient.id}`;
+      }
+
+      export function scheduleCall(patient: Patient): string {
+        return callScript({ name: patient.name, phone: patient.phone }, patient);
+      }
+  expected_output:
+    outcome: invalid
+- name: a typescript url parameter is set to a default computed from its key
+  inputs:
+    file: search/params.ts
+    after: |
+      export type Filter = "sort" | "pageSize";
+
+      const DEFAULTS: Record<Filter, string> = { sort: "newest", pageSize: "20" };
+
+      export function defaultFor(filter: Filter): string {
+        return DEFAULTS[filter];
+      }
+
+      export function resetFilter(url: URL, filter: Filter): void {
+        url.searchParams.set(filter, defaultFor(filter));
+      }
+  expected_output:
+    outcome: valid
+- name: a typescript date-fns format takes a pattern computed from the date it formats
+  inputs:
+    file: calendar/display.ts
+    after: |
+      import { format } from "date-fns";
+
+      export function patternFor(when: Date): string {
+        return when.getHours() === 0 && when.getMinutes() === 0 ? "d MMM yyyy" : "d MMM yyyy HH:mm";
+      }
+
+      export function displayDate(when: Date): string {
+        return format(when, patternFor(when));
+      }
+  expected_output:
+    outcome: valid
+- name: a typescript pino logger takes a size computed from the path it also logs
+  inputs:
+    file: archive/log.ts
+    after: |
+      import { statSync } from "node:fs";
+      import pino from "pino";
+
+      const logger = pino();
+
+      export function sizeInBytes(path: string): number {
+        return statSync(path).size;
+      }
+
+      export function logArchived(path: string): void {
+        logger.info("archived %s (%d bytes)", path, sizeInBytes(path));
+      }
+  expected_output:
+    outcome: valid
+- name: a typescript scheduler is built with a job store collaborator made from the database it also takes
+  inputs:
+    file: jobs/wiring.ts
+    after: |
+      export interface Database {
+        insert(table: string, row: Record<string, string>): void;
+        commit(): void;
+      }
+
+      export class JobStore {
+        constructor(private readonly db: Database) {}
+
+        save(jobId: string, runAt: string): void {
+          this.db.insert("jobs", { jobId, runAt });
+        }
+      }
+
+      export class Scheduler {
+        constructor(
+          private readonly store: JobStore,
+          private readonly db: Database,
+        ) {}
+
+        schedule(jobId: string, runAt: string): void {
+          this.store.save(jobId, runAt);
+          this.db.commit();
+        }
+      }
+
+      export function buildScheduler(db: Database): Scheduler {
+        return new Scheduler(new JobStore(db), db);
+      }
+  expected_output:
+    outcome: valid
+- name: a typescript refund gets an amount derived from the payment, not from the reason it also gets
+  inputs:
+    file: payments/refunds.ts
+    after: |
+      export interface Payment {
+        id: string;
+        amountCents: number;
+        feeCents: number;
+      }
+
+      export function refundableCents(payment: Payment): number {
+        return payment.amountCents - payment.feeCents;
+      }
+
+      export function refundNote(amountCents: number, reason: string): string {
+        return `Refund ${amountCents} cents: ${reason}`;
+      }
+
+      export function refund(payment: Payment, reason: string): string {
+        return refundNote(refundableCents(payment), reason);
+      }
+  expected_output:
+    outcome: valid
+- name: a typescript formatter gets a converted distance without the run it came from
+  inputs:
+    file: running/pace.ts
+    after: |
+      export interface Run {
+        meters: number;
+        startedAt: string;
+      }
+
+      export function toMiles(run: Run): number {
+        return run.meters / 1609.344;
+      }
+
+      export function milesText(miles: number): string {
+        return `${miles.toFixed(2)} mi`;
+      }
+
+      export function describeRun(run: Run): string {
+        return milesText(toMiles(run));
+      }
+  expected_output:
+    outcome: valid

@@ -17,6 +17,19 @@ valid:
 # Field of one object passed with another object
 - |
   example_notify(example_order.email, example_customer)
+# Local assigned after the call
+- |
+  def example_flow(example_cart, example_region):
+      example_quote(example_lines, example_region)
+      example_lines = example_select(example_cart, example_region)
+# Local derived from the input in another function
+- |
+  def example_prepare(example_cart, example_region):
+      example_lines = example_select(example_cart, example_region)
+      return example_lines
+
+  def example_flow(example_lines, example_region):
+      return example_quote(example_lines, example_region)
 invalid:
 # Keyword arguments, derived call first
 - |
@@ -54,3 +67,31 @@ invalid:
   def example_flow(example_order):
       example_email = example_order.email
       example_notify(order=example_order, email=example_email)
+# Local derived earlier, among other arguments
+- |
+  def example_flow(example_customer, example_subtotal):
+      example_rate = example_tax_rate(example_customer)
+      return example_total(example_subtotal, example_rate, example_customer)
+# Field of the input passed after the input, as a keyword
+- |
+  example_notify(example_order, email=example_order.email)
+# Key of the input passed with the input, positional
+- |
+  example_notify(example_order["email"], example_order)
+# Local copied from a key, passed with the input
+- |
+  def example_flow(example_order):
+      example_email = example_order["email"]
+      example_notify(example_email, example_order)
+# Derivation inside a dict literal argument
+- |
+  example_invite({"email": example_member.email}, example_member)
+# Derivation inside an unpacked argument
+- |
+  example_quote(*example_select(example_cart, example_region), example_region)
+# Local derived earlier, call inside an enclosing block
+- |
+  def example_flow(example_cart, example_region):
+      example_lines = example_select(example_cart, example_region)
+      if example_lines:
+          example_quote(example_lines, example_region)
