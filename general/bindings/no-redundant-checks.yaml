@@ -1,4 +1,4 @@
-skill: general/skills/no-recheck-of-guaranteed-condition
+skill: general/skills/no-redundant-checks
 severity: warning
 paths: ["**/*.py", "**/*.ts", "**/*.tsx"]
 exclude_paths:

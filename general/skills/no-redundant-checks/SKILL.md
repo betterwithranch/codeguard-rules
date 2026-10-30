@@ -1,15 +1,17 @@
 ---
-name: no-recheck-of-guaranteed-condition
-description: A check doesn't re-test a condition earlier code already guarantees; a check whose condition an earlier check, an enclosing branch, a dispatch or a validator on the value's type already makes true is a violation.
+name: no-redundant-checks
+description: A check doesn't re-test a condition earlier code already guarantees; a check whose condition an earlier check, an enclosing branch, a dispatch, the value's type or the function that produced it already makes true is a violation.
 ---
 
-# No Recheck of Guaranteed Condition
+# No Redundant Checks
 
 A check doesn't re-test a condition earlier code already guarantees.
 
-A check is code that tests a condition and stops when it fails: an assertion, a
-conditional that raises or returns early, a type test or cast, a match case that
-raises.
+A check is code that tests a condition and stops the path when it fails: an assertion,
+or a branch or match case that raises, returns, or leaves or skips the rest of a loop.
+Its condition can be any test, a comparison or a test of the value's type. Code that
+tests a condition and carries on either way, such as a conditional expression that
+picks one of two values, is not a check.
 
 A condition is guaranteed where the check runs when visible code makes it true every
 time the check runs:

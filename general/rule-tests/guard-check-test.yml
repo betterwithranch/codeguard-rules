@@ -9,15 +9,31 @@ valid:
 - |
   def example_total(example_order):
       return example_order.total
-# Conditional expression without a None check
+# Conditional expression on a None check carries on either way
 - |
-  label = "big" if example_order.total > 100 else "small"
+  name = example_order.carrier.name if example_order.carrier is not None else "none"
+# isinstance outside a check
+- |
+  ok = isinstance(example_payload, ExamplePayload)
+# issubclass outside a check
+- |
+  ok = issubclass(example_type, ExampleBase)
+# cast tests nothing
+- |
+  example_payload = cast(ExamplePayload, example_request.payload)
 # else branch that does work
 - |
   if example_order.paid:
       send_receipt(example_order)
   else:
       remind(example_order)
+# match case that does work
+- |
+  match example_kind:
+      case "refund":
+          refund(example_request)
+      case _:
+          charge(example_request)
 # raise outside a check
 - |
   def example_fail(example_order):
@@ -26,23 +42,10 @@ invalid:
 # assert
 - |
   assert example_order.carrier is not None
-# isinstance call
-- |
-  if not isinstance(example_payload, ExamplePayload):
-      log(example_payload)
-# issubclass call
-- |
-  ok = issubclass(example_type, ExampleBase)
-# cast call
-- |
-  example_payload = cast(ExamplePayload, example_request.payload)
-# typing.cast call
-- |
-  example_payload = typing.cast(ExamplePayload, example_request.payload)
 # if that raises
 - |
-  if example_order.carrier is None:
-      raise ExampleError(example_order.id)
+  if not isinstance(example_payload, ExamplePayload):
+      raise ExampleError(example_payload)
 # if that returns early
 - |
   def example_total(example_lines):
@@ -67,12 +70,28 @@ invalid:
       refund(example_request)
   elif example_kind != "charge":
       raise ExampleError(example_kind)
+# elif that returns
+- |
+  def example_settle(example_kind, example_request):
+      if example_kind == "refund":
+          refund(example_request)
+      elif example_kind != "charge":
+          return
+      charge(example_request)
 # else that raises
 - |
-  if isinstance_like(example_request):
+  if is_refund(example_request):
       refund(example_request)
   else:
       raise ExampleError(example_request)
+# else that continues
+- |
+  for example_request in example_requests:
+      if is_refund(example_request):
+          refund(example_request)
+      else:
+          continue
+      log(example_request)
 # match case that raises
 - |
   match example_kind:
@@ -80,6 +99,12 @@ invalid:
           refund(example_request)
       case _:
           raise ExampleError(example_kind)
-# Conditional expression on a None check
+# match case that returns
 - |
-  name = example_order.carrier.name if example_order.carrier is not None else "none"
+  def example_settle(example_kind, example_request):
+      match example_kind:
+          case "refund":
+              refund(example_request)
+          case _:
+              return
+      log(example_request)

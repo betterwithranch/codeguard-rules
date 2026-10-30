@@ -1,0 +1,646 @@
+cases:
+- name: an earlier check already raised on a booth, and an assertion re-tests that the place is a seat
+  inputs:
+    file: theatre/booking.py
+    after: |
+      from theatre.errors import NotBookable
+      from theatre.seating import Booth, Seat
+      from theatre.tickets import Ticket, issue_ticket
+
+
+      def book(place: Seat | Booth, patron_id: str) -> Ticket:
+          if not isinstance(place, Seat):
+              raise NotBookable("booths are sold by the box office")
+          hold = place.hold(patron_id)
+          assert isinstance(place, Seat)
+          return issue_ticket(hold)
+  expected_output:
+    outcome: invalid
+- name: inside the overdue branch, a skip re-tests that the loan is overdue
+  inputs:
+    file: library/reminders.py
+    after: |
+      from datetime import date
+
+      from library.loans import Loan
+      from library.mail import send_reminder
+
+
+      def remind_overdue(loans: list[Loan], today: date) -> None:
+          for loan in loans:
+              if loan.due_on < today:
+                  if loan.due_on >= today:
+                      continue
+                  send_reminder(loan.member_email, loan.title)
+  expected_output:
+    outcome: invalid
+- name: a handler only the fuel-keyed table calls re-tests that the vehicle is electric
+  inputs:
+    file: fleet/servicing.py
+    after: |
+      from collections.abc import Callable
+      from dataclasses import dataclass
+      from enum import Enum
+
+      from fleet.errors import WrongVehicle
+      from fleet.garage import book_charging, book_inspection
+
+
+      class Fuel(Enum):
+          DIESEL = "diesel"
+          ELECTRIC = "electric"
+
+
+      @dataclass(frozen=True)
+      class Vehicle:
+          plate: str
+          fuel: Fuel
+
+
+      def _service_diesel(vehicle: Vehicle) -> None:
+          book_inspection(vehicle.plate)
+
+
+      def _service_electric(vehicle: Vehicle) -> None:
+          if vehicle.fuel is not Fuel.ELECTRIC:
+              raise WrongVehicle(vehicle.plate)
+          book_charging(vehicle.plate)
+
+
+      _SERVICES: dict[Fuel, Callable[[Vehicle], None]] = {
+          Fuel.DIESEL: _service_diesel,
+          Fuel.ELECTRIC: _service_electric,
+      }
+
+
+      def service(vehicle: Vehicle) -> None:
+          _SERVICES[vehicle.fuel](vehicle)
+  expected_output:
+    outcome: invalid
+- name: a restock re-checks a quantity the pydantic field constraint just validated
+  inputs:
+    file: warehouse/restock.py
+    after: |
+      from pydantic import BaseModel, Field
+
+      from warehouse.errors import InvalidRestock
+      from warehouse.stock import add_stock
+
+
+      class Restock(BaseModel):
+          sku: str = Field(min_length=1)
+          quantity: int = Field(ge=1)
+
+
+      def restock(body: bytes) -> None:
+          order = Restock.model_validate_json(body)
+          if order.quantity < 1:
+              raise InvalidRestock(f"quantity for {order.sku} must be at least 1")
+          add_stock(order.sku, order.quantity)
+  expected_output:
+    outcome: invalid
+- name: a reservation re-checks the date order the stay's __post_init__ already enforced
+  inputs:
+    file: rentals/reservations.py
+    after: |
+      from dataclasses import dataclass
+      from datetime import date
+
+      from rentals.calendar import block_dates
+      from rentals.errors import InvalidStay
+
+
+      @dataclass(frozen=True)
+      class Stay:
+          check_in: date
+          check_out: date
+
+          def __post_init__(self) -> None:
+              if self.check_out <= self.check_in:
+                  raise InvalidStay("check-out must come after check-in")
+
+
+      def reserve(cabin_id: str, check_in: date, check_out: date) -> Stay:
+          stay = Stay(check_in=check_in, check_out=check_out)
+          if stay.check_out <= stay.check_in:
+              raise InvalidStay("check-out must come after check-in")
+          block_dates(cabin_id, stay.check_in, stay.check_out)
+          return stay
+  expected_output:
+    outcome: invalid
+- name: a coupon factory re-checks the discount range its attrs validators already enforced
+  inputs:
+    file: promotions/coupons.py
+    after: |
+      from attrs import define, field, validators
+
+      from promotions.errors import InvalidCoupon
+      from promotions.store import save_coupon
+
+
+      @define(frozen=True)
+      class Coupon:
+          code: str
+          percent_off: int = field(validator=[validators.ge(1), validators.le(90)])
+
+
+      def create_coupon(code: str, percent_off: int) -> Coupon:
+          coupon = Coupon(code=code, percent_off=percent_off)
+          if not 1 <= coupon.percent_off <= 90:
+              raise InvalidCoupon(f"{code} must take 1 to 90 percent off")
+          save_coupon(coupon)
+          return coupon
+  expected_output:
+    outcome: invalid
+- name: a loan loaded from the database is re-checked for the due date its non-null column guarantees
+  inputs:
+    file: lending/loans.py
+    after: |
+      from datetime import date
+
+      from django.db import models
+
+      from lending.errors import MissingDueDate
+
+
+      class Loan(models.Model):
+          member_email = models.EmailField()
+          due_on = models.DateField(null=False)
+
+
+      def due_date(loan_id: int) -> date:
+          loan = Loan.objects.get(pk=loan_id)
+          if loan.due_on is None:
+              raise MissingDueDate(loan_id)
+          return loan.due_on
+  expected_output:
+    outcome: invalid
+- name: a closed-ticket match case re-tests a state the ticket's only producer always sets to open
+  inputs:
+    file: helpdesk/tickets.py
+    after: |
+      from dataclasses import dataclass
+      from enum import Enum
+      from uuid import uuid4
+
+      from helpdesk.errors import TicketClosed
+      from helpdesk.queue import push
+
+
+      class TicketState(Enum):
+          OPEN = "open"
+          CLOSED = "closed"
+
+
+      @dataclass(frozen=True)
+      class Ticket:
+          id: str
+          title: str
+          state: TicketState
+
+
+      def _open_ticket(title: str) -> Ticket:
+          return Ticket(id=uuid4().hex, title=title, state=TicketState.OPEN)
+
+
+      def file_ticket(title: str) -> Ticket:
+          ticket = _open_ticket(title)
+          match ticket.state:
+              case TicketState.OPEN:
+                  push(ticket)
+              case TicketState.CLOSED:
+                  raise TicketClosed(ticket.id)
+          return ticket
+  expected_output:
+    outcome: invalid
+- name: a loop breaks on a negative count the imported parser's model already rejects
+  inputs:
+    file: inventory/report.py
+    after: |
+      from inventory.parsing import parse_stock
+
+
+      def total_units(text: str) -> int:
+          total = 0
+          for line in parse_stock(text):
+              if line.count < 0:
+                  break
+              total += line.count
+          return total
+    unchanged:
+      inventory/parsing.py: |
+        from pydantic import BaseModel, Field, TypeAdapter
+
+
+        class StockLine(BaseModel):
+            sku: str = Field(min_length=1)
+            count: int = Field(ge=0)
+
+
+        _STOCK_LINES = TypeAdapter(list[StockLine])
+
+
+        def parse_stock(text: str) -> list[StockLine]:
+            return _STOCK_LINES.validate_json(text)
+  expected_output:
+    outcome: invalid
+- name: an edit adds an assertion that re-tests what the screening's earlier check already raised on
+  inputs:
+    file: cinema/screenings.py
+    before: |
+      from cinema.errors import SoldOut
+      from cinema.models import Screening
+      from cinema.sales import sell_ticket
+
+
+      def buy(screening: Screening, viewer_id: str) -> str:
+          if screening.seats_left == 0:
+              raise SoldOut(screening.id)
+          return sell_ticket(screening.id, viewer_id)
+    after: |
+      from cinema.errors import SoldOut
+      from cinema.models import Screening
+      from cinema.sales import notify_viewer, sell_ticket
+
+
+      def buy(screening: Screening, viewer_id: str) -> str:
+          if screening.seats_left == 0:
+              raise SoldOut(screening.id)
+          assert screening.seats_left != 0
+          ticket_id = sell_ticket(screening.id, viewer_id)
+          notify_viewer(viewer_id, ticket_id)
+          return ticket_id
+  expected_output:
+    outcome: invalid
+- name: a conversion raises when the currency has no rate, since the lookup may miss
+  inputs:
+    file: pricing/convert.py
+    after: |
+      from decimal import Decimal
+
+      from pricing.errors import UnknownCurrency
+      from pricing.rates import euro_rates
+
+
+      def to_euros(amount: Decimal, currency: str) -> Decimal:
+          rate = euro_rates.get(currency)
+          if rate is None:
+              raise UnknownCurrency(currency)
+          return amount * rate
+  expected_output:
+    outcome: valid
+- name: a loop skips contacts without an apartment unit, which many addresses legitimately lack
+  inputs:
+    file: delivery/buzzers.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Address:
+          street: str
+          city: str
+          unit: str | None
+
+
+      def buzzer_labels(addresses: list[Address]) -> list[str]:
+          labels: list[str] = []
+          for address in addresses:
+              if address.unit is None:
+                  continue
+              labels.append(f"{address.street} #{address.unit}")
+          return labels
+  expected_output:
+    outcome: valid
+- name: a raw query-string value is checked before it is parsed into a number
+  inputs:
+    file: catalog/paging.py
+    after: |
+      from catalog.errors import BadRequest
+
+
+      def parse_page_size(raw: str) -> int:
+          if not raw.isdigit():
+              raise BadRequest("page size must be a whole number")
+          return int(raw)
+  expected_output:
+    outcome: valid
+- name: a scheduler rejects a negative delay, which its callers may pass
+  inputs:
+    file: jobs/retries.py
+    after: |
+      from datetime import timedelta
+
+      from jobs.queue import enqueue_later
+
+
+      def schedule_retry(job_id: str, delay: timedelta) -> None:
+          if delay < timedelta(0):
+              raise ValueError("a retry can't be scheduled in the past")
+          enqueue_later(job_id, delay)
+  expected_output:
+    outcome: valid
+- name: an assertion tests a parameter's type that only its annotation states
+  inputs:
+    file: billing/labels.py
+    after: |
+      def invoice_label(number: int) -> str:
+          assert isinstance(number, int)
+          return f"INV-{number:06d}"
+  expected_output:
+    outcome: valid
+- name: a signup checks a minimum age stricter than the model's non-negative constraint
+  inputs:
+    file: members/signup.py
+    after: |
+      from pydantic import BaseModel, Field
+
+      from members.errors import TooYoung
+      from members.roster import add_member
+
+
+      class Signup(BaseModel):
+          email: str
+          age: int = Field(ge=0)
+
+
+      def sign_up(body: bytes) -> None:
+          signup = Signup.model_validate_json(body)
+          if signup.age < 18:
+              raise TooYoung(signup.email)
+          add_member(signup.email)
+  expected_output:
+    outcome: valid
+- name: a function totals line prices without a check
+  inputs:
+    file: billing/totals.py
+    after: |
+      from decimal import Decimal
+
+
+      def total(prices: list[Decimal]) -> Decimal:
+          return sum(prices, Decimal(0))
+  expected_output:
+    outcome: skipped
+- name: an earlier check already threw on non-text input, and an assert call re-tests that it is a string
+  inputs:
+    file: feed/status.ts
+    after: |
+      import assert from "node:assert";
+
+      import { publish } from "./feed";
+
+      export function postStatus(input: unknown): void {
+        if (typeof input !== "string") {
+          throw new TypeError("a status is text");
+        }
+        assert(typeof input === "string");
+        publish(input.trim());
+      }
+  expected_output:
+    outcome: invalid
+- name: inside the HTTP-error branch, an early return re-tests that the error is an HttpError
+  inputs:
+    file: http/retry.ts
+    after: |
+      import { HttpError } from "./errors";
+
+      export function retryable(error: Error): boolean {
+        if (error instanceof HttpError) {
+          if (!(error instanceof HttpError)) {
+            return false;
+          }
+          return error.status >= 500;
+        }
+        return false;
+      }
+  expected_output:
+    outcome: invalid
+- name: a runner only the kind-keyed table calls re-tests that the job is a resize
+  inputs:
+    file: images/jobs.ts
+    after: |
+      import { makeThumbnail, resizeImage } from "./images";
+
+      interface Job {
+        kind: "resize" | "thumbnail";
+        imageId: string;
+      }
+
+      async function runResize(job: Job): Promise<void> {
+        if (job.kind !== "resize") {
+          throw new Error(`resize got a ${job.kind} job`);
+        }
+        await resizeImage(job.imageId);
+      }
+
+      async function runThumbnail(job: Job): Promise<void> {
+        await makeThumbnail(job.imageId);
+      }
+
+      const runners: Record<Job["kind"], (job: Job) => Promise<void>> = {
+        resize: runResize,
+        thumbnail: runThumbnail,
+      };
+
+      export async function run(job: Job): Promise<void> {
+        await runners[job.kind](job);
+      }
+  expected_output:
+    outcome: invalid
+- name: a booking re-checks a guest count the zod schema's min refinement just validated
+  inputs:
+    file: restaurant/booking.ts
+    after: |
+      import { z } from "zod";
+
+      import { holdTable } from "./tables";
+
+      const bookingSchema = z.object({
+        tableId: z.string(),
+        guests: z.number().int().min(1),
+      });
+
+      export async function book(body: unknown): Promise<void> {
+        const booking = bookingSchema.parse(body);
+        if (booking.guests < 1) {
+          throw new Error("a booking needs at least one guest");
+        }
+        await holdTable(booking.tableId, booking.guests);
+      }
+  expected_output:
+    outcome: invalid
+- name: a room request re-checks a capacity its class-validator decorators just validated
+  inputs:
+    file: rooms/create.ts
+    after: |
+      import { plainToInstance } from "class-transformer";
+      import { IsInt, IsString, Min, validateOrReject } from "class-validator";
+
+      import { createRoom } from "./rooms";
+
+      class CreateRoomRequest {
+        @IsString()
+        name!: string;
+
+        @IsInt()
+        @Min(2)
+        capacity!: number;
+      }
+
+      export async function addRoom(body: object): Promise<void> {
+        const request = plainToInstance(CreateRoomRequest, body);
+        await validateOrReject(request);
+        if (request.capacity < 2) {
+          throw new Error("a room seats at least two");
+        }
+        await createRoom(request.name, request.capacity);
+      }
+  expected_output:
+    outcome: invalid
+- name: an invoice re-checks a prefix the function that built its number always adds
+  inputs:
+    file: billing/invoices.ts
+    after: |
+      import { saveInvoice } from "./store";
+
+      function invoiceNumber(sequence: number): string {
+        return `INV-${String(sequence).padStart(6, "0")}`;
+      }
+
+      export async function issueInvoice(sequence: number, totalCents: number): Promise<string> {
+        const number = invoiceNumber(sequence);
+        if (!number.startsWith("INV-")) {
+          throw new Error(`bad invoice number ${number}`);
+        }
+        await saveInvoice(number, totalCents);
+        return number;
+      }
+  expected_output:
+    outcome: invalid
+- name: an invariant re-tests a positive quantity the imported zod schema already guarantees
+  inputs:
+    file: orders/picking.ts
+    after: |
+      import invariant from "tiny-invariant";
+
+      import { reserveBin } from "./bins";
+      import { pickListSchema } from "./schema";
+
+      export async function pick(body: unknown): Promise<void> {
+        for (const line of pickListSchema.parse(body)) {
+          invariant(line.quantity > 0, `quantity for ${line.sku} must be positive`);
+          await reserveBin(line.sku, line.quantity);
+        }
+      }
+    unchanged:
+      orders/schema.ts: |
+        import { z } from "zod";
+
+        export const pickListSchema = z.array(
+          z.object({
+            sku: z.string().min(1),
+            quantity: z.number().int().positive(),
+          }),
+        );
+  expected_output:
+    outcome: invalid
+- name: a session lookup throws when the token is unknown, since the lookup may miss
+  inputs:
+    file: auth/session.ts
+    after: |
+      import { Unauthorized } from "./errors";
+      import { sessions } from "./sessions";
+
+      export function currentUserId(token: string): string {
+        const session = sessions.get(token);
+        if (session === undefined) {
+          throw new Unauthorized();
+        }
+        return session.userId;
+      }
+  expected_output:
+    outcome: valid
+- name: a loop skips contacts without a phone, which the contact type makes optional
+  inputs:
+    file: alerts/sms.ts
+    after: |
+      interface Contact {
+        name: string;
+        phone?: string;
+      }
+
+      export function smsNumbers(contacts: Contact[]): string[] {
+        const numbers: string[] = [];
+        for (const contact of contacts) {
+          if (contact.phone === undefined) {
+            continue;
+          }
+          numbers.push(contact.phone);
+        }
+        return numbers;
+      }
+  expected_output:
+    outcome: valid
+- name: a raw query-string limit is checked before it is parsed into a number
+  inputs:
+    file: api/limit.ts
+    after: |
+      import { BadRequest } from "./errors";
+
+      export function parseLimit(url: URL): number {
+        const raw = url.searchParams.get("limit");
+        if (raw === null || !/^[1-9]\d*$/.test(raw)) {
+          throw new BadRequest("limit must be a positive whole number");
+        }
+        return Number(raw);
+      }
+  expected_output:
+    outcome: valid
+- name: a backoff rejects an attempt number below one, which its callers may pass
+  inputs:
+    file: http/backoff.ts
+    after: |
+      export function retryDelayMs(attempt: number): number {
+        if (!Number.isInteger(attempt) || attempt < 1) {
+          throw new RangeError("attempt counts from 1");
+        }
+        return 2 ** attempt * 100;
+      }
+  expected_output:
+    outcome: valid
+- name: a typeof check tests a parameter's type that only its annotation states
+  inputs:
+    file: money/cents.ts
+    after: |
+      export function toCents(amount: number): number {
+        if (typeof amount !== "number") {
+          throw new TypeError("amount must be a number");
+        }
+        return Math.round(amount * 100);
+      }
+  expected_output:
+    outcome: valid
+- name: an application checks a minimum experience stricter than the schema's non-negative refinement
+  inputs:
+    file: hiring/apply.ts
+    after: |
+      import { z } from "zod";
+
+      import { NotEligible } from "./errors";
+      import { saveApplication } from "./store";
+
+      const applicationSchema = z.object({
+        email: z.string().email(),
+        yearsExperience: z.number().int().min(0),
+      });
+
+      export async function apply(body: unknown): Promise<void> {
+        const application = applicationSchema.parse(body);
+        if (application.yearsExperience < 3) {
+          throw new NotEligible(application.email);
+        }
+        await saveApplication(application.email, application.yearsExperience);
+      }
+  expected_output:
+    outcome: valid

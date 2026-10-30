@@ -3,10 +3,6 @@ language: python
 rule:
   any:
   - kind: assert_statement
-  - kind: call
-    has:
-      field: function
-      regex: ^(isinstance|issubclass|cast|typing\.cast)$
   - kind: if_statement
     has:
       field: consequence
@@ -29,18 +25,26 @@ rule:
     has:
       field: consequence
       has:
-        kind: raise_statement
+        any:
+        - kind: raise_statement
+        - kind: return_statement
+        - kind: continue_statement
+        - kind: break_statement
   - kind: else_clause
     has:
       field: body
       has:
-        kind: raise_statement
+        any:
+        - kind: raise_statement
+        - kind: return_statement
+        - kind: continue_statement
+        - kind: break_statement
   - kind: case_clause
     has:
       field: consequence
       has:
-        kind: raise_statement
-  - kind: conditional_expression
-    has:
-      kind: comparison_operator
-      regex: \bis (not )?None\b
+        any:
+        - kind: raise_statement
+        - kind: return_statement
+        - kind: continue_statement
+        - kind: break_statement
