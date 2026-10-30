@@ -1,9 +1,9 @@
 ---
-name: one-word-per-concept
+name: one-verb-per-operation
 description: One operation goes by one verb; a function or method name the change adds or renames whose verb differs from the one collaborating code uses for the same operation is a violation.
 ---
 
-# One Word per Concept
+# One Verb per Operation
 
 One operation goes by one verb.
 

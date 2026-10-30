@@ -58,7 +58,7 @@ the languages it runs on.
 | `command-query-separation` | Command-query separation: a function either changes state or returns an answer, not both, so asking never changes anything. | Not yet |
 | `law-of-demeter` | Law of Demeter: a function doesn't reach through one object into another's parts, so it depends only on its direct collaborators. | Not yet |
 | `intention-revealing-names` | Intention-revealing names: a name says what its body mainly does, so readers needn't open the body to learn it. | Not yet |
-| `one-word-per-concept` | One word per concept: one operation goes by one verb, so names predict each other. | Not yet |
+| `one-verb-per-operation` | One verb per operation: one operation goes by one verb, so names predict each other. | Not yet |
 
 Pattern rules (ast-grep), one per language where a convention's form is syntax. They
 start as `warning`s and skip test files:
