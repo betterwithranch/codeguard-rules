@@ -10,6 +10,24 @@ valid:
   class ExampleMailer:
       def send(self, invoice):
           invoice.sent = True
+# Augmented assignment to a local variable
+- |
+  class ExampleMailer:
+      def send(self, batch):
+          sent = 0
+          sent += len(batch)
+# Tuple target of local variables only
+- |
+  class ExampleMailer:
+      def send(self, pair):
+          first, second = pair
+# Module-level assignment to a name called self, outside any class
+- |
+  self.email = "example@example.com"
+# Assignment to self in a function outside any class
+- |
+  def bind(self, customer):
+      self.email = customer.email
 invalid:
 # Assignment in __init__
 - |
@@ -26,3 +44,23 @@ invalid:
   class ExampleMailer:
       def bind(self, customer):
           self.email: str = customer.email
+# Augmented assignment to an attribute
+- |
+  class ExampleMailer:
+      def send(self, batch):
+          self.sent_count += len(batch)
+# Unparenthesized tuple target holding an attribute
+- |
+  class ExampleMailer:
+      def bind(self, customer):
+          self.email, self.name = customer.email, customer.name
+# Parenthesized tuple target holding an attribute
+- |
+  class ExampleMailer:
+      def bind(self, customer):
+          (self.email, name) = customer.email, customer.name
+# List target holding an attribute
+- |
+  class ExampleMailer:
+      def bind(self, customer):
+          [self.email, self.name] = customer.email, customer.name

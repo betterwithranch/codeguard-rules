@@ -1,119 +1,178 @@
 cases:
-- name: an order stores whether it shipped beside the time it shipped
+- name: a parcel stores its weight class beside its weight and re-weighing must update both, so a change that sets one leaves them disagreeing
   inputs:
-    file: shipping/order.py
+    file: postage/parcel.py
+    unchanged:
+      postage/weight_class.py: |
+        from enum import Enum
+
+
+        class WeightClass(Enum):
+            LETTER = "letter"
+            SMALL = "small"
+            LARGE = "large"
+
+            @classmethod
+            def for_grams(cls, grams: int) -> "WeightClass":
+                if grams <= 100:
+                    return cls.LETTER
+                if grams <= 2000:
+                    return cls.SMALL
+                return cls.LARGE
     after: |
       from dataclasses import dataclass
-      from datetime import datetime
+
+      from postage.weight_class import WeightClass
 
 
       @dataclass
-      class Order:
-          reference: str
-          shipped_at: datetime | None = None
-          is_shipped: bool = False
+      class Parcel:
+          label: str
+          weight_grams: int
+          weight_class: WeightClass
 
-          def ship(self, now: datetime) -> None:
-              self.shipped_at = now
-              self.is_shipped = True
+          def reweigh(self, grams: int) -> None:
+              self.weight_grams = grams
+              self.weight_class = WeightClass.for_grams(grams)
   expected_output:
     outcome: invalid
-- name: an order computes whether it shipped from the time it shipped
+- name: a parcel that never changes caches its weight class from its weight, so there is no second field to keep in step
   inputs:
-    file: shipping/order.py
+    file: postage/parcel.py
+    unchanged:
+      postage/weight_class.py: |
+        from enum import Enum
+
+
+        class WeightClass(Enum):
+            LETTER = "letter"
+            SMALL = "small"
+            LARGE = "large"
+
+            @classmethod
+            def for_grams(cls, grams: int) -> "WeightClass":
+                if grams <= 100:
+                    return cls.LETTER
+                if grams <= 2000:
+                    return cls.SMALL
+                return cls.LARGE
     after: |
       from dataclasses import dataclass
-      from datetime import datetime
+      from functools import cached_property
+
+      from postage.weight_class import WeightClass
 
 
-      @dataclass
-      class Order:
-          reference: str
-          is_gift: bool = False
-          shipped_at: datetime | None = None
+      @dataclass(frozen=True)
+      class Parcel:
+          label: str
+          weight_grams: int
 
-          @property
-          def is_shipped(self) -> bool:
-              return self.shipped_at is not None
-
-          def ship(self, now: datetime) -> None:
-              self.shipped_at = now
+          @cached_property
+          def weight_class(self) -> WeightClass:
+              return WeightClass.for_grams(self.weight_grams)
   expected_output:
     outcome: valid
-- name: a cart keeps a count of its items beside the items
+- name: a timer's constructor sets its length in minutes beside its length in seconds and extend adds to both, so one missed update makes them disagree
   inputs:
-    file: cart/cart.py
+    file: kitchen/timer.py
+    before: |
+      class KitchenTimer:
+          def __init__(self, seconds: int) -> None:
+              self.duration_seconds = seconds
+
+          def extend(self, extra_seconds: int) -> None:
+              self.duration_seconds += extra_seconds
     after: |
-      from cart.item import CartItem
+      class KitchenTimer:
+          def __init__(self, seconds: int) -> None:
+              self.duration_seconds = seconds
+              self.duration_minutes = seconds / 60
 
-
-      class Cart:
-          def __init__(self) -> None:
-              self.items: list[CartItem] = []
-              self.item_count = 0
-
-          def add(self, item: CartItem) -> None:
-              self.items.append(item)
-              self.item_count += 1
+          def extend(self, extra_seconds: int) -> None:
+              self.duration_seconds += extra_seconds
+              self.duration_minutes += extra_seconds / 60
   expected_output:
     outcome: invalid
-- name: a shipment keeps a copy of its customer's email in step with the customer, so a reassignment that forgets one leaves them disagreeing
+- name: a timer computes its length in minutes from its length in seconds each time it is read
   inputs:
-    file: shipping/shipment.py
+    file: kitchen/timer.py
+    before: |
+      class KitchenTimer:
+          def __init__(self, seconds: int) -> None:
+              self.duration_seconds = seconds
+
+          def extend(self, extra_seconds: int) -> None:
+              self.duration_seconds += extra_seconds
+    after: |
+      class KitchenTimer:
+          def __init__(self, seconds: int) -> None:
+              self.duration_seconds = seconds
+
+          @property
+          def duration_minutes(self) -> float:
+              return self.duration_seconds / 60
+
+          def extend(self, extra_seconds: int) -> None:
+              self.duration_seconds += extra_seconds
+  expected_output:
+    outcome: valid
+- name: a ticket keeps a live copy of its assignee's team in step with the assignee, so a reassignment that forgets one leaves them disagreeing
+  inputs:
+    file: helpdesk/ticket.py
     unchanged:
-      accounts/customer.py: |
+      helpdesk/agent.py: |
         from dataclasses import dataclass
 
 
         @dataclass(frozen=True)
-        class Customer:
+        class Agent:
             id: str
             name: str
-            email: str
+            team: str
     after: |
       from dataclasses import dataclass, field
 
-      from accounts.customer import Customer
+      from helpdesk.agent import Agent
 
 
       @dataclass
-      class Shipment:
-          tracking_number: str
-          customer: Customer
-          customer_email: str = field(init=False)
+      class Ticket:
+          subject: str
+          assignee: Agent
+          assignee_team: str = field(init=False)
 
           def __post_init__(self) -> None:
-              self.customer_email = self.customer.email
+              self.assignee_team = self.assignee.team
 
-          def reassign(self, customer: Customer) -> None:
-              self.customer = customer
-              self.customer_email = customer.email
+          def reassign(self, agent: Agent) -> None:
+              self.assignee = agent
+              self.assignee_team = agent.team
   expected_output:
     outcome: invalid
-- name: a shipment stores its customer's email beside the customer and nothing records it at a moment, so it is a copy to keep in step
+- name: a ticket stores its assignee's team beside the assignee and nothing records it at a moment, so it is a copy to keep in step
   inputs:
-    file: shipping/shipment.py
+    file: helpdesk/ticket.py
     unchanged:
-      accounts/customer.py: |
+      helpdesk/agent.py: |
         from dataclasses import dataclass
 
 
         @dataclass(frozen=True)
-        class Customer:
+        class Agent:
             id: str
             name: str
-            email: str
+            team: str
     after: |
-      from dataclasses import dataclass
+      from pydantic import BaseModel
 
-      from accounts.customer import Customer
+      from helpdesk.agent import Agent
 
 
-      @dataclass
-      class Shipment:
-          tracking_number: str
-          customer: Customer
-          customer_email: str
+      class Ticket(BaseModel):
+          subject: str
+          assignee: Agent
+          assignee_team: str
   expected_output:
     outcome: invalid
 - name: a shipment records the address its dispatch notice went to when it sends it, kept as history beside the customer
@@ -154,48 +213,157 @@ cases:
               self.notified_email = self.customer.email
   expected_output:
     outcome: valid
-- name: an order line records the unit price paid beside the product
+- name: a hotel stay records a late checkout beside its check-in time, a fact the check-in time can't tell
   inputs:
-    file: orders/line.py
-    unchanged:
-      catalog/product.py: |
-        from dataclasses import dataclass
-        from decimal import Decimal
-
-
-        @dataclass
-        class Product:
-            sku: str
-            name: str
-            price: Decimal
+    file: hotel/stay.py
     after: |
       from dataclasses import dataclass
-      from decimal import Decimal
+      from datetime import datetime
 
-      from catalog.product import Product
+
+      @dataclass
+      class Stay:
+          room_number: str
+          checked_in_at: datetime | None = None
+          late_checkout: bool = False
+
+          def check_in(self, now: datetime) -> None:
+              self.checked_in_at = now
+
+          def grant_late_checkout(self) -> None:
+              self.late_checkout = True
+  expected_output:
+    outcome: valid
+- name: a delivery stores the date it is expected from its dispatch time and the carrier's transit days, which the delivery doesn't hold
+  inputs:
+    file: shipping/delivery.py
+    after: |
+      from datetime import date, datetime, timedelta
+
+
+      class Delivery:
+          def __init__(self, tracking_number: str) -> None:
+              self.tracking_number = tracking_number
+              self.dispatched_at: datetime | None = None
+              self.expected_on: date | None = None
+
+          def dispatch(self, now: datetime, carrier_transit_days: int) -> None:
+              self.dispatched_at = now
+              self.expected_on = (now + timedelta(days=carrier_transit_days)).date()
+  expected_output:
+    outcome: valid
+- name: a SQLAlchemy stock item keeps its warehouse_id column beside its warehouse relationship, which the ORM keeps on one row
+  inputs:
+    file: inventory/stock_item.py
+    unchanged:
+      inventory/base.py: |
+        from sqlalchemy.orm import DeclarativeBase
+
+
+        class Base(DeclarativeBase):
+            pass
+      inventory/warehouse.py: |
+        from sqlalchemy.orm import Mapped, mapped_column
+
+        from inventory.base import Base
+
+
+        class Warehouse(Base):
+            __tablename__ = "warehouses"
+
+            id: Mapped[int] = mapped_column(primary_key=True)
+            city: Mapped[str]
+    after: |
+      from sqlalchemy import ForeignKey
+      from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+      from inventory.base import Base
+      from inventory.warehouse import Warehouse
+
+
+      class StockItem(Base):
+          __tablename__ = "stock_items"
+
+          id: Mapped[int] = mapped_column(primary_key=True)
+          sku: Mapped[str]
+          quantity: Mapped[int]
+          warehouse_id: Mapped[int] = mapped_column(ForeignKey("warehouses.id"))
+          warehouse: Mapped[Warehouse] = relationship()
+  expected_output:
+    outcome: valid
+- name: a booking keeps its guest's id and not the guest, so the id repeats nothing the booking holds
+  inputs:
+    file: hotel/booking.py
+    after: |
+      from dataclasses import dataclass
+      from datetime import date
 
 
       @dataclass(frozen=True)
-      class OrderLine:
-          product: Product
-          quantity: int
-          unit_price_paid: Decimal
+      class Booking:
+          reference: str
+          guest_id: str
+          arrives_on: date
+          nights: int
   expected_output:
     outcome: valid
-- name: a Django order keeps a foreign key to its customer
+- name: a parcel response copies both the weight and the weight class out of the parcel for the client, so the parcel stays their one source
   inputs:
-    file: orders/models.py
+    file: postage/responses.py
+    unchanged:
+      postage/weight_class.py: |
+        from enum import Enum
+
+
+        class WeightClass(Enum):
+            LETTER = "letter"
+            SMALL = "small"
+            LARGE = "large"
+
+            @classmethod
+            def for_grams(cls, grams: int) -> "WeightClass":
+                if grams <= 100:
+                    return cls.LETTER
+                if grams <= 2000:
+                    return cls.SMALL
+                return cls.LARGE
+      postage/parcel.py: |
+        from dataclasses import dataclass
+        from functools import cached_property
+
+        from postage.weight_class import WeightClass
+
+
+        @dataclass(frozen=True)
+        class Parcel:
+            label: str
+            weight_grams: int
+
+            @cached_property
+            def weight_class(self) -> WeightClass:
+                return WeightClass.for_grams(self.weight_grams)
     after: |
-      from django.db import models
+      from pydantic import BaseModel
+
+      from postage.parcel import Parcel
+      from postage.weight_class import WeightClass
 
 
-      class Order(models.Model):
-          customer = models.ForeignKey("accounts.Customer", on_delete=models.PROTECT)
-          reference = models.CharField(max_length=32)
-          placed_at = models.DateTimeField()
+      class ParcelResponse(BaseModel):
+          label: str
+          weight_grams: int
+          weight_class: WeightClass
+
+          @classmethod
+          def from_parcel(cls, parcel: Parcel) -> "ParcelResponse":
+              return cls(
+                  label=parcel.label,
+                  weight_grams=parcel.weight_grams,
+                  weight_class=parcel.weight_class,
+              )
   expected_output:
     outcome: valid
-- name: a function formats an order reference
+- name: a module-level function sets no field on a class, so the rule's gate doesn't run
   inputs:
     file: orders/format.py
     after: |
@@ -203,84 +371,372 @@ cases:
           return f"{prefix}-{number:06d}"
   expected_output:
     outcome: skipped
-- name: a component keeps a selected count in state beside the selected ids
+- name: a playlist editor keeps its total length in state beside its tracks and adjusts it by hand, so one missed update shows the wrong length
   inputs:
-    file: inbox/MessageList.tsx
+    file: music/PlaylistEditor.tsx
+    unchanged:
+      music/track.ts: |
+        export interface Track {
+          id: string;
+          title: string;
+          durationSeconds: number;
+        }
     after: |
       import { useState } from "react";
 
-      export function MessageList({ messages }: { messages: Message[] }) {
-        const [selectedIds, setSelectedIds] = useState<string[]>([]);
-        const [selectedCount, setSelectedCount] = useState(0);
+      import type { Track } from "./track";
 
-        function toggle(id: string) {
-          if (selectedIds.includes(id)) {
-            setSelectedIds(selectedIds.filter((s) => s !== id));
-            setSelectedCount(selectedCount - 1);
-          } else {
-            setSelectedIds([...selectedIds, id]);
-            setSelectedCount(selectedCount + 1);
-          }
+      export function PlaylistEditor({ library }: { library: Track[] }) {
+        const [tracks, setTracks] = useState<Track[]>([]);
+        const [totalSeconds, setTotalSeconds] = useState(0);
+
+        function add(track: Track) {
+          setTracks([...tracks, track]);
+          setTotalSeconds(totalSeconds + track.durationSeconds);
+        }
+
+        function remove(track: Track) {
+          setTracks(tracks.filter((t) => t.id !== track.id));
+          setTotalSeconds(totalSeconds - track.durationSeconds);
         }
 
         return (
-          <ul>
-            <li>{selectedCount} selected</li>
-            {messages.map((m) => (
-              <li key={m.id} onClick={() => toggle(m.id)}>
-                {m.subject}
-              </li>
-            ))}
-          </ul>
+          <section>
+            <p>{Math.round(totalSeconds / 60)} minutes</p>
+            <ol>
+              {tracks.map((t) => (
+                <li key={t.id} onClick={() => remove(t)}>
+                  {t.title}
+                </li>
+              ))}
+            </ol>
+            <ul>
+              {library.map((t) => (
+                <li key={t.id} onClick={() => add(t)}>
+                  {t.title}
+                </li>
+              ))}
+            </ul>
+          </section>
         );
       }
   expected_output:
     outcome: invalid
-- name: a component computes the selected count from the selected ids
+- name: a playlist editor sums its total length from its tracks while rendering
   inputs:
-    file: inbox/MessageList.tsx
+    file: music/PlaylistEditor.tsx
+    unchanged:
+      music/track.ts: |
+        export interface Track {
+          id: string;
+          title: string;
+          durationSeconds: number;
+        }
     after: |
       import { useState } from "react";
 
-      export function MessageList({ messages }: { messages: Message[] }) {
-        const [selectedIds, setSelectedIds] = useState<string[]>([]);
-        const selectedCount = selectedIds.length;
+      import type { Track } from "./track";
 
-        function toggle(id: string) {
-          setSelectedIds(
-            selectedIds.includes(id)
-              ? selectedIds.filter((s) => s !== id)
-              : [...selectedIds, id],
-          );
+      export function PlaylistEditor({ library }: { library: Track[] }) {
+        const [tracks, setTracks] = useState<Track[]>([]);
+        const totalSeconds = tracks.reduce((sum, t) => sum + t.durationSeconds, 0);
+
+        function add(track: Track) {
+          setTracks([...tracks, track]);
+        }
+
+        function remove(track: Track) {
+          setTracks(tracks.filter((t) => t.id !== track.id));
         }
 
         return (
-          <ul>
-            <li>{selectedCount} selected</li>
-            {messages.map((m) => (
-              <li key={m.id} onClick={() => toggle(m.id)}>
-                {m.subject}
-              </li>
-            ))}
-          </ul>
+          <section>
+            <p>{Math.round(totalSeconds / 60)} minutes</p>
+            <ol>
+              {tracks.map((t) => (
+                <li key={t.id} onClick={() => remove(t)}>
+                  {t.title}
+                </li>
+              ))}
+            </ol>
+            <ul>
+              {library.map((t) => (
+                <li key={t.id} onClick={() => add(t)}>
+                  {t.title}
+                </li>
+              ))}
+            </ul>
+          </section>
         );
       }
   expected_output:
     outcome: valid
-- name: a subscription class stores whether it is active beside its cancellation time
+- name: a delivery copies its courier's phone number when built and again when the courier changes, so a change that forgets one leaves them disagreeing
   inputs:
-    file: billing/subscription.ts
+    file: dispatch/delivery.ts
+    unchanged:
+      dispatch/courier.ts: |
+        export interface Courier {
+          readonly id: string;
+          readonly name: string;
+          readonly phone: string;
+        }
     after: |
-      export class Subscription {
-        cancelledAt?: Date;
-        isActive = true;
+      import type { Courier } from "./courier";
 
-        constructor(readonly customerId: string, readonly plan: string) {}
+      export class Delivery {
+        courierPhone: string;
 
-        cancel(now: Date): void {
-          this.cancelledAt = now;
-          this.isActive = false;
+        constructor(
+          readonly trackingNumber: string,
+          public courier: Courier,
+        ) {
+          this.courierPhone = courier.phone;
+        }
+
+        changeCourier(courier: Courier): void {
+          this.courier = courier;
+          this.courierPhone = courier.phone;
         }
       }
   expected_output:
     outcome: invalid
+- name: a paint swatch's constructor parses its colour channels from its hex code and stores both, so recolouring must update both
+  inputs:
+    file: paint/swatch.ts
+    unchanged:
+      paint/colour.ts: |
+        export interface Rgb {
+          readonly red: number;
+          readonly green: number;
+          readonly blue: number;
+        }
+
+        export function parseHex(hex: string): Rgb {
+          return {
+            red: parseInt(hex.slice(1, 3), 16),
+            green: parseInt(hex.slice(3, 5), 16),
+            blue: parseInt(hex.slice(5, 7), 16),
+          };
+        }
+    after: |
+      import { parseHex, type Rgb } from "./colour";
+
+      export class Swatch {
+        hex: string;
+        rgb: Rgb;
+
+        constructor(readonly name: string, hex: string) {
+          this.hex = hex;
+          this.rgb = parseHex(hex);
+        }
+
+        recolour(hex: string): void {
+          this.hex = hex;
+          this.rgb = parseHex(hex);
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: a paint swatch's getter parses its colour channels from its hex code each time they are read
+  inputs:
+    file: paint/swatch.ts
+    unchanged:
+      paint/colour.ts: |
+        export interface Rgb {
+          readonly red: number;
+          readonly green: number;
+          readonly blue: number;
+        }
+
+        export function parseHex(hex: string): Rgb {
+          return {
+            red: parseInt(hex.slice(1, 3), 16),
+            green: parseInt(hex.slice(3, 5), 16),
+            blue: parseInt(hex.slice(5, 7), 16),
+          };
+        }
+    after: |
+      import { parseHex, type Rgb } from "./colour";
+
+      export class Swatch {
+        hex: string;
+
+        constructor(readonly name: string, hex: string) {
+          this.hex = hex;
+        }
+
+        get rgb(): Rgb {
+          return parseHex(this.hex);
+        }
+
+        recolour(hex: string): void {
+          this.hex = hex;
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a poll records whether voters may pick several answers beside when it closes, a fact the closing time can't tell
+  inputs:
+    file: polls/poll.ts
+    after: |
+      export class Poll {
+        allowsMultipleAnswers = false;
+
+        constructor(
+          readonly question: string,
+          public closesAt: Date,
+        ) {}
+
+        allowMultipleAnswers(): void {
+          this.allowsMultipleAnswers = true;
+        }
+
+        extendTo(closesAt: Date): void {
+          this.closesAt = closesAt;
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a holiday rental stores its number of nights worked out from both its arrival and departure dates
+  inputs:
+    file: rentals/rentalPeriod.ts
+    after: |
+      const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+      export class RentalPeriod {
+        readonly nights: number;
+
+        constructor(
+          readonly arrival: Date,
+          readonly departure: Date,
+        ) {
+          this.nights = Math.round((departure.getTime() - arrival.getTime()) / MS_PER_DAY);
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a loan records its product's interest rate when the borrower signs, kept as history beside the product whose rate later changes
+  inputs:
+    file: lending/loan.ts
+    unchanged:
+      lending/loanProduct.ts: |
+        export class LoanProduct {
+          constructor(
+            readonly code: string,
+            public annualRate: number,
+          ) {}
+
+          changeRate(annualRate: number): void {
+            this.annualRate = annualRate;
+          }
+        }
+    after: |
+      import type { LoanProduct } from "./loanProduct";
+
+      export class Loan {
+        // The product's annual rate as it was when the borrower signed.
+        rateAtSigning?: number;
+
+        constructor(
+          readonly id: string,
+          readonly product: LoanProduct,
+        ) {}
+
+        sign(): void {
+          this.rateAtSigning = this.product.annualRate;
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a TypeORM stock item keeps its warehouseId column beside its warehouse relation joined on it, which the ORM keeps on one row
+  inputs:
+    file: inventory/stockItem.ts
+    unchanged:
+      inventory/warehouse.ts: |
+        import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
+
+        @Entity()
+        export class Warehouse {
+          @PrimaryGeneratedColumn()
+          id!: number;
+
+          @Column()
+          city!: string;
+        }
+    after: |
+      import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
+
+      import { Warehouse } from "./warehouse";
+
+      @Entity()
+      export class StockItem {
+        @PrimaryGeneratedColumn()
+        id!: number;
+
+        @Column()
+        sku!: string;
+
+        @Column()
+        quantity!: number;
+
+        @Column()
+        warehouseId!: number;
+
+        @ManyToOne(() => Warehouse)
+        @JoinColumn({ name: "warehouseId" })
+        warehouse!: Warehouse;
+      }
+  expected_output:
+    outcome: valid
+- name: a booking keeps its guest's id and not the guest, so the id repeats nothing the booking holds (typescript)
+  inputs:
+    file: hotel/booking.ts
+    after: |
+      export class Booking {
+        constructor(
+          readonly reference: string,
+          readonly guestId: string,
+          readonly arrivesOn: Date,
+          readonly nights: number,
+        ) {}
+      }
+  expected_output:
+    outcome: valid
+- name: a parcel response copies both the weight and the weight class out of the parcel for the client, so the parcel stays their one source (typescript)
+  inputs:
+    file: postage/parcelResponse.ts
+    unchanged:
+      postage/parcel.ts: |
+        export type WeightClass = "letter" | "small" | "large";
+
+        export class Parcel {
+          constructor(
+            readonly label: string,
+            readonly weightGrams: number,
+          ) {}
+
+          get weightClass(): WeightClass {
+            if (this.weightGrams <= 100) return "letter";
+            if (this.weightGrams <= 2000) return "small";
+            return "large";
+          }
+        }
+    after: |
+      import type { Parcel, WeightClass } from "./parcel";
+
+      export interface ParcelResponse {
+        label: string;
+        weightGrams: number;
+        weightClass: WeightClass;
+      }
+
+      export function toParcelResponse(parcel: Parcel): ParcelResponse {
+        return {
+          label: parcel.label,
+          weightGrams: parcel.weightGrams,
+          weightClass: parcel.weightClass,
+        };
+      }
+  expected_output:
+    outcome: valid

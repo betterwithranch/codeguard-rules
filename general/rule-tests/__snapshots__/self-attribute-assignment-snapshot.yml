@@ -1,10 +1,7 @@
 id: self-attribute-assignment
 snapshots:
-  ? |
-    class ExampleMailer:
-        def __init__(self, customer):
-            self.email = customer.email
-  : labels:
+  "class ExampleMailer:\n    def __init__(self, customer):\n        self.email = customer.email\n":
+    labels:
     - source: self.email = customer.email
       style: primary
       start: 63
@@ -26,11 +23,8 @@ snapshots:
       style: secondary
       start: 63
       end: 73
-  ? |
-    class ExampleMailer:
-        def __post_init__(self):
-            self.email = self.customer.email
-  : labels:
+  "class ExampleMailer:\n    def __post_init__(self):\n        self.email = self.customer.email\n":
+    labels:
     - source: self.email = self.customer.email
       style: primary
       start: 58
@@ -52,12 +46,90 @@ snapshots:
       style: secondary
       start: 58
       end: 68
-  ? |
-    class ExampleMailer:
+  "class ExampleMailer:\n    def bind(self, customer):\n        (self.email, name) = customer.email, customer.name\n":
+    labels:
+    - source: (self.email, name) = customer.email, customer.name
+      style: primary
+      start: 59
+      end: 109
+    - source: |-
+        class ExampleMailer:
+            def bind(self, customer):
+                (self.email, name) = customer.email, customer.name
+      style: secondary
+      start: 0
+      end: 109
+    - source: |-
         def bind(self, customer):
-            self.email: str = customer.email
-  : labels:
-    - source: 'self.email: str = customer.email'
+                (self.email, name) = customer.email, customer.name
+      style: secondary
+      start: 25
+      end: 109
+    - source: self.email
+      style: secondary
+      start: 60
+      end: 70
+    - source: (self.email, name)
+      style: secondary
+      start: 59
+      end: 77
+  "class ExampleMailer:\n    def bind(self, customer):\n        [self.email, self.name] = customer.email, customer.name\n":
+    labels:
+    - source: "[self.email, self.name] = customer.email, customer.name"
+      style: primary
+      start: 59
+      end: 114
+    - source: |-
+        class ExampleMailer:
+            def bind(self, customer):
+                [self.email, self.name] = customer.email, customer.name
+      style: secondary
+      start: 0
+      end: 114
+    - source: |-
+        def bind(self, customer):
+                [self.email, self.name] = customer.email, customer.name
+      style: secondary
+      start: 25
+      end: 114
+    - source: self.email
+      style: secondary
+      start: 60
+      end: 70
+    - source: "[self.email, self.name]"
+      style: secondary
+      start: 59
+      end: 82
+  "class ExampleMailer:\n    def bind(self, customer):\n        self.email, self.name = customer.email, customer.name\n":
+    labels:
+    - source: self.email, self.name = customer.email, customer.name
+      style: primary
+      start: 59
+      end: 112
+    - source: |-
+        class ExampleMailer:
+            def bind(self, customer):
+                self.email, self.name = customer.email, customer.name
+      style: secondary
+      start: 0
+      end: 112
+    - source: |-
+        def bind(self, customer):
+                self.email, self.name = customer.email, customer.name
+      style: secondary
+      start: 25
+      end: 112
+    - source: self.email
+      style: secondary
+      start: 59
+      end: 69
+    - source: self.email, self.name
+      style: secondary
+      start: 59
+      end: 80
+  "class ExampleMailer:\n    def bind(self, customer):\n        self.email: str = customer.email\n":
+    labels:
+    - source: "self.email: str = customer.email"
       style: primary
       start: 59
       end: 91
@@ -78,3 +150,26 @@ snapshots:
       style: secondary
       start: 59
       end: 69
+  "class ExampleMailer:\n    def send(self, batch):\n        self.sent_count += len(batch)\n":
+    labels:
+    - source: self.sent_count += len(batch)
+      style: primary
+      start: 56
+      end: 85
+    - source: |-
+        class ExampleMailer:
+            def send(self, batch):
+                self.sent_count += len(batch)
+      style: secondary
+      start: 0
+      end: 85
+    - source: |-
+        def send(self, batch):
+                self.sent_count += len(batch)
+      style: secondary
+      start: 25
+      end: 85
+    - source: self.sent_count
+      style: secondary
+      start: 56
+      end: 71

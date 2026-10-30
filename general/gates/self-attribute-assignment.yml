@@ -1,11 +1,21 @@
 id: self-attribute-assignment
 language: python
 rule:
-  kind: assignment
+  any:
+    - kind: assignment
+    - kind: augmented_assignment
   has:
     field: left
-    kind: attribute
-    regex: ^self\.
+    any:
+      - kind: attribute
+        regex: ^self\.
+      - any:
+          - kind: pattern_list
+          - kind: tuple_pattern
+          - kind: list_pattern
+        has:
+          kind: attribute
+          regex: ^self\.
   inside:
     kind: function_definition
     stopBy: end
