@@ -54,12 +54,16 @@ cases:
 
       class Paginator:
           def page(self, items: Sequence[T], number: int, size: int) -> Sequence[T]:
+              if number < 1:
+                  raise ValueError("pages are numbered from 1")
               start = (number - 1) * size
               return items[start : start + size]
 
 
       class CatalogPaginator(Paginator):
           def page(self, items: Sequence[T], number: int, size: int) -> Sequence[T]:
+              if number < 1:
+                  raise ValueError("pages are numbered from 1")
               start = (number - 1) * 20
               return items[start : start + 20]
   expected_output:
@@ -76,12 +80,16 @@ cases:
 
       class Paginator:
           def page(self, items: Sequence[T], number: int, size: int) -> Sequence[T]:
+              if number < 1:
+                  raise ValueError("pages are numbered from 1")
               start = (number - 1) * size
               return items[start : start + size]
 
 
       class StreamPaginator(Paginator):
           def page(self, items: Iterable[T], number: int, size: int) -> Sequence[T]:
+              if number < 1:
+                  raise ValueError("pages are numbered from 1")
               start = (number - 1) * size
               return list(islice(items, start, start + size))
   expected_output:
