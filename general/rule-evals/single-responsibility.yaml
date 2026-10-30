@@ -542,6 +542,8 @@ cases:
         }
       }
     after: |
+      import type { KnownBlock } from "@slack/types";
+
       export class ShiftSchedule {
         private readonly staffed = new Map<string, string[]>();
 
@@ -553,7 +555,7 @@ cases:
           this.staffed.set(shiftId, (this.staffed.get(shiftId) ?? []).filter((id) => id !== employeeId));
         }
 
-        slackBlocks(shiftId: string): object[] {
+        slackBlocks(shiftId: string): KnownBlock[] {
           return [
             { type: "header", text: { type: "plain_text", text: `Shift ${shiftId}` } },
             {
