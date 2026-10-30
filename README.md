@@ -23,9 +23,9 @@ name, and [basedpyright](https://docs.basedpyright.com) with these rules on:
 
 ### `general`
 
-Architecture rules for any language. Most are judge rules. A judge rule's `SKILL.md`
-states the convention in no language's terms, and a supplement beside it for each
-language, `python.md` and `typescript.md`, gives that language's forms and examples. The judge
+Architecture rules for any language. Each is one judge rule: its `SKILL.md` states the
+convention in no language's terms, and a supplement beside it for each language,
+`python.md` and `typescript.md`, gives that language's forms and examples. The judge
 gets the skill and the supplement for the file's language. Its binding's `paths` name
 the languages it runs on.
 
@@ -60,14 +60,6 @@ the languages it runs on.
 | `intention-revealing-names` | Intention-revealing names: a name says what its body mainly does, so readers needn't open the body to learn it. | Not yet |
 | `one-word-per-concept` | One word per concept: one operation goes by one verb, so names predict each other. | Not yet |
 
-Pattern rules (ast-grep), one per language where a convention's form is syntax. They
-start as `warning`s and skip test files:
-
-| Rule | Checks |
-|---|---|
-| `no-middle-man-python`, `no-middle-man-typescript` | No middle man: a class without a base doesn't forward every method to the same collaborator |
-| `no-class-level-mutable-container` | No class-level mutable container: a list, dict or set bound in a class body isn't mutated through `self`, which every instance shares (Python only) |
-
 Each judge rule passes 20 of 20 eval runs on Claude before it ships, and CI's 3 runs
 before it merges. One check follows, and doesn't hold up the next rule:
 
@@ -96,6 +88,7 @@ code skip test files:
 | `no-append-in-every-branch` | No loop `if`/`else` that appends to the same list in every branch |
 | `no-assert-on-lookup-field` | Don't assert the field used to find an item |
 | `no-bucket-module-names` | No `utils`, `helpers`, `common`, `shared`, or `contracts` modules |
+| `no-class-level-mutable-container` | No class-level mutable container: a list, dict or set bound in a class body isn't mutated through `self`, which every instance shares |
 | `no-comments-in-tests` | No comments in test files, except tool directives |
 | `no-constructed-test-constants` | No module-level `UPPER = SomeClass(...)` in test files; build it in a fixture |
 | `no-default-constructor-fixtures` | No fixture or test helper that only returns `SomeClass()` |
