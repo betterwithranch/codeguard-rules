@@ -1,100 +1,95 @@
 cases:
-- name: a pydantic field is a union of tagged payment models with no discriminator named
+- name: a tracking feed adapter names no discriminator, so pydantic tries each tagged event model in turn
   inputs:
-    file: payments/schemas.py
+    file: logistics/tracking.py
     after: |
-      from decimal import Decimal
+      from typing import Literal
+
+      from pydantic import BaseModel, TypeAdapter
+
+
+      class Departed(BaseModel):
+          event: Literal["departed"] = "departed"
+          depot_code: str
+
+
+      class Delivered(BaseModel):
+          event: Literal["delivered"] = "delivered"
+          signed_by: str
+
+
+      tracking_feed = TypeAdapter(list[Departed | Delivered])
+  expected_output:
+    outcome: invalid
+- name: a TypedDict union read by pydantic names its op tag as the discriminator
+  inputs:
+    file: editor/operations.py
+    after: |
+      from typing import Annotated, Literal, TypedDict
+
+      from pydantic import Discriminator, TypeAdapter
+
+
+      class InsertText(TypedDict):
+          op: Literal["insert"]
+          position: int
+          text: str
+
+
+      class DeleteRange(TypedDict):
+          op: Literal["delete"]
+          start: int
+          end: int
+
+
+      edit_ops = TypeAdapter(list[Annotated[InsertText | DeleteRange, Discriminator("op")]])
+  expected_output:
+    outcome: valid
+- name: a humidity reading has no sensor tag, so the parser can't pick it by tag
+  inputs:
+    file: sensors/readings.py
+    after: |
+      from typing import Literal
+
+      from pydantic import BaseModel, TypeAdapter
+
+
+      class TemperatureReading(BaseModel):
+          sensor: Literal["thermometer"] = "thermometer"
+          celsius: float
+
+
+      class HumidityReading(BaseModel):
+          percent: float
+
+
+      type Reading = TemperatureReading | HumidityReading
+
+      reading_adapter = TypeAdapter(Reading)
+  expected_output:
+    outcome: invalid
+- name: a model field's union of models in the same file with no discriminator is left to union-declares-discriminator
+  inputs:
+    file: refunds/schemas.py
+    after: |
       from typing import Literal
 
       from pydantic import BaseModel
 
 
-      class CardPayment(BaseModel):
-          kind: Literal["card"] = "card"
-          card_token: str
+      class StoreCredit(BaseModel):
+          method: Literal["store_credit"] = "store_credit"
+          voucher_code: str
 
 
-      class BankPayment(BaseModel):
-          kind: Literal["bank"] = "bank"
-          iban: str
+      class CardRefund(BaseModel):
+          method: Literal["card"] = "card"
+          last_four: str
 
 
-      class CheckoutIn(BaseModel):
-          amount: Decimal
-          payment: CardPayment | BankPayment
-  expected_output:
-    outcome: invalid
-- name: a variant of a discriminated union declares its tag as a plain string
-  inputs:
-    file: payments/schemas.py
-    after: |
-      from decimal import Decimal
-      from typing import Literal
-
-      from pydantic import BaseModel, Field
-
-
-      class CardPayment(BaseModel):
-          kind: Literal["card"] = "card"
-          card_token: str
-
-
-      class BankPayment(BaseModel):
-          kind: str = "bank"
-          iban: str
-
-
-      class CheckoutIn(BaseModel):
-          amount: Decimal
-          payment: CardPayment | BankPayment = Field(discriminator="kind")
-  expected_output:
-    outcome: invalid
-- name: two variants of a discriminated union share a tag value
-  inputs:
-    file: events/schemas.py
-    after: |
-      from typing import Annotated, Literal
-
-      from pydantic import BaseModel, Field
-
-
-      class OrderPlaced(BaseModel):
-          type: Literal["order"] = "order"
+      class RefundIn(BaseModel):
           order_id: str
-
-
-      class OrderCancelled(BaseModel):
-          type: Literal["order"] = "order"
-          order_id: str
-          reason: str
-
-
-      Event = Annotated[OrderPlaced | OrderCancelled, Field(discriminator="type")]
-  expected_output:
-    outcome: invalid
-- name: a pydantic field names its discriminator over uniquely tagged models
-  inputs:
-    file: payments/schemas.py
-    after: |
-      from decimal import Decimal
-      from typing import Literal
-
-      from pydantic import BaseModel, Field
-
-
-      class CardPayment(BaseModel):
-          kind: Literal["card"] = "card"
-          card_token: str
-
-
-      class BankPayment(BaseModel):
-          kind: Literal["bank"] = "bank"
-          iban: str
-
-
-      class CheckoutIn(BaseModel):
-          amount: Decimal
-          payment: CardPayment | BankPayment = Field(discriminator="kind")
+          refund: StoreCredit | CardRefund
   expected_output:
     outcome: valid
 - name: a union of dataclasses the program builds is told apart by class
@@ -126,59 +121,192 @@ cases:
                   return subtotal * (1 + rate)
   expected_output:
     outcome: valid
-- name: a pydantic field accepts a decimal or a builtin integer
+- name: a recipient read as a bare address or a mailbox object has one variant per input shape
   inputs:
-    file: pricing/schemas.py
+    file: mail/recipients.py
     after: |
-      from decimal import Decimal
+      from pydantic import BaseModel, TypeAdapter
+
+
+      class Mailbox(BaseModel):
+          display_name: str
+          address: str
+
+
+      recipient_adapter = TypeAdapter(Mailbox | str)
+  expected_output:
+    outcome: valid
+- name: an optional coupon is a union with None, outside the gate
+  inputs:
+    file: basket/schemas.py
+    after: |
+      from pydantic import BaseModel
+
+
+      class Coupon(BaseModel):
+          code: str
+          percent_off: int
+
+
+      class BasketIn(BaseModel):
+          sku_codes: list[str]
+          coupon: Coupon | None = None
+  expected_output:
+    outcome: skipped
+- name: a reminder due as a datetime or a date is a union of plain values, outside the gate
+  inputs:
+    file: reminders/schemas.py
+    after: |
+      from datetime import date, datetime
 
       from pydantic import BaseModel
 
 
-      class PriceIn(BaseModel):
-          sku: str
-          amount: Decimal | int
-          currency: str
+      class ReminderIn(BaseModel):
+          title: str
+          due: datetime | date
   expected_output:
     outcome: skipped
-- name: a function formats a price
+- name: a valibot union of tagged channel schemas names no discriminator, so valibot tries each in turn
   inputs:
-    file: pricing/format.py
+    file: notify/schema.ts
     after: |
-      from decimal import Decimal
+      import * as v from "valibot";
 
+      const smsChannel = v.object({ channel: v.literal("sms"), phoneNumber: v.string() });
+      const pushChannel = v.object({ channel: v.literal("push"), deviceToken: v.string() });
 
-      def format_price(amount: Decimal, currency: str) -> str:
-          return f"{amount:.2f} {currency}"
-  expected_output:
-    outcome: skipped
-- name: a zod union of tagged object schemas names no discriminator
-  inputs:
-    file: payments/schema.ts
-    after: |
-      import { z } from "zod";
-
-      const cardPayment = z.object({ kind: z.literal("card"), cardToken: z.string() });
-      const bankPayment = z.object({ kind: z.literal("bank"), iban: z.string() });
-
-      export const checkoutSchema = z.object({
-        amount: z.number().positive(),
-        payment: z.union([cardPayment, bankPayment]),
+      export const notifyRequestSchema = v.object({
+        message: v.string(),
+        target: v.union([smsChannel, pushChannel]),
       });
   expected_output:
     outcome: invalid
-- name: a zod discriminated union of uniquely tagged object schemas
+- name: a zod plan schema names its billing tag over uniquely tagged plans
   inputs:
-    file: payments/schema.ts
+    file: subscriptions/plan.ts
     after: |
       import { z } from "zod";
 
-      const cardPayment = z.object({ kind: z.literal("card"), cardToken: z.string() });
-      const bankPayment = z.object({ kind: z.literal("bank"), iban: z.string() });
-
-      export const checkoutSchema = z.object({
-        amount: z.number().positive(),
-        payment: z.discriminatedUnion("kind", [cardPayment, bankPayment]),
+      const monthlyPlan = z.object({
+        billing: z.literal("monthly"),
+        dayOfMonth: z.number().int().min(1).max(28),
       });
+      const annualPlan = z.object({
+        billing: z.literal("annual"),
+        renewalMonth: z.number().int().min(1).max(12),
+      });
+
+      export const planSchema = z.discriminatedUnion("billing", [monthlyPlan, annualPlan]);
+  expected_output:
+    outcome: valid
+- name: a courier variant has no mode tag, so valibot's variant can't pick it by tag
+  inputs:
+    file: fulfilment/schema.ts
+    after: |
+      import * as v from "valibot";
+
+      const pickupSlot = v.object({ mode: v.literal("pickup"), storeId: v.string() });
+      const courierSlot = v.object({ address: v.string(), window: v.string() });
+
+      export const fulfilmentSchema = v.variant("mode", [pickupSlot, courierSlot]);
+  expected_output:
+    outcome: invalid
+- name: a remote-url variant's source tag is any string, so a misspelt upload parses as a remote url
+  inputs:
+    file: attachments/schema.ts
+    after: |
+      import * as v from "valibot";
+
+      const fileUpload = v.object({ source: v.literal("upload"), fileId: v.string() });
+      const remoteUrl = v.object({ source: v.string(), url: v.pipe(v.string(), v.url()) });
+
+      export const attachmentSchema = v.variant("source", [fileUpload, remoteUrl]);
+  expected_output:
+    outcome: invalid
+- name: the change adds a free-shipping variant that repeats the amount tag, so the tag no longer picks one variant
+  inputs:
+    file: discounts/schema.ts
+    before: |
+      import * as v from "valibot";
+
+      const percentOff = v.object({ type: v.literal("percent"), percent: v.number() });
+      const amountOff = v.object({ type: v.literal("amount"), cents: v.number() });
+
+      export const discountSchema = v.variant("type", [percentOff, amountOff]);
+    after: |
+      import * as v from "valibot";
+
+      const percentOff = v.object({ type: v.literal("percent"), percent: v.number() });
+      const amountOff = v.object({ type: v.literal("amount"), cents: v.number() });
+      const freeShipping = v.object({ type: v.literal("amount"), maxShippingCents: v.number() });
+
+      export const discountSchema = v.variant("type", [percentOff, amountOff, freeShipping]);
+  expected_output:
+    outcome: invalid
+- name: a union of job outcome classes the program builds is narrowed with instanceof
+  inputs:
+    file: jobs/outcome.ts
+    after: |
+      export class RetryLater {
+        constructor(readonly afterSeconds: number) {}
+      }
+
+      export class GiveUp {
+        constructor(readonly reason: string) {}
+      }
+
+      export type JobOutcome = RetryLater | GiveUp;
+
+      export function describeOutcome(outcome: JobOutcome): string {
+        if (outcome instanceof RetryLater) {
+          return `retry in ${outcome.afterSeconds}s`;
+        }
+        return `gave up: ${outcome.reason}`;
+      }
+  expected_output:
+    outcome: valid
+- name: a venue's location is a geo point or null, a union with an empty value
+  inputs:
+    file: venues/schema.ts
+    after: |
+      import { z } from "zod";
+
+      const geoPoint = z.object({
+        lat: z.number().min(-90).max(90),
+        lng: z.number().min(-180).max(180),
+      });
+
+      export const venueSchema = z.object({
+        name: z.string(),
+        location: z.union([geoPoint, z.null()]),
+      });
+  expected_output:
+    outcome: valid
+- name: a cache ttl of seconds or "forever" is a union of plain values
+  inputs:
+    file: cache/settings.ts
+    after: |
+      import { z } from "zod";
+
+      export const cacheSettingsSchema = z.object({
+        key: z.string(),
+        ttl: z.union([z.number().int().positive(), z.literal("forever")]),
+      });
+  expected_output:
+    outcome: valid
+- name: an avatar read as a url string or an image object has one variant per input shape
+  inputs:
+    file: profiles/avatar.ts
+    after: |
+      import { z } from "zod";
+
+      const imageAsset = z.object({
+        url: z.string().url(),
+        width: z.number().int().positive(),
+        height: z.number().int().positive(),
+      });
+
+      export const avatarSchema = z.union([z.string().url(), imageAsset]);
   expected_output:
     outcome: valid

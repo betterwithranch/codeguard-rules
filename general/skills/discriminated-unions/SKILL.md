@@ -1,6 +1,6 @@
 ---
 name: discriminated-unions
-description: A parsed union's parser picks each variant from one unique tag; a union of schema types the parser builds from data with no discriminator named, a variant with no literal tag, or two variants sharing a tag value is a violation.
+description: A parsed union's parser picks each variant from one unique tag; a union of schema types a parser builds from data with no discriminator named, a variant with no literal tag, or two variants sharing a tag value is a violation.
 ---
 
 # Discriminated Unions
@@ -16,7 +16,7 @@ and the discriminator is that field named to the parser as the one that picks th
 variant. The parser picks each variant from one unique tag when:
 
 - the union names its discriminator to the parser;
-- every variant declares the tag field as a single literal value, not a plain string;
+- every variant declares the tag field, as one literal value;
 - no two variants share a tag value.
 
 ## Violation
@@ -24,17 +24,20 @@ variant. The parser picks each variant from one unique tag when:
 A parsed union the change adds or edits, or a variant of one it edits, that breaks any
 of these.
 
-Report a missing discriminator on the union. Report a variant's plain-string tag or
-duplicate tag value on that variant's tag field; report a variant with no tag field on
-the union.
+Report a missing discriminator, and a variant with no tag field, on the union. Report a
+variant's tag that isn't one literal value, or that repeats another variant's value, on
+that variant's tag field.
 
 ## Not a violation
 
-- A union of types the program builds itself and tells apart by type, such as a match
-  on the class.
-- A union with `None`, and a union of plain values: numbers, strings, dates.
+- A union of types the program builds itself and tells apart by type, such as a check
+  of the class.
+- A union of one type with an empty value, and a union of plain values: numbers,
+  strings, dates.
 - A union with one variant per possible input shape that the parser can't confuse,
-  such as a model or a list of models.
+  such as an object or a list of objects, or an object or a string.
+- A form the parser itself refuses when the schema is built or first used, and a form a
+  pattern rule reports. The language's supplement names both.
 
 ## Why
 
@@ -43,4 +46,4 @@ fits two variants becomes whichever is tried first, and a payload that fits none
 with an error per variant instead of one naming the tag. With the tag named, the parser
 reads one field, picks the variant, and reports errors against that variant alone.
 
-Source: pydantic's and zod's documentation of discriminated unions.
+Source: schema libraries' documentation of discriminated unions.
