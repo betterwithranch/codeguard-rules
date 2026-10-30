@@ -1,101 +1,317 @@
 cases:
-- name: a retry policy with its own behavior sits beside the notification dispatcher
+# Python
+- name: a tokenizer with behavior of its own sits beside the indexer, its only caller
   inputs:
-    file: notifications/dispatcher.py
+    file: search/indexer.py
     after: |
-      import time
-
-      from notifications.channels import Channel
-
-
-      class RetryBackoffPolicy:
-          def __init__(self, base_seconds: float, max_attempts: int) -> None:
-              self.base_seconds = base_seconds
-              self.max_attempts = max_attempts
-
-          def delay(self, attempt: int) -> float:
-              return self.base_seconds * 2**attempt
+      import re
+      from collections.abc import Mapping
 
 
-      class NotificationDispatcher:
-          def __init__(self, channel: Channel, policy: RetryBackoffPolicy) -> None:
-              self._channel = channel
-              self._policy = policy
+      class WordTokenizer:
+          def __init__(self, stop_words: frozenset[str]) -> None:
+              self._stop_words = stop_words
 
-          def dispatch(self, recipient: str, message: str) -> None:
-              for attempt in range(self._policy.max_attempts):
-                  if self._channel.send(recipient, message):
-                      return
-                  time.sleep(self._policy.delay(attempt))
+          def tokens(self, text: str) -> list[str]:
+              words = re.findall(r"\w+", text.lower())
+              return [word for word in words if word not in self._stop_words]
+
+
+      class DocumentIndexer:
+          def __init__(self, tokenizer: WordTokenizer) -> None:
+              self._tokenizer = tokenizer
+
+          def index(self, documents: Mapping[str, str]) -> dict[str, frozenset[str]]:
+              postings: dict[str, set[str]] = {}
+              for document_id, text in documents.items():
+                  for token in self._tokenizer.tokens(text):
+                      postings.setdefault(token, set()).add(document_id)
+              return {token: frozenset(ids) for token, ids in postings.items()}
   expected_output:
     outcome: invalid
-- name: an enums module groups three unrelated enumerations
+- name: a discount with behavior of its own sits beside the quoter that builds it
   inputs:
-    file: shop/enums.py
+    file: pricing/quoter.py
     after: |
-      from enum import StrEnum
+      from decimal import Decimal
 
 
-      class CarrierCode(StrEnum):
-          DHL = "dhl"
-          UPS = "ups"
+      class VolumeDiscount:
+          def __init__(self, threshold: int, percent: Decimal) -> None:
+              self._threshold = threshold
+              self._percent = percent
+
+          def applied_to(self, quantity: int, subtotal: Decimal) -> Decimal:
+              if quantity < self._threshold:
+                  return subtotal
+              return subtotal * (100 - self._percent) / 100
 
 
-      class RefundReason(StrEnum):
-          DAMAGED = "damaged"
-          LATE = "late"
+      class PriceQuoter:
+          def __init__(self, unit_price: Decimal) -> None:
+              self._unit_price = unit_price
+              self._discount = VolumeDiscount(threshold=100, percent=Decimal(5))
 
-
-      class InvoiceStatus(StrEnum):
-          DRAFT = "draft"
-          SENT = "sent"
-          PAID = "paid"
+          def quote(self, quantity: int) -> Decimal:
+              return self._discount.applied_to(quantity, self._unit_price * quantity)
   expected_output:
     outcome: invalid
-- name: an errors module holds one exception hierarchy
+- name: a parking permit nothing in the module uses sits beside the due-date calendar
   inputs:
-    file: payments/errors.py
+    file: library/due_dates.py
     after: |
-      class PaymentError(Exception):
-          pass
-
-
-      class CardDeclined(PaymentError):
-          def __init__(self, code: str) -> None:
-              super().__init__(f"card declined: {code}")
-              self.code = code
-
-
-      class InsufficientFunds(PaymentError):
-          pass
-  expected_output:
-    outcome: valid
-- name: an exporter module holds the exporter and the result it returns
-  inputs:
-    file: reports/exporter.py
-    after: |
-      import csv
       from dataclasses import dataclass
-      from pathlib import Path
+      from datetime import date, timedelta
+
+
+      class DueDateCalendar:
+          def __init__(self, loan_days: int) -> None:
+              self._loan_days = loan_days
+
+          def due_on(self, borrowed_on: date) -> date:
+              return borrowed_on + timedelta(days=self._loan_days)
 
 
       @dataclass(frozen=True)
-      class ExportResult:
-          path: Path
-          rows: int
+      class ParkingPermit:
+          plate: str
+          zone: str
+  expected_output:
+    outcome: invalid
+- name: a functional TypedDict nothing in the module uses sits beside the recipe scaler
+  inputs:
+    file: kitchen/recipe_scaler.py
+    after: |
+      from fractions import Fraction
+      from typing import TypedDict
 
 
-      class CsvExporter:
-          def __init__(self, directory: Path) -> None:
-              self._directory = directory
+      class RecipeScaler:
+          def __init__(self, factor: Fraction) -> None:
+              self._factor = factor
 
-          def run(self, name: str, rows: list[dict[str, str]]) -> ExportResult:
-              path = self._directory / f"{name}.csv"
-              with path.open("w", newline="") as handle:
-                  writer = csv.DictWriter(handle, fieldnames=list(rows[0]))
-                  writer.writeheader()
-                  writer.writerows(rows)
-              return ExportResult(path=path, rows=len(rows))
+          def grams(self, original_grams: int) -> Fraction:
+              return original_grams * self._factor
+
+
+      OvenSetting = TypedDict("OvenSetting", {"celsius": int, "fan": bool})
+  expected_output:
+    outcome: invalid
+- name: a dtos module groups three unrelated data classes by kind
+  inputs:
+    file: hotel/dtos.py
+    after: |
+      from dataclasses import dataclass
+      from datetime import datetime
+      from decimal import Decimal
+
+
+      @dataclass(frozen=True)
+      class GuestContact:
+          email: str
+          phone: str
+
+
+      @dataclass(frozen=True)
+      class MinibarCharge:
+          item: str
+          price: Decimal
+
+
+      @dataclass(frozen=True)
+      class ShuttleBooking:
+          pickup_at: datetime
+          seats: int
+  expected_output:
+    outcome: invalid
+- name: a geo point the planner takes is also a field of the route, so it is not the planner's own shape
+  inputs:
+    file: routing/planner.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class GeoPoint:
+          latitude: float
+          longitude: float
+
+
+      @dataclass(frozen=True)
+      class Route:
+          stops: tuple[GeoPoint, ...]
+
+
+      class RoutePlanner:
+          def __init__(self, depot: GeoPoint) -> None:
+              self._depot = depot
+
+          def round_trip(self, deliveries: tuple[GeoPoint, ...]) -> Route:
+              return Route(stops=(self._depot, *deliveries, self._depot))
+  expected_output:
+    outcome: invalid
+- name: editing a line inside a postcode format class that sits beside the label printer
+  inputs:
+    file: shipping/labels.py
+    before: |
+      import re
+
+
+      class PostcodeFormat:
+          def __init__(self) -> None:
+              self._pattern = re.compile(r"[A-Z]{1,2}\d[A-Z\d]? \d[A-Z]{2}")
+
+          def matches(self, postcode: str) -> bool:
+              return self._pattern.fullmatch(postcode) is not None
+
+
+      class LabelPrinter:
+          def __init__(self, postcode_format: PostcodeFormat) -> None:
+              self._postcode_format = postcode_format
+
+          def label(self, name: str, street: str, postcode: str) -> str:
+              if not self._postcode_format.matches(postcode):
+                  raise ValueError(f"not a postcode: {postcode}")
+              return f"{name}\n{street}\n{postcode}"
+    after: |
+      import re
+
+
+      class PostcodeFormat:
+          def __init__(self) -> None:
+              self._pattern = re.compile(r"[A-Z]{1,2}\d[A-Z\d]? ?\d[A-Z]{2}")
+
+          def matches(self, postcode: str) -> bool:
+              return self._pattern.fullmatch(postcode) is not None
+
+
+      class LabelPrinter:
+          def __init__(self, postcode_format: PostcodeFormat) -> None:
+              self._postcode_format = postcode_format
+
+          def label(self, name: str, street: str, postcode: str) -> str:
+              if not self._postcode_format.matches(postcode):
+                  raise ValueError(f"not a postcode: {postcode}")
+              return f"{name}\n{street}\n{postcode}"
+  expected_output:
+    outcome: invalid
+- name: a failures module holds one exception hierarchy
+  inputs:
+    file: uploads/failures.py
+    after: |
+      class UploadFailed(Exception):
+          """An upload was refused."""
+
+
+      class FileTooLarge(UploadFailed):
+          """The file is over the upload size limit."""
+
+
+      class UnsupportedMediaType(UploadFailed):
+          """The file's media type is not accepted."""
+  expected_output:
+    outcome: valid
+- name: a rooms module holds an abstract room and the rooms that subclass it
+  inputs:
+    file: floorplan/rooms.py
+    after: |
+      import math
+      from abc import ABC, abstractmethod
+
+
+      class Room(ABC):
+          @abstractmethod
+          def floor_area(self) -> float: ...
+
+
+      class RectangularRoom(Room):
+          def __init__(self, width: float, length: float) -> None:
+              self._width = width
+              self._length = length
+
+          def floor_area(self) -> float:
+              return self._width * self._length
+
+
+      class RoundRoom(Room):
+          def __init__(self, radius: float) -> None:
+              self._radius = radius
+
+          def floor_area(self) -> float:
+              return math.pi * self._radius**2
+  expected_output:
+    outcome: valid
+- name: a summarizer module holds the summarizer and the weekly hours it returns
+  inputs:
+    file: timesheets/summarizer.py
+    after: |
+      from dataclasses import dataclass
+      from datetime import timedelta
+
+
+      @dataclass(frozen=True)
+      class WeeklyHours:
+          regular: timedelta
+          overtime: timedelta
+
+
+      class TimesheetSummarizer:
+          def __init__(self, regular_limit: timedelta) -> None:
+              self._regular_limit = regular_limit
+
+          def summarize(self, shifts: list[timedelta]) -> WeeklyHours:
+              worked = sum(shifts, timedelta())
+              regular = min(worked, self._regular_limit)
+              return WeeklyHours(regular=regular, overtime=worked - regular)
+  expected_output:
+    outcome: valid
+- name: adding the grade book's own score range to a module that already holds an unrelated booking
+  inputs:
+    file: school/grade_book.py
+    before: |
+      from dataclasses import dataclass
+      from statistics import mean
+
+
+      class GradeBook:
+          def __init__(self, scores: dict[str, list[int]]) -> None:
+              self._scores = scores
+
+          def average(self, student: str) -> float:
+              return mean(self._scores[student])
+
+
+      @dataclass(frozen=True)
+      class RoomBooking:
+          room: str
+          period: int
+    after: |
+      from dataclasses import dataclass
+      from statistics import mean
+
+
+      @dataclass(frozen=True)
+      class ScoreRange:
+          lowest: int
+          highest: int
+
+
+      class GradeBook:
+          def __init__(self, scores: dict[str, list[int]]) -> None:
+              self._scores = scores
+
+          def average(self, student: str) -> float:
+              return mean(self._scores[student])
+
+          def range_of(self, student: str) -> ScoreRange:
+              scores = self._scores[student]
+              return ScoreRange(lowest=min(scores), highest=max(scores))
+
+
+      @dataclass(frozen=True)
+      class RoomBooking:
+          room: str
+          period: int
   expected_output:
     outcome: valid
 - name: a Django models module holds the shop's models
@@ -118,6 +334,38 @@ cases:
           code = models.CharField(max_length=10)
   expected_output:
     outcome: valid
+- name: a FastAPI schemas module holds the helpdesk's request and response models
+  inputs:
+    file: helpdesk/schemas.py
+    after: |
+      from pydantic import BaseModel
+
+
+      class TicketCreate(BaseModel):
+          title: str
+          priority: int
+
+
+      class AgentRead(BaseModel):
+          id: int
+          display_name: str
+
+
+      class QueueStats(BaseModel):
+          open_tickets: int
+          oldest_age_minutes: int
+  expected_output:
+    outcome: valid
+- name: a package's __init__ re-exports its classes
+  inputs:
+    file: catalog/__init__.py
+    after: |
+      from catalog.category import Category
+      from catalog.product import Product
+
+      __all__ = ["Category", "Product"]
+  expected_output:
+    outcome: skipped
 - name: a module holds one class
   inputs:
     file: reports/clock.py
@@ -130,52 +378,361 @@ cases:
               return datetime.now(UTC)
   expected_output:
     outcome: skipped
-- name: a retry policy class with its own behavior is exported beside the dispatcher
+- name: a module holds one public class and the private class it uses
   inputs:
-    file: notifications/dispatcher.ts
+    file: caching/router.py
     after: |
-      import type { Channel } from "./channels";
+      import hashlib
 
-      export class RetryBackoffPolicy {
-        constructor(
-          readonly baseMs: number,
-          readonly maxAttempts: number,
-        ) {}
 
-        delay(attempt: number): number {
-          return this.baseMs * 2 ** attempt;
+      class _Shard:
+          def __init__(self, count: int) -> None:
+              self._count = count
+
+          def of(self, key: str) -> int:
+              digest = hashlib.sha256(key.encode()).digest()
+              return int.from_bytes(digest[:4], "big") % self._count
+
+
+      class CacheRouter:
+          def __init__(self, hosts: tuple[str, ...]) -> None:
+              if not hosts:
+                  raise ValueError("a cache router needs at least one host")
+              self._hosts = hosts
+              self._shard = _Shard(len(hosts))
+
+          def host_for(self, key: str) -> str:
+              return self._hosts[self._shard.of(key)]
+  expected_output:
+    outcome: skipped
+# TypeScript
+- name: a sentence splitter with behavior of its own is exported beside the excerpt builder, its only caller
+  inputs:
+    file: articles/excerpt.ts
+    after: |
+      export class SentenceSplitter {
+        split(text: string): string[] {
+          return text.trim().split(/(?<=[.!?])\s+/);
         }
       }
 
-      export class NotificationDispatcher {
+      export class ExcerptBuilder {
         constructor(
-          private readonly channel: Channel,
-          private readonly policy: RetryBackoffPolicy,
+          private readonly splitter: SentenceSplitter,
+          private readonly sentenceCount: number,
         ) {}
 
-        async dispatch(recipient: string, message: string): Promise<void> {
-          for (let attempt = 0; attempt < this.policy.maxAttempts; attempt++) {
-            if (await this.channel.send(recipient, message)) return;
-            await new Promise((resolve) => setTimeout(resolve, this.policy.delay(attempt)));
-          }
+        excerpt(article: string): string {
+          return this.splitter.split(article).slice(0, this.sentenceCount).join(" ");
         }
       }
   expected_output:
     outcome: invalid
-- name: a payment module exports the variants of its payment union
+- name: an Elo rating with behavior of its own is exported beside the match rater that builds it
   inputs:
-    file: payments/payment.ts
+    file: chess/match-rater.ts
     after: |
-      export interface CardPayment {
-        kind: "card";
-        cardToken: string;
+      export class EloRating {
+        constructor(private readonly kFactor: number) {}
+
+        adjusted(rating: number, opponent: number, score: number): number {
+          const expected = 1 / (1 + 10 ** ((opponent - rating) / 400));
+          return rating + this.kFactor * (score - expected);
+        }
       }
 
-      export interface BankPayment {
-        kind: "bank";
-        iban: string;
+      export class MatchRater {
+        private readonly elo = new EloRating(32);
+
+        ratingAfter(rating: number, opponent: number, won: boolean): number {
+          return this.elo.adjusted(rating, opponent, won ? 1 : 0);
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: a newsletter issue nothing in the module uses is exported beside the file size limit
+  inputs:
+    file: uploads/size-limit.ts
+    after: |
+      export class FileSizeLimit {
+        constructor(private readonly maxBytes: number) {}
+
+        allows(sizeBytes: number): boolean {
+          return sizeBytes <= this.maxBytes;
+        }
       }
 
-      export type Payment = CardPayment | BankPayment;
+      export interface NewsletterIssue {
+        readonly title: string;
+        readonly sentAt: Date;
+      }
+  expected_output:
+    outcome: invalid
+- name: an interfaces module groups three unrelated interfaces by kind
+  inputs:
+    file: src/interfaces.ts
+    after: |
+      export interface WeatherReading {
+        readonly stationId: string;
+        readonly celsius: number;
+      }
+
+      export interface LibraryCard {
+        readonly holder: string;
+        readonly expiresOn: Date;
+      }
+
+      export interface PayrollRun {
+        readonly period: string;
+        readonly employeeCount: number;
+      }
+  expected_output:
+    outcome: invalid
+- name: a time range the booking desk takes is also a field of the booking, so it is not the desk's own shape
+  inputs:
+    file: rooms/booking-desk.ts
+    after: |
+      export interface TimeRange {
+        readonly start: Date;
+        readonly end: Date;
+      }
+
+      export interface Booking {
+        readonly roomId: string;
+        readonly slot: TimeRange;
+      }
+
+      export class BookingDesk {
+        constructor(private readonly roomId: string) {}
+
+        bookingFor(slot: TimeRange): Booking {
+          return { roomId: this.roomId, slot };
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: editing a line inside a hashtag extractor exported beside the post composer
+  inputs:
+    file: social/post-composer.ts
+    before: |
+      export class HashtagExtractor {
+        extract(post: string): string[] {
+          return [...post.matchAll(/#\w+/g)].map((match) => match[0]);
+        }
+      }
+
+      export class PostComposer {
+        constructor(private readonly hashtags: HashtagExtractor) {}
+
+        topics(post: string): string[] {
+          return this.hashtags.extract(post).map((tag) => tag.slice(1).toLowerCase());
+        }
+      }
+    after: |
+      export class HashtagExtractor {
+        extract(post: string): string[] {
+          return [...post.matchAll(/#[\p{L}\d_]+/gu)].map((match) => match[0]);
+        }
+      }
+
+      export class PostComposer {
+        constructor(private readonly hashtags: HashtagExtractor) {}
+
+        topics(post: string): string[] {
+          return this.hashtags.extract(post).map((tag) => tag.slice(1).toLowerCase());
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: a tracking event module exports the variants of its event union
+  inputs:
+    file: delivery/tracking-event.ts
+    after: |
+      export type PickedUp = { readonly kind: "picked-up"; readonly depot: string };
+      export type InTransit = { readonly kind: "in-transit"; readonly hub: string };
+      export type Delivered = { readonly kind: "delivered"; readonly signedBy: string };
+
+      export type TrackingEvent = PickedUp | InTransit | Delivered;
+  expected_output:
+    outcome: valid
+- name: a planter module exports an abstract planter and the planters that extend it
+  inputs:
+    file: garden/planter.ts
+    after: |
+      export abstract class Planter {
+        abstract soilLitres(): number;
+      }
+
+      export class BoxPlanter extends Planter {
+        constructor(
+          private readonly widthCm: number,
+          private readonly depthCm: number,
+          private readonly heightCm: number,
+        ) {
+          super();
+        }
+
+        soilLitres(): number {
+          return (this.widthCm * this.depthCm * this.heightCm) / 1000;
+        }
+      }
+
+      export class PotPlanter extends Planter {
+        constructor(
+          private readonly radiusCm: number,
+          private readonly heightCm: number,
+        ) {
+          super();
+        }
+
+        soilLitres(): number {
+          return (Math.PI * this.radiusCm ** 2 * this.heightCm) / 1000;
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a receipt issuer module exports the issuer and the receipt it returns
+  inputs:
+    file: checkout/receipt-issuer.ts
+    after: |
+      export interface Receipt {
+        readonly orderId: string;
+        readonly issuedAt: Date;
+      }
+
+      export class ReceiptIssuer {
+        constructor(private readonly clock: () => Date) {}
+
+        issue(orderId: string): Receipt {
+          return { orderId, issuedAt: this.clock() };
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: adding the thermostat's own setpoint to a module that already exports an unrelated parking space
+  inputs:
+    file: heating/thermostat-schedule.ts
+    before: |
+      export class ThermostatSchedule {
+        constructor(
+          private readonly comfortCelsius: number,
+          private readonly ecoCelsius: number,
+        ) {}
+
+        targetAt(hour: number): number {
+          return hour >= 7 && hour < 22 ? this.comfortCelsius : this.ecoCelsius;
+        }
+      }
+
+      export interface ParkingSpace {
+        readonly level: number;
+        readonly bay: string;
+      }
+    after: |
+      export interface Setpoint {
+        readonly hour: number;
+        readonly celsius: number;
+      }
+
+      export class ThermostatSchedule {
+        constructor(
+          private readonly comfortCelsius: number,
+          private readonly ecoCelsius: number,
+        ) {}
+
+        targetAt(hour: number): number {
+          return hour >= 7 && hour < 22 ? this.comfortCelsius : this.ecoCelsius;
+        }
+
+        day(): Setpoint[] {
+          return Array.from({ length: 24 }, (_, hour) => ({ hour, celsius: this.targetAt(hour) }));
+        }
+      }
+
+      export interface ParkingSpace {
+        readonly level: number;
+        readonly bay: string;
+      }
+  expected_output:
+    outcome: valid
+- name: a module exports one class
+  inputs:
+    file: blog/slug-generator.ts
+    after: |
+      export class SlugGenerator {
+        constructor(private readonly separator: string) {}
+
+        slug(title: string): string {
+          return title.trim().toLowerCase().split(/\s+/).join(this.separator);
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a module exports one class and keeps the class it uses unexported
+  inputs:
+    file: team/member-label.ts
+    after: |
+      class Initials {
+        of(fullName: string): string {
+          return fullName
+            .trim()
+            .split(/\s+/)
+            .map((part) => part.charAt(0).toUpperCase())
+            .join("");
+        }
+      }
+
+      export class MemberLabel {
+        private readonly initials = new Initials();
+
+        constructor(private readonly team: string) {}
+
+        label(fullName: string): string {
+          return `${this.initials.of(fullName)} · ${this.team}`;
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a barrel index re-exports the billing package's classes
+  inputs:
+    file: billing/index.ts
+    unchanged:
+      billing/invoice.ts: |
+        export class Invoice {
+          constructor(readonly number: string) {}
+        }
+      billing/customer.ts: |
+        export class Customer {
+          constructor(readonly email: string) {}
+        }
+    after: |
+      export { Customer } from "./customer";
+      export { Invoice } from "./invoice";
+  expected_output:
+    outcome: valid
+- name: a Next.js route file exports its handler and the shapes of its response
+  inputs:
+    file: app/api/plans/route.ts
+    after: |
+      export interface Plan {
+        readonly id: string;
+        readonly monthlyPriceCents: number;
+      }
+
+      export interface PlansResponse {
+        readonly plans: readonly Plan[];
+      }
+
+      const PLANS: readonly Plan[] = [
+        { id: "starter", monthlyPriceCents: 900 },
+        { id: "team", monthlyPriceCents: 2900 },
+      ];
+
+      export const revalidate = 3600;
+
+      export function GET(): Response {
+        const body: PlansResponse = { plans: PLANS };
+        return Response.json(body);
+      }
   expected_output:
     outcome: valid

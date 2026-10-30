@@ -1,7 +1,8 @@
 # In Python
 
 Public classes are top-level classes whose names don't start with `_`, including
-`Enum`, `TypedDict` and `NamedTuple` types.
+`Enum`, `TypedDict` and `NamedTuple` types, whether declared with `class` or by calling
+`Enum(...)`, `TypedDict(...)` or `NamedTuple(...)`.
 
 Exempt modules: Django's `models.py`, `admin.py`, `forms.py` and `serializers.py`,
 FastAPI's `schemas.py`, and a package's `__init__.py` that re-exports.
