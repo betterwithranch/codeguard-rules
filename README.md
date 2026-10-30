@@ -68,6 +68,7 @@ start as `warning`s and skip test files:
 |---|---|
 | `no-middle-man-python`, `no-middle-man-typescript` | No middle man: a class without a base doesn't forward every method to the same collaborator |
 | `no-class-level-mutable-container` | No class-level mutable container: a list, dict or set bound in a class body isn't mutated through `self`, which every instance shares (Python only) |
+| `union-declares-discriminator-python`, `union-declares-discriminator-typescript` | Union declares discriminator: a pydantic field typed as a union of models defined in the file names its discriminator, and a `z.union` of object schemas sharing a literal field is a `z.discriminatedUnion` (the syntactic form of `discriminated-unions`) |
 
 Each judge rule passes 20 of 20 eval runs on Claude before it ships, and CI's 3 runs
 before it merges. One check follows, and doesn't hold up the next rule:
@@ -111,7 +112,6 @@ code skip test files:
 | `no-tuple-fixtures` | A pytest fixture returns or yields one object, never a tuple |
 | `one-form-per-input` | No parameter reconciled from another parameter when missing (`if index is None: index = build(catalog)`) |
 | `typed-dispatch-registries` | A class takes a registry, not a `dict[str, Callable]` |
-| `union-declares-discriminator` | Union declares discriminator: a pydantic model's field whose type holds a union of two or more models defined in the file names its discriminator, tagged or not (the syntactic form of `discriminated-unions`) |
 
 The `python` ruleset has no judge rules yet. Its judge rules, and some pattern rules, are drafts in
 `drafts/python/`, which codeguard doesn't load. A draft moves into a ruleset one rule at a time, in the order in
@@ -138,13 +138,8 @@ setting, never a judge rule.
 Rules for any TypeScript project. Each rule checks one thing, so a project can exclude
 any of them.
 
-Pattern rules (ast-grep). They start as `warning`s and skip test files:
-
-| Rule | Checks |
-|---|---|
-| `union-declares-discriminator` | Union declares discriminator: a `z.union` holding two or more object schemas defined in the file is a `z.discriminatedUnion`, tagged or not (the syntactic form of `discriminated-unions`) |
-
-The `typescript` ruleset has no judge rules; TypeScript's judge rules are in `general`.
+Pattern rules (ast-grep). They start as `warning`s and skip test files. The
+`typescript` ruleset has no judge rules; TypeScript's judge rules are in `general`.
 
 ## Use a ruleset
 
