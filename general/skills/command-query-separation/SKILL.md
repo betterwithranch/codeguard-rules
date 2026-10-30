@@ -31,7 +31,9 @@ Report it on the statement that returns the answer.
   cannot ask and then change without a race: removing and returning the next item of a
   queue or stack, getting a value and setting it if missing, incrementing and returning
   a counter, acquiring a lock or claiming a job.
-- A query that caches or memoizes its own answer, or records metrics or logs about it.
+- A query that caches or memoizes its own answer, or writes a log line or a metric
+  about it. Any other change it makes, such as a field of a record it reads, is a
+  command.
 
 ## Why
 
