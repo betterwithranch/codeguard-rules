@@ -1,4 +1,4 @@
-id: no-middle-man-typescript
+id: no-middle-man
 language: typescript
 severity: warning
 message: Every method of this class only forwards to the same collaborator.

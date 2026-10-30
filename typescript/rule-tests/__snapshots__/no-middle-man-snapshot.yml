@@ -1,4 +1,4 @@
-id: no-middle-man-typescript
+id: no-middle-man
 snapshots:
   "class ExampleService {\n  constructor(private readonly repository: ExampleRepository) {}\n\n  get(id: string) {\n    return this.repository.get(id);\n  }\n\n  save(example: Example) {\n    this.repository.save(example);\n  }\n}\n":
     labels:

@@ -1,4 +1,4 @@
-id: no-middle-man-python
+id: no-middle-man
 language: python
 severity: warning
 message: Every method of this class only forwards to the same collaborator.

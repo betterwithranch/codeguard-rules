@@ -1,4 +1,4 @@
-id: no-middle-man-typescript
+id: no-middle-man
 valid:
   # A method that does work of its own
   - |

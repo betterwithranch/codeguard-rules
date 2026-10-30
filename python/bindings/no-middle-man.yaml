@@ -1,4 +1,4 @@
-rule: no-middle-man-python
+rule: no-middle-man
 paths: ["**/*.py"]
 exclude_paths:
   - "**/test_*.py"

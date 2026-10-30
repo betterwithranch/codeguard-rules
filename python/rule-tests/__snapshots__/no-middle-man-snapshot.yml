@@ -1,4 +1,4 @@
-id: no-middle-man-python
+id: no-middle-man
 snapshots:
   "class ExampleService:\n    def __init__(self, repository):\n        self._repository = repository\n\n    async def get(self, example_id):\n        \"\"\"Get one example.\"\"\"\n        return await self._repository.get(example_id)\n\n    async def save(self, example):\n        await self._repository.save(example)\n":
     labels:

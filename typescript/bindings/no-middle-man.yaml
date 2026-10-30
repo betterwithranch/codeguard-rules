@@ -1,4 +1,4 @@
-rule: no-middle-man-typescript
+rule: no-middle-man
 paths: ["**/*.ts", "**/*.tsx"]
 exclude_paths:
   - "**/tests/**"

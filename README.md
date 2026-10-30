@@ -23,9 +23,9 @@ name, and [basedpyright](https://docs.basedpyright.com) with these rules on:
 
 ### `general`
 
-Architecture rules for any language. Most are judge rules. A judge rule's `SKILL.md`
-states the convention in no language's terms, and a supplement beside it for each
-language, `python.md` and `typescript.md`, gives that language's forms and examples. The judge
+Architecture rules for any language. Each is one judge rule: its `SKILL.md` states the
+convention in no language's terms, and a supplement beside it for each language,
+`python.md` and `typescript.md`, gives that language's forms and examples. The judge
 gets the skill and the supplement for the file's language. Its binding's `paths` name
 the languages it runs on.
 
@@ -43,13 +43,6 @@ the languages it runs on.
 | `construction-in-its-home` | Construction in its home: what a new instance holds is decided by its type, its module, its factory or its source's mapper, so code the change adds doesn't build a program type from a source elsewhere or supply a default for one of its fields | Not yet |
 | `make-illegal-states-unrepresentable` | A type's optional fields aren't tied to the values of its status or kind field | Not yet |
 | `composition-over-inheritance` | A class inherits only from a type it is a kind of, not to reuse its code | Not yet |
-
-Pattern rules (ast-grep), one per language where a convention's form is syntax. They
-start as `warning`s and skip test files:
-
-| Rule | Checks |
-|---|---|
-| `no-middle-man-python`, `no-middle-man-typescript` | No middle man: a class without a base doesn't forward every method to the same collaborator |
 
 Each judge rule passes 20 of 20 eval runs on Claude before it ships, and CI's 3 runs
 before it merges. One check follows, and doesn't hold up the next rule:
@@ -87,6 +80,7 @@ code skip test files:
 | `no-field-tuple-asserts` | Don't assert a tuple of one value's fields; compare the whole object |
 | `no-len-asserts` | Don't assert only a collection's length |
 | `no-manual-kwargs-check` | No hand-written `TypeError` for unexpected `**kwargs` keys |
+| `no-middle-man` | No middle man: a class without a base doesn't forward every method to the same collaborator |
 | `no-normalized-asserts` | No `replace`, `model_copy` or `model_dump(exclude=...)` of the result inside an assert |
 | `no-pop-from-kwargs` | No `.pop()` from a `**kwargs` parameter in test code |
 | `no-sleep-in-async-tests` | No `sleep` in an `async def test_…`; wait on an event |
@@ -114,6 +108,14 @@ as `fixture` or `import`, or a gate in the ruleset's `gates/`, an ast-grep rule
 such as `mock-use`. A rule ast-grep or the type checker can check is a pattern rule or a checker
 setting, never a judge rule.
 
+### `typescript`
+
+Rules for any TypeScript project. Pattern rules (ast-grep); they skip test files:
+
+| Rule | Checks |
+|---|---|
+| `no-middle-man` | No middle man: a class without a base type doesn't forward every method to the same collaborator |
+
 ## Use a ruleset
 
 In the project's `.codeguard/config.yaml`:
@@ -135,6 +137,8 @@ packages:
 - `rules.<id>` overrides `paths`, `exclude_paths` or `severity`. `exclude_paths: []`
   brings test files back into an app rule.
 - `codeguard update` moves `ref` to the newest tag.
+- A project gets only the rulesets it lists under `rulesets`. List `typescript` to add
+  the TypeScript pattern rules.
 
 Diagnostics name a rule by package, ruleset and id: `betterwithranch/python/no-del-param`.
 
