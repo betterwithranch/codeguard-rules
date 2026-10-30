@@ -35,7 +35,8 @@ into a normal-looking result:
   were done;
 - a fallback that puts a default in place of data that should exist;
 - a clamp that forces a value back into a range the program's rules say it can never
-  leave;
+  leave. Ask of the value past the clamp: could it arise while the program's own rules
+  hold? If it could arise only when one of them was broken, the clamp hides that;
 - building a collection of one result per input that leaves out the inputs whose
   parse, lookup or call failed or whose required data is missing, and passes on the
   rest as the whole result. The leaving out turns the failure into a shorter, normal-
@@ -56,8 +57,9 @@ Report it on the handler, the fallback, the clamp or the skipping condition.
   deleting a file that may already be gone, reading optional data that may be absent.
 - A default for optional data that is a real value for it.
 - A lookup with no default, which fails when the data is missing.
-- A clamp on outside input, which may hold anything, or one that states a business rule
-  where both sides are valid states, such as a discount capped at the price.
+- A clamp whose value past it can arise while the program's rules hold: outside input,
+  which may hold anything, or a valid state the rule maps to a limit, such as a discount
+  larger than the price capped at the price.
 - A filter that selects the items a rule asks for, such as the unpaid invoices, rather
   than hiding the items it couldn't use.
 
