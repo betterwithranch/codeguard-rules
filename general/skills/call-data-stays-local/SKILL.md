@@ -1,9 +1,9 @@
 ---
-name: no-shared-mutable-state
+name: call-data-stays-local
 description: Data belonging to one call or use is kept where only that call or use sees it; module-level state that holds one call's data, or a shared instance that stores each use's results on itself, is a violation.
 ---
 
-# No Shared Mutable State
+# Call Data Stays Local
 
 Data belonging to one call or use is kept where only that call or use sees it.
 
@@ -36,8 +36,13 @@ a cache's are. A name that only says what the state holds doesn't say how long i
 kept. Without that, what an earlier call left in it is one call's data leaking into the
 next.
 
-Report it where the use's data is written into module-level state, or where the shared
-instance is created.
+Module-level state that holds one call's data is a violation however many functions
+write it: two functions that each write a call's data into it break the convention as
+one does.
+
+Report module-level state on each line that writes the use's data into it, not where
+it is declared. Report a shared instance where it is created, not where its methods
+store their results.
 
 ## Not a violation
 
@@ -51,7 +56,6 @@ instance is created.
   service, a client, a formatter, a compiled pattern, frozen settings.
 - An object created inside the call, a local container, or data passed as arguments
   and returned.
-- Module-level state that two functions write: a separate rule judges it.
 - A class-level container that each instance changes: a separate rule judges it.
 
 ## Why

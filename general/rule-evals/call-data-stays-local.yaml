@@ -1,0 +1,699 @@
+cases:
+- name: the duplicate check keeps one import's SKUs in a module-level set, so the next import reports every SKU as a duplicate
+  inputs:
+    file: catalog/importer.py
+    after: |
+      from catalog.models import ProductRow
+
+      _seen_skus: set[str] = set()
+
+
+      def duplicate_skus(rows: list[ProductRow]) -> list[str]:
+          """Return the SKUs that appear more than once in this import's rows."""
+          duplicates: list[str] = []
+          for row in rows:
+              if row.sku in _seen_skus:
+                  duplicates.append(row.sku)
+              _seen_skus.add(row.sku)
+          return duplicates
+  expected_output:
+    outcome: invalid
+- name: the duplicate check keeps each import's SKUs in a set of its own
+  inputs:
+    file: catalog/importer.py
+    after: |
+      import logging
+
+      from catalog.models import ProductRow
+
+      log = logging.getLogger(__name__)
+
+
+      def duplicate_skus(rows: list[ProductRow]) -> list[str]:
+          seen: set[str] = set()
+          duplicates: list[str] = []
+          for row in rows:
+              if row.sku in seen:
+                  duplicates.append(row.sku)
+              seen.add(row.sku)
+          log.info("found %d duplicate SKUs", len(duplicates))
+          return duplicates
+  expected_output:
+    outcome: valid
+- name: a duplicate check reads and adds to a module-level set that nothing says should outlive one import, so it reports the last import's SKUs as duplicates
+  inputs:
+    file: catalog/importer.py
+    after: |
+      from catalog.models import ProductRow
+
+      _seen_skus: set[str] = set()
+
+
+      def duplicate_skus(rows: list[ProductRow]) -> list[str]:
+          duplicates: list[str] = []
+          for row in rows:
+              if row.sku in _seen_skus:
+                  duplicates.append(row.sku)
+              _seen_skus.add(row.sku)
+          return duplicates
+  expected_output:
+    outcome: invalid
+- name: a duplicate check reads and adds to a module-level set its name and comment say holds every import's SKUs, so a SKU any earlier import brought in is a duplicate
+  inputs:
+    file: catalog/importer.py
+    after: |
+      from catalog.models import ProductRow
+
+      # Every SKU imported since the process started. A SKU that any earlier import
+      # already brought in is a duplicate, whichever import it came from.
+      _skus_from_every_import: set[str] = set()
+
+
+      def duplicate_skus(rows: list[ProductRow]) -> list[str]:
+          """Return the SKUs in rows that this or any earlier import already brought in."""
+          duplicates: list[str] = []
+          for row in rows:
+              if row.sku in _skus_from_every_import:
+                  duplicates.append(row.sku)
+              _skus_from_every_import.add(row.sku)
+          return duplicates
+  expected_output:
+    outcome: valid
+- name: a module-level reading-time estimator adds every article's words to its own count, so each estimate includes every article before it
+  inputs:
+    file: blog/reading_time.py
+    after: |
+      from blog.models import Article
+
+
+      class ReadingTimeEstimator:
+          def __init__(self, words_per_minute: int) -> None:
+              self.words_per_minute = words_per_minute
+              self.words_counted = 0
+
+          def minutes(self, article: Article) -> int:
+              self.words_counted += len(article.body.split())
+              return max(1, self.words_counted // self.words_per_minute)
+
+
+      estimator = ReadingTimeEstimator(words_per_minute=230)
+  expected_output:
+    outcome: invalid
+- name: a module-level reading-time estimator counts each article's words in the call and stores nothing on itself
+  inputs:
+    file: blog/reading_time.py
+    after: |
+      from blog.models import Article
+
+
+      class ReadingTimeEstimator:
+          def __init__(self, words_per_minute: int) -> None:
+              self.words_per_minute = words_per_minute
+
+          def minutes(self, article: Article) -> int:
+              return max(1, len(article.body.split()) // self.words_per_minute)
+
+
+      estimator = ReadingTimeEstimator(words_per_minute=230)
+  expected_output:
+    outcome: valid
+- name: a shortage check clears and refills a module-level stock map on each call, so two orders checked at once read each other's stock
+  inputs:
+    file: warehouse/shortages.py
+    after: |
+      from warehouse.models import Order, StockLevel
+
+      _stock_by_sku: dict[str, int] = {}
+
+
+      def short_skus(order: Order, levels: list[StockLevel]) -> list[str]:
+          _stock_by_sku.clear()
+          _stock_by_sku.update({level.sku: level.on_hand for level in levels})
+          return [line.sku for line in order.lines if _stock_by_sku[line.sku] < line.quantity]
+  expected_output:
+    outcome: invalid
+- name: a before-request hook rebinds a global to the current request's client address, so concurrent requests rate-limit each other's address
+  inputs:
+    file: api/limits.py
+    after: |
+      from flask import Flask, request
+
+      app = Flask(__name__)
+
+      _client_address = ""
+
+
+      @app.before_request
+      def remember_client() -> None:
+          global _client_address
+          _client_address = request.remote_addr
+
+
+      def rate_limit_key(endpoint: str) -> str:
+          return f"{endpoint}:{_client_address}"
+  expected_output:
+    outcome: invalid
+- name: a before-request hook keeps the client address on flask.g, which holds it for that request only
+  inputs:
+    file: api/limits.py
+    after: |
+      from flask import Flask, g, request
+
+      app = Flask(__name__)
+
+
+      @app.before_request
+      def remember_client() -> None:
+          g.client_address = request.remote_addr
+
+
+      def rate_limit_key(endpoint: str, client_address: str) -> str:
+          return f"{endpoint}:{client_address}"
+  expected_output:
+    outcome: valid
+- name: a box packer held as a class attribute keeps every planner's packed boxes, so each shipment's plan lists boxes from earlier shipments
+  inputs:
+    file: shipping/planner.py
+    after: |
+      from shipping.models import Box, Parcel
+
+
+      class BoxPacker:
+          def __init__(self) -> None:
+              self.packed: list[Box] = []
+
+          def pack(self, parcels: list[Parcel]) -> list[Box]:
+              for parcel in parcels:
+                  self.packed.append(Box.fitting(parcel))
+              return self.packed
+
+
+      class ShipmentPlanner:
+          packer = BoxPacker()
+
+          def plan(self, parcels: list[Parcel]) -> list[Box]:
+              return self.packer.pack(parcels)
+  expected_output:
+    outcome: invalid
+- name: a line renderer given as a parameter default collects every invoice's lines, so the second invoice prints the first one's lines too
+  inputs:
+    file: billing/render.py
+    after: |
+      from billing.models import Invoice
+
+
+      class LineRenderer:
+          def __init__(self) -> None:
+              self.lines: list[str] = []
+
+          def render(self, invoice: Invoice) -> str:
+              for item in invoice.items:
+                  self.lines.append(f"{item.description}  {item.amount}")
+              return "\n".join(self.lines)
+
+
+      def invoice_text(invoice: Invoice, renderer: LineRenderer = LineRenderer()) -> str:
+          return renderer.render(invoice)
+  expected_output:
+    outcome: invalid
+- name: a module-level pager sets the alert it is sending on itself, so two alerts sent at once page with each other's message
+  inputs:
+    file: oncall/pager.py
+    after: |
+      from oncall.models import Alert
+      from oncall.sms import send_sms
+
+
+      class Pager:
+          def __init__(self) -> None:
+              self.alert: Alert | None = None
+
+          def page(self, alert: Alert) -> None:
+              self.alert = alert
+              send_sms(alert.engineer_phone, self._message())
+
+          def _message(self) -> str:
+              assert self.alert is not None
+              return f"[{self.alert.severity}] {self.alert.summary}"
+
+
+      pager = Pager()
+  expected_output:
+    outcome: invalid
+- name: units are registered into a module-level map once at import and only read afterwards
+  inputs:
+    file: measures/units.py
+    after: |
+      from measures.models import Unit
+
+      _units_by_symbol: dict[str, Unit] = {}
+
+
+      def _register(unit: Unit) -> None:
+          _units_by_symbol[unit.symbol] = unit
+
+
+      _register(Unit(symbol="kg", grams=1000))
+      _register(Unit(symbol="lb", grams=453.59237))
+      _register(Unit(symbol="oz", grams=28.349523125))
+
+
+      def unit_for(symbol: str) -> Unit:
+          return _units_by_symbol[symbol]
+  expected_output:
+    outcome: valid
+- name: an invoice number sequence behind a lock outlives every call by design, so each call gets the next number
+  inputs:
+    file: billing/numbers.py
+    after: |
+      import threading
+
+      _numbering_lock = threading.Lock()
+      _last_invoice_number = 0
+
+
+      def next_invoice_number() -> int:
+          global _last_invoice_number
+          with _numbering_lock:
+              _last_invoice_number += 1
+              return _last_invoice_number
+  expected_output:
+    outcome: valid
+- name: a class-level list that each instance appends to is left to a separate rule
+  inputs:
+    file: audit/trail.py
+    after: |
+      class AuditTrail:
+          entries: list[str] = []
+
+          def record(self, event: str) -> None:
+              self.entries.append(event)
+  expected_output:
+    outcome: valid
+- name: two helpers each add one order's lines to a module-level list, so a second order priced at once mixes its lines with the first
+  inputs:
+    file: shop/pricing.py
+    after: |
+      from decimal import Decimal
+
+      from shop.models import Order, PriceLine
+
+      _lines: list[PriceLine] = []
+
+
+      def _add_item_lines(order: Order) -> None:
+          for item in order.items:
+              _lines.append(PriceLine(label=item.name, amount=item.unit_price * item.quantity))
+
+
+      def _add_discount_lines(order: Order) -> None:
+          for code in order.discount_codes:
+              _lines.append(PriceLine(label=code.name, amount=-code.amount))
+
+
+      def order_total(order: Order) -> Decimal:
+          _lines.clear()
+          _add_item_lines(order)
+          _add_discount_lines(order)
+          return sum((line.amount for line in _lines), Decimal(0))
+  expected_output:
+    outcome: invalid
+- name: a task puts its tenant in a module-level dict for its helpers to read, so two jobs on one worker read each other's tenant
+  inputs:
+    file: reports/tasks.py
+    after: |
+      from reports.storage import load_orders, save_report
+
+      _job: dict[str, str] = {}
+
+
+      def _report_title() -> str:
+          return f"Orders for {_job['tenant']}"
+
+
+      def build_tenant_report(tenant_id: str) -> None:
+          _job["tenant"] = tenant_id
+          orders = load_orders(tenant_id)
+          save_report(tenant_id, _report_title(), orders)
+  expected_output:
+    outcome: invalid
+- name: exchange rates are memoized by date and currency in a module dict only the lookup uses
+  inputs:
+    file: money/rates.py
+    after: |
+      from datetime import date
+      from decimal import Decimal
+
+      from money.ecb import fetch_rate
+
+      _rates: dict[tuple[date, str], Decimal] = {}
+
+
+      def rate_on(day: date, currency: str) -> Decimal:
+          key = (day, currency)
+          if key not in _rates:
+              _rates[key] = fetch_rate(day, currency)
+          return _rates[key]
+  expected_output:
+    outcome: valid
+- name: a label function with no module-level instance and no write to module state is outside the gates
+  inputs:
+    file: transit/labels.py
+    after: |
+      from transit.models import Journey
+
+
+      def zone_label(journey: Journey) -> str:
+          return f"{journey.zones} zones"
+  expected_output:
+    outcome: skipped
+- name: middleware sets the request's locale on a module-level context object, so concurrent requests format prices in each other's locale
+  inputs:
+    file: web/locale.ts
+    after: |
+      import type { NextFunction, Request, Response } from "express";
+
+      const requestContext = { locale: "en-GB" };
+
+      export function localeMiddleware(req: Request<{ locale: string }>, _res: Response, next: NextFunction): void {
+        requestContext.locale = req.params.locale;
+        next();
+      }
+
+      export function formatPrice(cents: number, currency: string): string {
+        return new Intl.NumberFormat(requestContext.locale, { style: "currency", currency }).format(cents / 100);
+      }
+  expected_output:
+    outcome: invalid
+- name: middleware keeps the request's locale on the response's locals for that request
+  inputs:
+    file: web/locale.ts
+    after: |
+      import type { NextFunction, Request, Response } from "express";
+
+      export function localeMiddleware(req: Request<{ locale: string }>, res: Response, next: NextFunction): void {
+        res.locals.locale = req.params.locale;
+        next();
+      }
+
+      export function formatPrice(locale: string, cents: number, currency: string): string {
+        return new Intl.NumberFormat(locale, { style: "currency", currency }).format(cents / 100);
+      }
+  expected_output:
+    outcome: valid
+- name: middleware runs each request inside AsyncLocalStorage, which keeps every request's trace id apart
+  inputs:
+    file: web/tracing.ts
+    after: |
+      import { AsyncLocalStorage } from "node:async_hooks";
+      import { randomUUID } from "node:crypto";
+      import type { NextFunction, Request, Response } from "express";
+
+      const traceStorage = new AsyncLocalStorage<{ traceId: string }>();
+
+      export function tracingMiddleware(_req: Request, _res: Response, next: NextFunction): void {
+        traceStorage.run({ traceId: randomUUID() }, next);
+      }
+
+      export function currentTraceId(): string | undefined {
+        return traceStorage.getStore()?.traceId;
+      }
+  expected_output:
+    outcome: valid
+- name: a module-level receipt printer object keeps every sale's lines on itself, so each receipt repeats the sales before it
+  inputs:
+    file: till/receipts.ts
+    after: |
+      import type { Sale } from "./models";
+
+      export const receiptPrinter = {
+        lines: [] as string[],
+
+        print(sale: Sale): string {
+          for (const item of sale.items) {
+            this.lines.push(`${item.name.padEnd(24)}${item.price.toFixed(2)}`);
+          }
+          return this.lines.join("\n");
+        },
+      };
+  expected_output:
+    outcome: invalid
+- name: a module-level receipt printer object builds each receipt in the call and stores nothing on itself
+  inputs:
+    file: till/receipts.ts
+    after: |
+      import type { Sale } from "./models";
+
+      export const receiptPrinter = {
+        columnWidth: 24,
+
+        print(sale: Sale): string {
+          return sale.items
+            .map((item) => `${item.name.padEnd(this.columnWidth)}${item.price.toFixed(2)}`)
+            .join("\n");
+        },
+      };
+  expected_output:
+    outcome: valid
+- name: a seat check clears and refills a module-level map on each call, so two bookings checked at once read each other's seats
+  inputs:
+    file: booking/seats.ts
+    after: |
+      import type { Booking, Seat } from "./models";
+
+      const seatsById = new Map<string, Seat>();
+
+      export function takenSeats(booking: Booking, seats: Seat[]): string[] {
+        seatsById.clear();
+        for (const seat of seats) {
+          seatsById.set(seat.id, seat);
+        }
+        return booking.seatIds.filter((id) => {
+          const seat = seatsById.get(id);
+          if (seat === undefined) {
+            throw new Error(`Unknown seat ${id}`);
+          }
+          return seat.taken;
+        });
+      }
+  expected_output:
+    outcome: invalid
+- name: a repeated-tag check reads and adds to a module-level set that nothing says should outlive one batch of posts, so it reports the last batch's tags as repeated
+  inputs:
+    file: posts/tags.ts
+    after: |
+      import type { Post } from "./models";
+
+      const tagsSeen = new Set<string>();
+
+      export function repeatedTags(posts: Post[]): string[] {
+        const repeated: string[] = [];
+        for (const post of posts) {
+          for (const tag of post.tags) {
+            if (tagsSeen.has(tag)) {
+              repeated.push(tag);
+            }
+            tagsSeen.add(tag);
+          }
+        }
+        return repeated;
+      }
+  expected_output:
+    outcome: invalid
+- name: a signup check reads and adds to a module-level set its name and comment say holds every signup's email, so an address any earlier signup used is taken
+  inputs:
+    file: accounts/signup.ts
+    after: |
+      // Every email address signed up since the server started. An address that any
+      // earlier signup used is taken, whichever signup it came from.
+      const emailsFromEverySignup = new Set<string>();
+
+      export function claimEmail(email: string): boolean {
+        if (emailsFromEverySignup.has(email)) {
+          return false;
+        }
+        emailsFromEverySignup.add(email);
+        return true;
+      }
+  expected_output:
+    outcome: valid
+- name: slugs are memoized in a module-level map keyed by the title they are made from
+  inputs:
+    file: posts/slugs.ts
+    after: |
+      const slugsByTitle = new Map<string, string>();
+
+      export function slugFor(title: string): string {
+        const cached = slugsByTitle.get(title);
+        if (cached !== undefined) {
+          return cached;
+        }
+        const slug = title
+          .normalize("NFKD")
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-|-$/g, "");
+        slugsByTitle.set(title, slug);
+        return slug;
+      }
+  expected_output:
+    outcome: valid
+- name: a report service writes each request's tenant into a static field its title reads, so two reports built at once carry each other's tenant
+  inputs:
+    file: reports/service.ts
+    after: |
+      import { loadOrders, saveReport } from "./storage";
+
+      export class ReportService {
+        static tenantId: string;
+
+        async build(tenantId: string): Promise<void> {
+          ReportService.tenantId = tenantId;
+          const orders = await loadOrders(tenantId);
+          await saveReport(tenantId, this.title(), orders);
+        }
+
+        private title(): string {
+          return `Orders for ${ReportService.tenantId}`;
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: a module-level uploader sets the file it is uploading on itself, so two uploads at once report each other's progress
+  inputs:
+    file: media/uploader.ts
+    after: |
+      import type { UploadFile } from "./models";
+      import { putObject } from "./storage";
+
+      class Uploader {
+        private file: UploadFile | undefined;
+
+        async upload(file: UploadFile): Promise<string> {
+          this.file = file;
+          await putObject(file.key, file.bytes);
+          return this.progressLabel();
+        }
+
+        private progressLabel(): string {
+          if (this.file === undefined) {
+            throw new Error("No upload in progress");
+          }
+          return `${this.file.name} uploaded`;
+        }
+      }
+
+      export const uploader = new Uploader();
+  expected_output:
+    outcome: invalid
+- name: webhook handlers are registered into a module-level map once at import and only read afterwards
+  inputs:
+    file: webhooks/dispatch.ts
+    after: |
+      import { onChargeRefunded, onChargeSucceeded } from "./charges";
+      import type { WebhookEvent } from "./models";
+
+      type Handler = (event: WebhookEvent) => Promise<void>;
+
+      const handlersByType = new Map<string, Handler>();
+
+      function register(type: string, handler: Handler): void {
+        handlersByType.set(type, handler);
+      }
+
+      register("charge.succeeded", onChargeSucceeded);
+      register("charge.refunded", onChargeRefunded);
+
+      export async function dispatch(event: WebhookEvent): Promise<void> {
+        const handler = handlersByType.get(event.type);
+        if (handler === undefined) {
+          throw new Error(`No handler for webhook ${event.type}`);
+        }
+        await handler(event);
+      }
+  expected_output:
+    outcome: valid
+- name: an order number sequence outlives every call by design, so each call gets the next number
+  inputs:
+    file: orders/numbers.ts
+    after: |
+      let lastOrderNumber = 100000;
+
+      export function nextOrderNumber(): number {
+        lastOrderNumber += 1;
+        return lastOrderNumber;
+      }
+  expected_output:
+    outcome: valid
+- name: two helpers each push one quote's legs onto a module-level array, so a second quote built at once mixes its legs with the first
+  inputs:
+    file: travel/quotes.ts
+    after: |
+      import type { Leg, Trip } from "./models";
+
+      const legs: Leg[] = [];
+
+      function addFlights(trip: Trip): void {
+        for (const flight of trip.flights) {
+          legs.push({ label: `${flight.from}-${flight.to}`, priceCents: flight.priceCents });
+        }
+      }
+
+      function addHotels(trip: Trip): void {
+        for (const stay of trip.stays) {
+          legs.push({ label: stay.hotel, priceCents: stay.nightlyCents * stay.nights });
+        }
+      }
+
+      export function quoteCents(trip: Trip): number {
+        legs.length = 0;
+        addFlights(trip);
+        addHotels(trip);
+        return legs.reduce((total, leg) => total + leg.priceCents, 0);
+      }
+  expected_output:
+    outcome: invalid
+- name: a component keeps its draft comment in React state, which each mounted component has its own of
+  inputs:
+    file: comments/CommentBox.tsx
+    after: |
+      import { useState } from "react";
+
+      export function CommentBox({ onSubmit }: { onSubmit: (text: string) => void }) {
+        const [draft, setDraft] = useState("");
+
+        return (
+          <form
+            onSubmit={(event) => {
+              event.preventDefault();
+              onSubmit(draft);
+              setDraft("");
+            }}
+          >
+            <textarea value={draft} onChange={(event) => setDraft(event.target.value)} />
+            <button type="submit">Post</button>
+          </form>
+        );
+      }
+  expected_output:
+    outcome: valid
+- name: a browser app keeps its basket in a zustand store, the one place the page's state lives
+  inputs:
+    file: shop/basketStore.ts
+    after: |
+      import { create } from "zustand";
+      import type { Product } from "./models";
+
+      interface BasketState {
+        products: Product[];
+        add: (product: Product) => void;
+        empty: () => void;
+      }
+
+      export const useBasket = create<BasketState>()((set) => ({
+        products: [],
+        add: (product) => set((state) => ({ products: [...state.products, product] })),
+        empty: () => set({ products: [] }),
+      }));
+  expected_output:
+    outcome: valid

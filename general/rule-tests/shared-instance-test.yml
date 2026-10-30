@@ -12,6 +12,17 @@ valid:
 - |
   def check(order, strict=False):
       pass
+# Decorated function: a cached_property caches per instance, so no instance is shared
+- |
+  class ExampleService:
+      @cached_property
+      def validator(self):
+          return ExampleValidator()
+# Decorated function: a decorator that caches nothing
+- |
+  @staticmethod
+  def get_validator():
+      return ExampleValidator()
 invalid:
 # Module-level instance
 - |
@@ -37,5 +48,20 @@ invalid:
 # Cached factory function
 - |
   @cache
+  def get_validator():
+      return ExampleValidator()
+# Cached factory function with lru_cache
+- |
+  @lru_cache(maxsize=1)
+  def get_validator():
+      return ExampleValidator()
+# Cached factory function with functools.lru_cache
+- |
+  @functools.lru_cache
+  def get_validator():
+      return ExampleValidator()
+# Singleton factory function
+- |
+  @singleton
   def get_validator():
       return ExampleValidator()

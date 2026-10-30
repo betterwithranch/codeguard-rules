@@ -1,4 +1,4 @@
-skill: general/skills/no-shared-mutable-state
+skill: general/skills/call-data-stays-local
 severity: warning
 paths: ["**/*.py", "**/*.ts", "**/*.tsx"]
 exclude_paths:
@@ -11,4 +11,4 @@ exclude_paths:
   - "**/*.spec.ts"
   - "**/*.spec.tsx"
   - "**/__tests__/**"
-triggers: [shared-instance, module-state-write]
+triggers: [shared-instance, module-state-write, global-rebind]

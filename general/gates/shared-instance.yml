@@ -27,7 +27,7 @@ rule:
     all:
     - has:
         kind: decorator
-        regex: \b(cache|lru_cache|cached_property|singleton)\b
+        regex: \b(cache|lru_cache|singleton)\b
     - has:
         field: definition
         kind: function_definition

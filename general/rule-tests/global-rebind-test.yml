@@ -1,0 +1,37 @@
+id: global-rebind
+valid:
+# Assignment: a local name the function doesn't declare global
+- |
+  def remember(value):
+      current = value
+      return current
+# Assignment: a different name from the one declared global
+- |
+  def remember(value):
+      global current
+      previous = value
+# Augmented assignment: a local counter
+- |
+  def count(items):
+      total = 0
+      for item in items:
+          total += item
+      return total
+invalid:
+# Assignment to a name declared global
+- |
+  def remember(value):
+      global current
+      current = value
+# Augmented assignment to a name declared global
+- |
+  def next_number():
+      global last
+      last += 1
+      return last
+# Assignment to a name declared global inside a nested block
+- |
+  def remember(value):
+      global current
+      if value:
+          current = value
