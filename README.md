@@ -44,6 +44,7 @@ the languages it runs on.
 | `make-illegal-states-unrepresentable` | Make illegal states unrepresentable: a type's fields can't hold a combination the domain forbids, so a type the change adds or edits doesn't keep optional fields that must be set for some values of its status or kind field and empty for others | Not yet |
 | `composition-over-inheritance` | Composition over inheritance: a class inherits only from a type it is a kind of, so a class the change adds doesn't inherit from a program class just to reuse its code | Not yet |
 | `single-source-of-truth` | Single source of truth: a class doesn't store a value it can derive from one other value it holds, so a field the change adds doesn't repeat what another field, or a held object's field, already says | Not yet |
+| `single-writer` | Single writer: module-level state has one writer, so code the change adds doesn't write module-level state that another function, or code in another module, also writes | Not yet |
 
 Pattern rules (ast-grep), one per language where a convention's form is syntax. They
 start as `warning`s and skip test files:
