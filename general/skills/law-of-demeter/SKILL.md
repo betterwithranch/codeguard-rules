@@ -1,6 +1,6 @@
 ---
 name: law-of-demeter
-description: A function doesn't reach through one object into another's parts; code that follows a chain from an object it has, through an object that object holds, to call a method on or read a part of a third, is a violation.
+description: A function doesn't reach through one object into another's parts; code that follows a chain from an object it has, through an object that object holds, to call a method on, read a part of or assign a part of a third, is a violation.
 ---
 
 # Law of Demeter

@@ -1,37 +1,34 @@
 cases:
-- name: checkout reaches through the order and its customer to charge the account
+- name: a venue label reads the name of the venue held by the booking's event
   inputs:
-    file: checkout/service.py
+    file: events/labels.py
     unchanged:
-      checkout/models.py: |
-        class Account:
-            def __init__(self, balance_cents: int) -> None:
-                self.balance_cents = balance_cents
-
-            def charge(self, amount_cents: int) -> None:
-                if amount_cents > self.balance_cents:
-                    raise ValueError("insufficient balance")
-                self.balance_cents -= amount_cents
-
-
-        class Customer:
-            def __init__(self, name: str, account: Account) -> None:
+      events/models.py: |
+        class Venue:
+            def __init__(self, name: str, capacity: int) -> None:
                 self.name = name
-                self.account = account
+                self.capacity = capacity
+
+            def fits(self, party_size: int) -> bool:
+                return party_size <= self.capacity
 
 
-        class Order:
-            def __init__(self, customer: Customer, total_cents: int) -> None:
-                self.customer = customer
-                self.total_cents = total_cents
-                self.paid = False
+        class Event:
+            def __init__(self, title: str, venue: Venue) -> None:
+                self.title = title
+                self.venue = venue
+
+
+        class Booking:
+            def __init__(self, event: Event, seats: int) -> None:
+                self.event = event
+                self.seats = seats
     after: |
-      from checkout.models import Order
+      from events.models import Booking
 
 
-      def pay(order: Order) -> None:
-          order.customer.account.charge(order.total_cents)
-          order.paid = True
+      def venue_label(booking: Booking) -> str:
+          return f"{booking.event.title} at {booking.event.venue.name}"
   expected_output:
     outcome: invalid
 - name: a discount reaches through the cart's owner to their loyalty tier's rate
@@ -70,51 +67,264 @@ cases:
           return cart.subtotal_cents - discount
   expected_output:
     outcome: invalid
-- name: checkout asks the order to charge its customer
+- name: recording attendance assigns a field of the stadium held by the fixture's home club
   inputs:
-    file: checkout/service.py
+    file: league/attendance.py
+    unchanged:
+      league/models.py: |
+        class Stadium:
+            def __init__(self, name: str, seats: int) -> None:
+                self.name = name
+                self.seats = seats
+                self.last_attendance = 0
+
+            def was_full(self) -> bool:
+                return self.last_attendance >= self.seats
+
+
+        class Club:
+            def __init__(self, name: str, stadium: Stadium) -> None:
+                self.name = name
+                self.stadium = stadium
+
+
+        class Fixture:
+            def __init__(self, home_club: Club, away_club: Club) -> None:
+                self.home_club = home_club
+                self.away_club = away_club
     after: |
-      from checkout.models import Order
+      from league.models import Fixture
 
 
-      def pay(order: Order) -> None:
-          order.charge_customer()
-          order.paid = True
+      def record_attendance(fixture: Fixture, spectators: int) -> None:
+          fixture.home_club.stadium.last_attendance = spectators
+  expected_output:
+    outcome: invalid
+- name: a rota reaches from its own ward through the supervisor to send on their pager
+  inputs:
+    file: hospital/rota.py
+    unchanged:
+      hospital/models.py: |
+        class Pager:
+            def __init__(self, number: str) -> None:
+                self.number = number
+                self.messages: list[str] = []
+
+            def send(self, message: str) -> None:
+                self.messages.append(message)
+
+
+        class Nurse:
+            def __init__(self, name: str, pager: Pager) -> None:
+                self.name = name
+                self.pager = pager
+
+
+        class Ward:
+            def __init__(self, name: str, supervisor: Nurse) -> None:
+                self.name = name
+                self.supervisor = supervisor
+    after: |
+      from hospital.models import Ward
+
+
+      class Rota:
+          def __init__(self, ward: Ward) -> None:
+              self._ward = ward
+
+          def page_supervisor(self, message: str) -> None:
+              self._ward.supervisor.pager.send(message)
+  expected_output:
+    outcome: invalid
+- name: billing follows Django foreign keys from the appointment through the patient to the insurer's method
+  inputs:
+    file: clinic/billing.py
+    unchanged: &clinic_models
+      clinic/models.py: |
+        from django.db import models
+
+
+        class Insurer(models.Model):
+            name = models.CharField(max_length=100)
+
+            def submit_claim(self, amount_cents: int) -> None:
+                Claim.objects.create(insurer=self, amount_cents=amount_cents)
+
+
+        class Claim(models.Model):
+            insurer = models.ForeignKey(Insurer, on_delete=models.CASCADE)
+            amount_cents = models.IntegerField()
+
+
+        class Patient(models.Model):
+            name = models.CharField(max_length=100)
+            phone_number = models.CharField(max_length=20)
+            insurer = models.ForeignKey(Insurer, on_delete=models.PROTECT)
+
+
+        class Appointment(models.Model):
+            patient = models.ForeignKey(Patient, on_delete=models.CASCADE)
+            starts_at = models.DateTimeField()
+            fee_cents = models.IntegerField()
+    after: |
+      from clinic.models import Appointment
+
+
+      def bill_insurer(appointment: Appointment) -> None:
+          appointment.patient.insurer.submit_claim(appointment.fee_cents)
+  expected_output:
+    outcome: invalid
+- name: a reminder reads the patient's phone number through the appointment's Django foreign key
+  inputs:
+    file: clinic/reminders.py
+    unchanged: *clinic_models
+    after: |
+      from clinic.models import Appointment
+
+
+      def reminder_number(appointment: Appointment) -> str:
+          return appointment.patient.phone_number
   expected_output:
     outcome: valid
-- name: a report reads the year of an invoice's issue date
+- name: confirming a delivery asks the parcel to mark itself delivered
   inputs:
-    file: reports/yearly.py
+    file: shipping/delivery.py
+    unchanged:
+      shipping/models.py: |
+        class Parcel:
+            def __init__(self, tracking_code: str) -> None:
+                self.tracking_code = tracking_code
+                self.delivered = False
+
+            def mark_delivered(self) -> None:
+                self.delivered = True
+    after: |
+      from shipping.models import Parcel
+
+
+      def confirm_delivery(parcel: Parcel) -> None:
+          parcel.mark_delivered()
+  expected_output:
+    outcome: valid
+- name: a dispatch service calls a method on the shipment its repository returns
+  inputs:
+    file: shipping/dispatch.py
+    unchanged:
+      shipping/shipments.py: |
+        class Shipment:
+            def __init__(self, shipment_id: int) -> None:
+                self.shipment_id = shipment_id
+                self.dispatched = False
+
+            def dispatch(self) -> None:
+                self.dispatched = True
+
+
+        class ShipmentRepository:
+            def __init__(self) -> None:
+                self._by_id: dict[int, Shipment] = {}
+
+            def get(self, shipment_id: int) -> Shipment:
+                return self._by_id[shipment_id]
+    after: |
+      from shipping.shipments import ShipmentRepository
+
+
+      class DispatchService:
+          def __init__(self, shipments: ShipmentRepository) -> None:
+              self._shipments = shipments
+
+          def dispatch(self, shipment_id: int) -> None:
+              self._shipments.get(shipment_id).dispatch()
+  expected_output:
+    outcome: valid
+- name: a usage report reads the hour of each meter reading's timestamp
+  inputs:
+    file: energy/usage.py
+    unchanged:
+      energy/models.py: |
+        from dataclasses import dataclass
+        from datetime import datetime
+
+
+        @dataclass(frozen=True)
+        class MeterReading:
+            meter_id: str
+            taken_at: datetime
+            kwh: float
     after: |
       from collections import Counter
 
-      from billing.models import Invoice
+      from energy.models import MeterReading
 
 
-      def invoices_per_year(invoices: list[Invoice]) -> Counter[int]:
-          return Counter(invoice.issued_on.year for invoice in invoices)
+      def readings_per_hour(readings: list[MeterReading]) -> Counter[int]:
+          return Counter(reading.taken_at.hour for reading in readings)
   expected_output:
     outcome: valid
-- name: a view reads the signed-in user's email from the request
+- name: a view asks the signed-in user's Django groups whether they include editors
   inputs:
-    file: accounts/views.py
+    file: articles/views.py
     after: |
       from django.http import HttpRequest, JsonResponse
 
 
-      def profile(request: HttpRequest) -> JsonResponse:
-          return JsonResponse({"email": request.user.email})
+      def permissions(request: HttpRequest) -> JsonResponse:
+          can_edit = request.user.groups.filter(name="editors").exists()
+          return JsonResponse({"can_edit": can_edit})
   expected_output:
     outcome: valid
-- name: a report chains a dataframe pipeline
+- name: a sender header uses a standard-library module path and an enum member's value
   inputs:
-    file: reports/sales.py
+    file: mail/headers.py
     after: |
-      import pandas as pd
+      import email.utils
+      from enum import Enum
 
 
-      def sales_by_region(orders: pd.DataFrame) -> pd.DataFrame:
-          return orders.groupby("region")["total"].sum().reset_index().sort_values("total")
+      class Sender(Enum):
+          SUPPORT = "support@example.com"
+          BILLING = "billing@example.com"
+
+
+      def support_from_header(display_name: str) -> str:
+          return email.utils.formataddr((display_name, Sender.SUPPORT.value))
+  expected_output:
+    outcome: valid
+- name: a query chains a SQLAlchemy select through where, order_by and limit
+  inputs:
+    file: library/queries.py
+    unchanged:
+      library/models.py: |
+        from datetime import date
+
+        from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+
+
+        class Base(DeclarativeBase):
+            pass
+
+
+        class Book(Base):
+            __tablename__ = "books"
+
+            id: Mapped[int] = mapped_column(primary_key=True)
+            author_id: Mapped[int]
+            title: Mapped[str]
+            published_on: Mapped[date]
+    after: |
+      from sqlalchemy import Select, select
+
+      from library.models import Book
+
+
+      def latest_books(author_id: int, count: int) -> Select[tuple[Book]]:
+          return (
+              select(Book)
+              .where(Book.author_id == author_id)
+              .order_by(Book.published_on.desc())
+              .limit(count)
+          )
   expected_output:
     outcome: valid
 - name: a function adds two numbers
@@ -125,48 +335,291 @@ cases:
           return a + b
   expected_output:
     outcome: skipped
-- name: a pay function reaches through the order class and its customer to charge the account
+- name: an edit makes ending a membership reach through the member to release their locker
   inputs:
-    file: checkout/pay.ts
-    unchanged:
-      checkout/models.ts: |
-        export class Account {
-          constructor(private balanceCents: number) {}
+    file: gym/memberships.py
+    unchanged: &gym_models
+      gym/models.py: |
+        class Locker:
+            def __init__(self, number: int) -> None:
+                self.number = number
+                self.occupied = True
 
-          charge(amountCents: number): void {
-            if (amountCents > this.balanceCents) throw new Error("insufficient balance");
-            this.balanceCents -= amountCents;
+            def release(self) -> None:
+                self.occupied = False
+
+
+        class Member:
+            def __init__(self, name: str, locker: Locker) -> None:
+                self.name = name
+                self.locker = locker
+
+
+        class Membership:
+            def __init__(self, member: Member, months_left: int) -> None:
+                self.member = member
+                self.months_left = months_left
+                self.active = True
+
+            def cancel(self) -> None:
+                self.active = False
+    before: |
+      from gym.models import Membership
+
+
+      def end_membership(membership: Membership) -> None:
+          membership.cancel()
+    after: |
+      from gym.models import Membership
+
+
+      def end_membership(membership: Membership) -> None:
+          membership.cancel()
+          membership.member.locker.release()
+  expected_output:
+    outcome: invalid
+- name: an edit adds a membership check and leaves an older chain in another function untouched
+  inputs:
+    file: gym/lockers.py
+    unchanged: *gym_models
+    before: |
+      from gym.models import Membership
+
+
+      def locker_number(membership: Membership) -> int:
+          return membership.member.locker.number
+    after: |
+      from gym.models import Membership
+
+
+      def locker_number(membership: Membership) -> int:
+          return membership.member.locker.number
+
+
+      def is_last_month(membership: Membership) -> bool:
+          return membership.months_left == 1
+  expected_output:
+    outcome: valid
+- name: announcing an enrollment reaches through the course to notify its instructor
+  inputs:
+    file: school/announce.ts
+    unchanged:
+      school/models.ts: |
+        export class Instructor {
+          readonly inbox: string[] = [];
+
+          constructor(readonly name: string) {}
+
+          notify(message: string): void {
+            this.inbox.push(message);
           }
         }
 
-        export class Customer {
-          constructor(readonly name: string, readonly account: Account) {}
+        export class Course {
+          constructor(readonly title: string, readonly instructor: Instructor) {}
         }
 
-        export class Order {
-          paid = false;
-          constructor(readonly customer: Customer, readonly totalCents: number) {}
+        export class Enrollment {
+          constructor(readonly studentName: string, readonly course: Course) {}
         }
     after: |
-      import type { Order } from "./models";
+      import type { Enrollment } from "./models";
 
-      export function pay(order: Order): void {
-        order.customer.account.charge(order.totalCents);
-        order.paid = true;
+      export function announceEnrollment(enrollment: Enrollment): void {
+        enrollment.course.instructor.notify(`${enrollment.studentName} joined ${enrollment.course.title}`);
       }
   expected_output:
     outcome: invalid
-- name: a function filters and maps active items to their ids
+- name: a loan check reads the salary of the employment held by the application's applicant
   inputs:
-    file: catalog/ids.ts
+    file: lending/salary.ts
+    unchanged:
+      lending/models.ts: |
+        export class Employment {
+          constructor(readonly employerName: string, readonly salaryCents: number) {}
+
+          describe(): string {
+            return `${this.employerName}, ${this.salaryCents / 100} a year`;
+          }
+        }
+
+        export class Applicant {
+          constructor(readonly name: string, readonly employment: Employment) {}
+        }
+
+        export class LoanApplication {
+          constructor(readonly applicant: Applicant, readonly amountCents: number) {}
+        }
     after: |
-      export interface Item {
-        id: string;
-        active: boolean;
+      import type { LoanApplication } from "./models";
+
+      export function applicantSalaryCents(application: LoanApplication): number {
+        return application.applicant.employment.salaryCents;
+      }
+  expected_output:
+    outcome: invalid
+- name: reserving stock assigns the reserved count of the bin held by the pick's shelf
+  inputs:
+    file: warehouse/reserve.ts
+    unchanged:
+      warehouse/models.ts: |
+        export class Bin {
+          reservedUnits = 0;
+
+          constructor(readonly stockUnits: number) {}
+
+          availableUnits(): number {
+            return this.stockUnits - this.reservedUnits;
+          }
+        }
+
+        export class Shelf {
+          constructor(readonly label: string, readonly bin: Bin) {}
+        }
+
+        export class Pick {
+          constructor(readonly quantity: number, readonly shelf: Shelf) {}
+        }
+    after: |
+      import type { Pick } from "./models";
+
+      export function reserveStock(pick: Pick): void {
+        pick.shelf.bin.reservedUnits += pick.quantity;
+      }
+  expected_output:
+    outcome: invalid
+- name: closing a support ticket asks the ticket to resolve itself
+  inputs:
+    file: support/close.ts
+    unchanged:
+      support/models.ts: |
+        export class Ticket {
+          resolved = false;
+
+          constructor(readonly subject: string) {}
+
+          resolve(): void {
+            this.resolved = true;
+          }
+        }
+    after: |
+      import type { Ticket } from "./models";
+
+      export function closeTicket(ticket: Ticket): void {
+        ticket.resolve();
+      }
+  expected_output:
+    outcome: valid
+- name: closing an account calls a method on the account the store loads
+  inputs:
+    file: banking/close.ts
+    unchanged:
+      banking/accounts.ts: |
+        export class Account {
+          open = true;
+
+          constructor(readonly id: string) {}
+
+          close(): void {
+            this.open = false;
+          }
+        }
+
+        export class AccountStore {
+          private readonly byId = new Map<string, Account>();
+
+          load(id: string): Account {
+            const account = this.byId.get(id);
+            if (account === undefined) throw new Error(`no account ${id}`);
+            return account;
+          }
+        }
+    after: |
+      import type { AccountStore } from "./accounts";
+
+      export function closeAccount(accounts: AccountStore, id: string): void {
+        accounts.load(id).close();
+      }
+  expected_output:
+    outcome: valid
+- name: a renewal notice reads the year from the end date of a lease's term
+  inputs:
+    file: leasing/renewal.ts
+    unchanged:
+      leasing/models.ts: |
+        export interface Term {
+          readonly start: Date;
+          readonly end: Date;
+        }
+
+        export interface Lease {
+          readonly tenantName: string;
+          readonly term: Term;
+        }
+    after: |
+      import type { Lease } from "./models";
+
+      export function renewalYear(lease: Lease): number {
+        return lease.term.end.getFullYear();
+      }
+  expected_output:
+    outcome: valid
+- name: a Next.js route handler asks the request's URL search params for a preview flag
+  inputs:
+    file: app/api/page/route.ts
+    after: |
+      import { NextRequest, NextResponse } from "next/server";
+
+      export function GET(request: NextRequest): NextResponse {
+        return NextResponse.json({ preview: request.nextUrl.searchParams.has("preview") });
+      }
+  expected_output:
+    outcome: valid
+- name: an asset path joins segments with the node path module's posix join
+  inputs:
+    file: assets/paths.ts
+    after: |
+      import * as path from "node:path";
+
+      export function assetPath(directory: string, fileName: string): string {
+        return path.posix.join("/assets", directory, fileName);
+      }
+  expected_output:
+    outcome: valid
+- name: a leaderboard sorts, slices and maps players to their names
+  inputs:
+    file: league/leaderboard.ts
+    after: |
+      export interface Player {
+        readonly name: string;
+        readonly goals: number;
       }
 
-      export function activeIds(items: Item[]): string[] {
-        return items.filter((item) => item.active).map((item) => item.id);
+      export function topScorers(players: readonly Player[], count: number): string[] {
+        return [...players]
+          .sort((a, b) => b.goals - a.goals)
+          .slice(0, count)
+          .map((player) => player.name);
+      }
+  expected_output:
+    outcome: valid
+- name: quiet hours read an optional-chained start time from parsed preferences
+  inputs:
+    file: notifications/quiet.ts
+    after: |
+      export interface QuietHours {
+        readonly start: string;
+        readonly end: string;
+      }
+
+      export interface Preferences {
+        readonly notifications?: {
+          readonly quietHours?: QuietHours;
+        };
+      }
+
+      export function quietHoursStart(preferences: Preferences): string | undefined {
+        return preferences.notifications?.quietHours?.start;
       }
   expected_output:
     outcome: valid
