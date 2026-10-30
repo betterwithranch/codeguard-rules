@@ -1,4 +1,4 @@
-skill: general/skills/single-writer
+skill: general/skills/module-state-has-one-writer
 severity: warning
 paths: ["**/*.py", "**/*.ts", "**/*.tsx"]
 exclude_paths:
@@ -11,4 +11,4 @@ exclude_paths:
   - "**/*.spec.ts"
   - "**/*.spec.tsx"
   - "**/__tests__/**"
-triggers: [module-state-write]
+triggers: [module-state-write, imported-state-write]

@@ -1,0 +1,120 @@
+id: imported-state-write
+valid:
+# Attribute of a local object set in a function
+- |
+  def build():
+      report = Report()
+      report.title = "weekly"
+      return report
+# Attribute of self set in a method
+- |
+  class ExampleQueue:
+      def reset(self):
+          self.size = 0
+# Imported module's attribute read, not written
+- |
+  import limits
+
+  def window():
+      return limits.WINDOW_SECONDS
+# Imported module's function called, not a mutating method
+- |
+  from search import tuning
+
+  def boost(field, weight):
+      tuning.set_boost(field, weight)
+# Imported name used only as a subscript key
+- |
+  from accounts import ROLE
+
+  def assign(grants, user):
+      grants[ROLE] = user
+# Imported name's attribute only on the right of the assignment
+- |
+  from app import settings
+
+  def configure(options):
+      options.page_size = settings.page_size
+# Local container that shadows nothing imported, written in a function
+- |
+  import json
+
+  def collect(lines):
+      seen = set()
+      seen.add(lines[0])
+      return json.dumps(sorted(seen))
+invalid:
+# Attribute of a plainly imported module set
+- |
+  import limits
+
+  def widen():
+      limits.WINDOW_SECONDS = 120
+# Attribute of a module imported under an alias set
+- |
+  import limits as lim
+
+  def widen():
+      lim.WINDOW_SECONDS = 120
+# Attribute of the first name of a dotted import set
+- |
+  import app.limits
+
+  def widen():
+      app.limits.WINDOW_SECONDS = 120
+# Attribute of a name imported with from set
+- |
+  from app import settings
+
+  def configure(size):
+      settings.page_size = size
+# Attribute of a name imported with from under an alias augmented
+- |
+  from app import counters as cnt
+
+  def bump():
+      cnt.retries += 1
+# Attribute of an imported object's attribute set
+- |
+  from app import config
+
+  def configure(size):
+      config.search.page_size = size
+# Subscript of an imported container written
+- |
+  from search.tuning import BOOSTS
+
+  def boost(field, weight):
+      BOOSTS[field] = weight
+# Subscript of an imported module's container written
+- |
+  from search import tuning
+
+  def boost(field, weight):
+      tuning.boosts[field] = weight
+# Mutating call on an imported container
+- |
+  from http.cors import ALLOWED_ORIGINS
+
+  def allow(origin):
+      ALLOWED_ORIGINS.append(origin)
+# Mutating call on an imported module's container
+- |
+  import cors
+
+  def reset():
+      cors.allowed_origins.clear()
+# Write at the top level of the importing module
+- |
+  import limits
+
+  limits.WINDOW_SECONDS = 120
+# Import inside a try block
+- |
+  try:
+      import fastjson as codec
+  except ImportError:
+      import json as codec
+
+  def use_compact():
+      codec.separators = (",", ":")

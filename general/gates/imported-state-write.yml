@@ -1,0 +1,82 @@
+id: imported-state-write
+language: python
+rule:
+  all:
+  - any:
+    - any:
+      - kind: assignment
+      - kind: augmented_assignment
+      has:
+        field: left
+        any:
+        - kind: attribute
+          has:
+            field: object
+            any:
+            - kind: identifier
+              pattern: $N
+            - kind: attribute
+              has:
+                field: object
+                kind: identifier
+                pattern: $N
+        - kind: subscript
+          has:
+            field: value
+            any:
+            - kind: identifier
+              pattern: $N
+            - kind: attribute
+              has:
+                field: object
+                kind: identifier
+                pattern: $N
+    - kind: call
+      has:
+        field: function
+        kind: attribute
+        all:
+        - has:
+            field: object
+            any:
+            - kind: identifier
+              pattern: $N
+            - kind: attribute
+              has:
+                field: object
+                kind: identifier
+                pattern: $N
+        - has:
+            field: attribute
+            regex: ^(append|extend|insert|add|update|setdefault|pop|popitem|clear|remove|discard|appendleft)$
+  - inside:
+      kind: module
+      stopBy: end
+      has:
+        stopBy: end
+        any:
+        - kind: import_statement
+          has:
+            field: name
+            any:
+            - kind: dotted_name
+              has:
+                kind: identifier
+                nthChild: 1
+                pattern: $N
+            - kind: aliased_import
+              has:
+                field: alias
+                pattern: $N
+        - kind: import_from_statement
+          has:
+            field: name
+            any:
+            - kind: dotted_name
+              has:
+                kind: identifier
+                pattern: $N
+            - kind: aliased_import
+              has:
+                field: alias
+                pattern: $N
