@@ -1,0 +1,139 @@
+id: no-middle-man
+valid:
+  # A method that does work of its own
+  - |
+    class ExampleService {
+      constructor(private readonly repository: ExampleRepository) {}
+
+      get(id: string) {
+        return this.repository.get(id);
+      }
+
+      total(id: string) {
+        const example = this.repository.get(id);
+        return example.items.length;
+      }
+    }
+
+  # Methods forward to different collaborators
+  - |
+    class ExampleFacade {
+      constructor(private readonly reader: Reader, private readonly writer: Writer) {}
+
+      get(id: string) {
+        return this.reader.get(id);
+      }
+
+      save(example: Example) {
+        this.writer.save(example);
+      }
+    }
+
+  # One forwarding method
+  - |
+    class ExampleService {
+      constructor(private readonly repository: ExampleRepository) {}
+
+      get(id: string) {
+        return this.repository.get(id);
+      }
+    }
+
+  # An interface the forwarding adapts to
+  - |
+    class ExampleStore implements Store {
+      constructor(private readonly repository: ExampleRepository) {}
+
+      get(id: string) {
+        return this.repository.get(id);
+      }
+
+      save(example: Example) {
+        this.repository.save(example);
+      }
+    }
+
+  # A forwarding call wrapped in other work
+  - |
+    class ExampleService {
+      constructor(private readonly repository: ExampleRepository) {}
+
+      get(id: string) {
+        return new ExampleView(this.repository.get(id));
+      }
+
+      save(example: Example) {
+        this.repository.save(example);
+      }
+    }
+
+  # A method with a statement before its forwarding call
+  - |
+    class ExampleService {
+      constructor(private readonly repository: ExampleRepository, private readonly log: Logger) {}
+
+      get(id: string) {
+        this.log.info(id);
+        return this.repository.get(id);
+      }
+
+      save(example: Example) {
+        this.repository.save(example);
+      }
+    }
+
+  # A function held in a field counts as work of the class's own
+  - |
+    class ExampleService {
+      constructor(private readonly repository: ExampleRepository) {}
+
+      get = (id: string) => this.repository.get(id);
+
+      save(example: Example) {
+        this.repository.save(example);
+      }
+    }
+
+invalid:
+  # Returned and bare forwarding calls
+  - |
+    class ExampleService {
+      constructor(private readonly repository: ExampleRepository) {}
+
+      get(id: string) {
+        return this.repository.get(id);
+      }
+
+      save(example: Example) {
+        this.repository.save(example);
+      }
+    }
+
+  # Awaited calls in exported async methods
+  - |
+    export class ExampleService {
+      constructor(private readonly repository: ExampleRepository) {}
+
+      async get(id: string) {
+        return await this.repository.get(id);
+      }
+
+      async save(example: Example) {
+        await this.repository.save(example);
+      }
+    }
+
+  # A comment in a forwarding method
+  - |
+    class ExampleService {
+      constructor(private readonly repository: ExampleRepository) {}
+
+      get(id: string) {
+        // Reads through to the store.
+        return this.repository.get(id);
+      }
+
+      save(example: Example) {
+        this.repository.save(example);
+      }
+    }

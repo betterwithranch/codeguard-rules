@@ -1,0 +1,7 @@
+rule: no-middle-man
+paths: ["**/*.ts"]
+exclude_paths:
+  - "**/tests/**"
+  - "**/__tests__/**"
+  - "**/*.test.ts"
+  - "**/*.spec.ts"

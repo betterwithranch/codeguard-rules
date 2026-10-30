@@ -44,8 +44,8 @@ the languages it runs on.
 | `make-illegal-states-unrepresentable` | A type's optional fields aren't tied to the values of its status or kind field | Not yet |
 | `composition-over-inheritance` | A class inherits only from a type it is a kind of, not to reuse its code | Not yet |
 
-Each rule passes 20 of 20 eval runs on Claude before it ships, and CI's 3 runs before it
-merges. One check follows, and doesn't hold up the next rule:
+Each judge rule passes 20 of 20 eval runs on Claude before it ships, and CI's 3 runs
+before it merges. One check follows, and doesn't hold up the next rule:
 
 - **Validated**: its findings on real changes, read from codeguard's Logfire traces,
   show it flags what it should. Until then it's a `warning`: its findings print but don't
@@ -80,6 +80,7 @@ code skip test files:
 | `no-field-tuple-asserts` | Don't assert a tuple of one value's fields; compare the whole object |
 | `no-len-asserts` | Don't assert only a collection's length |
 | `no-manual-kwargs-check` | No hand-written `TypeError` for unexpected `**kwargs` keys |
+| `no-middle-man` | No middle man: a class without a base doesn't forward every method to the same collaborator |
 | `no-normalized-asserts` | No `replace`, `model_copy` or `model_dump(exclude=...)` of the result inside an assert |
 | `no-pop-from-kwargs` | No `.pop()` from a `**kwargs` parameter in test code |
 | `no-sleep-in-async-tests` | No `sleep` in an `async def test_…`; wait on an event |
@@ -107,6 +108,14 @@ as `fixture` or `import`, or a gate in the ruleset's `gates/`, an ast-grep rule
 such as `mock-use`. A rule ast-grep or the type checker can check is a pattern rule or a checker
 setting, never a judge rule.
 
+### `typescript`
+
+Rules for any TypeScript project. Pattern rules (ast-grep); they skip test files:
+
+| Rule | Checks |
+|---|---|
+| `no-middle-man` | No middle man: a class without a base type doesn't forward every method to the same collaborator |
+
 ## Use a ruleset
 
 In the project's `.codeguard/config.yaml`:
@@ -128,6 +137,8 @@ packages:
 - `rules.<id>` overrides `paths`, `exclude_paths` or `severity`. `exclude_paths: []`
   brings test files back into an app rule.
 - `codeguard update` moves `ref` to the newest tag.
+- A project gets only the rulesets it lists under `rulesets`. List `typescript` to add
+  the TypeScript pattern rules.
 
 Diagnostics name a rule by package, ruleset and id: `betterwithranch/python/no-del-param`.
 

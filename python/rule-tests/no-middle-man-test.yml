@@ -1,0 +1,166 @@
+id: no-middle-man
+valid:
+  # A method that does work of its own
+  - |
+    class ExampleService:
+        def __init__(self, repository):
+            self._repository = repository
+
+        def get(self, example_id):
+            return self._repository.get(example_id)
+
+        def total(self, example_id):
+            example = self._repository.get(example_id)
+            return sum(item.price for item in example.items)
+
+  # Methods forward to different collaborators
+  - |
+    class ExampleFacade:
+        def __init__(self, reader, writer):
+            self._reader = reader
+            self._writer = writer
+
+        def get(self, example_id):
+            return self._reader.get(example_id)
+
+        def save(self, example):
+            self._writer.save(example)
+
+  # One forwarding method
+  - |
+    class ExampleService:
+        def __init__(self, repository):
+            self._repository = repository
+
+        def get(self, example_id):
+            return self._repository.get(example_id)
+
+  # A decorated method counts as work of the class's own, a forwarding property included
+  - |
+    class ExampleService:
+        def __init__(self, repository):
+            self._repository = repository
+
+        def get(self, example_id):
+            return self._repository.get(example_id)
+
+        def save(self, example):
+            self._repository.save(example)
+
+        @property
+        def size(self):
+            return self._repository.count()
+
+  # A base class the forwarding adapts to
+  - |
+    class ExampleStore(Store):
+        def __init__(self, repository):
+            self._repository = repository
+
+        def get(self, example_id):
+            return self._repository.get(example_id)
+
+        def save(self, example):
+            self._repository.save(example)
+
+  # A forwarding call wrapped in other work
+  - |
+    class ExampleService:
+        def __init__(self, repository):
+            self._repository = repository
+
+        def get(self, example_id):
+            return ExampleView(self._repository.get(example_id))
+
+        def save(self, example):
+            self._repository.save(example)
+
+  # A method with a statement before its forwarding call
+  - |
+    class ExampleService:
+        def __init__(self, repository, log):
+            self._repository = repository
+            self._log = log
+
+        def get(self, example_id):
+            self._log.info(example_id)
+            return self._repository.get(example_id)
+
+        def save(self, example):
+            self._repository.save(example)
+
+  # A docstring and two statements
+  - |
+    class ExampleService:
+        def __init__(self, repository, log):
+            self._repository = repository
+            self._log = log
+
+        def get(self, example_id):
+            """Get one example."""
+            self._log.info(example_id)
+            return self._repository.get(example_id)
+
+        def save(self, example):
+            self._repository.save(example)
+
+  # __init__ is not a forwarding method, even when it only calls the collaborator
+  - |
+    class ExampleSession:
+        def __init__(self, connection):
+            self._connection = connection
+            self._connection.open()
+
+        def query(self, sql):
+            return self._connection.query(sql)
+
+invalid:
+  # Returned and bare forwarding calls
+  - |
+    class ExampleService:
+        def __init__(self, repository):
+            self._repository = repository
+
+        def get(self, example_id):
+            return self._repository.get(example_id)
+
+        def save(self, example):
+            self._repository.save(example)
+
+  # Docstrings and awaited calls
+  - |
+    class ExampleService:
+        def __init__(self, repository):
+            self._repository = repository
+
+        async def get(self, example_id):
+            """Get one example."""
+            return await self._repository.get(example_id)
+
+        async def save(self, example):
+            await self._repository.save(example)
+
+  # Empty parentheses name no base class
+  - |
+    class ExampleService():
+        def __init__(self, repository):
+            self._repository = repository
+
+        def get(self, example_id):
+            return self._repository.get(example_id)
+
+        def save(self, example):
+            self._repository.save(example)
+
+  # A comment in a forwarding method
+  - |
+    class ExampleService:
+        def __init__(self, repository):
+            self._repository = repository
+
+        def get(self, example_id):
+            # Reads through to the store.
+            return self._repository.get(example_id)
+
+        def save(self, example):
+            self._repository.save(example)
