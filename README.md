@@ -189,10 +189,11 @@ A Claude Code session here installs codeguard at the release CI pins (`CODEGUARD
 in `.github/workflows/ci.yaml`) when it starts, through `.claude/hooks/session-start.sh`,
 so local runs match CI. Moving to a new codeguard release is that one line.
 
-CI judges the rules a change can affect, as [codeguard's testing guide](https://github.com/jig-code/codeguard/blob/main/docs/testing.md#changing-a-rule-package) requires: a rule whose
-skill, binding, eval or a trigger's gate changed, 20 times, and when
-`codeguard-package.yaml`, the workflow (which pins the codeguard version) or
-`scripts/affected_judge_rules.py` changed, every other rule 3 times. That script prints
+CI judges the rules a change can affect, following [codeguard's testing guide](https://github.com/jig-code/codeguard/blob/main/docs/testing.md#changing-a-rule-package): a rule whose
+skill, binding, eval or a trigger's gate changed, 20 times, and when the codeguard
+version CI pins (`CODEGUARD_REF`) changes, every other rule 3 times. A change to
+`codeguard-package.yaml`, the workflow or the script alone doesn't re-judge the other
+rules. That script prints
 each affected rule with its runs, and CI passes them to `codeguard eval --rule`. The
 `eval` job runs once per provider in its
 matrix, `claude-cli`. Gemini is out of the matrix until codeguard's Gemini judge
