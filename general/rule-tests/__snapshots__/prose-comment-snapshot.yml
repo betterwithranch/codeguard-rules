@@ -1,26 +1,56 @@
 id: prose-comment
 snapshots:
-  ? |
-    # Stripe rejects longer values.
-    LIMIT = 500
-  : labels:
-    - source: '# Stripe rejects longer values.'
+  "# Stripe rejects longer values.\nLIMIT = 500\n":
+    labels:
+    - source: "# Stripe rejects longer values."
       style: primary
       start: 0
       end: 31
-  ? |
-    LIMIT = 500  # Stripe's limit
-  : labels:
-    - source: '# Stripe''s limit'
+  "# ast-grep-ignored lines still run in production\nvalue = compute()\n":
+    labels:
+    - source: "# ast-grep-ignored lines still run in production"
+      style: primary
+      start: 0
+      end: 48
+  "# fmt would wrap this grid, so it stays on two lines\nGRID = [1, 0, 0, 1]\n":
+    labels:
+    - source: "# fmt would wrap this grid, so it stays on two lines"
+      style: primary
+      start: 0
+      end: 52
+  "# isort would move this above the patch, which must run first\nimport plugins\n":
+    labels:
+    - source: "# isort would move this above the patch, which must run first"
+      style: primary
+      start: 0
+      end: 61
+  "# mypy can't narrow this union until the SDK ships its stubs\nvalue = compute()\n":
+    labels:
+    - source: "# mypy can't narrow this union until the SDK ships its stubs"
+      style: primary
+      start: 0
+      end: 60
+  "# pylint and ruff disagree on this name; the vendor's API fixes it\nvalue = compute()\n":
+    labels:
+    - source: "# pylint and ruff disagree on this name; the vendor's API fixes it"
+      style: primary
+      start: 0
+      end: 66
+  "# ruff format keeps this on one line for the vendor's parser\nURL = \"https://example.com\"\n":
+    labels:
+    - source: "# ruff format keeps this on one line for the vendor's parser"
+      style: primary
+      start: 0
+      end: 60
+  "LIMIT = 500  # Stripe's limit\n":
+    labels:
+    - source: "# Stripe's limit"
       style: primary
       start: 13
       end: 29
-  ? |
-    def total():
-        # add the lines
-        return 1
-  : labels:
-    - source: '# add the lines'
+  "def total():\n    # add the lines\n    return 1\n":
+    labels:
+    - source: "# add the lines"
       style: primary
       start: 17
       end: 32

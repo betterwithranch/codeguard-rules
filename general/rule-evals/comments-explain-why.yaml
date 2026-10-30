@@ -1,137 +1,372 @@
 cases:
-- name: comments narrate each step of a total
+- name: heading comments narrate each step of scoring a quiz
   inputs:
-    file: billing/totals.py
+    file: quiz/scoring.py
     after: |
-      from decimal import Decimal
-
-      from billing.models import InvoiceLine
+      from quiz.models import Answer
 
 
-      def invoice_total(lines: list[InvoiceLine]) -> Decimal:
-          # start the total at zero
-          total = Decimal(0)
-          # loop over the lines and add each amount
-          for line in lines:
-              total += line.amount
-          # return the total
-          return total
+      def quiz_score(answers: list[Answer]) -> int:
+          # keep only the correct answers
+          correct = [answer for answer in answers if answer.is_correct]
+          # take the points of each correct answer
+          points = [answer.points for answer in correct]
+          # add up the points and return them
+          return sum(points)
   expected_output:
     outcome: invalid
-- name: a docstring rewords the method's name and signature
+- name: a trailing comment repeats the comparison it sits on
   inputs:
-    file: billing/invoice.py
+    file: greenhouse/watering.py
     after: |
-      from dataclasses import dataclass
+      from greenhouse.models import SoilSensor
 
 
-      @dataclass(frozen=True)
-      class Invoice:
-          line_cents: tuple[int, ...]
-
-          def total_cents(self) -> int:
-              """Return the total cents of the invoice."""
-              return sum(self.line_cents)
+      def needs_watering(sensor: SoilSensor, threshold: float) -> bool:
+          return sensor.moisture < threshold  # true when the moisture is below the threshold
   expected_output:
     outcome: invalid
-- name: a comment keeps the old retry as commented-out code
+- name: a comment tells what the function used to check
   inputs:
-    file: shipping/carrier.py
+    file: library/loans.py
+    after: |
+      from datetime import date
+
+      from library.models import Loan
+
+
+      def is_overdue(loan: Loan, today: date) -> bool:
+          # Previously this compared today with due_on plus a three-day grace period.
+          return today > loan.due_on
+  expected_output:
+    outcome: invalid
+- name: a comment labels the seconds the constant's name already says
+  inputs:
+    file: uploads/client.py
     after: |
       import httpx
 
-      CARRIER_URL = "https://carrier.example.com/v2/labels"
+      # timeout in seconds
+      UPLOAD_TIMEOUT_SECONDS = 120
 
 
-      def request_label(client: httpx.Client, payload: dict[str, str]) -> bytes:
-          # for attempt in range(3):
-          #     response = client.post(CARRIER_URL, json=payload)
-          response = client.post(CARRIER_URL, json=payload, timeout=10)
-          response.raise_for_status()
-          return response.content
+      def upload_client() -> httpx.Client:
+          return httpx.Client(timeout=UPLOAD_TIMEOUT_SECONDS)
   expected_output:
     outcome: invalid
-- name: a comment gives the carrier's batch limit
+- name: a docstring rewords the function's name
   inputs:
-    file: shipping/batches.py
+    file: calendar_tools/years.py
     after: |
-      from itertools import batched
-
-      from shipping.models import Parcel
-
-      # The carrier API rejects requests with more than 50 parcels.
-      BATCH_SIZE = 50
-
-
-      def parcel_batches(parcels: list[Parcel]) -> list[tuple[Parcel, ...]]:
-          return list(batched(parcels, BATCH_SIZE))
+      def is_leap_year(year: int) -> bool:
+          """Check whether the year is a leap year."""
+          return year % 4 == 0 and (year % 100 != 0 or year % 400 == 0)
   expected_output:
-    outcome: valid
-- name: a docstring says which error the function raises and when
+    outcome: invalid
+- name: a docstring narrates the conversion its body does
   inputs:
-    file: shipping/labels.py
+    file: weather/readings.py
     after: |
-      from shipping.carrier import CarrierClient, CarrierError
-      from shipping.models import Shipment
+      from weather.models import Reading
 
 
-      def print_label(client: CarrierClient, shipment: Shipment) -> bytes:
-          """Fetch the shipping label as PDF bytes.
-
-          Raises CarrierError when the carrier rejects the address; the shipment is
-          left unlabelled so it can be retried after the address is fixed.
+      def celsius_values(readings: list[Reading]) -> list[float]:
+          """Go through the readings, subtract 32 from each fahrenheit value, multiply it
+          by 5/9 and collect the results in a list.
           """
-          return client.label(shipment.id, shipment.address)
+          return [(reading.fahrenheit - 32) * 5 / 9 for reading in readings]
+  expected_output:
+    outcome: invalid
+- name: a docstring only lists the parameters by name
+  inputs:
+    file: clinic/visits.py
+    after: |
+      from datetime import datetime
+
+      from clinic.calendar import VetCalendar
+      from clinic.models import Visit
+
+
+      class VisitBooker:
+          def __init__(self, calendar: VetCalendar) -> None:
+              self._calendar = calendar
+
+          def book(self, pet_id: str, vet_id: str, starts_at: datetime) -> Visit:
+              """
+              Args:
+                  pet_id: the pet id.
+                  vet_id: the vet id.
+                  starts_at: the start.
+              """
+              return self._calendar.reserve(vet_id, pet_id, starts_at)
+  expected_output:
+    outcome: invalid
+- name: a comment rewords the command and gives the turnstile's quirk
+  inputs:
+    file: gates/turnstile.py
+    after: |
+      from gates.link import TurnstileLink
+
+
+      def unlock(link: TurnstileLink) -> None:
+          # Send the unlock command twice: the turnstile controller drops the first
+          # command it receives after waking from standby.
+          link.send("UNLOCK")
+          link.send("UNLOCK")
   expected_output:
     outcome: valid
-- name: a TODO names the tracker issue it waits on
+- name: a comment gives the legal reason receipts are kept seven years
   inputs:
-    file: shipping/rates.py
+    file: bookkeeping/retention.py
     after: |
-      from decimal import Decimal
-
-      # TODO(#412): drop the surcharge once the carrier ships its v3 rate API.
-      FUEL_SURCHARGE = Decimal("0.08")
+      # The tax office can audit receipts for seven years after the tax year.
+      RECEIPT_RETENTION_YEARS = 7
 
 
-      def with_surcharge(rate: Decimal) -> Decimal:
-          return rate * (1 + FUEL_SURCHARGE)
+      def may_discard(receipt_tax_year: int, current_year: int) -> bool:
+          return current_year - receipt_tax_year > RECEIPT_RETENTION_YEARS
   expected_output:
     outcome: valid
-- name: a function with no comments or docstring
+- name: a docstring gives the unit, range, side effect and code format the signature can't
   inputs:
-    file: shipping/weights.py
+    file: courts/booking.py
     after: |
-      from decimal import Decimal
+      from courts.locks import DoorLocks
 
 
-      def total_weight(weights: list[Decimal]) -> Decimal:
-          return sum(weights, Decimal(0))
+      class CourtBooking:
+          def __init__(self, locks: DoorLocks) -> None:
+              self._locks = locks
+
+          def reserve(self, court: int, start_minute: int) -> str:
+              """Reserve a court for one hour.
+
+              start_minute counts minutes after midnight in the club's time zone, from 0
+              to 1380. Programs the court's door lock to open for that hour, and returns
+              its entry code as six zero-padded digits, such as "004211".
+              """
+              return self._locks.program(court, start_minute)
+  expected_output:
+    outcome: valid
+- name: a command's docstring is its help text
+  inputs:
+    file: archive/cli.py
+    after: |
+      import click
+
+      from archive.store import compact_archive
+
+
+      @click.command()
+      @click.argument("path", type=click.Path(exists=True, dir_okay=False))
+      def compact(path: str) -> None:
+          """Compact the archive at PATH."""
+          compact_archive(path)
+  expected_output:
+    outcome: valid
+- name: a license header opens the module
+  inputs:
+    file: robots/parking.py
+    after: |
+      # SPDX-License-Identifier: Apache-2.0
+      # Copyright 2026 Example Robotics Ltd.
+
+      from robots.arm import Arm
+
+
+      def park(arm: Arm) -> None:
+          arm.move_home()
+  expected_output:
+    outcome: valid
+- name: a noqa directive is the only comment
+  inputs:
+    file: status/endpoints.py
+    after: |
+      STATUS_COMPONENTS_URL = "https://status.example.com/api/v2/components/storage-cluster-eu-west/incidents.json"  # noqa: E501
   expected_output:
     outcome: skipped
-- name: comments narrate a loop that counts unread messages
+- name: an edit replaces the rounding reason with a restatement of the rounding
   inputs:
-    file: inbox/count.ts
-    after: |
-      import type { Message } from "./message";
+    file: hotel/rates.py
+    before: |
+      from decimal import ROUND_HALF_UP, Decimal
 
-      export function unreadCount(messages: Message[]): number {
-        // set the count to zero
-        let count = 0;
-        // go through each message
-        for (const message of messages) {
-          // if it is unread, increment the count
-          if (!message.readAt) count++;
-        }
-        return count;
+
+      def channel_rate(nightly_rate: Decimal) -> Decimal:
+          # The channel manager rejects rates finer than whole cents.
+          return nightly_rate.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    after: |
+      from decimal import ROUND_HALF_UP, Decimal
+
+
+      def channel_rate(nightly_rate: Decimal) -> Decimal:
+          # round the rate to two decimal places, half up
+          return nightly_rate.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+  expected_output:
+    outcome: invalid
+- name: heading comments narrate each step of listing free seats
+  inputs:
+    file: venue/seats.ts
+    after: |
+      import type { Seat } from "./seat";
+
+      export function freeSeatLabels(seats: Seat[]): string[] {
+        // take the seats nobody holds
+        const free = seats.filter((seat) => seat.holder === null);
+        // turn each seat into its row and number
+        const labels = free.map((seat) => `${seat.row}${seat.number}`);
+        // return the labels
+        return labels;
       }
   expected_output:
     outcome: invalid
+- name: a trailing comment repeats the lapse check it sits on
+  inputs:
+    file: gym/membership.ts
+    after: |
+      import type { Membership } from "./membership-types";
+
+      export function hasLapsed(membership: Membership, nowMs: number): boolean {
+        return membership.endsAtMs < nowMs; // lapsed when the end time is before now
+      }
+  expected_output:
+    outcome: invalid
+- name: a comment tells where the fine used to come from
+  inputs:
+    file: library/fines.ts
+    after: |
+      // This used to read the fine from each branch's settings.
+      export const LATE_FINE_CENTS = 200;
+  expected_output:
+    outcome: invalid
+- name: a comment labels the milliseconds the constant's name already says
+  inputs:
+    file: feeds/poller.ts
+    after: |
+      export const POLL_INTERVAL_MS = 5_000; // in milliseconds
+  expected_output:
+    outcome: invalid
+- name: a doc comment rewords the function's name
+  inputs:
+    file: airport/delays.ts
+    after: |
+      import type { Flight } from "./flight";
+
+      /** Checks whether the flight is delayed. */
+      export function isDelayed(flight: Flight): boolean {
+        return flight.estimatedDepartureMs > flight.scheduledDepartureMs;
+      }
+  expected_output:
+    outcome: invalid
+- name: a doc comment narrates the filter and map its body does
+  inputs:
+    file: recipes/allergens.ts
+    after: |
+      import type { Ingredient } from "./ingredient";
+
+      /**
+       * Filters the ingredients down to the ones marked as allergens, then maps each one
+       * to its name.
+       */
+      export function allergenNames(ingredients: Ingredient[]): string[] {
+        return ingredients
+          .filter((ingredient) => ingredient.isAllergen)
+          .map((ingredient) => ingredient.name);
+      }
+  expected_output:
+    outcome: invalid
+- name: a doc comment only lists the parameters by name
+  inputs:
+    file: rentals/bikes.ts
+    after: |
+      import type { BikeFleet } from "./fleet";
+      import type { Rental } from "./rental";
+
+      export class BikeRentals {
+        constructor(private readonly fleet: BikeFleet) {}
+
+        /**
+         * @param bikeId the bike id
+         * @param riderId the rider id
+         * @param hours the hours
+         */
+        rent(bikeId: string, riderId: string, hours: number): Promise<Rental> {
+          return this.fleet.checkOut(bikeId, riderId, hours);
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: a comment rewords the rounding and gives the ordinance behind it
+  inputs:
+    file: parking/billing.ts
+    after: |
+      export function billableMinutes(parkedMs: number): number {
+        // Round down to whole minutes: the city's parking ordinance doesn't charge
+        // for a partly used minute.
+        return Math.floor(parkedMs / 60_000);
+      }
+  expected_output:
+    outcome: valid
 - name: a comment gives the gateway's idle timeout
   inputs:
     file: http/client.ts
     after: |
       // The payment gateway closes idle sockets after 35 seconds.
       export const KEEP_ALIVE_MS = 30_000;
+  expected_output:
+    outcome: valid
+- name: a doc comment gives the unit, range, side effect and slot format the signature can't
+  inputs:
+    file: heating/thermostat.ts
+    after: |
+      import type { ThermostatLink } from "./link";
+
+      /**
+       * Sets the target in tenths of a degree Celsius, from 50 (5.0 °C) to 300 (30.0 °C).
+       * Starts the boiler at once when the room is below the new target. Resolves to the
+       * schedule slot the target applies to, as "HH:MM-HH:MM" in the home's local time.
+       */
+      export function setTarget(link: ThermostatLink, tenthsCelsius: number): Promise<string> {
+        return link.writeTarget(tenthsCelsius);
+      }
+  expected_output:
+    outcome: valid
+- name: a license header opens the tile module
+  inputs:
+    file: maps/tiles.ts
+    after: |
+      // SPDX-License-Identifier: MIT
+      // Copyright 2026 Example Maps Ltd.
+
+      import type { Tile } from "./tile";
+
+      export function tileKey(tile: Tile): string {
+        return `${tile.zoom}/${tile.x}/${tile.y}`;
+      }
+  expected_output:
+    outcome: valid
+- name: an eslint-disable directive is the only comment
+  inputs:
+    file: weather/api-types.ts
+    after: |
+      /* eslint-disable @typescript-eslint/naming-convention */
+      export interface WeatherApiReading {
+        temp_c: number;
+        wind_kph: number;
+      }
+  expected_output:
+    outcome: valid
+- name: an edit adds a reason comment beside an older comment it leaves unchanged
+  inputs:
+    file: notify/sms.ts
+    before: |
+      // set the retries to three
+      export const MAX_RETRIES = 3;
+    after: |
+      // set the retries to three
+      export const MAX_RETRIES = 3;
+
+      // The SMS provider throttles an account that sends more than 10 messages a second.
+      export const SMS_PER_SECOND = 10;
   expected_output:
     outcome: valid

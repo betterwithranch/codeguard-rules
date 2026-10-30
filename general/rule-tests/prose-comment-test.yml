@@ -23,6 +23,29 @@ valid:
 - |
   def total():
       """Return the total."""
+# fmt directive
+- |
+  # fmt: off
+  GRID = [1, 0,
+          0, 1]
+# mypy directive
+- |
+  # mypy: disable-error-code="import-untyped"
+  import legacy_sdk
+# pylint directive
+- |
+  value = compute()  # pylint: disable=invalid-name
+# ruff directive
+- |
+  # ruff: noqa: E501
+  URL = "https://example.com"
+# isort directive
+- |
+  import plugins  # isort: skip
+# ast-grep-ignore directive
+- |
+  # ast-grep-ignore: no-del-param
+  del unused
 invalid:
 # Line comment
 - |
@@ -36,3 +59,27 @@ invalid:
   def total():
       # add the lines
       return 1
+# fmt near miss: prose starting with "fmt" and no colon
+- |
+  # fmt would wrap this grid, so it stays on two lines
+  GRID = [1, 0, 0, 1]
+# mypy near miss: prose starting with "mypy" and no colon
+- |
+  # mypy can't narrow this union until the SDK ships its stubs
+  value = compute()
+# pylint near miss: prose starting with "pylint" and no colon
+- |
+  # pylint and ruff disagree on this name; the vendor's API fixes it
+  value = compute()
+# ruff near miss: prose starting with "ruff" and no colon
+- |
+  # ruff format keeps this on one line for the vendor's parser
+  URL = "https://example.com"
+# isort near miss: prose starting with "isort" and no colon
+- |
+  # isort would move this above the patch, which must run first
+  import plugins
+# ast-grep-ignore near miss: prose starting with "ast-grep-ignored"
+- |
+  # ast-grep-ignored lines still run in production
+  value = compute()

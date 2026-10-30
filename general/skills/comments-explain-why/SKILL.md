@@ -1,6 +1,6 @@
 ---
 name: comments-explain-why
-description: A comment or docstring states a fact from outside the code; a comment that restates or narrates the code, describes what it used to do or doesn't do, or is commented-out code or a bare TODO, and a docstring that only rewords the name or signature, is a violation.
+description: A comment or docstring states a fact from outside the code; a comment that restates or narrates the code, describes what it used to do or doesn't do, or labels a unit the name already says, and a docstring that only rewords the name or signature, narrates the body or lists the parameters, is a violation.
 ---
 
 # Comments Explain Why
@@ -30,8 +30,6 @@ code:
   up`, `# return the total`, a heading comment over each step of a function;
 - a comment or docstring about what the code used to do, no longer does, or doesn't
   do;
-- commented-out code;
-- a `TODO` or `FIXME` with no reason or tracker link;
 - a comment that labels a unit or source the name already says;
 - a docstring that rewords the name or signature, narrates the body, or lists the
   parameters by name with nothing more.
@@ -42,7 +40,6 @@ Report it on the comment or on the docstring's first line.
 
 - A comment or docstring with at least one fact from outside the code, even when it
   also restates the code.
-- A `TODO` or `FIXME` that names a concrete reason or a tracker link.
 - A command-line command's docstring that is its help text.
 - License headers, shebangs, encoding lines and tool directives.
 

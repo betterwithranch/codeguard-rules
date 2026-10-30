@@ -1,9 +1,9 @@
 # In Python
 
 Comments are `#` lines and trailing `#` text. `# noqa`, `# type: ignore`,
-`# pragma: no cover`, `# fmt: off` and `# pyright:` are directives. ruff's ERA001 and
-TD003 cover commented-out code and TODOs with no issue link where a project enables
-them.
+`# pragma: no cover`, `# fmt: off`, `# pyright:`, `# mypy:`, `# pylint:`, `# ruff:`,
+`# isort:` and `# ast-grep-ignore:` are directives. ruff's ERA001 and TD003 check
+commented-out code and TODOs.
 
 ## Violation
 

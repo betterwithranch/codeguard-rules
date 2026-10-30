@@ -1,9 +1,9 @@
 # In TypeScript
 
 Comments are `//` and `/* */` comments. `// eslint-disable`, `// @ts-expect-error`
-and `// prettier-ignore` are directives. A project that requires TSDoc on every
-exported item keeps it as a convention; then judge only its inline comments and the
-doc comments of items that aren't exported.
+and `// prettier-ignore` are directives. A doc comment is a `/** */` comment.
+sonarjs's `no-commented-code` and ESLint's `no-warning-comments` check commented-out
+code and TODOs.
 
 ## Violation
 
