@@ -1,0 +1,38 @@
+id: prose-comment
+valid:
+# noqa directive
+- |
+  value = compute()  # noqa: E501
+# type directive
+- |
+  value = compute()  # type: ignore[assignment]
+# pragma directive
+- |
+  if TYPE_CHECKING:  # pragma: no cover
+      pass
+# pyright directive
+- |
+  value = compute()  # pyright: ignore[reportAny]
+# Shebang
+- |
+  #!/usr/bin/env python
+# Encoding declaration
+- |
+  # -*- coding: utf-8 -*-
+# Docstring
+- |
+  def total():
+      """Return the total."""
+invalid:
+# Line comment
+- |
+  # Stripe rejects longer values.
+  LIMIT = 500
+# Trailing comment
+- |
+  LIMIT = 500  # Stripe's limit
+# Comment inside a function
+- |
+  def total():
+      # add the lines
+      return 1

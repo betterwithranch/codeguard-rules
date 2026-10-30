@@ -1,0 +1,6 @@
+id: prose-comment
+language: python
+rule:
+  kind: comment
+  not:
+    regex: ^#!|^#\s*(noqa\b|type:|pragma\b|fmt:|pyright:|mypy:|pylint:|ruff:|isort:|ast-grep-ignore\b|-\*-\s*coding)

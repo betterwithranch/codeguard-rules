@@ -1,0 +1,26 @@
+id: prose-comment
+snapshots:
+  ? |
+    # Stripe rejects longer values.
+    LIMIT = 500
+  : labels:
+    - source: '# Stripe rejects longer values.'
+      style: primary
+      start: 0
+      end: 31
+  ? |
+    LIMIT = 500  # Stripe's limit
+  : labels:
+    - source: '# Stripe''s limit'
+      style: primary
+      start: 13
+      end: 29
+  ? |
+    def total():
+        # add the lines
+        return 1
+  : labels:
+    - source: '# add the lines'
+      style: primary
+      start: 17
+      end: 32

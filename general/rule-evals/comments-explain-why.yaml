@@ -1,0 +1,137 @@
+cases:
+- name: comments narrate each step of a total
+  inputs:
+    file: billing/totals.py
+    after: |
+      from decimal import Decimal
+
+      from billing.models import InvoiceLine
+
+
+      def invoice_total(lines: list[InvoiceLine]) -> Decimal:
+          # start the total at zero
+          total = Decimal(0)
+          # loop over the lines and add each amount
+          for line in lines:
+              total += line.amount
+          # return the total
+          return total
+  expected_output:
+    outcome: invalid
+- name: a docstring rewords the method's name and signature
+  inputs:
+    file: billing/invoice.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Invoice:
+          line_cents: tuple[int, ...]
+
+          def total_cents(self) -> int:
+              """Return the total cents of the invoice."""
+              return sum(self.line_cents)
+  expected_output:
+    outcome: invalid
+- name: a comment keeps the old retry as commented-out code
+  inputs:
+    file: shipping/carrier.py
+    after: |
+      import httpx
+
+      CARRIER_URL = "https://carrier.example.com/v2/labels"
+
+
+      def request_label(client: httpx.Client, payload: dict[str, str]) -> bytes:
+          # for attempt in range(3):
+          #     response = client.post(CARRIER_URL, json=payload)
+          response = client.post(CARRIER_URL, json=payload, timeout=10)
+          response.raise_for_status()
+          return response.content
+  expected_output:
+    outcome: invalid
+- name: a comment gives the carrier's batch limit
+  inputs:
+    file: shipping/batches.py
+    after: |
+      from itertools import batched
+
+      from shipping.models import Parcel
+
+      # The carrier API rejects requests with more than 50 parcels.
+      BATCH_SIZE = 50
+
+
+      def parcel_batches(parcels: list[Parcel]) -> list[tuple[Parcel, ...]]:
+          return list(batched(parcels, BATCH_SIZE))
+  expected_output:
+    outcome: valid
+- name: a docstring says which error the function raises and when
+  inputs:
+    file: shipping/labels.py
+    after: |
+      from shipping.carrier import CarrierClient, CarrierError
+      from shipping.models import Shipment
+
+
+      def print_label(client: CarrierClient, shipment: Shipment) -> bytes:
+          """Fetch the shipping label as PDF bytes.
+
+          Raises CarrierError when the carrier rejects the address; the shipment is
+          left unlabelled so it can be retried after the address is fixed.
+          """
+          return client.label(shipment.id, shipment.address)
+  expected_output:
+    outcome: valid
+- name: a TODO names the tracker issue it waits on
+  inputs:
+    file: shipping/rates.py
+    after: |
+      from decimal import Decimal
+
+      # TODO(#412): drop the surcharge once the carrier ships its v3 rate API.
+      FUEL_SURCHARGE = Decimal("0.08")
+
+
+      def with_surcharge(rate: Decimal) -> Decimal:
+          return rate * (1 + FUEL_SURCHARGE)
+  expected_output:
+    outcome: valid
+- name: a function with no comments or docstring
+  inputs:
+    file: shipping/weights.py
+    after: |
+      from decimal import Decimal
+
+
+      def total_weight(weights: list[Decimal]) -> Decimal:
+          return sum(weights, Decimal(0))
+  expected_output:
+    outcome: skipped
+- name: comments narrate a loop that counts unread messages
+  inputs:
+    file: inbox/count.ts
+    after: |
+      import type { Message } from "./message";
+
+      export function unreadCount(messages: Message[]): number {
+        // set the count to zero
+        let count = 0;
+        // go through each message
+        for (const message of messages) {
+          // if it is unread, increment the count
+          if (!message.readAt) count++;
+        }
+        return count;
+      }
+  expected_output:
+    outcome: invalid
+- name: a comment gives the gateway's idle timeout
+  inputs:
+    file: http/client.ts
+    after: |
+      // The payment gateway closes idle sockets after 35 seconds.
+      export const KEEP_ALIVE_MS = 30_000;
+  expected_output:
+    outcome: valid
