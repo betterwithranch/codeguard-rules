@@ -9,6 +9,18 @@ valid:
       if example_row.is_last:
           break
       example_ledger.post(example_row)
+# if in a loop that calls something other than append or add
+- |
+  for example_row in example_rows:
+      if example_row.amount:
+          example_ledger.post(example_row)
+# if that appends outside any loop
+- |
+  if example_extra is not None:
+      example_lines.append(example_extra)
+# filter method of another object
+- |
+  example_open = example_orders.filter(status="open")
 invalid:
 # comprehension condition
 - |
@@ -22,3 +34,28 @@ invalid:
       if example_row.amount is None:
           continue
       example_ledger.post(example_row)
+
+# if in a for loop that appends
+- |
+  for example_row in example_rows:
+      example_parsed = example_parse(example_row)
+      if example_parsed is not None:
+          example_out.append(example_parsed)
+# if in a while loop that adds to a set
+- |
+  while example_queue:
+      example_item = example_queue.pop()
+      if example_item.valid:
+          example_seen.add(example_item)
+# if in a loop that yields
+- |
+  def example_valid(example_rows):
+      for example_row in example_rows:
+          if example_row.amount is not None:
+              yield example_row
+# builtin filter
+- |
+  example_names = list(filter(None, example_raw_names))
+# itertools filterfalse
+- |
+  example_kept = list(itertools.filterfalse(example_is_bad, example_rows))

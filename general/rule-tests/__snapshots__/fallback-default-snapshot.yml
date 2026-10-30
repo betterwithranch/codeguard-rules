@@ -184,3 +184,39 @@ snapshots:
       style: secondary
       start: 46
       end: 50
+  "if example_override is not None:\n    example_sender = example_override\n":
+    labels:
+    - source: |-
+        if example_override is not None:
+            example_sender = example_override
+      style: primary
+      start: 0
+      end: 70
+    - source: example_override is not None
+      style: secondary
+      start: 3
+      end: 31
+  "if example_quantity is None:\n    example_quantity = 0\n":
+    labels:
+    - source: |-
+        if example_quantity is None:
+            example_quantity = 0
+      style: primary
+      start: 0
+      end: 53
+    - source: example_quantity is None
+      style: secondary
+      start: 3
+      end: 27
+  "if example_rate is None:\n    return 1.0\n":
+    labels:
+    - source: |-
+        if example_rate is None:
+            return 1.0
+      style: primary
+      start: 0
+      end: 39
+    - source: example_rate is None
+      style: secondary
+      start: 3
+      end: 23

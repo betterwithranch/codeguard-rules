@@ -2,9 +2,10 @@
 
 A handler is an `except` or `except*` clause, or `contextlib.suppress`. A fallback is
 the second argument of `dict.get`, `os.environ.get`, `os.getenv` or `.pop`, the third of
-`getattr`, a literal after `or`, or a literal chosen when a value `is None`. A clamp is
-`max` or `min` forcing a computed value into a range. A skipping condition is a
-comprehension's `if` or a loop's `continue`.
+`getattr`, a literal after `or`, or a value chosen in a conditional expression or an
+`if` statement when another `is None`. A clamp is `max` or `min` forcing a computed value
+into a range. A skipping condition is a comprehension's `if`, a loop's `continue`, an
+`if` in a loop that appends, adds or yields only some items, or `filter`.
 
 Required data in Python includes a dataclass or pydantic field with no default, a Django
 model field without `null=True` or `blank=True`, and a setting the module reads at start

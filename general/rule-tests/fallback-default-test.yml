@@ -18,6 +18,14 @@ valid:
 # conditional expression without a None check
 - |
   example_label = "big" if example_total > 100 else "small"
+# if statement on a condition other than a None check
+- |
+  if example_total > 100:
+      example_label = "big"
+# if statement comparing two names by identity
+- |
+  if example_order is example_previous:
+      example_label = "same"
 invalid:
 # dict get with a default
 - |
@@ -55,3 +63,16 @@ invalid:
 # conditional expression on None
 - |
   example_total = example_order.total if example_order.total is not None else 0
+
+# if statement assigning a literal when a value is None
+- |
+  if example_quantity is None:
+      example_quantity = 0
+# if statement returning a literal when a value is None
+- |
+  if example_rate is None:
+      return 1.0
+# if statement on a value that is not None
+- |
+  if example_override is not None:
+      example_sender = example_override

@@ -1,20 +1,119 @@
 id: item-skip
 snapshots:
+  "def example_valid(example_rows):\n    for example_row in example_rows:\n        if example_row.amount is not None:\n            yield example_row\n":
+    labels:
+    - source: |-
+        if example_row.amount is not None:
+                    yield example_row
+      style: primary
+      start: 78
+      end: 142
+    - source: |-
+        for example_row in example_rows:
+                if example_row.amount is not None:
+                    yield example_row
+      style: secondary
+      start: 37
+      end: 142
+    - source: yield example_row
+      style: secondary
+      start: 125
+      end: 142
+    - source: yield example_row
+      style: secondary
+      start: 125
+      end: 142
   "example_count = sum(1 for example_row in example_rows if example_row.amount)\n":
     labels:
     - source: if example_row.amount
       style: primary
       start: 54
       end: 75
+  "example_kept = list(itertools.filterfalse(example_is_bad, example_rows))\n":
+    labels:
+    - source: itertools.filterfalse(example_is_bad, example_rows)
+      style: primary
+      start: 20
+      end: 71
+    - source: itertools.filterfalse
+      style: secondary
+      start: 20
+      end: 41
+  "example_names = list(filter(None, example_raw_names))\n":
+    labels:
+    - source: filter(None, example_raw_names)
+      style: primary
+      start: 21
+      end: 52
+    - source: filter
+      style: secondary
+      start: 21
+      end: 27
   "example_paid = [example_line for example_line in example_lines if example_line.paid_on is not None]\n":
     labels:
     - source: if example_line.paid_on is not None
       style: primary
       start: 63
       end: 98
+  "for example_row in example_rows:\n    example_parsed = example_parse(example_row)\n    if example_parsed is not None:\n        example_out.append(example_parsed)\n":
+    labels:
+    - source: |-
+        if example_parsed is not None:
+                example_out.append(example_parsed)
+      style: primary
+      start: 85
+      end: 158
+    - source: |-
+        for example_row in example_rows:
+            example_parsed = example_parse(example_row)
+            if example_parsed is not None:
+                example_out.append(example_parsed)
+      style: secondary
+      start: 0
+      end: 158
+    - source: example_out.append
+      style: secondary
+      start: 124
+      end: 142
+    - source: example_out.append(example_parsed)
+      style: secondary
+      start: 124
+      end: 158
+    - source: example_out.append(example_parsed)
+      style: secondary
+      start: 124
+      end: 158
   "for example_row in example_rows:\n    if example_row.amount is None:\n        continue\n    example_ledger.post(example_row)\n":
     labels:
     - source: continue
       style: primary
       start: 76
       end: 84
+  "while example_queue:\n    example_item = example_queue.pop()\n    if example_item.valid:\n        example_seen.add(example_item)\n":
+    labels:
+    - source: |-
+        if example_item.valid:
+                example_seen.add(example_item)
+      style: primary
+      start: 64
+      end: 125
+    - source: |-
+        while example_queue:
+            example_item = example_queue.pop()
+            if example_item.valid:
+                example_seen.add(example_item)
+      style: secondary
+      start: 0
+      end: 125
+    - source: example_seen.add
+      style: secondary
+      start: 95
+      end: 111
+    - source: example_seen.add(example_item)
+      style: secondary
+      start: 95
+      end: 125
+    - source: example_seen.add(example_item)
+      style: secondary
+      start: 95
+      end: 125

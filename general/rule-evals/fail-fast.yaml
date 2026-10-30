@@ -34,72 +34,371 @@ cases:
           return len(sheets)
   expected_output:
     outcome: valid
-- name: a missing webhook signing secret becomes an empty string, so every signature is checked against nothing
+- name: a transfer whose ledger entry failed to post only logs the error and still returns a receipt, so the books miss money that moved
   inputs:
-    file: webhooks/verify.py
+    file: transfers/send.py
+    after: |
+      import logging
+
+      from transfers.ledger import Ledger, LedgerEntry, LedgerUnavailable
+      from transfers.models import Transfer, TransferReceipt
+
+      logger = logging.getLogger(__name__)
+
+
+      def record_transfer(ledger: Ledger, transfer: Transfer) -> TransferReceipt:
+          entry = LedgerEntry.for_transfer(transfer)
+          try:
+              ledger.post(entry)
+          except LedgerUnavailable:
+              logger.exception("ledger post failed for transfer %s", transfer.id)
+          return TransferReceipt(transfer_id=transfer.id, entry_id=entry.id)
+  expected_output:
+    outcome: invalid
+- name: a quote skips the lines whose product the catalog doesn't know, so the customer is quoted less than the order costs
+  inputs:
+    file: quotes/pricing.py
+    after: |
+      from decimal import Decimal
+
+      from quotes.catalog import Catalog, UnknownProduct
+      from quotes.models import QuoteLine
+
+
+      def quote_total(lines: list[QuoteLine], catalog: Catalog) -> Decimal:
+          total = Decimal(0)
+          for line in lines:
+              try:
+                  unit_price = catalog.unit_price(line.product_code)
+              except UnknownProduct:
+                  continue
+              total += unit_price * line.quantity
+          return total
+  expected_output:
+    outcome: invalid
+- name: the job worker's top-level loop logs a failed job, marks it failed and takes the next independent job
+  inputs:
+    file: worker/main.py
+    after: |
+      import logging
+
+      from worker.handlers import JobHandlers
+      from worker.queue import JobQueue
+
+      logger = logging.getLogger(__name__)
+
+
+      def run_forever(queue: JobQueue, handlers: JobHandlers) -> None:
+          while True:
+              job = queue.take()
+              try:
+                  handlers.run(job)
+              except Exception:
+                  logger.exception("job %s failed", job.id)
+                  queue.mark_failed(job.id)
+  expected_output:
+    outcome: valid
+- name: an account erasure suppresses every storage error and still reports the user's files erased
+  inputs:
+    file: privacy/erasure.py
+    after: |
+      import contextlib
+
+      from privacy.models import ErasureReceipt, User
+      from privacy.storage import FileStore
+
+
+      def erase_files(store: FileStore, user: User) -> ErasureReceipt:
+          with contextlib.suppress(Exception):
+              store.delete_prefix(f"users/{user.id}/")
+          return ErasureReceipt(user_id=user.id, files_erased=True)
+  expected_output:
+    outcome: invalid
+- name: rate lookups that time out are retried a few times and the last timeout is raised
+  inputs:
+    file: fx/rates.py
+    after: |
+      import time
+
+      from fx.client import RatesClient, RatesTimeout
+      from fx.models import RateTable
+
+      ATTEMPTS = 3
+      BACKOFF_SECONDS = 2.0
+
+
+      def latest_rates(client: RatesClient) -> RateTable:
+          attempt = 1
+          while True:
+              try:
+                  return client.latest()
+              except RatesTimeout:
+                  if attempt == ATTEMPTS:
+                      raise
+                  time.sleep(BACKOFF_SECONDS * attempt)
+                  attempt += 1
+  expected_output:
+    outcome: valid
+- name: a report that fails to write removes its half-written file and raises the same error
+  inputs:
+    file: reports/publish.py
+    after: |
+      from pathlib import Path
+
+      from reports.models import Report
+
+
+      def write_report(report: Report, target: Path) -> None:
+          partial = target.with_suffix(".partial")
+          try:
+              partial.write_text(report.render())
+          except OSError:
+              partial.unlink(missing_ok=True)
+              raise
+          partial.replace(target)
+  expected_output:
+    outcome: valid
+- name: stopping a child process that has already exited on its own is not an error
+  inputs:
+    file: supervisor/children.py
+    after: |
+      import os
+      import signal
+
+
+      def stop_child(pid: int) -> None:
+          try:
+              os.kill(pid, signal.SIGTERM)
+          except ProcessLookupError:
+              pass  # the child already exited, which is the state stopping it asks for
+  expected_output:
+    outcome: valid
+- name: a courier webhook signing key missing from the config file falls back to an empty one, so anyone can forge a delivery update
+  inputs:
+    file: deliveries/webhooks.py
     after: |
       import hashlib
       import hmac
-      import os
-
-      SIGNING_SECRET = os.environ.get("WEBHOOK_SIGNING_SECRET", "")
+      from configparser import ConfigParser
 
 
-      def signature_matches(body: bytes, signature: str) -> bool:
-          expected = hmac.new(SIGNING_SECRET.encode(), body, hashlib.sha256).hexdigest()
+      def signature_valid(parser: ConfigParser, body: bytes, signature: str) -> bool:
+          key = parser.get("courier", "webhook_signing_key", fallback="")
+          expected = hmac.new(key.encode(), body, hashlib.sha256).hexdigest()
           return hmac.compare_digest(expected, signature)
   expected_output:
     outcome: invalid
-- name: an export batch size the operator may leave unset defaults to a working size
+- name: a parcel whose required weight is missing is charged as weighing nothing, so it ships for free
   inputs:
-    file: exports/batches.py
+    file: shipping/charges.py
+    unchanged:
+      shipping/__init__.py: ""
+      shipping/models.py: |
+        from dataclasses import dataclass
+        from decimal import Decimal
+
+
+        @dataclass(frozen=True)
+        class Parcel:
+            tracking_code: str
+            weight_kg: Decimal
     after: |
-      import os
-      from collections.abc import Iterator, Sequence
+      from decimal import Decimal
 
-      BATCH_SIZE = int(os.environ.get("EXPORT_BATCH_SIZE", "500"))
+      from shipping.models import Parcel
+
+      RATE_PER_KG = Decimal("4.20")
 
 
-      def batches(rows: Sequence[dict]) -> Iterator[Sequence[dict]]:
-          for start in range(0, len(rows), BATCH_SIZE):
-              yield rows[start : start + BATCH_SIZE]
+      def postage(parcel: Parcel) -> Decimal:
+          return (parcel.weight_kg or 0) * RATE_PER_KG
+  expected_output:
+    outcome: invalid
+- name: a payouts service address missing from the deployment's settings falls back to the sandbox, so live payouts go nowhere
+  inputs:
+    file: payouts/client.py
+    after: |
+      from django.conf import settings
+
+      from payouts.http import PayoutsHttpClient
+
+
+      def payouts_client() -> PayoutsHttpClient:
+          base_url: str = getattr(settings, "PAYOUTS_API_URL", "https://sandbox.payouts.example")
+          return PayoutsHttpClient(base_url)
+  expected_output:
+    outcome: invalid
+- name: a checkout whose session cart the program itself stored at login is missing gets an empty cart, so the customer pays for nothing
+  inputs:
+    file: shop/sessions.py
+    before: |
+      from shop.carts import Cart
+
+
+      class CartSessions:
+          """start() stores a cart for each session at login; checkout() is the only
+          code that removes one."""
+
+          def __init__(self) -> None:
+              self._carts: dict[str, Cart] = {}
+
+          def start(self, session_id: str) -> None:
+              self._carts[session_id] = Cart()
+    after: |
+      from shop.carts import Cart
+
+
+      class CartSessions:
+          """start() stores a cart for each session at login; checkout() is the only
+          code that removes one."""
+
+          def __init__(self) -> None:
+              self._carts: dict[str, Cart] = {}
+
+          def start(self, session_id: str) -> None:
+              self._carts[session_id] = Cart()
+
+          def checkout(self, session_id: str) -> Cart:
+              return self._carts.pop(session_id, Cart())
+  expected_output:
+    outcome: invalid
+- name: a plan with no price in the program's price table is billed at zero, so its subscribers are charged nothing
+  inputs:
+    file: billing/renewals.py
+    unchanged:
+      billing/__init__.py: ""
+      billing/plans.py: |
+        from decimal import Decimal
+        from enum import Enum
+
+
+        class Plan(Enum):
+            STARTER = "starter"
+            TEAM = "team"
+            ENTERPRISE = "enterprise"
+
+
+        MONTHLY_PRICES: dict[Plan, Decimal] = {
+            Plan.STARTER: Decimal("9.00"),
+            Plan.TEAM: Decimal("49.00"),
+            Plan.ENTERPRISE: Decimal("499.00"),
+        }
+        """Every plan has a monthly price; no plan is free."""
+    after: |
+      from decimal import Decimal
+
+      from billing.models import Subscription
+      from billing.plans import MONTHLY_PRICES
+
+
+      def renewal_amount(subscription: Subscription) -> Decimal:
+          price = MONTHLY_PRICES.get(subscription.plan)
+          if price is None:
+              price = Decimal(0)
+          return price * subscription.seats
+  expected_output:
+    outcome: invalid
+- name: a plan with no price in the program's price table raises, naming the plan, instead of billing the renewal
+  inputs:
+    file: billing/renewals.py
+    unchanged:
+      billing/__init__.py: ""
+      billing/plans.py: |
+        from decimal import Decimal
+        from enum import Enum
+
+
+        class Plan(Enum):
+            STARTER = "starter"
+            TEAM = "team"
+            ENTERPRISE = "enterprise"
+
+
+        MONTHLY_PRICES: dict[Plan, Decimal] = {
+            Plan.STARTER: Decimal("9.00"),
+            Plan.TEAM: Decimal("49.00"),
+            Plan.ENTERPRISE: Decimal("499.00"),
+        }
+        """Every plan has a monthly price; no plan is free."""
+    after: |
+      from decimal import Decimal
+
+      from billing.errors import UnpricedPlan
+      from billing.models import Subscription
+      from billing.plans import MONTHLY_PRICES
+
+
+      def renewal_amount(subscription: Subscription) -> Decimal:
+          price = MONTHLY_PRICES.get(subscription.plan)
+          if price is None:
+              raise UnpricedPlan(subscription.plan)
+          return price * subscription.seats
+  expected_output:
+    outcome: valid
+- name: a digest hour the user never picked defaults to the morning
+  inputs:
+    file: digests/schedule.py
+    after: |
+      from typing import TypedDict
+
+
+      class DigestPreferences(TypedDict, total=False):
+          hour: int
+          timezone: str
+
+
+      def digest_hour(prefs: DigestPreferences) -> int:
+          return prefs.get("hour", 8)
   expected_output:
     outcome: valid
 - name: seats left are clamped at zero although booking refuses to overbook, so an overbooked flight shows as merely full
   inputs:
-    file: flights/availability.py
-    unchanged:
-      flights/__init__.py: ""
-      flights/models.py: |
-        from dataclasses import dataclass
+    file: flights/models.py
+    before: |
+      from dataclasses import dataclass
 
 
-        @dataclass
-        class Flight:
-            """booked never exceeds capacity: book() is the only code that changes it,
-            and it refuses a booking that would overbook the flight."""
-
-            number: str
-            capacity: int
-            booked: int = 0
-      flights/booking.py: |
-        from flights.models import Flight
+      class Overbooked(Exception):
+          pass
 
 
-        class Overbooked(Exception):
-            pass
+      @dataclass
+      class Flight:
+          """booked never exceeds capacity: book() is the only code that changes it,
+          and it refuses a booking that would overbook the flight."""
 
+          number: str
+          capacity: int
+          booked: int = 0
 
-        def book(flight: Flight, seats: int) -> None:
-            if flight.booked + seats > flight.capacity:
-                raise Overbooked(flight.number)
-            flight.booked += seats
+          def book(self, seats: int) -> None:
+              if self.booked + seats > self.capacity:
+                  raise Overbooked(self.number)
+              self.booked += seats
     after: |
-      from flights.models import Flight
+      from dataclasses import dataclass
 
 
-      def seats_left(flight: Flight) -> int:
-          return max(0, flight.capacity - flight.booked)
+      class Overbooked(Exception):
+          pass
+
+
+      @dataclass
+      class Flight:
+          """booked never exceeds capacity: book() is the only code that changes it,
+          and it refuses a booking that would overbook the flight."""
+
+          number: str
+          capacity: int
+          booked: int = 0
+
+          def book(self, seats: int) -> None:
+              if self.booked + seats > self.capacity:
+                  raise Overbooked(self.number)
+              self.booked += seats
+
+          def seats_left(self) -> int:
+              return max(0, self.capacity - self.booked)
   expected_output:
     outcome: invalid
 - name: a page size typed into the search form is kept between one and a hundred
@@ -109,6 +408,20 @@ cases:
       def page_size(raw: str) -> int:
           requested = int(raw)
           return min(max(requested, 1), 100)
+  expected_output:
+    outcome: valid
+- name: a library fine grows each day an item is late until it reaches the most the lending policy charges
+  inputs:
+    file: library/fines.py
+    after: |
+      from decimal import Decimal
+
+      DAILY_FINE = Decimal("0.25")
+      MAX_FINE = Decimal("10.00")
+
+
+      def late_fine(days_late: int) -> Decimal:
+          return min(DAILY_FINE * days_late, MAX_FINE)
   expected_output:
     outcome: valid
 - name: statement import drops the rows that failed to parse, so the imported total no longer matches the bank's
@@ -139,20 +452,22 @@ cases:
           return [transaction for transaction in parsed if transaction is not None]
   expected_output:
     outcome: invalid
-- name: a dunning run picks the invoices past due and unpaid, which is the rule it applies
+- name: a recall notice picks the cars of the recalled models not yet repaired, which is the rule the recall applies
   inputs:
-    file: billing/dunning.py
+    file: recalls/notices.py
     after: |
-      from datetime import date
-
-      from billing.models import Invoice
+      from recalls.models import Recall, Vehicle
 
 
-      def to_remind(invoices: list[Invoice], today: date) -> list[Invoice]:
-          return [invoice for invoice in invoices if invoice.due_on < today and invoice.paid_on is None]
+      def to_notify(vehicles: list[Vehicle], recall: Recall) -> list[Vehicle]:
+          return [
+              vehicle
+              for vehicle in vehicles
+              if vehicle.model_code in recall.model_codes and vehicle.repaired_on is None
+          ]
   expected_output:
     outcome: valid
-- name: sums a shift's hours
+- name: summing shift hours has no handler, default, clamp or skipped item, so the rule never sees it
   inputs:
     file: rota/hours.py
     after: |
@@ -196,6 +511,201 @@ cases:
       }
   expected_output:
     outcome: valid
+- name: a failed open orders lookup is caught as no open orders, so an account with orders in flight is closed
+  inputs:
+    file: accounts/close.ts
+    after: |
+      import { accountsApi } from "./accounts-api";
+      import { ordersApi } from "./orders-api";
+
+      export async function closeIfIdle(accountId: string): Promise<boolean> {
+        const openOrders = await ordersApi.listOpen(accountId).catch(() => []);
+        if (openOrders.length > 0) {
+          return false;
+        }
+        await accountsApi.close(accountId);
+        return true;
+      }
+  expected_output:
+    outcome: invalid
+- name: a card capture that times out is retried a few times and the last error is thrown
+  inputs:
+    file: payments/capture.ts
+    after: |
+      import { gateway, GatewayTimeout, type Capture } from "./gateway";
+
+      const ATTEMPTS = 3;
+
+      export async function capture(paymentId: string): Promise<Capture> {
+        for (let attempt = 1; ; attempt++) {
+          try {
+            return await gateway.capture(paymentId);
+          } catch (err) {
+            if (!(err instanceof GatewayTimeout) || attempt === ATTEMPTS) {
+              throw err;
+            }
+            await new Promise((resolve) => setTimeout(resolve, attempt * 500));
+          }
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a failed stock move rolls back its transaction and throws the same error
+  inputs:
+    file: warehouse/moves.ts
+    after: |
+      import type { Database } from "./database";
+      import type { StockMove } from "./stock";
+
+      export async function applyMove(db: Database, move: StockMove): Promise<void> {
+        const tx = await db.begin();
+        try {
+          await tx.decrement(move.fromBin, move.sku, move.quantity);
+          await tx.increment(move.toBin, move.sku, move.quantity);
+          await tx.commit();
+        } catch (err) {
+          await tx.rollback();
+          throw err;
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: the API's error middleware logs a failed request and answers it with a 500
+  inputs:
+    file: api/errors.ts
+    after: |
+      import type { NextFunction, Request, Response } from "express";
+
+      import { logger } from "./logger";
+
+      export function errorResponder(err: Error, req: Request, res: Response, _next: NextFunction): void {
+        logger.error({ err, path: req.path }, "request failed");
+        res.status(500).json({ error: "internal_error" });
+      }
+  expected_output:
+    outcome: valid
+- name: a missing session signing secret falls back to a fixed string, so anyone can forge a session cookie
+  inputs:
+    file: auth/session.ts
+    after: |
+      import { createHmac } from "node:crypto";
+
+      const sessionSecret = process.env.SESSION_SECRET || "change-me";
+
+      export function signSession(sessionId: string): string {
+        return createHmac("sha256", sessionSecret).update(sessionId).digest("hex");
+      }
+  expected_output:
+    outcome: invalid
+- name: an order's required shipping address is destructured with the warehouse as default, so a broken order ships back to the warehouse
+  inputs:
+    file: fulfilment/labels.ts
+    unchanged:
+      fulfilment/order.ts: |
+        export interface Address {
+          line1: string;
+          city: string;
+          postcode: string;
+        }
+
+        export interface Order {
+          id: string;
+          shippingAddress: Address;
+        }
+    after: |
+      import type { Address, Order } from "./order";
+
+      const WAREHOUSE: Address = { line1: "1 Depot Way", city: "Leeds", postcode: "LS1 1AA" };
+
+      export function labelAddress(order: Order): Address {
+        const { shippingAddress = WAREHOUSE } = order;
+        return shippingAddress;
+      }
+  expected_output:
+    outcome: invalid
+- name: punch clock lines that fail to parse are flat-mapped away, so a worker is paid for fewer hours than they clocked
+  inputs:
+    file: timeclock/hours.ts
+    unchanged:
+      timeclock/punch.ts: |
+        export interface Punch {
+          badge: string;
+          minutes: number;
+        }
+
+        /** The line's punch, or undefined when the line can't be parsed. */
+        export function parsePunch(line: string): Punch | undefined {
+          const match = /^(\w+) (\d+)$/.exec(line);
+          if (match === null) {
+            return undefined;
+          }
+          return { badge: match[1], minutes: Number(match[2]) };
+        }
+    after: |
+      import { parsePunch } from "./punch";
+
+      export function minutesWorked(lines: string[]): number {
+        const punches = lines.flatMap((line) => {
+          const punch = parsePunch(line);
+          return punch === undefined ? [] : [punch];
+        });
+        return punches.reduce((sum, punch) => sum + punch.minutes, 0);
+      }
+  expected_output:
+    outcome: invalid
+- name: free parking spaces are clamped at zero although the garage refuses a car when it's full, so an overfilled garage shows as merely full
+  inputs:
+    file: parking/garage.ts
+    before: |
+      export class GarageFull extends Error {}
+
+      export class Garage {
+        private parked = 0;
+
+        constructor(private readonly spaces: number) {}
+
+        /** The only code that adds a car; it refuses one when every space is taken. */
+        enter(): void {
+          if (this.parked >= this.spaces) {
+            throw new GarageFull();
+          }
+          this.parked += 1;
+        }
+      }
+    after: |
+      export class GarageFull extends Error {}
+
+      export class Garage {
+        private parked = 0;
+
+        constructor(private readonly spaces: number) {}
+
+        /** The only code that adds a car; it refuses one when every space is taken. */
+        enter(): void {
+          if (this.parked >= this.spaces) {
+            throw new GarageFull();
+          }
+          this.parked += 1;
+        }
+
+        freeSpaces(): number {
+          return Math.max(0, this.spaces - this.parked);
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: cashback grows with each purchase until it reaches the most the card pays in a month
+  inputs:
+    file: rewards/cashback.ts
+    after: |
+      const CASHBACK_RATE = 0.02;
+      const MONTHLY_CAP_CENTS = 5000;
+
+      export function monthlyCashbackCents(spentCents: number): number {
+        return Math.min(Math.round(spentCents * CASHBACK_RATE), MONTHLY_CAP_CENTS);
+      }
+  expected_output:
+    outcome: valid
 - name: a rate table typed to hold every invoice currency falls back to one to one, so a missing rate comes out in the wrong money
   inputs:
     file: billing/convert.ts
@@ -231,7 +741,7 @@ cases:
       }
   expected_output:
     outcome: valid
-- name: meter readings that fail to parse are filtered out, so the average is taken over a partial day without saying so
+- name: meter readings that fail to parse are skipped, so the average is taken over a partial day without saying so
   inputs:
     file: meters/daily.ts
     unchanged:
@@ -243,20 +753,24 @@ cases:
 
         /** The line's reading, or undefined when the line can't be parsed. */
         export function parseReading(line: string): Reading | undefined {
-          const [meterId, kwh] = line.split(",");
-          const value = Number(kwh);
-          if (!meterId || Number.isNaN(value)) {
+          const match = /^(\w+) (\d+(?:\.\d+)?)$/.exec(line);
+          if (match === null) {
             return undefined;
           }
-          return { meterId, kwh: value };
+          return { meterId: match[1], kwh: Number(match[2]) };
         }
     after: |
       import { parseReading, type Reading } from "./reading";
 
       export function dailyAverage(lines: string[]): number {
-        const readings = lines
-          .map((line) => parseReading(line))
-          .filter((reading): reading is Reading => reading !== undefined);
+        const readings: Reading[] = [];
+        for (const line of lines) {
+          const reading = parseReading(line);
+          if (reading === undefined) {
+            continue;
+          }
+          readings.push(reading);
+        }
         return readings.reduce((sum, reading) => sum + reading.kwh, 0) / readings.length;
       }
   expected_output:
@@ -272,3 +786,18 @@ cases:
       }
   expected_output:
     outcome: valid
+- name: a backup upload ignores its file stream's errors, so a backup cut short by a read failure is stored as if complete
+  inputs:
+    file: backups/upload.ts
+    after: |
+      import { createReadStream } from "node:fs";
+
+      import type { Bucket } from "./bucket";
+
+      export function uploadBackup(path: string, bucket: Bucket, key: string): void {
+        const source = createReadStream(path);
+        source.on("error", () => {});
+        source.pipe(bucket.uploadStream(key));
+      }
+  expected_output:
+    outcome: invalid

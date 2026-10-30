@@ -43,3 +43,8 @@ rule:
     has:
       kind: comparison_operator
       regex: \bis (not )?None\b
+  - kind: if_statement
+    has:
+      field: condition
+      kind: comparison_operator
+      regex: \bis (not )?None\b
