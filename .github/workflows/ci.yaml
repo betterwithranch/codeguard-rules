@@ -57,14 +57,6 @@ jobs:
           BASE: ${{ github.event.pull_request.base.sha }}
       - if: steps.affected.outputs.rules && matrix.provider == 'claude-cli'
         run: npm install --global @anthropic-ai/claude-code
-      - name: Print the OIDC token's sub claim (temporary)
-        if: matrix.provider == 'claude-cli'
-        run: |
-          token=$(curl -sSf -H "Authorization: Bearer $ACTIONS_ID_TOKEN_REQUEST_TOKEN" "$ACTIONS_ID_TOKEN_REQUEST_URL&audience=sts.amazonaws.com" | jq -r .value)
-          echo "::add-mask::$token"
-          payload=$(cut -d. -f2 <<<"$token" | tr '_-' '/+')
-          while [ $(( ${#payload} % 4 )) -ne 0 ]; do payload="$payload="; done
-          echo "sub: $(base64 -d <<<"$payload" | jq -r .sub)"
       - if: steps.affected.outputs.rules && matrix.provider == 'claude-cli'
         uses: aws-actions/configure-aws-credentials@v6
         with:
