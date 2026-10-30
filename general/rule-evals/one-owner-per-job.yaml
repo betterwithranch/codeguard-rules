@@ -1,0 +1,927 @@
+cases:
+- name: a return desk charges a late loan its own fee where the late fee policy already charges it, so a new grace period misses the desk
+  inputs:
+    file: desk/returns.py
+    unchanged:
+      lending/__init__.py: ""
+      lending/models.py: &lending_models |
+        from dataclasses import dataclass
+        from datetime import date
+        from decimal import Decimal
+
+
+        @dataclass(frozen=True)
+        class Loan:
+            item_id: str
+            due_on: date
+            renewals: int
+
+
+        @dataclass(frozen=True)
+        class FeeSchedule:
+            grace_days: int
+            daily_rate: Decimal
+            cap: Decimal
+
+
+        @dataclass(frozen=True)
+        class RenewalRules:
+            max_renewals: int
+            loan_days: int
+
+
+        @dataclass(frozen=True)
+        class MemberAccount:
+            member_id: str
+            unpaid_balance: Decimal
+      lending/fees.py: &lending_fees |
+        from datetime import date
+        from decimal import Decimal
+
+        from lending.models import FeeSchedule, Loan
+
+
+        class LateFeePolicy:
+            def fee(self, loan: Loan, returned_on: date, schedule: FeeSchedule) -> Decimal:
+                days_late = (returned_on - loan.due_on).days - schedule.grace_days
+                if days_late <= 0:
+                    return Decimal("0")
+                return min(schedule.daily_rate * days_late, schedule.cap)
+    after: |
+      from datetime import date
+      from decimal import Decimal
+
+      from lending.models import FeeSchedule, Loan
+
+
+      class ReturnDesk:
+          def overdue_charge(self, loan: Loan, returned_on: date, schedule: FeeSchedule) -> Decimal:
+              days_late = (returned_on - loan.due_on).days
+              if days_late <= 0:
+                  return Decimal("0")
+              return schedule.daily_rate * days_late
+  expected_output:
+    outcome: invalid
+- name: a return desk asks the late fee policy for a loan's fee and adds the member's unpaid balance
+  inputs:
+    file: desk/returns.py
+    unchanged:
+      lending/__init__.py: ""
+      lending/models.py: *lending_models
+      lending/fees.py: *lending_fees
+    after: |
+      from datetime import date
+      from decimal import Decimal
+
+      from lending.fees import LateFeePolicy
+      from lending.models import FeeSchedule, Loan, MemberAccount
+
+
+      class ReturnDesk:
+          def __init__(self, policy: LateFeePolicy) -> None:
+              self.policy = policy
+
+          def amount_due(
+              self, loan: Loan, returned_on: date, account: MemberAccount, schedule: FeeSchedule
+          ) -> Decimal:
+              return self.policy.fee(loan, returned_on, schedule) + account.unpaid_balance
+  expected_output:
+    outcome: valid
+- name: a renewal desk extends a loan's due date, a job the late fee policy doesn't do
+  inputs:
+    file: desk/renewals.py
+    unchanged:
+      lending/__init__.py: ""
+      lending/models.py: *lending_models
+      lending/fees.py: *lending_fees
+    after: |
+      from datetime import date, timedelta
+
+      from lending.models import Loan, RenewalRules
+
+
+      class RenewalRefused(Exception):
+          pass
+
+
+      class RenewalDesk:
+          def renewed_due_date(self, loan: Loan, rules: RenewalRules) -> date:
+              if loan.renewals >= rules.max_renewals:
+                  raise RenewalRefused(loan.item_id)
+              return loan.due_on + timedelta(days=rules.loan_days)
+  expected_output:
+    outcome: valid
+- name: a library card check validates card numbers, a concept the ISBN check doesn't validate
+  inputs:
+    file: lending/cards.py
+    unchanged:
+      catalog/__init__.py: ""
+      catalog/isbn.py: |
+        class InvalidIsbn(ValueError):
+            pass
+
+
+        class IsbnCheck:
+            def validate(self, code: str) -> None:
+                if len(code) != 13 or not code.isdigit():
+                    raise InvalidIsbn(code)
+                weights = [1, 3] * 6 + [1]
+                if sum(int(digit) * weight for digit, weight in zip(code, weights)) % 10 != 0:
+                    raise InvalidIsbn(code)
+    after: |
+      class InvalidCardNumber(ValueError):
+          pass
+
+
+      class LibraryCardCheck:
+          def validate(self, number: str) -> None:
+              if not (number.startswith("LC") and len(number) == 10 and number[2:].isdigit()):
+                  raise InvalidCardNumber(number)
+  expected_output:
+    outcome: valid
+- name: maintenance alerts work out a vehicle's next service reading that the service schedule in the same file already works out, so heavy-duty vehicles are alerted late
+  inputs:
+    file: fleet/servicing.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Vehicle:
+          plate: str
+          last_service_km: int
+          heavy_duty: bool
+
+
+      @dataclass(frozen=True)
+      class ServicePlan:
+          interval_km: int
+
+
+      class ServiceSchedule:
+          def next_service_km(self, vehicle: Vehicle, plan: ServicePlan) -> int:
+              interval = plan.interval_km // 2 if vehicle.heavy_duty else plan.interval_km
+              return vehicle.last_service_km + interval
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Vehicle:
+          plate: str
+          last_service_km: int
+          heavy_duty: bool
+
+
+      @dataclass(frozen=True)
+      class ServicePlan:
+          interval_km: int
+
+
+      class ServiceSchedule:
+          def next_service_km(self, vehicle: Vehicle, plan: ServicePlan) -> int:
+              interval = plan.interval_km // 2 if vehicle.heavy_duty else plan.interval_km
+              return vehicle.last_service_km + interval
+
+
+      class MaintenanceAlerts:
+          def service_due_km(self, vehicle: Vehicle, plan: ServicePlan) -> int:
+              return vehicle.last_service_km + plan.interval_km
+  expected_output:
+    outcome: invalid
+- name: an invoice draft stops asking billable time and works out a timesheet's billable hours itself, so the two round differently
+  inputs:
+    file: invoices/drafts.py
+    unchanged:
+      billing/__init__.py: ""
+      billing/models.py: |
+        from dataclasses import dataclass
+        from decimal import Decimal
+
+
+        @dataclass(frozen=True)
+        class TimeEntry:
+            minutes: int
+            billable: bool
+
+
+        @dataclass(frozen=True)
+        class Timesheet:
+            entries: tuple[TimeEntry, ...]
+
+
+        @dataclass(frozen=True)
+        class Contract:
+            increment_minutes: int
+            hourly_rate: Decimal
+      billing/time.py: |
+        import math
+        from decimal import Decimal
+
+        from billing.models import Contract, Timesheet
+
+
+        class BillableTime:
+            def hours(self, sheet: Timesheet, contract: Contract) -> Decimal:
+                minutes = sum(
+                    math.ceil(entry.minutes / contract.increment_minutes) * contract.increment_minutes
+                    for entry in sheet.entries
+                    if entry.billable
+                )
+                return Decimal(minutes) / 60
+    before: |
+      from decimal import Decimal
+
+      from billing.models import Contract, Timesheet
+      from billing.time import BillableTime
+
+
+      class InvoiceDraft:
+          def __init__(self, billable: BillableTime) -> None:
+              self.billable = billable
+
+          def billable_hours(self, sheet: Timesheet, contract: Contract) -> Decimal:
+              return self.billable.hours(sheet, contract)
+
+          def amount(self, sheet: Timesheet, contract: Contract) -> Decimal:
+              return self.billable_hours(sheet, contract) * contract.hourly_rate
+    after: |
+      import math
+      from decimal import Decimal
+
+      from billing.models import Contract, Timesheet
+
+
+      class InvoiceDraft:
+          def billable_hours(self, sheet: Timesheet, contract: Contract) -> Decimal:
+              minutes = sum(entry.minutes for entry in sheet.entries if entry.billable)
+              increments = math.ceil(minutes / contract.increment_minutes)
+              return Decimal(increments * contract.increment_minutes) / 60
+
+          def amount(self, sheet: Timesheet, contract: Contract) -> Decimal:
+              return self.billable_hours(sheet, contract) * contract.hourly_rate
+  expected_output:
+    outcome: invalid
+- name: two tariffs each charge a meter reading their own way for the tariff base they extend
+  inputs:
+    file: energy/tariffs.py
+    unchanged:
+      energy/__init__.py: ""
+      energy/readings.py: |
+        from dataclasses import dataclass
+        from decimal import Decimal
+
+
+        @dataclass(frozen=True)
+        class MeterReading:
+            kwh: Decimal
+            off_peak_kwh: Decimal
+    after: |
+      from abc import ABC, abstractmethod
+      from dataclasses import dataclass
+      from decimal import Decimal
+
+      from energy.readings import MeterReading
+
+
+      class Tariff(ABC):
+          @abstractmethod
+          def charge(self, reading: MeterReading) -> Decimal: ...
+
+
+      @dataclass(frozen=True)
+      class FlatTariff(Tariff):
+          unit_rate: Decimal
+
+          def charge(self, reading: MeterReading) -> Decimal:
+              return reading.kwh * self.unit_rate
+
+
+      @dataclass(frozen=True)
+      class OffPeakTariff(Tariff):
+          peak_rate: Decimal
+          off_peak_rate: Decimal
+
+          def charge(self, reading: MeterReading) -> Decimal:
+              off_peak = reading.off_peak_kwh * self.off_peak_rate
+              return off_peak + (reading.kwh - reading.off_peak_kwh) * self.peak_rate
+  expected_output:
+    outcome: valid
+- name: a walk-in desk builds a reservation at the walk-in rate, construction a separate rule judges
+  inputs:
+    file: frontdesk/walk_ins.py
+    unchanged:
+      stays/__init__.py: ""
+      stays/models.py: |
+        from dataclasses import dataclass
+        from decimal import Decimal
+
+
+        @dataclass(frozen=True)
+        class Guest:
+            id: str
+            name: str
+
+
+        @dataclass(frozen=True)
+        class Room:
+            number: str
+            rate: Decimal
+            walk_in_rate: Decimal
+
+
+        @dataclass(frozen=True)
+        class Reservation:
+            guest_id: str
+            room_number: str
+            nights: int
+            nightly_rate: Decimal
+      stays/booking.py: |
+        from stays.models import Guest, Reservation, Room
+
+
+        class BookingService:
+            def reserve(self, guest: Guest, room: Room, nights: int) -> Reservation:
+                return Reservation(
+                    guest_id=guest.id, room_number=room.number, nights=nights, nightly_rate=room.rate
+                )
+    after: |
+      from stays.models import Guest, Reservation, Room
+
+
+      class WalkInDesk:
+          def reservation_for(self, guest: Guest, room: Room, nights: int) -> Reservation:
+              return Reservation(
+                  guest_id=guest.id,
+                  room_number=room.number,
+                  nights=nights,
+                  nightly_rate=room.walk_in_rate,
+              )
+  expected_output:
+    outcome: valid
+- name: a stock API response has the stored stock row's fields and is mapped from the row where they meet
+  inputs:
+    file: api/stock_schemas.py
+    unchanged:
+      warehouse/__init__.py: ""
+      warehouse/rows.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class StockRow:
+            sku: str
+            on_hand: int
+            bin_code: str
+    after: |
+      from pydantic import BaseModel
+
+      from warehouse.rows import StockRow
+
+
+      class StockItemOut(BaseModel):
+          sku: str
+          on_hand: int
+          bin_code: str
+
+          @classmethod
+          def from_row(cls, row: StockRow) -> "StockItemOut":
+              return cls(sku=row.sku, on_hand=row.on_hand, bin_code=row.bin_code)
+  expected_output:
+    outcome: valid
+- name: a gate display keeps a private helper for a flight's delay, a step the departures board also keeps private
+  inputs:
+    file: departures/gates.py
+    unchanged:
+      departures/__init__.py: ""
+      departures/models.py: |
+        from dataclasses import dataclass
+        from datetime import datetime
+
+
+        @dataclass(frozen=True)
+        class Flight:
+            number: str
+            gate: str
+            scheduled_at: datetime
+
+
+        @dataclass(frozen=True)
+        class CrewPolicy:
+            page_after_minutes: int
+      departures/board.py: |
+        from datetime import datetime
+
+        from departures.models import Flight
+
+
+        class DeparturesBoard:
+            def row(self, flight: Flight, now: datetime) -> str:
+                return f"{flight.number}  gate {flight.gate}  {self._minutes_late(flight, now)} min late"
+
+            def _minutes_late(self, flight: Flight, now: datetime) -> int:
+                return int((now - flight.scheduled_at).total_seconds() // 60)
+    after: |
+      import math
+      from datetime import datetime
+
+      from departures.models import CrewPolicy, Flight
+
+
+      class GateDisplay:
+          def should_page_crew(self, flight: Flight, now: datetime, policy: CrewPolicy) -> bool:
+              return self._delay_minutes(flight, now) >= policy.page_after_minutes
+
+          def _delay_minutes(self, flight: Flight, now: datetime) -> int:
+              return math.ceil((now - flight.scheduled_at).total_seconds() / 60)
+  expected_output:
+    outcome: valid
+- name: a course serializer field reads the end date the course model works out
+  inputs:
+    file: courses/serializers.py
+    unchanged:
+      courses/__init__.py: ""
+      courses/models.py: |
+        from datetime import date, timedelta
+
+        from django.db import models
+
+
+        class Course(models.Model):
+            title = models.CharField(max_length=200)
+            starts_on = models.DateField()
+            weeks = models.PositiveIntegerField()
+
+            def ends_on(self) -> date:
+                return self.starts_on + timedelta(weeks=self.weeks)
+    after: |
+      from datetime import date
+
+      from rest_framework import serializers
+
+      from courses.models import Course
+
+
+      class CourseSerializer(serializers.ModelSerializer[Course]):
+          ends_on = serializers.SerializerMethodField()
+
+          class Meta:
+              model = Course
+              fields = ["id", "title", "starts_on", "weeks", "ends_on"]
+
+          def get_ends_on(self, course: Course) -> date:
+              return course.ends_on()
+  expected_output:
+    outcome: valid
+- name: an active member list selects active memberships by its own filter where the membership queryset already selects them, so suspended members show in the list
+  inputs:
+    file: members/views.py
+    unchanged:
+      members/__init__.py: ""
+      members/models.py: |
+        from datetime import date
+
+        from django.db import models
+
+
+        class MembershipQuerySet(models.QuerySet["Membership"]):
+            def active(self, today: date) -> "MembershipQuerySet":
+                return self.filter(cancelled_at__isnull=True, paid_until__gte=today).exclude(
+                    suspended=True
+                )
+
+
+        class Membership(models.Model):
+            member_name = models.CharField(max_length=200)
+            paid_until = models.DateField()
+            cancelled_at = models.DateTimeField(null=True)
+            suspended = models.BooleanField(default=False)
+
+            objects = MembershipQuerySet.as_manager()
+      members/serializers.py: |
+        from rest_framework import serializers
+
+        from members.models import Membership
+
+
+        class MembershipSerializer(serializers.ModelSerializer[Membership]):
+            class Meta:
+                model = Membership
+                fields = ["id", "member_name", "paid_until"]
+    after: |
+      from datetime import date
+
+      from django.db.models import QuerySet
+      from rest_framework.generics import ListAPIView
+
+      from members.models import Membership
+      from members.serializers import MembershipSerializer
+
+
+      class ActiveMemberList(ListAPIView[Membership]):
+          serializer_class = MembershipSerializer
+
+          def get_queryset(self) -> QuerySet[Membership]:
+              return Membership.objects.filter(cancelled_at__isnull=True, paid_until__gte=date.today())
+  expected_output:
+    outcome: invalid
+- name: a module constant's value changes, which adds or edits no function or type
+  inputs:
+    file: shipping/settings.py
+    before: |
+      CARRIER_TIMEOUT_SECONDS = 10
+    after: |
+      CARRIER_TIMEOUT_SECONDS = 20
+  expected_output:
+    outcome: skipped
+- name: a checkout timer works out a seat hold's expiry that the hold clock already works out, so extended holds expire early at checkout
+  inputs:
+    file: checkout/timer.ts
+    unchanged:
+      booking/models.ts: &booking_models |
+        export type Zone = "stalls" | "circle" | "balcony";
+
+        export interface Seat {
+          code: string;
+          zone: Zone;
+        }
+
+        export interface Hold {
+          id: string;
+          placedAt: Date;
+          extended: boolean;
+          seats: readonly Seat[];
+        }
+
+        export interface HoldPolicy {
+          minutes: number;
+          extensionMinutes: number;
+        }
+
+        export interface PriceList {
+          byZone: Record<Zone, number>;
+        }
+      booking/holds.ts: &booking_holds |
+        import type { Hold, HoldPolicy } from "./models";
+
+        export class HoldClock {
+          expiresAt(hold: Hold, policy: HoldPolicy): Date {
+            const minutes = hold.extended ? policy.minutes + policy.extensionMinutes : policy.minutes;
+            return new Date(hold.placedAt.getTime() + minutes * 60_000);
+          }
+        }
+    after: |
+      import type { Hold, HoldPolicy } from "../booking/models";
+
+      export class CheckoutTimer {
+        holdDeadline(hold: Hold, policy: HoldPolicy): Date {
+          return new Date(hold.placedAt.getTime() + policy.minutes * 60_000);
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: a checkout timer counts the seconds left until the expiry the hold clock works out
+  inputs:
+    file: checkout/timer.ts
+    unchanged:
+      booking/models.ts: *booking_models
+      booking/holds.ts: *booking_holds
+    after: |
+      import { HoldClock } from "../booking/holds";
+      import type { Hold, HoldPolicy } from "../booking/models";
+
+      export class CheckoutTimer {
+        constructor(private readonly clock: HoldClock) {}
+
+        secondsLeft(hold: Hold, policy: HoldPolicy, now: Date): number {
+          const expiresAt = this.clock.expiresAt(hold, policy);
+          return Math.floor((expiresAt.getTime() - now.getTime()) / 1000);
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: hold pricing prices a seat hold's seats, a job the hold clock doesn't do
+  inputs:
+    file: booking/pricing.ts
+    unchanged:
+      booking/models.ts: *booking_models
+      booking/holds.ts: *booking_holds
+    after: |
+      import type { Hold, PriceList } from "./models";
+
+      export class HoldPricing {
+        total(hold: Hold, prices: PriceList): number {
+          return hold.seats.reduce((sum, seat) => sum + prices.byZone[seat.zone], 0);
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: gift card terms work out a gift card's expiry, a concept the hold clock doesn't expire
+  inputs:
+    file: giftcards/terms.ts
+    unchanged:
+      booking/models.ts: *booking_models
+      booking/holds.ts: *booking_holds
+      giftcards/models.ts: |
+        export interface GiftCard {
+          code: string;
+          issuedAt: Date;
+          balancePence: number;
+        }
+
+        export interface CardTerms {
+          validDays: number;
+        }
+    after: |
+      import type { CardTerms, GiftCard } from "./models";
+
+      export class GiftCardTerms {
+        expiresAt(card: GiftCard, terms: CardTerms): Date {
+          return new Date(card.issuedAt.getTime() + terms.validDays * 86_400_000);
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a kiosk quote prices a trip that the fare table in the same file already prices, so kiosks charge a different fare
+  inputs:
+    file: transit/fares.ts
+    before: |
+      export type Zone = 1 | 2 | 3 | 4;
+
+      export interface Trip {
+        from: Zone;
+        to: Zone;
+        peak: boolean;
+      }
+
+      export interface FareChart {
+        baseFare: number;
+        perZone: number;
+        peakSurcharge: number;
+      }
+
+      export class FareTable {
+        fare(trip: Trip, chart: FareChart): number {
+          const zones = Math.abs(trip.to - trip.from) + 1;
+          const fare = chart.baseFare + chart.perZone * (zones - 1);
+          return trip.peak ? fare + chart.peakSurcharge : fare;
+        }
+      }
+    after: |
+      export type Zone = 1 | 2 | 3 | 4;
+
+      export interface Trip {
+        from: Zone;
+        to: Zone;
+        peak: boolean;
+      }
+
+      export interface FareChart {
+        baseFare: number;
+        perZone: number;
+        peakSurcharge: number;
+      }
+
+      export class FareTable {
+        fare(trip: Trip, chart: FareChart): number {
+          const zones = Math.abs(trip.to - trip.from) + 1;
+          const fare = chart.baseFare + chart.perZone * (zones - 1);
+          return trip.peak ? fare + chart.peakSurcharge : fare;
+        }
+      }
+
+      export class KioskQuote {
+        price(trip: Trip, chart: FareChart): number {
+          const outerZone = trip.from > trip.to ? trip.from : trip.to;
+          return chart.baseFare + chart.perZone * (outerZone - 1);
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: a receipt printer stops asking the loyalty ledger and works out a purchase's points itself, so excluded items earn points on receipts
+  inputs:
+    file: receipts/printer.ts
+    unchanged:
+      loyalty/models.ts: |
+        export interface PurchaseLine {
+          sku: string;
+          pricePence: number;
+          quantity: number;
+        }
+
+        export interface Purchase {
+          lines: readonly PurchaseLine[];
+          totalPence: number;
+        }
+
+        export interface Scheme {
+          pointsPerPound: number;
+          excludedSkus: readonly string[];
+        }
+      loyalty/ledger.ts: |
+        import type { Purchase, Scheme } from "./models";
+
+        export class LoyaltyLedger {
+          points(purchase: Purchase, scheme: Scheme): number {
+            const eligible = purchase.lines.filter((line) => !scheme.excludedSkus.includes(line.sku));
+            const spend = eligible.reduce((sum, line) => sum + line.pricePence * line.quantity, 0);
+            return Math.floor(spend / 100) * scheme.pointsPerPound;
+          }
+        }
+    before: |
+      import { LoyaltyLedger } from "../loyalty/ledger";
+      import type { Purchase, Scheme } from "../loyalty/models";
+
+      export class ReceiptPrinter {
+        constructor(private readonly ledger: LoyaltyLedger) {}
+
+        pointsEarned(purchase: Purchase, scheme: Scheme): number {
+          return this.ledger.points(purchase, scheme);
+        }
+
+        footer(purchase: Purchase, scheme: Scheme): string {
+          return `You earned ${this.pointsEarned(purchase, scheme)} points today.`;
+        }
+      }
+    after: |
+      import type { Purchase, Scheme } from "../loyalty/models";
+
+      export class ReceiptPrinter {
+        pointsEarned(purchase: Purchase, scheme: Scheme): number {
+          return Math.floor(purchase.totalPence / 100) * scheme.pointsPerPound;
+        }
+
+        footer(purchase: Purchase, scheme: Scheme): string {
+          return `You earned ${this.pointsEarned(purchase, scheme)} points today.`;
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: two carriers each work out a parcel's cost for the carrier interface they implement
+  inputs:
+    file: shipping/carriers.ts
+    after: |
+      import type { Parcel } from "./parcel";
+
+      export interface Carrier {
+        cost(parcel: Parcel): number;
+      }
+
+      export class RoyalMail implements Carrier {
+        cost(parcel: Parcel): number {
+          return 350 + 90 * Math.ceil(parcel.weightKg);
+        }
+      }
+
+      export class DpdCarrier implements Carrier {
+        cost(parcel: Parcel): number {
+          return parcel.weightKg > 20 ? 1800 : 900;
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a reissue desk builds a replacement ticket, construction a separate rule judges
+  inputs:
+    file: tickets/reissue.ts
+    unchanged:
+      tickets/models.ts: |
+        export interface EventInfo {
+          id: string;
+          gate: string;
+        }
+
+        export interface Buyer {
+          name: string;
+        }
+
+        export interface Ticket {
+          eventId: string;
+          holder: string;
+          gate: string;
+        }
+      tickets/office.ts: |
+        import type { Buyer, EventInfo, Ticket } from "./models";
+
+        export class TicketOffice {
+          issue(event: EventInfo, buyer: Buyer): Ticket {
+            return { eventId: event.id, holder: buyer.name, gate: event.gate };
+          }
+        }
+    after: |
+      import type { Buyer, Ticket } from "./models";
+
+      export class ReissueDesk {
+        replacement(lost: Ticket, buyer: Buyer): Ticket {
+          return { eventId: lost.eventId, holder: buyer.name, gate: lost.gate };
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a courier API response has the stored courier row's fields and is mapped from the row where they meet
+  inputs:
+    file: api/couriers.ts
+    unchanged:
+      db/rows.ts: |
+        export interface CourierRow {
+          id: string;
+          name: string;
+          vehicle: string;
+        }
+    after: |
+      import type { CourierRow } from "../db/rows";
+
+      export interface CourierResponse {
+        id: string;
+        name: string;
+        vehicle: string;
+      }
+
+      export function toCourierResponse(row: CourierRow): CourierResponse {
+        return { id: row.id, name: row.name, vehicle: row.vehicle };
+      }
+  expected_output:
+    outcome: valid
+- name: warden alerts keep a private helper for a parking session's minutes, a step the meter display also keeps private
+  inputs:
+    file: parking/wardens.ts
+    unchanged:
+      parking/models.ts: |
+        export interface ParkingSession {
+          bay: string;
+          startedAt: Date;
+          paidMinutes: number;
+        }
+
+        export interface WardenRules {
+          graceMinutes: number;
+        }
+      parking/meter.ts: |
+        import type { ParkingSession } from "./models";
+
+        export class MeterDisplay {
+          line(session: ParkingSession, now: Date): string {
+            return `Bay ${session.bay}: ${this.minutesParked(session, now)} min`;
+          }
+
+          private minutesParked(session: ParkingSession, now: Date): number {
+            return Math.floor((now.getTime() - session.startedAt.getTime()) / 60_000);
+          }
+        }
+    after: |
+      import type { ParkingSession, WardenRules } from "./models";
+
+      export class WardenAlerts {
+        shouldVisit(session: ParkingSession, now: Date, rules: WardenRules): boolean {
+          return this.#minutesParked(session, now) > session.paidMinutes + rules.graceMinutes;
+        }
+
+        #minutesParked(session: ParkingSession, now: Date): number {
+          return Math.ceil((now.getTime() - session.startedAt.getTime()) / 60_000);
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a static menu method works out a recipe's cost that recipe costing already works out, so dishes are costed two ways
+  inputs:
+    file: menu/specials.ts
+    unchanged:
+      kitchen/models.ts: |
+        export interface RecipeItem {
+          ingredientId: string;
+          grams: number;
+        }
+
+        export interface Recipe {
+          name: string;
+          items: readonly RecipeItem[];
+        }
+
+        export interface PriceBook {
+          pencePerGram(ingredientId: string): number;
+        }
+      kitchen/costing.ts: |
+        import type { PriceBook, Recipe } from "./models";
+
+        export class RecipeCosting {
+          cost(recipe: Recipe, prices: PriceBook): number {
+            const pence = recipe.items.reduce(
+              (sum, item) => sum + item.grams * prices.pencePerGram(item.ingredientId),
+              0,
+            );
+            return Math.round(pence);
+          }
+        }
+    after: |
+      import type { PriceBook, Recipe } from "../kitchen/models";
+
+      export class MenuSpecials {
+        static dishCost(recipe: Recipe, prices: PriceBook): number {
+          let pence = 0;
+          for (const item of recipe.items) {
+            pence += Math.round(item.grams * prices.pencePerGram(item.ingredientId));
+          }
+          return pence;
+        }
+      }
+  expected_output:
+    outcome: invalid

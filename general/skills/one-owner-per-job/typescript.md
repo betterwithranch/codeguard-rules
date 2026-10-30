@@ -14,3 +14,4 @@ public methods are those not marked `private` or `protected` and not named with 
 
 - `CartService.total(cart)` calling `this.pricing.total(cart)` and adding a fee.
 - Classes that implement one interface, each its own way.
+- A `private` or `#` method, called by its own class's public methods.
