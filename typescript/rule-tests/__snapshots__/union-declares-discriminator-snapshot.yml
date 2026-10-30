@@ -1,0 +1,391 @@
+id: union-declares-discriminator
+snapshots:
+  "const exampleA = z.object({ \"kind\": z.literal(\"a\"), name: z.string() });\nconst exampleB = z.object({ \"kind\": z.literal(\"b\"), code: z.number() });\nexport const example = z.union([exampleA, exampleB]);\n":
+    labels:
+    - source: z.union([exampleA, exampleB])
+      style: primary
+      start: 169
+      end: 198
+    - source: exampleA
+      style: secondary
+      start: 6
+      end: 14
+    - source: "z.object({ \"kind\": z.literal(\"a\"), name: z.string() })"
+      style: secondary
+      start: 17
+      end: 71
+    - source: "exampleA = z.object({ \"kind\": z.literal(\"a\"), name: z.string() })"
+      style: secondary
+      start: 6
+      end: 71
+    - source: |
+        const exampleA = z.object({ "kind": z.literal("a"), name: z.string() });
+        const exampleB = z.object({ "kind": z.literal("b"), code: z.number() });
+        export const example = z.union([exampleA, exampleB]);
+      style: secondary
+      start: 0
+      end: 200
+    - source: exampleB
+      style: secondary
+      start: 79
+      end: 87
+    - source: "z.object({ \"kind\": z.literal(\"b\"), code: z.number() })"
+      style: secondary
+      start: 90
+      end: 144
+    - source: "exampleB = z.object({ \"kind\": z.literal(\"b\"), code: z.number() })"
+      style: secondary
+      start: 79
+      end: 144
+    - source: |
+        const exampleA = z.object({ "kind": z.literal("a"), name: z.string() });
+        const exampleB = z.object({ "kind": z.literal("b"), code: z.number() });
+        export const example = z.union([exampleA, exampleB]);
+      style: secondary
+      start: 0
+      end: 200
+    - source: exampleB
+      style: secondary
+      start: 188
+      end: 196
+    - source: exampleA
+      style: secondary
+      start: 178
+      end: 186
+    - source: "[exampleA, exampleB]"
+      style: secondary
+      start: 177
+      end: 197
+    - source: "[exampleA, exampleB]"
+      style: secondary
+      start: 177
+      end: 197
+  "const exampleA = z.object({ kind: z.literal(\"a\"), name: z.string() });\nconst exampleB = z.object({ code: z.number() });\nexport const example = z.union([exampleA, exampleB]);\n":
+    labels:
+    - source: z.union([exampleA, exampleB])
+      style: primary
+      start: 143
+      end: 172
+    - source: exampleA
+      style: secondary
+      start: 6
+      end: 14
+    - source: "z.object({ kind: z.literal(\"a\"), name: z.string() })"
+      style: secondary
+      start: 17
+      end: 69
+    - source: "exampleA = z.object({ kind: z.literal(\"a\"), name: z.string() })"
+      style: secondary
+      start: 6
+      end: 69
+    - source: |
+        const exampleA = z.object({ kind: z.literal("a"), name: z.string() });
+        const exampleB = z.object({ code: z.number() });
+        export const example = z.union([exampleA, exampleB]);
+      style: secondary
+      start: 0
+      end: 174
+    - source: exampleB
+      style: secondary
+      start: 77
+      end: 85
+    - source: "z.object({ code: z.number() })"
+      style: secondary
+      start: 88
+      end: 118
+    - source: "exampleB = z.object({ code: z.number() })"
+      style: secondary
+      start: 77
+      end: 118
+    - source: |
+        const exampleA = z.object({ kind: z.literal("a"), name: z.string() });
+        const exampleB = z.object({ code: z.number() });
+        export const example = z.union([exampleA, exampleB]);
+      style: secondary
+      start: 0
+      end: 174
+    - source: exampleB
+      style: secondary
+      start: 162
+      end: 170
+    - source: exampleA
+      style: secondary
+      start: 152
+      end: 160
+    - source: "[exampleA, exampleB]"
+      style: secondary
+      start: 151
+      end: 171
+    - source: "[exampleA, exampleB]"
+      style: secondary
+      start: 151
+      end: 171
+  "const exampleA = z.object({ kind: z.literal(\"a\"), name: z.string() });\nconst exampleB = z.object({ kind: z.literal(\"b\"), code: z.number() });\nexport const example = z.union([exampleA, exampleB]);\n":
+    labels:
+    - source: z.union([exampleA, exampleB])
+      style: primary
+      start: 165
+      end: 194
+    - source: exampleA
+      style: secondary
+      start: 6
+      end: 14
+    - source: "z.object({ kind: z.literal(\"a\"), name: z.string() })"
+      style: secondary
+      start: 17
+      end: 69
+    - source: "exampleA = z.object({ kind: z.literal(\"a\"), name: z.string() })"
+      style: secondary
+      start: 6
+      end: 69
+    - source: |
+        const exampleA = z.object({ kind: z.literal("a"), name: z.string() });
+        const exampleB = z.object({ kind: z.literal("b"), code: z.number() });
+        export const example = z.union([exampleA, exampleB]);
+      style: secondary
+      start: 0
+      end: 196
+    - source: exampleB
+      style: secondary
+      start: 77
+      end: 85
+    - source: "z.object({ kind: z.literal(\"b\"), code: z.number() })"
+      style: secondary
+      start: 88
+      end: 140
+    - source: "exampleB = z.object({ kind: z.literal(\"b\"), code: z.number() })"
+      style: secondary
+      start: 77
+      end: 140
+    - source: |
+        const exampleA = z.object({ kind: z.literal("a"), name: z.string() });
+        const exampleB = z.object({ kind: z.literal("b"), code: z.number() });
+        export const example = z.union([exampleA, exampleB]);
+      style: secondary
+      start: 0
+      end: 196
+    - source: exampleB
+      style: secondary
+      start: 184
+      end: 192
+    - source: exampleA
+      style: secondary
+      start: 174
+      end: 182
+    - source: "[exampleA, exampleB]"
+      style: secondary
+      start: 173
+      end: 193
+    - source: "[exampleA, exampleB]"
+      style: secondary
+      start: 173
+      end: 193
+  "const exampleA = z.object({ kind: z.literal(\"a\"), name: z.string() });\nconst exampleB = z.object({ kind: z.literal(\"b\"), code: z.number() });\nexport const example = z.union([exampleA, z.string(), exampleB]);\n":
+    labels:
+    - source: z.union([exampleA, z.string(), exampleB])
+      style: primary
+      start: 165
+      end: 206
+    - source: exampleA
+      style: secondary
+      start: 6
+      end: 14
+    - source: "z.object({ kind: z.literal(\"a\"), name: z.string() })"
+      style: secondary
+      start: 17
+      end: 69
+    - source: "exampleA = z.object({ kind: z.literal(\"a\"), name: z.string() })"
+      style: secondary
+      start: 6
+      end: 69
+    - source: |
+        const exampleA = z.object({ kind: z.literal("a"), name: z.string() });
+        const exampleB = z.object({ kind: z.literal("b"), code: z.number() });
+        export const example = z.union([exampleA, z.string(), exampleB]);
+      style: secondary
+      start: 0
+      end: 208
+    - source: exampleB
+      style: secondary
+      start: 77
+      end: 85
+    - source: "z.object({ kind: z.literal(\"b\"), code: z.number() })"
+      style: secondary
+      start: 88
+      end: 140
+    - source: "exampleB = z.object({ kind: z.literal(\"b\"), code: z.number() })"
+      style: secondary
+      start: 77
+      end: 140
+    - source: |
+        const exampleA = z.object({ kind: z.literal("a"), name: z.string() });
+        const exampleB = z.object({ kind: z.literal("b"), code: z.number() });
+        export const example = z.union([exampleA, z.string(), exampleB]);
+      style: secondary
+      start: 0
+      end: 208
+    - source: exampleB
+      style: secondary
+      start: 196
+      end: 204
+    - source: exampleA
+      style: secondary
+      start: 174
+      end: 182
+    - source: "[exampleA, z.string(), exampleB]"
+      style: secondary
+      start: 173
+      end: 205
+    - source: "[exampleA, z.string(), exampleB]"
+      style: secondary
+      start: 173
+      end: 205
+  "const exampleA = z.object({ kind: z.literal(\"a\"), name: z.string() });\nexport const example = z.union([\n  exampleA,\n  z.object({ kind: z.literal(\"b\"), code: z.number() }),\n]);\n":
+    labels:
+    - source: |-
+        z.union([
+          exampleA,
+          z.object({ kind: z.literal("b"), code: z.number() }),
+        ])
+      style: primary
+      start: 94
+      end: 174
+    - source: exampleA
+      style: secondary
+      start: 6
+      end: 14
+    - source: "z.object({ kind: z.literal(\"a\"), name: z.string() })"
+      style: secondary
+      start: 17
+      end: 69
+    - source: "exampleA = z.object({ kind: z.literal(\"a\"), name: z.string() })"
+      style: secondary
+      start: 6
+      end: 69
+    - source: |
+        const exampleA = z.object({ kind: z.literal("a"), name: z.string() });
+        export const example = z.union([
+          exampleA,
+          z.object({ kind: z.literal("b"), code: z.number() }),
+        ]);
+      style: secondary
+      start: 0
+      end: 176
+    - source: "z.object({ kind: z.literal(\"b\"), code: z.number() })"
+      style: secondary
+      start: 118
+      end: 170
+    - source: exampleA
+      style: secondary
+      start: 106
+      end: 114
+    - source: |-
+        [
+          exampleA,
+          z.object({ kind: z.literal("b"), code: z.number() }),
+        ]
+      style: secondary
+      start: 102
+      end: 173
+    - source: |-
+        [
+          exampleA,
+          z.object({ kind: z.literal("b"), code: z.number() }),
+        ]
+      style: secondary
+      start: 102
+      end: 173
+  "const exampleA = z.object({ name: z.string() });\nconst exampleB = z.object({ code: z.number() });\nexport const example = z.union([exampleA, exampleB]);\n":
+    labels:
+    - source: z.union([exampleA, exampleB])
+      style: primary
+      start: 121
+      end: 150
+    - source: exampleA
+      style: secondary
+      start: 6
+      end: 14
+    - source: "z.object({ name: z.string() })"
+      style: secondary
+      start: 17
+      end: 47
+    - source: "exampleA = z.object({ name: z.string() })"
+      style: secondary
+      start: 6
+      end: 47
+    - source: |
+        const exampleA = z.object({ name: z.string() });
+        const exampleB = z.object({ code: z.number() });
+        export const example = z.union([exampleA, exampleB]);
+      style: secondary
+      start: 0
+      end: 152
+    - source: exampleB
+      style: secondary
+      start: 55
+      end: 63
+    - source: "z.object({ code: z.number() })"
+      style: secondary
+      start: 66
+      end: 96
+    - source: "exampleB = z.object({ code: z.number() })"
+      style: secondary
+      start: 55
+      end: 96
+    - source: |
+        const exampleA = z.object({ name: z.string() });
+        const exampleB = z.object({ code: z.number() });
+        export const example = z.union([exampleA, exampleB]);
+      style: secondary
+      start: 0
+      end: 152
+    - source: exampleB
+      style: secondary
+      start: 140
+      end: 148
+    - source: exampleA
+      style: secondary
+      start: 130
+      end: 138
+    - source: "[exampleA, exampleB]"
+      style: secondary
+      start: 129
+      end: 149
+    - source: "[exampleA, exampleB]"
+      style: secondary
+      start: 129
+      end: 149
+  "export const example = z.union([\n  z.object({ kind: z.literal(\"a\"), name: z.string() }),\n  z.object({ kind: z.literal(\"b\"), code: z.number() }),\n]);\n":
+    labels:
+    - source: |-
+        z.union([
+          z.object({ kind: z.literal("a"), name: z.string() }),
+          z.object({ kind: z.literal("b"), code: z.number() }),
+        ])
+      style: primary
+      start: 23
+      end: 147
+    - source: "z.object({ kind: z.literal(\"b\"), code: z.number() })"
+      style: secondary
+      start: 91
+      end: 143
+    - source: "z.object({ kind: z.literal(\"a\"), name: z.string() })"
+      style: secondary
+      start: 35
+      end: 87
+    - source: |-
+        [
+          z.object({ kind: z.literal("a"), name: z.string() }),
+          z.object({ kind: z.literal("b"), code: z.number() }),
+        ]
+      style: secondary
+      start: 31
+      end: 146
+    - source: |-
+        [
+          z.object({ kind: z.literal("a"), name: z.string() }),
+          z.object({ kind: z.literal("b"), code: z.number() }),
+        ]
+      style: secondary
+      start: 31
+      end: 146

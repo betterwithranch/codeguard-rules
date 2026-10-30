@@ -1,0 +1,7 @@
+rule: union-declares-discriminator
+paths: ["**/*.py"]
+exclude_paths:
+  - "**/test_*.py"
+  - "**/*_test.py"
+  - "**/tests/**"
+  - "**/conftest.py"

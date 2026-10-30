@@ -68,6 +68,7 @@ start as `warning`s and skip test files:
 |---|---|
 | `no-middle-man-python`, `no-middle-man-typescript` | No middle man: a class without a base doesn't forward every method to the same collaborator |
 | `no-class-level-mutable-container` | No class-level mutable container: a list, dict or set bound in a class body isn't mutated through `self`, which every instance shares (Python only) |
+| `union-declares-discriminator-python`, `union-declares-discriminator-typescript` | Union declares discriminator: a pydantic field typed as a union of models defined in the file names its discriminator, and a `z.union` of object schemas sharing a literal field is a `z.discriminatedUnion` (the syntactic form of `discriminated-unions`) |
 
 Each judge rule passes 20 of 20 eval runs on Claude before it ships, and CI's 3 runs
 before it merges. One check follows, and doesn't hold up the next rule:
@@ -132,6 +133,14 @@ as `fixture` or `import`, or a gate in the ruleset's `gates/`, an ast-grep rule
 such as `mock-use`. A rule ast-grep or the type checker can check is a pattern rule or a checker
 setting, never a judge rule.
 
+### `typescript`
+
+Rules for any TypeScript project. Each rule checks one thing, so a project can exclude
+any of them.
+
+Pattern rules (ast-grep). They start as `warning`s and skip test files. The
+`typescript` ruleset has no judge rules; TypeScript's judge rules are in `general`.
+
 ## Use a ruleset
 
 In the project's `.codeguard/config.yaml`:
@@ -163,7 +172,7 @@ project that sets `ast-grep` in its config must pick a version in that range.
 
 ```
 codeguard-package.yaml       # name, rulesets, and supported ast-grep and codeguard versions
-general/, python/            # one directory per ruleset
+general/, python/, typescript/ # one directory per ruleset
   rules/pattern/<id>.yml     # ast-grep rules
   gates/<id>.yml             # ast-grep rules that decide when a judge rule runs
   rule-tests/<id>-test.yml   # tests for both, with __snapshots__/

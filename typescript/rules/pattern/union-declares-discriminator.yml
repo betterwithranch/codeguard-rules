@@ -1,0 +1,55 @@
+id: union-declares-discriminator
+language: typescript
+severity: warning
+message: This z.union holds two or more object schemas defined in this file, with no discriminator named.
+note: |
+  Without a discriminator zod tries each schema in turn: parsing is slower, a payload
+  that fits two schemas becomes whichever is tried first, and a payload that fits none
+  fails with an error per schema. Give each object schema a `z.literal` tag field, if it
+  has none, and name it: `z.discriminatedUnion("kind", [cardPayment, bankPayment])`.
+metadata:
+  why: With the tag named, the parser reads one field, picks the schema, and reports errors against that schema alone.
+utils:
+  object-schema:
+    kind: call_expression
+    pattern: z.object($$$)
+  first-object:
+    any:
+    - matches: object-schema
+    - kind: identifier
+      pattern: $FIRST
+      inside:
+        stopBy: end
+        kind: program
+        has:
+          stopBy: end
+          kind: variable_declarator
+          all:
+          - has: {field: name, pattern: $FIRST}
+          - has: {field: value, matches: object-schema}
+  second-object:
+    any:
+    - matches: object-schema
+    - kind: identifier
+      pattern: $SECOND
+      inside:
+        stopBy: end
+        kind: program
+        has:
+          stopBy: end
+          kind: variable_declarator
+          all:
+          - has: {field: name, pattern: $SECOND}
+          - has: {field: value, matches: object-schema}
+rule:
+  kind: call_expression
+  pattern: z.union($$$)
+  has:
+    field: arguments
+    has:
+      kind: array
+      has:
+        matches: first-object
+        precedes:
+          stopBy: end
+          matches: second-object

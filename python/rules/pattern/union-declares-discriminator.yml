@@ -1,0 +1,117 @@
+id: union-declares-discriminator
+language: python
+severity: warning
+message: This pydantic field holds a union of two or more pydantic models defined in this file, with no discriminator named.
+note: |
+  Without a discriminator pydantic tries each model in turn: parsing is slower, a payload
+  that fits two models becomes whichever is tried first, and a payload that fits none
+  fails with an error per model. Give each model a `Literal` tag field, if it has none,
+  and name it: `payment: CardPayment | BankPayment = Field(discriminator="kind")`, or
+  inside a type, `list[Annotated[CardPayment | BankPayment, Field(discriminator="kind")]]`.
+metadata:
+  why: With the tag named, the parser reads one field, picks the model, and reports errors against that model alone.
+utils:
+  pydantic-model:
+    kind: class_definition
+    has: {field: superclasses, kind: argument_list, regex: \bBaseModel\b}
+  first-model:
+    kind: identifier
+    pattern: $FIRST
+    inside:
+      stopBy: end
+      kind: module
+      has:
+        any:
+        - all:
+          - matches: pydantic-model
+          - has: {field: name, pattern: $FIRST}
+        - kind: decorated_definition
+          has:
+            field: definition
+            all:
+            - matches: pydantic-model
+            - has: {field: name, pattern: $FIRST}
+  second-model:
+    kind: identifier
+    pattern: $SECOND
+    inside:
+      stopBy: end
+      kind: module
+      has:
+        any:
+        - all:
+          - matches: pydantic-model
+          - has: {field: name, pattern: $SECOND}
+        - kind: decorated_definition
+          has:
+            field: definition
+            all:
+            - matches: pydantic-model
+            - has: {field: name, pattern: $SECOND}
+  pipe-union-of-models:
+    kind: binary_operator
+    all:
+    - has:
+        field: left
+        any:
+        - matches: first-model
+        - kind: binary_operator
+          has:
+            stopBy:
+              not: {kind: binary_operator}
+            matches: first-model
+    - has: {field: right, matches: second-model}
+  subscript-union-of-models:
+    kind: generic_type
+    has:
+      kind: identifier
+      regex: ^Union$
+      precedes:
+        kind: type_parameter
+        has:
+          kind: type
+          has: {matches: first-model}
+          precedes:
+            stopBy: end
+            kind: type
+            has: {matches: second-model}
+  names-discriminator:
+    any:
+    - kind: keyword_argument
+      has: {field: name, regex: ^discriminator$}
+    - kind: call
+      has: {field: function, regex: (^|\.)Discriminator$}
+  annotated-with-discriminator:
+    kind: generic_type
+    has:
+      kind: identifier
+      regex: ^Annotated$
+      precedes:
+        kind: type_parameter
+        has: {stopBy: end, matches: names-discriminator}
+rule:
+  kind: assignment
+  all:
+  - has:
+      field: type
+      has:
+        stopBy: end
+        any:
+        - matches: pipe-union-of-models
+        - matches: subscript-union-of-models
+        not:
+          inside: {stopBy: end, matches: annotated-with-discriminator}
+  - not:
+      has:
+        field: right
+        any:
+        - matches: names-discriminator
+        - has: {stopBy: end, matches: names-discriminator}
+  - inside:
+      kind: expression_statement
+      inside:
+        kind: block
+        inside:
+          kind: class_definition
+          field: body
+          matches: pydantic-model
