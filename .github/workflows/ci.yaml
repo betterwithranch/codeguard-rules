@@ -25,8 +25,12 @@ jobs:
         working-directory: rules
         run: uv run --frozen --project ../codeguard codeguard test
   eval:
+    if: github.event_name == 'pull_request'
     needs: test
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     strategy:
       fail-fast: false
       matrix:
@@ -50,9 +54,14 @@ jobs:
           rules=$(uv run --frozen --project ../codeguard python scripts/affected_judge_rules.py "$base")
           echo "rules=$(echo $rules)" >> "$GITHUB_OUTPUT"
         env:
-          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+          BASE: ${{ github.event.pull_request.base.sha }}
       - if: steps.affected.outputs.rules && matrix.provider == 'claude-cli'
         run: npm install --global @anthropic-ai/claude-code
+      - if: steps.affected.outputs.rules && matrix.provider == 'claude-cli'
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.CLAUDE_AWS_ROLE }}
+          aws-region: us-west-2
       - if: steps.affected.outputs.rules && matrix.provider == 'gemini'
         uses: google-github-actions/auth@v2
         with:
@@ -63,11 +72,14 @@ jobs:
         run: |
           args=()
           for rule in $RULES; do args+=(--rule "$rule"); done
+          if [ "$PROVIDER" = claude-cli ]; then args+=(--model "$BEDROCK_MODEL"); fi
           uv run --frozen --project ../codeguard codeguard eval --provider "$PROVIDER" --repeat 3 "${args[@]}"
         env:
           RULES: ${{ steps.affected.outputs.rules }}
           PROVIDER: ${{ matrix.provider }}
-          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          CLAUDE_CODE_USE_BEDROCK: 1
+          AWS_REGION: us-west-2
+          BEDROCK_MODEL: ${{ vars.BEDROCK_MODEL }}
           LOGFIRE_TOKEN: ${{ secrets.LOGFIRE_TOKEN }}
           GOOGLE_CLOUD_PROJECT: ${{ vars.GOOGLE_CLOUD_PROJECT }}
           GOOGLE_CLOUD_LOCATION: global
