@@ -54,6 +54,7 @@ the languages it runs on.
 | `discriminated-unions` | Discriminated unions: a parsed union's parser picks each variant from one unique tag, so parsing is fast and its errors name one variant. | Not yet |
 | `no-stamp-coupling` | No stamp coupling: a function takes the values it reads, not a bundle it mostly ignores, so its signature says what it depends on. | Not yet |
 | `high-cohesion` | High cohesion: a module's public classes belong to its one concept, so knowledge sits where its next change will look. | Not yet |
+| `packages-under-import-contract` | Packages under import contract: a package the change adds is under the project's import-boundary configuration, so the boundary tool keeps it from importing its siblings. | Not yet |
 
 Pattern rules (ast-grep), one per language where a convention's form is syntax. They
 start as `warning`s and skip test files:
