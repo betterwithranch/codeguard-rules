@@ -1,6 +1,6 @@
 ---
 name: make-illegal-states-unrepresentable
-description: A type's fields can't hold a combination the domain forbids; a type whose optional fields must be set for some values of its status or kind field and empty for others is a violation.
+description: A type's fields can't hold a combination the domain forbids; a type whose optional fields must be set for some values of its status or kind field and empty for others, or must be set together or one at a time, is a violation.
 ---
 
 # Make Illegal States Unrepresentable
@@ -14,23 +14,29 @@ with a bank account number, a failed state with no error.
 The usual form is a status or kind field beside optional fields, each meant for only
 some of its values: a field that must be set when the status is one value and empty
 when it is another. The type then allows every optional field with every status, and
-only code that checks the status keeps them in step.
+only code that checks the status keeps them in step. The same holds with no status
+field: optional fields of which exactly one is set, or which are set together or not at
+all, allow every combination the domain rules out.
 
 ## Violation
 
-A type the change adds or edits whose fields allow a combination the domain forbids: a
-status, state or kind field, and optional fields whose presence the domain ties to its
-values.
+A type the change adds or edits whose fields allow a combination the domain forbids:
 
-Report it on the first optional field whose presence the status or kind decides, not on
-the type's declaration.
+- a status, state or kind field, and optional fields whose presence the domain ties to
+  its values;
+- optional fields whose presence the domain ties to each other: exactly one of them is
+  set, or all of them are set or none.
+
+Report it on the first field of the forbidden combination that the change adds or
+edits, not on the type's declaration.
 
 ## Not a violation
 
 - Optional fields that are each optional on their own: any combination of them set and
   empty is one the domain allows.
 - One type per state or kind, each with the fields that state has, joined in a union.
-- An optional field whose presence no other field decides.
+- An optional field that may be set or empty whatever the type's other fields hold,
+  such as a note beside a status.
 - A type whose shape an outside system decides: a model mapped to one database table,
   or a type mirroring an outside API's payload as it arrives.
 - A boolean field that repeats what another field holds: a separate rule judges it.

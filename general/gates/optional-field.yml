@@ -5,18 +5,79 @@ rule:
   - kind: assignment
     has:
       field: type
-      regex: \bNone\b|\bOptional\[
-    any:
-    - inside:
-        kind: expression_statement
+      kind: type
+    inside:
+      kind: expression_statement
+      inside:
+        kind: block
         inside:
+          kind: class_definition
+          field: body
+          any:
+          - has:
+              field: superclasses
+              has:
+                kind: keyword_argument
+                regex: ^total\s*=\s*False$
+          - has:
+              field: body
+              has:
+                kind: expression_statement
+                has:
+                  kind: assignment
+                  has:
+                    field: type
+                    regex: \bNone\b|\bOptional\[|\bNotRequired\[
+          - has:
+              field: body
+              has:
+                kind: function_definition
+                all:
+                - has:
+                    field: name
+                    regex: ^__init__$
+                - has:
+                    field: body
+                    has:
+                      stopBy: end
+                      kind: assignment
+                      all:
+                      - has:
+                          field: left
+                          kind: attribute
+                          regex: ^self\.
+                      - has:
+                          field: type
+                          regex: \bNone\b|\bOptional\[|\bNotRequired\[
+  - kind: assignment
+    has:
+      field: left
+      kind: attribute
+      regex: ^self\.
+    inside:
+      stopBy: end
+      kind: function_definition
+      all:
+      - has:
+          field: name
+          regex: ^__init__$
+      - inside:
           kind: block
           inside:
             kind: class_definition
             field: body
-    - has:
-        field: left
-        kind: attribute
-        regex: ^self\.
+      - has:
+          field: body
+          has:
+            stopBy: end
+            kind: assignment
+            all:
+            - has:
+                field: left
+                kind: attribute
+                regex: ^self\.
+            - has:
+                field: type
+                regex: \bNone\b|\bOptional\[|\bNotRequired\[
   - kind: keyword_argument
     regex: ^(null|nullable)\s*=\s*True$

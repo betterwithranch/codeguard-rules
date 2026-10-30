@@ -1,34 +1,71 @@
 id: optional-field
 valid:
-# A required field
+# A class field, in a class with no optional field
 - |
   class Parcel:
       weight_kg: float
+      status: Literal["packed", "shipped"]
 # An optional local variable
 - |
   def label(parcel):
       note: str | None = None
       return note
+# An optional local variable in a method doesn't make the class's fields optional
+- |
+  class Parcel:
+      weight_kg: float
+
+      def label(self):
+          note: str | None = None
+          return note
+# An attribute set on self outside __init__
+- |
+  class Parcel:
+      def ship(self):
+          self.note: str | None = None
+# A TypedDict where every field is required
+- |
+  class ParcelPayload(TypedDict, total=True):
+      weight_kg: float
 # A keyword argument that isn't null
 - |
   name = models.CharField(max_length=80, blank=True)
 invalid:
-# An optional field written with a union
+# A class field: an optional field written with a union
 - |
   class Parcel:
       note: str | None = None
-# An optional field written with Optional
+# A class field: an optional field written with Optional
 - |
   class Parcel:
       note: Optional[str]
-# An optional attribute set in __init__
+# A class field: a TypedDict field written with NotRequired
+- |
+  class ParcelPayload(TypedDict):
+      note: NotRequired[str]
+# A class field: a required field beside an optional one, such as a status added to the class
+- |
+  class Parcel:
+      status: Literal["packed", "shipped"]
+      shipped_at: datetime | None = None
+# A class field: a field of a TypedDict declared with total=False
+- |
+  class ParcelPayload(TypedDict, total=False):
+      note: str
+# An __init__ attribute: an optional attribute set in __init__
 - |
   class Parcel:
       def __init__(self):
           self.note: str | None = None
-# A Django field that allows null
+# An __init__ attribute: an attribute set in __init__ beside an optional one
+- |
+  class Parcel:
+      def __init__(self, status):
+          self.status = status
+          self.shipped_at: datetime | None = None
+# A null keyword argument: a Django field that allows null
 - |
   shipped_at = models.DateTimeField(null=True)
-# A SQLAlchemy column that allows null
+# A null keyword argument: a SQLAlchemy column that allows null
 - |
   shipped_at = mapped_column(DateTime, nullable=True)

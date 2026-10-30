@@ -49,22 +49,24 @@ cases:
       Delivery = Pending | InTransit | Delivered
   expected_output:
     outcome: valid
-- name: a contact's company and phone are each optional on their own
+- name: a recipe's source link and serving count are each optional on their own
   inputs:
-    file: crm/contacts.py
+    file: kitchen/recipes.py
     after: |
       from dataclasses import dataclass
 
 
       @dataclass(frozen=True)
-      class Contact:
-          name: str
-          email: str
-          company: str | None = None
-          phone: str | None = None
+      class Recipe:
+          """Any recipe may name the page it came from and how many it serves, or not."""
+
+          title: str
+          method: str
+          source_url: str | None = None
+          serves: int | None = None
   expected_output:
     outcome: valid
-- name: a refund keeps a rejection reason and a payout reference beside the decision that says which applies
+- name: a refund can hold a payout reference while rejected, though only an approved refund is paid out
   inputs:
     file: refunds/models.py
     after: |
@@ -80,6 +82,10 @@ cases:
 
 
       class Refund(BaseModel):
+          """A requested refund has neither field below. An approved refund has the
+          payout reference of the money sent back; a rejected one has the reason it was
+          rejected and no payout."""
+
           order_id: str
           amount_cents: int
           decision: Decision
@@ -87,22 +93,31 @@ cases:
           rejection_reason: str | None = None
   expected_output:
     outcome: invalid
-- name: a Django subscription model keeps a status column beside nullable cancellation columns
+- name: a SQLAlchemy model mapped to the pick tasks table keeps a status column beside nullable columns
   inputs:
-    file: billing/models.py
+    file: warehouse/tables.py
     after: |
-      from django.db import models
+      from datetime import datetime
+
+      from sqlalchemy import String
+      from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 
-      class Subscription(models.Model):
-          class Status(models.TextChoices):
-              ACTIVE = "active"
-              CANCELLED = "cancelled"
+      class Base(DeclarativeBase):
+          pass
 
-          customer = models.ForeignKey("accounts.Customer", on_delete=models.CASCADE)
-          status = models.CharField(max_length=16, choices=Status.choices)
-          cancelled_at = models.DateTimeField(null=True)
-          cancel_reason = models.TextField(null=True)
+
+      class PickTaskRow(Base):
+          """A row of the pick_tasks table, column for column. A picked task has
+          picker_id and picked_at; an open one has neither."""
+
+          __tablename__ = "pick_tasks"
+
+          id: Mapped[int] = mapped_column(primary_key=True)
+          sku: Mapped[str] = mapped_column(String(32))
+          status: Mapped[str] = mapped_column(String(16))
+          picker_id: Mapped[int | None] = mapped_column(nullable=True)
+          picked_at: Mapped[datetime | None] = mapped_column(nullable=True)
   expected_output:
     outcome: valid
 - name: a function formats a contact's display name
@@ -113,27 +128,232 @@ cases:
           return f"{first} {last}".strip()
   expected_output:
     outcome: skipped
-- name: an upload interface keeps progress, a URL and an error as optional fields beside its state
+- name: an edit adds a pickup deadline that only a ready hold has, beside the hold's status
   inputs:
-    file: uploads/upload.ts
+    file: library/holds.py
+    before: |
+      from dataclasses import dataclass
+      from typing import Literal
+
+
+      @dataclass(frozen=True)
+      class Hold:
+          """A hold waits until a copy comes in, is then ready to pick up, and is then
+          collected."""
+
+          book_id: int
+          member_id: int
+          status: Literal["waiting", "ready", "collected"]
     after: |
-      export interface Upload {
-        fileName: string;
-        state: "uploading" | "done" | "failed";
-        percent?: number;
-        url?: string;
-        error?: string;
-      }
+      from dataclasses import dataclass
+      from datetime import date
+      from typing import Literal
+
+
+      @dataclass(frozen=True)
+      class Hold:
+          """A hold waits until a copy comes in, is then ready to pick up, and is then
+          collected. Only a ready hold has the date it's kept until; a waiting or a
+          collected hold has none."""
+
+          book_id: int
+          member_id: int
+          status: Literal["waiting", "ready", "collected"]
+          kept_until: date | None = None
   expected_output:
     outcome: invalid
-- name: an upload is a union of states, each with its own fields
+- name: an edit adds a status that decides which of a booking's existing optional fields are set
   inputs:
-    file: uploads/upload.ts
+    file: restaurant/bookings.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Booking:
+          """A table booking."""
+
+          guest_name: str
+          party_size: int
+          table_number: int | None = None
+          cancel_reason: str | None = None
     after: |
-      export type Upload =
-        | { state: "uploading"; fileName: string; percent: number }
-        | { state: "done"; fileName: string; url: string }
-        | { state: "failed"; fileName: string; error: string };
+      from dataclasses import dataclass
+      from typing import Literal
+
+
+      @dataclass(frozen=True)
+      class Booking:
+          """A requested booking has no table yet. A confirmed booking has a table number.
+          A cancelled booking has the reason it was cancelled and no table."""
+
+          guest_name: str
+          party_size: int
+          status: Literal["requested", "confirmed", "cancelled"]
+          table_number: int | None = None
+          cancel_reason: str | None = None
+  expected_output:
+    outcome: invalid
+- name: an export job TypedDict lets a queued job carry a file path only a finished job has
+  inputs:
+    file: exports/jobs.py
+    after: |
+      from datetime import datetime
+      from typing import Literal, NotRequired, TypedDict
+
+
+      class ExportJob(TypedDict):
+          """The export worker's record of one job. A queued job has neither key below.
+          A running job has started_at; a finished job has started_at and the path of
+          the file it wrote."""
+
+          job_id: str
+          status: Literal["queued", "running", "finished"]
+          started_at: NotRequired[datetime]
+          file_path: NotRequired[str]
+  expected_output:
+    outcome: invalid
+- name: a calendar event allows both a whole-day date and a start time, though it has exactly one
+  inputs:
+    file: calendar_app/events.py
+    after: |
+      from dataclasses import dataclass
+      from datetime import date, datetime
+
+
+      @dataclass(frozen=True)
+      class Event:
+          """An event lasts a whole day or starts at a time: exactly one of on_day and
+          starts_at is set."""
+
+          title: str
+          on_day: date | None = None
+          starts_at: datetime | None = None
+  expected_output:
+    outcome: invalid
+- name: a repair ticket's customer note may be set whatever the ticket's status
+  inputs:
+    file: repairs/tickets.py
+    after: |
+      from dataclasses import dataclass
+      from typing import Literal
+
+
+      @dataclass(frozen=True)
+      class RepairTicket:
+          """A ticket moves from received to repairing to returned. A customer may
+          leave a note at any point, or never."""
+
+          device_serial: str
+          status: Literal["received", "repairing", "returned"]
+          customer_note: str | None = None
+  expected_output:
+    outcome: valid
+- name: a TypedDict mirrors a courier webhook's body as it arrives and is parsed into one type per event
+  inputs:
+    file: courier/webhook.py
+    unchanged:
+      courier/__init__.py: ""
+      courier/events.py: |
+        from dataclasses import dataclass
+        from datetime import datetime
+
+
+        @dataclass(frozen=True)
+        class OutForDelivery:
+            parcel_ref: str
+            driver_name: str
+
+
+        @dataclass(frozen=True)
+        class Delivered:
+            parcel_ref: str
+            delivered_at: datetime
+
+
+        TrackingEvent = OutForDelivery | Delivered
+    after: |
+      from datetime import datetime
+      from typing import Literal, NotRequired, TypedDict
+
+      from courier.events import Delivered, OutForDelivery, TrackingEvent
+
+
+      class CourierWebhookBody(TypedDict):
+          """The JSON body the courier posts, key for key as its API documents it. The
+          courier sends driver_name only with out_for_delivery, and delivered_at only with
+          delivered."""
+
+          parcel_ref: str
+          event: Literal["out_for_delivery", "delivered"]
+          driver_name: NotRequired[str]
+          delivered_at: NotRequired[str]
+
+
+      def to_event(body: CourierWebhookBody) -> TrackingEvent:
+          if body["event"] == "out_for_delivery" and "driver_name" in body:
+              return OutForDelivery(body["parcel_ref"], body["driver_name"])
+          if body["event"] == "delivered" and "delivered_at" in body:
+              return Delivered(body["parcel_ref"], datetime.fromisoformat(body["delivered_at"]))
+          raise ValueError(f"Webhook for {body['parcel_ref']} lacks the key its event needs")
+  expected_output:
+    outcome: valid
+- name: a membership's is_suspended flag repeats its status, which a separate rule judges
+  inputs:
+    file: gym/memberships.py
+    after: |
+      from dataclasses import dataclass
+      from typing import Literal
+
+
+      @dataclass(frozen=True)
+      class Membership:
+          """Any member may choose a display name, whatever the membership's status."""
+
+          member_id: int
+          status: Literal["active", "suspended"]
+          is_suspended: bool
+          display_name: str | None = None
+  expected_output:
+    outcome: valid
+- name: a print job's finish time and jammed tray can be set in any state, though each belongs to one
+  inputs:
+    file: printing/job.ts
+    after: |
+      /**
+       * A queued job has neither field below. A done job has the time it finished; a
+       * jammed job has the tray that jammed.
+       */
+      export type PrintJob = {
+        documentName: string;
+        state: "queued" | "done" | "jammed";
+        finishedAt: Date | undefined;
+        jammedTray: string | undefined;
+      };
+  expected_output:
+    outcome: invalid
+- name: a print job is one of three interfaces, each with the fields its state has
+  inputs:
+    file: printing/job.ts
+    after: |
+      export interface QueuedJob {
+        state: "queued";
+        documentName: string;
+      }
+
+      export interface DoneJob {
+        state: "done";
+        documentName: string;
+        finishedAt: Date;
+      }
+
+      export interface JammedJob {
+        state: "jammed";
+        documentName: string;
+        jammedTray: string;
+      }
+
+      export type PrintJob = QueuedJob | DoneJob | JammedJob;
   expected_output:
     outcome: valid
 - name: search filters are each optional on their own
@@ -145,6 +365,168 @@ cases:
         category?: string;
         maxPriceCents?: number;
         inStockOnly?: boolean;
+      }
+  expected_output:
+    outcome: valid
+- name: an edit adds the name of who accepted a quote, which only an accepted quote has, beside its status
+  inputs:
+    file: sales/quote.ts
+    before: |
+      /** A quote is drafted, then sent to the customer, then accepted. */
+      export interface Quote {
+        customerId: string;
+        totalCents: number;
+        status: "draft" | "sent" | "accepted";
+      }
+    after: |
+      /**
+       * A quote is drafted, then sent to the customer, then accepted. Only an accepted
+       * quote has the name of who accepted it.
+       */
+      export interface Quote {
+        customerId: string;
+        totalCents: number;
+        status: "draft" | "sent" | "accepted";
+        acceptedBy?: string;
+      }
+  expected_output:
+    outcome: invalid
+- name: a seat reservation class lets a held seat carry a confirmation code only a confirmed one has
+  inputs:
+    file: theatre/reservation.ts
+    after: |
+      /**
+       * A held seat has neither field below. A confirmed seat has a confirmation code;
+       * a released seat has the time it was released and no code.
+       */
+      export class SeatReservation {
+        constructor(
+          readonly seat: string,
+          readonly status: "held" | "confirmed" | "released",
+          readonly confirmationCode: string | null,
+          readonly releasedAt: Date | null,
+        ) {}
+      }
+  expected_output:
+    outcome: invalid
+- name: a notification's address fields are all optional beside the enum channel that decides which one it has
+  inputs:
+    file: alerts/notification.ts
+    after: |
+      export enum Channel {
+        Email = "email",
+        Sms = "sms",
+        Push = "push",
+      }
+
+      /**
+       * An email notification has an email address, an SMS one a phone number, a push
+       * one a device token; each has only its own.
+       */
+      export interface Notification {
+        channel: Channel;
+        body: string;
+        emailAddress?: string;
+        phoneNumber?: string;
+        deviceToken?: string;
+      }
+  expected_output:
+    outcome: invalid
+- name: a discount allows both a percentage and a fixed amount off, though it has exactly one
+  inputs:
+    file: checkout/discount.ts
+    after: |
+      /** A discount takes a percentage off or a fixed amount off: exactly one is set. */
+      export interface Discount {
+        code: string;
+        percentOff?: number;
+        amountOffCents?: number;
+      }
+  expected_output:
+    outcome: invalid
+- name: a task's notes may be set whatever the task's status
+  inputs:
+    file: board/task.ts
+    after: |
+      /** A task moves from todo to doing to done. Any task may have notes, or none. */
+      export interface Task {
+        title: string;
+        status: "todo" | "doing" | "done";
+        notes?: string;
+      }
+  expected_output:
+    outcome: valid
+- name: an interface mirrors a payment provider's webhook body as it arrives and is parsed into one type per event
+  inputs:
+    file: payments/webhook.ts
+    unchanged:
+      payments/events.ts: |
+        export interface PaymentSucceeded {
+          kind: "succeeded";
+          paymentRef: string;
+          receiptUrl: string;
+        }
+
+        export interface PaymentFailed {
+          kind: "failed";
+          paymentRef: string;
+          declineCode: string;
+        }
+
+        export type PaymentEvent = PaymentSucceeded | PaymentFailed;
+    after: |
+      import { PaymentEvent } from "./events";
+
+      /**
+       * The JSON body the payment provider posts, key for key as its API documents it.
+       * The provider sends receipt_url only on success, and decline_code only on failure.
+       */
+      export interface ProviderWebhookBody {
+        payment_ref: string;
+        outcome: "succeeded" | "failed";
+        receipt_url?: string;
+        decline_code?: string;
+      }
+
+      export function toPaymentEvent(body: ProviderWebhookBody): PaymentEvent {
+        if (body.outcome === "succeeded" && body.receipt_url !== undefined) {
+          return { kind: "succeeded", paymentRef: body.payment_ref, receiptUrl: body.receipt_url };
+        }
+        if (body.outcome === "failed" && body.decline_code !== undefined) {
+          return { kind: "failed", paymentRef: body.payment_ref, declineCode: body.decline_code };
+        }
+        throw new Error(`Webhook for ${body.payment_ref} lacks the field its outcome needs`);
+      }
+  expected_output:
+    outcome: valid
+- name: a TypeORM entity mapped to the returns table keeps a status column beside nullable columns
+  inputs:
+    file: returns/return-request.entity.ts
+    after: |
+      import { Column, Entity, PrimaryGeneratedColumn } from "typeorm";
+
+      /** A row of the return_requests table. A refunded request has refunded_at. */
+      @Entity("return_requests")
+      export class ReturnRequestRow {
+        @PrimaryGeneratedColumn()
+        id!: number;
+
+        @Column({ type: "varchar", length: 16 })
+        status!: string;
+
+        @Column({ name: "refunded_at", type: "timestamptz", nullable: true })
+        refundedAt!: Date | null;
+      }
+  expected_output:
+    outcome: valid
+- name: an account's isLocked flag repeats its status, which a separate rule judges
+  inputs:
+    file: auth/account.ts
+    after: |
+      export interface Account {
+        username: string;
+        status: "active" | "locked";
+        isLocked: boolean;
       }
   expected_output:
     outcome: valid
