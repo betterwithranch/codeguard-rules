@@ -1,11 +1,7 @@
 id: nontrivial-function
 snapshots:
-  ? |
-    class Order:
-        def total(self):
-            for line in self.lines:
-                yield line.total
-  : labels:
+  "class Order:\n    def total(self):\n        for line in self.lines:\n            yield line.total\n":
+    labels:
     - source: |-
         def total(self):
                 for line in self.lines:
@@ -13,11 +9,8 @@ snapshots:
       style: primary
       start: 17
       end: 94
-  ? |
-    def check(order):
-        if order.total < 0:
-            raise ValueError(order)
-  : labels:
+  "def check(order):\n    if order.total < 0:\n        raise ValueError(order)\n":
+    labels:
     - source: |-
         def check(order):
             if order.total < 0:
@@ -25,91 +18,91 @@ snapshots:
       style: primary
       start: 0
       end: 73
-  ? |
-    def credit(amount):
-        return -amount
-  : labels:
+  "def credit(amount):\n    return -amount\n":
+    labels:
     - source: |-
         def credit(amount):
             return -amount
       style: primary
       start: 0
       end: 38
-  ? |
-    def first(orders):
-        return orders[0]
-  : labels:
+  "def first(orders):\n    return orders[0]\n":
+    labels:
     - source: |-
         def first(orders):
             return orders[0]
       style: primary
       start: 0
       end: 39
-  ? |
-    def is_due(order):
-        return not order.paid
-  : labels:
+  "def is_due(order):\n    return not order.paid\n":
+    labels:
     - source: |-
         def is_due(order):
             return not order.paid
       style: primary
       start: 0
       end: 44
-  ? |
-    def is_late(order, now):
-        return order.due < now
-  : labels:
+  "def is_late(order, now):\n    return order.due < now\n":
+    labels:
     - source: |-
         def is_late(order, now):
             return order.due < now
       style: primary
       start: 0
       end: 51
-  ? |
-    def is_open(order):
-        return order.paid and not order.shipped
-  : labels:
+  "def is_open(order):\n    return order.paid and not order.shipped\n":
+    labels:
     - source: |-
         def is_open(order):
             return order.paid and not order.shipped
       style: primary
       start: 0
       end: 63
-  ? |
-    def label(order):
-        return "paid" if order.paid else "due"
-  : labels:
+  "def label(order):\n    return \"paid\" if order.paid else \"due\"\n":
+    labels:
     - source: |-
         def label(order):
             return "paid" if order.paid else "due"
       style: primary
       start: 0
       end: 60
-  ? |
-    def notify(order):
-        mailer.send(order)
-  : labels:
+  "def notify(order):\n    mailer.send(order)\n":
+    labels:
     - source: |-
         def notify(order):
             mailer.send(order)
       style: primary
       start: 0
       end: 41
-  ? |
-    def total(lines):
-        return sum(lines)
-  : labels:
+  "def quote(entered_at, left_at):\n    return {\"fee_cents\": fee(entered_at, left_at)}\n":
+    labels:
+    - source: |-
+        def quote(entered_at, left_at):
+            return {"fee_cents": fee(entered_at, left_at)}
+      style: primary
+      start: 0
+      end: 82
+  "def tag(self, name):\n    return (\n        \"^XA\"\n        f\"^FD{name.upper()}^FS\"\n    )\n":
+    labels:
+    - source: |-
+        def tag(self, name):
+            return (
+                "^XA"
+                f"^FD{name.upper()}^FS"
+            )
+      style: primary
+      start: 0
+      end: 85
+  "def total(lines):\n    return sum(lines)\n":
+    labels:
     - source: |-
         def total(lines):
             return sum(lines)
       style: primary
       start: 0
       end: 39
-  ? |
-    def total(subtotal, discount):
-        net = subtotal - discount
-        return max(net, 0)
-  : labels:
+  "def total(subtotal, discount):\n    net = subtotal - discount\n    return max(net, 0)\n":
+    labels:
     - source: |-
         def total(subtotal, discount):
             net = subtotal - discount
@@ -117,20 +110,16 @@ snapshots:
       style: primary
       start: 0
       end: 83
-  ? |
-    def total(subtotal, tax):
-        return subtotal + tax
-  : labels:
+  "def total(subtotal, tax):\n    return subtotal + tax\n":
+    labels:
     - source: |-
         def total(subtotal, tax):
             return subtotal + tax
       style: primary
       start: 0
       end: 51
-  ? |
-    def totals(orders):
-        return [order.total for order in orders]
-  : labels:
+  "def totals(orders):\n    return [order.total for order in orders]\n":
+    labels:
     - source: |-
         def totals(orders):
             return [order.total for order in orders]

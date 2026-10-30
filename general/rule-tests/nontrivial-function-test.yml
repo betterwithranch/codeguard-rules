@@ -16,6 +16,10 @@ valid:
 - |
   def total(self):
       return self._total
+# Returns a collection of attributes
+- |
+  def as_dict(self):
+      return {"id": self.id, "name": self.name}
 # Returns a constant
 - |
   def limit():
@@ -69,6 +73,17 @@ invalid:
 - |
   def is_due(order):
       return not order.paid
+# Returns a call inside a collection
+- |
+  def quote(entered_at, left_at):
+      return {"fee_cents": fee(entered_at, left_at)}
+# Returns text built from calls
+- |
+  def tag(self, name):
+      return (
+          "^XA"
+          f"^FD{name.upper()}^FS"
+      )
 # Single expression statement call
 - |
   def notify(order):
