@@ -1,9 +1,9 @@
 ---
-name: comments-explain-why
+name: no-redundant-comments
 description: A comment or docstring states a fact from outside the code; a comment that restates or narrates the code, describes what it used to do or doesn't do, or labels a unit the name already says, and a docstring that only rewords the name or signature, narrates the body or lists the parameters, is a violation.
 ---
 
-# Comments Explain Why
+# No Redundant Comments
 
 A comment or docstring states a fact from outside the code.
 
