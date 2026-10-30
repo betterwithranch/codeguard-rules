@@ -76,12 +76,13 @@ cases:
 
         @dataclass
         class Flight:
-            """booked never exceeds capacity: book() is the only code that changes it,
-            and it refuses a booking that would overbook the flight."""
-
             number: str
             capacity: int
             booked: int = 0
+
+            def __post_init__(self) -> None:
+                if not 0 <= self.booked <= self.capacity:
+                    raise ValueError(f"{self.number}: {self.booked} booked of {self.capacity}")
       flights/booking.py: |
         from flights.models import Flight
 
