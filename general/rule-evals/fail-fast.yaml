@@ -70,6 +70,18 @@ cases:
     file: flights/availability.py
     unchanged:
       flights/__init__.py: ""
+      flights/models.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass
+        class Flight:
+            """booked never exceeds capacity: book() is the only code that changes it,
+            and it refuses a booking that would overbook the flight."""
+
+            number: str
+            capacity: int
+            booked: int = 0
       flights/booking.py: |
         from flights.models import Flight
 
