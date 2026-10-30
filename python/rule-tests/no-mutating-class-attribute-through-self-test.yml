@@ -1,0 +1,234 @@
+id: no-mutating-class-attribute-through-self
+valid:
+  # __init__ rebinding: each instance gets its own list in __init__
+  - |
+    class ExampleCart:
+        items = []
+
+        def __init__(self) -> None:
+            self.items = []
+
+        def add(self, item: str) -> None:
+            self.items.append(item)
+
+  # Mutated through the class: a ClassVar container mutated through type(self)
+  - |
+    from typing import ClassVar
+
+    class ExampleRegistry:
+        handlers: ClassVar[dict[str, str]] = {}
+
+        def register(self, name: str, handler: str) -> None:
+            type(self).handlers[name] = handler
+
+  # Read, not mutated: a class-level container read through self
+  - |
+    class ExampleRouter:
+        routes = {"home": "/"}
+
+        def path(self, name: str) -> str:
+            return self.routes[name]
+
+  # Non-mutating method: a class-level list counted through self
+  - |
+    class ExamplePalette:
+        colors = ["red", "blue"]
+
+        def uses(self, color: str) -> int:
+            return self.colors.count(color)
+
+  # Attribute delete, not item delete: del self.entries removes the attribute
+  - |
+    class ExampleSession:
+        entries = {}
+
+        def close(self) -> None:
+            del self.entries
+
+  # Not a container: a class-level tuple can't be mutated in place
+  - |
+    class ExampleLimits:
+        sizes = ("s", "m", "l")
+
+        def first(self) -> str:
+            return self.sizes[0]
+
+  # Not a class-level binding: a list built per call and mutated locally
+  - |
+    class ExampleReport:
+        def lines(self, title: str) -> list[str]:
+            lines = []
+            lines.append(title)
+            return lines
+
+  # Not a container: a dataclass field with a default factory
+  - |
+    from dataclasses import dataclass, field
+
+    @dataclass
+    class ExampleBasket:
+        items: list[str] = field(default_factory=list)
+
+        def add(self, item: str) -> None:
+            self.items.append(item)
+
+  # Model field: annotated without ClassVar in a class with a base (pydantic copies it)
+  - |
+    from pydantic import BaseModel
+
+    class ExampleArticle(BaseModel):
+        tags: list[str] = []
+
+        def tag(self, label: str) -> None:
+            self.tags.append(label)
+
+  # Augmented assignment of a non-container: an integer counter incremented through self
+  - |
+    class ExampleCounter:
+        count = 0
+
+        def bump(self) -> None:
+            self.count += 1
+
+invalid:
+  # Method call on self.$N, list literal
+  - |
+    class ExampleCart:
+        items = []
+
+        def add(self, item: str) -> None:
+            self.items.append(item)
+
+  # Item assignment on self.$N[...], dict literal
+  - |
+    class ExampleCache:
+        entries = {}
+
+        def put(self, key: str, value: str) -> None:
+            self.entries[key] = value
+
+  # Augmented assignment on self.$N
+  - |
+    class ExampleLog:
+        lines = []
+
+        def write(self, line: str) -> None:
+            self.lines += [line]
+
+  # Augmented assignment on self.$N[...], Counter call
+  - |
+    from collections import Counter
+
+    class ExampleTally:
+        votes = Counter()
+
+        def vote(self, choice: str) -> None:
+            self.votes[choice] += 1
+
+  # Delete of self.$N[...]
+  - |
+    class ExampleCache:
+        entries = {}
+
+        def evict(self, key: str) -> None:
+            del self.entries[key]
+
+  # Method call on self.$N[...]: an item of a defaultdict mutated through self
+  - |
+    from collections import defaultdict
+
+    class ExampleIndex:
+        by_key = defaultdict(list)
+
+        def index(self, key: str, value: str) -> None:
+            self.by_key[key].append(value)
+
+  # Set literal
+  - |
+    class ExampleBlocklist:
+        hosts = {"localhost"}
+
+        def block(self, host: str) -> None:
+            self.hosts.add(host)
+
+  # set() call
+  - |
+    class ExampleSeen:
+        ids = set()
+
+        def mark(self, item_id: int) -> None:
+            self.ids.add(item_id)
+
+  # List comprehension
+  - |
+    class ExampleGrid:
+        cells = [0 for _ in range(9)]
+
+        def mark(self, cell: int) -> None:
+            self.cells.remove(cell)
+
+  # Dict comprehension
+  - |
+    class ExampleTable:
+        rows = {name: 0 for name in ("a", "b")}
+
+        def reset(self) -> None:
+            self.rows.clear()
+
+  # Set comprehension
+  - |
+    class ExampleChannels:
+        names = {f"ch{n}" for n in range(3)}
+
+        def leave(self, name: str) -> None:
+            self.names.discard(name)
+
+  # OrderedDict call
+  - |
+    from collections import OrderedDict
+
+    class ExampleRecent:
+        pages = OrderedDict()
+
+        def visit(self, url: str) -> None:
+            self.pages.update({url: 1})
+
+  # collections.-prefixed call, deque
+  - |
+    import collections
+
+    class ExampleQueue:
+        jobs = collections.deque()
+
+        def push(self, job: str) -> None:
+            self.jobs.appendleft(job)
+
+  # __init__ rebinding only: a rebind in another method doesn't make the container per instance
+  - |
+    class ExampleBuffer:
+        chunks = []
+
+        def reset(self) -> None:
+            self.chunks = []
+
+        def write(self, chunk: bytes) -> None:
+            self.chunks.append(chunk)
+
+  # Model field exemption needs a base: an annotated container in a class without one
+  - |
+    class ExampleShelf:
+        books: list[str] = []
+
+        def shelve(self, title: str) -> None:
+            self.books.append(title)
+
+  # Model field exemption needs no ClassVar: a ClassVar container mutated through self
+  - |
+    from typing import ClassVar
+    from pydantic import BaseModel
+
+    class ExamplePlugin(BaseModel):
+        loaded: ClassVar[list[str]] = []
+
+        def load(self, name: str) -> None:
+            self.loaded.append(name)

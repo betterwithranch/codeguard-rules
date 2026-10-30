@@ -95,6 +95,7 @@ code skip test files:
 | `no-append-in-every-branch` | No loop `if`/`else` that appends to the same list in every branch |
 | `no-assert-on-lookup-field` | Don't assert the field used to find an item |
 | `no-bucket-module-names` | No `utils`, `helpers`, `common`, `shared`, or `contracts` modules |
+| `no-class-level-mutable-container` | No class-level mutable container: a list, dict or set bound in a class body isn't mutated through `self`, which every instance shares |
 | `no-comments-in-tests` | No comments in test files, except tool directives |
 | `no-constructed-test-constants` | No module-level `UPPER = SomeClass(...)` in test files; build it in a fixture |
 | `no-default-constructor-fixtures` | No fixture or test helper that only returns `SomeClass()` |

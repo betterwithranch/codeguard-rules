@@ -1,0 +1,761 @@
+id: no-mutating-class-attribute-through-self
+snapshots:
+  "class ExampleBlocklist:\n    hosts = {\"localhost\"}\n\n    def block(self, host: str) -> None:\n        self.hosts.add(host)\n":
+    labels:
+    - source: self.hosts.add(host)
+      style: primary
+      start: 99
+      end: 119
+    - source: self.hosts
+      style: secondary
+      start: 99
+      end: 109
+    - source: add
+      style: secondary
+      start: 110
+      end: 113
+    - source: self.hosts.add
+      style: secondary
+      start: 99
+      end: 113
+    - source: hosts
+      style: secondary
+      start: 28
+      end: 33
+    - source: "{\"localhost\"}"
+      style: secondary
+      start: 36
+      end: 49
+    - source: hosts = {"localhost"}
+      style: secondary
+      start: 28
+      end: 49
+    - source: hosts = {"localhost"}
+      style: secondary
+      start: 28
+      end: 49
+    - source: hosts = {"localhost"}
+      style: secondary
+      start: 28
+      end: 49
+    - source: |-
+        class ExampleBlocklist:
+            hosts = {"localhost"}
+        
+            def block(self, host: str) -> None:
+                self.hosts.add(host)
+      style: secondary
+      start: 0
+      end: 119
+  "class ExampleBuffer:\n    chunks = []\n\n    def reset(self) -> None:\n        self.chunks = []\n\n    def write(self, chunk: bytes) -> None:\n        self.chunks.append(chunk)\n":
+    labels:
+    - source: self.chunks.append(chunk)
+      style: primary
+      start: 144
+      end: 169
+    - source: self.chunks
+      style: secondary
+      start: 144
+      end: 155
+    - source: append
+      style: secondary
+      start: 156
+      end: 162
+    - source: self.chunks.append
+      style: secondary
+      start: 144
+      end: 162
+    - source: chunks
+      style: secondary
+      start: 25
+      end: 31
+    - source: "[]"
+      style: secondary
+      start: 34
+      end: 36
+    - source: chunks = []
+      style: secondary
+      start: 25
+      end: 36
+    - source: chunks = []
+      style: secondary
+      start: 25
+      end: 36
+    - source: chunks = []
+      style: secondary
+      start: 25
+      end: 36
+    - source: |-
+        class ExampleBuffer:
+            chunks = []
+        
+            def reset(self) -> None:
+                self.chunks = []
+        
+            def write(self, chunk: bytes) -> None:
+                self.chunks.append(chunk)
+      style: secondary
+      start: 0
+      end: 169
+  "class ExampleCache:\n    entries = {}\n\n    def evict(self, key: str) -> None:\n        del self.entries[key]\n":
+    labels:
+    - source: del self.entries[key]
+      style: primary
+      start: 85
+      end: 106
+    - source: self.entries
+      style: secondary
+      start: 89
+      end: 101
+    - source: self.entries[key]
+      style: secondary
+      start: 89
+      end: 106
+    - source: entries
+      style: secondary
+      start: 24
+      end: 31
+    - source: "{}"
+      style: secondary
+      start: 34
+      end: 36
+    - source: entries = {}
+      style: secondary
+      start: 24
+      end: 36
+    - source: entries = {}
+      style: secondary
+      start: 24
+      end: 36
+    - source: entries = {}
+      style: secondary
+      start: 24
+      end: 36
+    - source: |-
+        class ExampleCache:
+            entries = {}
+        
+            def evict(self, key: str) -> None:
+                del self.entries[key]
+      style: secondary
+      start: 0
+      end: 106
+  "class ExampleCache:\n    entries = {}\n\n    def put(self, key: str, value: str) -> None:\n        self.entries[key] = value\n":
+    labels:
+    - source: self.entries[key] = value
+      style: primary
+      start: 95
+      end: 120
+    - source: self.entries
+      style: secondary
+      start: 95
+      end: 107
+    - source: self.entries[key]
+      style: secondary
+      start: 95
+      end: 112
+    - source: entries
+      style: secondary
+      start: 24
+      end: 31
+    - source: "{}"
+      style: secondary
+      start: 34
+      end: 36
+    - source: entries = {}
+      style: secondary
+      start: 24
+      end: 36
+    - source: entries = {}
+      style: secondary
+      start: 24
+      end: 36
+    - source: entries = {}
+      style: secondary
+      start: 24
+      end: 36
+    - source: |-
+        class ExampleCache:
+            entries = {}
+        
+            def put(self, key: str, value: str) -> None:
+                self.entries[key] = value
+      style: secondary
+      start: 0
+      end: 120
+  "class ExampleCart:\n    items = []\n\n    def add(self, item: str) -> None:\n        self.items.append(item)\n":
+    labels:
+    - source: self.items.append(item)
+      style: primary
+      start: 81
+      end: 104
+    - source: self.items
+      style: secondary
+      start: 81
+      end: 91
+    - source: append
+      style: secondary
+      start: 92
+      end: 98
+    - source: self.items.append
+      style: secondary
+      start: 81
+      end: 98
+    - source: items
+      style: secondary
+      start: 23
+      end: 28
+    - source: "[]"
+      style: secondary
+      start: 31
+      end: 33
+    - source: items = []
+      style: secondary
+      start: 23
+      end: 33
+    - source: items = []
+      style: secondary
+      start: 23
+      end: 33
+    - source: items = []
+      style: secondary
+      start: 23
+      end: 33
+    - source: |-
+        class ExampleCart:
+            items = []
+        
+            def add(self, item: str) -> None:
+                self.items.append(item)
+      style: secondary
+      start: 0
+      end: 104
+  "class ExampleChannels:\n    names = {f\"ch{n}\" for n in range(3)}\n\n    def leave(self, name: str) -> None:\n        self.names.discard(name)\n":
+    labels:
+    - source: self.names.discard(name)
+      style: primary
+      start: 113
+      end: 137
+    - source: self.names
+      style: secondary
+      start: 113
+      end: 123
+    - source: discard
+      style: secondary
+      start: 124
+      end: 131
+    - source: self.names.discard
+      style: secondary
+      start: 113
+      end: 131
+    - source: names
+      style: secondary
+      start: 27
+      end: 32
+    - source: "{f\"ch{n}\" for n in range(3)}"
+      style: secondary
+      start: 35
+      end: 63
+    - source: names = {f"ch{n}" for n in range(3)}
+      style: secondary
+      start: 27
+      end: 63
+    - source: names = {f"ch{n}" for n in range(3)}
+      style: secondary
+      start: 27
+      end: 63
+    - source: names = {f"ch{n}" for n in range(3)}
+      style: secondary
+      start: 27
+      end: 63
+    - source: |-
+        class ExampleChannels:
+            names = {f"ch{n}" for n in range(3)}
+        
+            def leave(self, name: str) -> None:
+                self.names.discard(name)
+      style: secondary
+      start: 0
+      end: 137
+  "class ExampleGrid:\n    cells = [0 for _ in range(9)]\n\n    def mark(self, cell: int) -> None:\n        self.cells.remove(cell)\n":
+    labels:
+    - source: self.cells.remove(cell)
+      style: primary
+      start: 101
+      end: 124
+    - source: self.cells
+      style: secondary
+      start: 101
+      end: 111
+    - source: remove
+      style: secondary
+      start: 112
+      end: 118
+    - source: self.cells.remove
+      style: secondary
+      start: 101
+      end: 118
+    - source: cells
+      style: secondary
+      start: 23
+      end: 28
+    - source: "[0 for _ in range(9)]"
+      style: secondary
+      start: 31
+      end: 52
+    - source: cells = [0 for _ in range(9)]
+      style: secondary
+      start: 23
+      end: 52
+    - source: cells = [0 for _ in range(9)]
+      style: secondary
+      start: 23
+      end: 52
+    - source: cells = [0 for _ in range(9)]
+      style: secondary
+      start: 23
+      end: 52
+    - source: |-
+        class ExampleGrid:
+            cells = [0 for _ in range(9)]
+        
+            def mark(self, cell: int) -> None:
+                self.cells.remove(cell)
+      style: secondary
+      start: 0
+      end: 124
+  "class ExampleLog:\n    lines = []\n\n    def write(self, line: str) -> None:\n        self.lines += [line]\n":
+    labels:
+    - source: self.lines += [line]
+      style: primary
+      start: 82
+      end: 102
+    - source: self.lines
+      style: secondary
+      start: 82
+      end: 92
+    - source: lines
+      style: secondary
+      start: 22
+      end: 27
+    - source: "[]"
+      style: secondary
+      start: 30
+      end: 32
+    - source: lines = []
+      style: secondary
+      start: 22
+      end: 32
+    - source: lines = []
+      style: secondary
+      start: 22
+      end: 32
+    - source: lines = []
+      style: secondary
+      start: 22
+      end: 32
+    - source: |-
+        class ExampleLog:
+            lines = []
+        
+            def write(self, line: str) -> None:
+                self.lines += [line]
+      style: secondary
+      start: 0
+      end: 102
+  "class ExampleSeen:\n    ids = set()\n\n    def mark(self, item_id: int) -> None:\n        self.ids.add(item_id)\n":
+    labels:
+    - source: self.ids.add(item_id)
+      style: primary
+      start: 86
+      end: 107
+    - source: self.ids
+      style: secondary
+      start: 86
+      end: 94
+    - source: add
+      style: secondary
+      start: 95
+      end: 98
+    - source: self.ids.add
+      style: secondary
+      start: 86
+      end: 98
+    - source: ids
+      style: secondary
+      start: 23
+      end: 26
+    - source: set
+      style: secondary
+      start: 29
+      end: 32
+    - source: set()
+      style: secondary
+      start: 29
+      end: 34
+    - source: ids = set()
+      style: secondary
+      start: 23
+      end: 34
+    - source: ids = set()
+      style: secondary
+      start: 23
+      end: 34
+    - source: ids = set()
+      style: secondary
+      start: 23
+      end: 34
+    - source: |-
+        class ExampleSeen:
+            ids = set()
+        
+            def mark(self, item_id: int) -> None:
+                self.ids.add(item_id)
+      style: secondary
+      start: 0
+      end: 107
+  "class ExampleShelf:\n    books: list[str] = []\n\n    def shelve(self, title: str) -> None:\n        self.books.append(title)\n":
+    labels:
+    - source: self.books.append(title)
+      style: primary
+      start: 97
+      end: 121
+    - source: self.books
+      style: secondary
+      start: 97
+      end: 107
+    - source: append
+      style: secondary
+      start: 108
+      end: 114
+    - source: self.books.append
+      style: secondary
+      start: 97
+      end: 114
+    - source: books
+      style: secondary
+      start: 24
+      end: 29
+    - source: "[]"
+      style: secondary
+      start: 43
+      end: 45
+    - source: "books: list[str] = []"
+      style: secondary
+      start: 24
+      end: 45
+    - source: "books: list[str] = []"
+      style: secondary
+      start: 24
+      end: 45
+    - source: "books: list[str] = []"
+      style: secondary
+      start: 24
+      end: 45
+    - source: |-
+        class ExampleShelf:
+            books: list[str] = []
+        
+            def shelve(self, title: str) -> None:
+                self.books.append(title)
+      style: secondary
+      start: 0
+      end: 121
+  "class ExampleTable:\n    rows = {name: 0 for name in (\"a\", \"b\")}\n\n    def reset(self) -> None:\n        self.rows.clear()\n":
+    labels:
+    - source: self.rows.clear()
+      style: primary
+      start: 102
+      end: 119
+    - source: self.rows
+      style: secondary
+      start: 102
+      end: 111
+    - source: clear
+      style: secondary
+      start: 112
+      end: 117
+    - source: self.rows.clear
+      style: secondary
+      start: 102
+      end: 117
+    - source: rows
+      style: secondary
+      start: 24
+      end: 28
+    - source: "{name: 0 for name in (\"a\", \"b\")}"
+      style: secondary
+      start: 31
+      end: 63
+    - source: "rows = {name: 0 for name in (\"a\", \"b\")}"
+      style: secondary
+      start: 24
+      end: 63
+    - source: "rows = {name: 0 for name in (\"a\", \"b\")}"
+      style: secondary
+      start: 24
+      end: 63
+    - source: "rows = {name: 0 for name in (\"a\", \"b\")}"
+      style: secondary
+      start: 24
+      end: 63
+    - source: |-
+        class ExampleTable:
+            rows = {name: 0 for name in ("a", "b")}
+        
+            def reset(self) -> None:
+                self.rows.clear()
+      style: secondary
+      start: 0
+      end: 119
+  "from collections import Counter\n\nclass ExampleTally:\n    votes = Counter()\n\n    def vote(self, choice: str) -> None:\n        self.votes[choice] += 1\n":
+    labels:
+    - source: self.votes[choice] += 1
+      style: primary
+      start: 125
+      end: 148
+    - source: self.votes
+      style: secondary
+      start: 125
+      end: 135
+    - source: self.votes[choice]
+      style: secondary
+      start: 125
+      end: 143
+    - source: votes
+      style: secondary
+      start: 57
+      end: 62
+    - source: Counter
+      style: secondary
+      start: 65
+      end: 72
+    - source: Counter()
+      style: secondary
+      start: 65
+      end: 74
+    - source: votes = Counter()
+      style: secondary
+      start: 57
+      end: 74
+    - source: votes = Counter()
+      style: secondary
+      start: 57
+      end: 74
+    - source: votes = Counter()
+      style: secondary
+      start: 57
+      end: 74
+    - source: |-
+        class ExampleTally:
+            votes = Counter()
+        
+            def vote(self, choice: str) -> None:
+                self.votes[choice] += 1
+      style: secondary
+      start: 33
+      end: 148
+  "from collections import OrderedDict\n\nclass ExampleRecent:\n    pages = OrderedDict()\n\n    def visit(self, url: str) -> None:\n        self.pages.update({url: 1})\n":
+    labels:
+    - source: "self.pages.update({url: 1})"
+      style: primary
+      start: 132
+      end: 159
+    - source: self.pages
+      style: secondary
+      start: 132
+      end: 142
+    - source: update
+      style: secondary
+      start: 143
+      end: 149
+    - source: self.pages.update
+      style: secondary
+      start: 132
+      end: 149
+    - source: pages
+      style: secondary
+      start: 62
+      end: 67
+    - source: OrderedDict
+      style: secondary
+      start: 70
+      end: 81
+    - source: OrderedDict()
+      style: secondary
+      start: 70
+      end: 83
+    - source: pages = OrderedDict()
+      style: secondary
+      start: 62
+      end: 83
+    - source: pages = OrderedDict()
+      style: secondary
+      start: 62
+      end: 83
+    - source: pages = OrderedDict()
+      style: secondary
+      start: 62
+      end: 83
+    - source: |-
+        class ExampleRecent:
+            pages = OrderedDict()
+        
+            def visit(self, url: str) -> None:
+                self.pages.update({url: 1})
+      style: secondary
+      start: 37
+      end: 159
+  "from collections import defaultdict\n\nclass ExampleIndex:\n    by_key = defaultdict(list)\n\n    def index(self, key: str, value: str) -> None:\n        self.by_key[key].append(value)\n":
+    labels:
+    - source: self.by_key[key].append(value)
+      style: primary
+      start: 148
+      end: 178
+    - source: self.by_key
+      style: secondary
+      start: 148
+      end: 159
+    - source: self.by_key[key]
+      style: secondary
+      start: 148
+      end: 164
+    - source: append
+      style: secondary
+      start: 165
+      end: 171
+    - source: self.by_key[key].append
+      style: secondary
+      start: 148
+      end: 171
+    - source: by_key
+      style: secondary
+      start: 61
+      end: 67
+    - source: defaultdict
+      style: secondary
+      start: 70
+      end: 81
+    - source: defaultdict(list)
+      style: secondary
+      start: 70
+      end: 87
+    - source: by_key = defaultdict(list)
+      style: secondary
+      start: 61
+      end: 87
+    - source: by_key = defaultdict(list)
+      style: secondary
+      start: 61
+      end: 87
+    - source: by_key = defaultdict(list)
+      style: secondary
+      start: 61
+      end: 87
+    - source: |-
+        class ExampleIndex:
+            by_key = defaultdict(list)
+        
+            def index(self, key: str, value: str) -> None:
+                self.by_key[key].append(value)
+      style: secondary
+      start: 37
+      end: 178
+  "from typing import ClassVar\nfrom pydantic import BaseModel\n\nclass ExamplePlugin(BaseModel):\n    loaded: ClassVar[list[str]] = []\n\n    def load(self, name: str) -> None:\n        self.loaded.append(name)\n":
+    labels:
+    - source: self.loaded.append(name)
+      style: primary
+      start: 177
+      end: 201
+    - source: self.loaded
+      style: secondary
+      start: 177
+      end: 188
+    - source: append
+      style: secondary
+      start: 189
+      end: 195
+    - source: self.loaded.append
+      style: secondary
+      start: 177
+      end: 195
+    - source: loaded
+      style: secondary
+      start: 96
+      end: 102
+    - source: "[]"
+      style: secondary
+      start: 126
+      end: 128
+    - source: "loaded: ClassVar[list[str]] = []"
+      style: secondary
+      start: 96
+      end: 128
+    - source: "loaded: ClassVar[list[str]] = []"
+      style: secondary
+      start: 96
+      end: 128
+    - source: "loaded: ClassVar[list[str]] = []"
+      style: secondary
+      start: 96
+      end: 128
+    - source: |-
+        class ExamplePlugin(BaseModel):
+            loaded: ClassVar[list[str]] = []
+        
+            def load(self, name: str) -> None:
+                self.loaded.append(name)
+      style: secondary
+      start: 60
+      end: 201
+  "import collections\n\nclass ExampleQueue:\n    jobs = collections.deque()\n\n    def push(self, job: str) -> None:\n        self.jobs.appendleft(job)\n":
+    labels:
+    - source: self.jobs.appendleft(job)
+      style: primary
+      start: 118
+      end: 143
+    - source: self.jobs
+      style: secondary
+      start: 118
+      end: 127
+    - source: appendleft
+      style: secondary
+      start: 128
+      end: 138
+    - source: self.jobs.appendleft
+      style: secondary
+      start: 118
+      end: 138
+    - source: jobs
+      style: secondary
+      start: 44
+      end: 48
+    - source: collections.deque
+      style: secondary
+      start: 51
+      end: 68
+    - source: collections.deque()
+      style: secondary
+      start: 51
+      end: 70
+    - source: jobs = collections.deque()
+      style: secondary
+      start: 44
+      end: 70
+    - source: jobs = collections.deque()
+      style: secondary
+      start: 44
+      end: 70
+    - source: jobs = collections.deque()
+      style: secondary
+      start: 44
+      end: 70
+    - source: |-
+        class ExampleQueue:
+            jobs = collections.deque()
+        
+            def push(self, job: str) -> None:
+                self.jobs.appendleft(job)
+      style: secondary
+      start: 20
+      end: 143
