@@ -196,14 +196,22 @@ cases:
       }
   expected_output:
     outcome: valid
-- name: a missing exchange rate for an invoice's own currency converts at one to one, so the total comes out in the wrong money
+- name: a rate table typed to hold every invoice currency falls back to one to one, so a missing rate comes out in the wrong money
   inputs:
     file: billing/convert.ts
+    unchanged:
+      billing/invoice.ts: |
+        export type Currency = "USD" | "GBP" | "JPY";
+
+        export interface Invoice {
+          currency: Currency;
+          totalCents: number;
+        }
     after: |
       import type { Currency, Invoice } from "./invoice";
 
-      export function totalInEuros(invoice: Invoice, eurRates: Map<Currency, number>): number {
-        const rate = eurRates.get(invoice.currency) ?? 1;
+      export function totalInEuros(invoice: Invoice, eurRates: Record<Currency, number>): number {
+        const rate = eurRates[invoice.currency] ?? 1;
         return invoice.totalCents * rate;
       }
   expected_output:
@@ -233,6 +241,7 @@ cases:
           kwh: number;
         }
 
+        /** The line's reading, or undefined when the line can't be parsed. */
         export function parseReading(line: string): Reading | undefined {
           const [meterId, kwh] = line.split(",");
           const value = Number(kwh);
