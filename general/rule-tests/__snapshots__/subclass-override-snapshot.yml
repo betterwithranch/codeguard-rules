@@ -1,10 +1,7 @@
 id: subclass-override
 snapshots:
-  ? |
-    class CheckingFakeQueue(FakeQueue):
-        def enqueue(self, name, message):
-            assert message
-  : labels:
+  "class CheckingFakeQueue(FakeQueue):\n    def enqueue(self, name, message):\n        assert message\n":
+    labels:
     - source: |-
         def enqueue(self, name, message):
                 assert message
@@ -26,11 +23,8 @@ snapshots:
       style: secondary
       start: 0
       end: 96
-  ? |
-    class FailingClient(FakeClient):
-        async def fetch(self, path):
-            raise TimeoutError
-  : labels:
+  "class FailingClient(FakeClient):\n    async def fetch(self, path):\n        raise TimeoutError\n":
+    labels:
     - source: |-
         async def fetch(self, path):
                 raise TimeoutError
@@ -52,12 +46,8 @@ snapshots:
       style: secondary
       start: 0
       end: 92
-  ? |
-    class FixedRates(FakeRates):
-        @property
-        def currency(self):
-            return "EUR"
-  : labels:
+  "class FixedRates(FakeRates):\n    @property\n    def currency(self):\n        return \"EUR\"\n":
+    labels:
     - source: |-
         def currency(self):
                 return "EUR"
@@ -80,11 +70,8 @@ snapshots:
       style: secondary
       start: 0
       end: 87
-  ? |
-    class RecordingMailer(fakes.FakeMailer):
-        def send(self, message):
-            self.sent_count += 1
-  : labels:
+  "class RecordingMailer(fakes.FakeMailer):\n    def send(self, message):\n        self.sent_count += 1\n":
+    labels:
     - source: |-
         def send(self, message):
                 self.sent_count += 1
@@ -106,12 +93,8 @@ snapshots:
       style: secondary
       start: 0
       end: 98
-  ? |
-    class SeededStore(FakeStore):
-        def __init__(self):
-            super().__init__()
-            self.rows = [1]
-  : labels:
+  "class SeededStore(FakeStore):\n    def __init__(self):\n        super().__init__()\n        self.rows = [1]\n":
+    labels:
     - source: |-
         def __init__(self):
                 super().__init__()

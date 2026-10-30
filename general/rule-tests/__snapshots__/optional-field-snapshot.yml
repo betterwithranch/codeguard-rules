@@ -1,0 +1,76 @@
+id: optional-field
+snapshots:
+  "class Parcel:\n    def __init__(self):\n        self.note: str | None = None\n":
+    labels:
+    - source: "self.note: str | None = None"
+      style: primary
+      start: 46
+      end: 74
+    - source: self.note
+      style: secondary
+      start: 46
+      end: 55
+    - source: str | None
+      style: secondary
+      start: 57
+      end: 67
+  "class Parcel:\n    note: Optional[str]\n":
+    labels:
+    - source: "note: Optional[str]"
+      style: primary
+      start: 18
+      end: 37
+    - source: |-
+        class Parcel:
+            note: Optional[str]
+      style: secondary
+      start: 0
+      end: 37
+    - source: "note: Optional[str]"
+      style: secondary
+      start: 18
+      end: 37
+    - source: "note: Optional[str]"
+      style: secondary
+      start: 18
+      end: 37
+    - source: Optional[str]
+      style: secondary
+      start: 24
+      end: 37
+  "class Parcel:\n    note: str | None = None\n":
+    labels:
+    - source: "note: str | None = None"
+      style: primary
+      start: 18
+      end: 41
+    - source: |-
+        class Parcel:
+            note: str | None = None
+      style: secondary
+      start: 0
+      end: 41
+    - source: "note: str | None = None"
+      style: secondary
+      start: 18
+      end: 41
+    - source: "note: str | None = None"
+      style: secondary
+      start: 18
+      end: 41
+    - source: str | None
+      style: secondary
+      start: 24
+      end: 34
+  "shipped_at = mapped_column(DateTime, nullable=True)\n":
+    labels:
+    - source: nullable=True
+      style: primary
+      start: 37
+      end: 50
+  "shipped_at = models.DateTimeField(null=True)\n":
+    labels:
+    - source: null=True
+      style: primary
+      start: 34
+      end: 43

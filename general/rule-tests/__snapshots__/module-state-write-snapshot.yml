@@ -1,12 +1,7 @@
 id: module-state-write
 snapshots:
-  ? |
-    LIMIT = 10
-    _seen = set()
-
-    def mark(key):
-        _seen.add(key)
-  : labels:
+  "LIMIT = 10\n_seen = set()\n\ndef mark(key):\n    _seen.add(key)\n":
+    labels:
     - source: _seen.add(key)
       style: primary
       start: 45
@@ -44,18 +39,14 @@ snapshots:
     - source: |
         LIMIT = 10
         _seen = set()
-
+        
         def mark(key):
             _seen.add(key)
       style: secondary
       start: 0
       end: 60
-  ? |
-    _CACHE = {}
-
-    def remember(key, value):
-        _CACHE[key] = value
-  : labels:
+  "_CACHE = {}\n\ndef remember(key, value):\n    _CACHE[key] = value\n":
+    labels:
     - source: _CACHE[key] = value
       style: primary
       start: 43
@@ -88,30 +79,20 @@ snapshots:
       end: 11
     - source: |
         _CACHE = {}
-
+        
         def remember(key, value):
             _CACHE[key] = value
       style: secondary
       start: 0
       end: 63
-  ? |
-    _count = 0
-
-    def next_id():
-        global _count
-        _count += 1
-        return _count
-  : labels:
+  "_count = 0\n\ndef next_id():\n    global _count\n    _count += 1\n    return _count\n":
+    labels:
     - source: global _count
       style: primary
       start: 31
       end: 44
-  ? |
-    _counts: dict[str, int] = {}
-
-    def count(key):
-        _counts[key] += 1
-  : labels:
+  "_counts: dict[str, int] = {}\n\ndef count(key):\n    _counts[key] += 1\n":
+    labels:
     - source: _counts[key] += 1
       style: primary
       start: 50
@@ -134,28 +115,24 @@ snapshots:
       style: secondary
       start: 0
       end: 7
-    - source: '_counts: dict[str, int] = {}'
+    - source: "_counts: dict[str, int] = {}"
       style: secondary
       start: 0
       end: 28
-    - source: '_counts: dict[str, int] = {}'
+    - source: "_counts: dict[str, int] = {}"
       style: secondary
       start: 0
       end: 28
     - source: |
         _counts: dict[str, int] = {}
-
+        
         def count(key):
             _counts[key] += 1
       style: secondary
       start: 0
       end: 68
-  ? |
-    _errors = []
-
-    def check(order):
-        _errors.append(order)
-  : labels:
+  "_errors = []\n\ndef check(order):\n    _errors.append(order)\n":
+    labels:
     - source: _errors.append(order)
       style: primary
       start: 36
@@ -192,21 +169,14 @@ snapshots:
       end: 12
     - source: |
         _errors = []
-
+        
         def check(order):
             _errors.append(order)
       style: secondary
       start: 0
       end: 58
-  ? |
-    _handlers = {}
-
-    def handles(kind):
-        def register(handler):
-            _handlers[kind] = handler
-            return handler
-        return register
-  : labels:
+  "_handlers = {}\n\ndef handles(kind):\n    def register(handler):\n        _handlers[kind] = handler\n        return handler\n    return register\n":
+    labels:
     - source: _handlers[kind] = handler
       style: primary
       start: 70
@@ -240,7 +210,7 @@ snapshots:
       end: 14
     - source: |
         _handlers = {}
-
+        
         def handles(kind):
             def register(handler):
                 _handlers[kind] = handler
@@ -249,13 +219,8 @@ snapshots:
       style: secondary
       start: 0
       end: 139
-  ? |
-    class ExampleCart:
-        items = []
-
-        def add(self, item):
-            self.items.append(item)
-  : labels:
+  "class ExampleCart:\n    items = []\n\n    def add(self, item):\n        self.items.append(item)\n":
+    labels:
     - source: self.items.append(item)
       style: primary
       start: 68
@@ -280,7 +245,7 @@ snapshots:
       style: secondary
       start: 23
       end: 28
-    - source: '[]'
+    - source: "[]"
       style: secondary
       start: 31
       end: 33
@@ -299,20 +264,14 @@ snapshots:
     - source: |-
         class ExampleCart:
             items = []
-
+        
             def add(self, item):
                 self.items.append(item)
       style: secondary
       start: 0
       end: 91
-  ? |
-    class ExampleCart:
-        label = "cart"
-        items = []
-
-        def add(self, item):
-            self.items.append(item)
-  : labels:
+  "class ExampleCart:\n    label = \"cart\"\n    items = []\n\n    def add(self, item):\n        self.items.append(item)\n":
+    labels:
     - source: self.items.append(item)
       style: primary
       start: 87
@@ -337,7 +296,7 @@ snapshots:
       style: secondary
       start: 42
       end: 47
-    - source: '[]'
+    - source: "[]"
       style: secondary
       start: 50
       end: 52
@@ -357,20 +316,14 @@ snapshots:
         class ExampleCart:
             label = "cart"
             items = []
-
+        
             def add(self, item):
                 self.items.append(item)
       style: secondary
       start: 0
       end: 110
-  ? |
-    class ExampleRegistry:
-        entries = defaultdict(list)
-
-        @classmethod
-        def put(cls, key, value):
-            cls.entries[key] = value
-  : labels:
+  "class ExampleRegistry:\n    entries = defaultdict(list)\n\n    @classmethod\n    def put(cls, key, value):\n        cls.entries[key] = value\n":
+    labels:
     - source: cls.entries[key] = value
       style: primary
       start: 111
@@ -414,7 +367,7 @@ snapshots:
     - source: |-
         class ExampleRegistry:
             entries = defaultdict(list)
-
+        
             @classmethod
             def put(cls, key, value):
                 cls.entries[key] = value

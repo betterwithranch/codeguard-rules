@@ -1,8 +1,7 @@
 id: defaulted-value
 snapshots:
-  ? |
-    ExampleInvoice(created_at=datetime.now(UTC), total=example_total)
-  : labels:
+  "ExampleInvoice(created_at=datetime.now(UTC), total=example_total)\n":
+    labels:
     - source: (created_at=datetime.now(UTC), total=example_total)
       style: primary
       start: 14
@@ -15,9 +14,8 @@ snapshots:
       style: secondary
       start: 26
       end: 43
-  ? |
-    ExampleInvoice(invoice_id=str(uuid.uuid4()), total=example_total)
-  : labels:
+  "ExampleInvoice(invoice_id=str(uuid.uuid4()), total=example_total)\n":
+    labels:
     - source: (invoice_id=str(uuid.uuid4()), total=example_total)
       style: primary
       start: 14
@@ -30,9 +28,8 @@ snapshots:
       style: secondary
       start: 30
       end: 42
-  ? |
-    ExampleInvoice(uuid4(), example_total)
-  : labels:
+  "ExampleInvoice(uuid4(), example_total)\n":
+    labels:
     - source: (uuid4(), example_total)
       style: primary
       start: 14
@@ -45,9 +42,8 @@ snapshots:
       style: secondary
       start: 15
       end: 22
-  ? |
-    ExampleSession(token=secrets.token_hex(16))
-  : labels:
+  "ExampleSession(token=secrets.token_hex(16))\n":
+    labels:
     - source: (token=secrets.token_hex(16))
       style: primary
       start: 14
@@ -60,16 +56,14 @@ snapshots:
       style: secondary
       start: 21
       end: 42
-  ? |
-    carrier = carrier if carrier else "fast"
-  : labels:
+  "carrier = carrier if carrier else \"fast\"\n":
+    labels:
     - source: carrier if carrier else "fast"
       style: primary
       start: 10
       end: 40
-  ? |
-    currency = example_data.get("currency", "EUR")
-  : labels:
+  "currency = example_data.get(\"currency\", \"EUR\")\n":
+    labels:
     - source: example_data.get("currency", "EUR")
       style: primary
       start: 11
@@ -78,17 +72,16 @@ snapshots:
       style: secondary
       start: 11
       end: 27
-    - source: '"EUR"'
+    - source: "\"EUR\""
       style: secondary
       start: 40
       end: 45
-    - source: '"EUR"'
+    - source: "\"EUR\""
       style: secondary
       start: 40
       end: 45
-  ? |
-    currency = example_data.pop("currency", "EUR")
-  : labels:
+  "currency = example_data.pop(\"currency\", \"EUR\")\n":
+    labels:
     - source: example_data.pop("currency", "EUR")
       style: primary
       start: 11
@@ -97,17 +90,16 @@ snapshots:
       style: secondary
       start: 11
       end: 27
-    - source: '"EUR"'
+    - source: "\"EUR\""
       style: secondary
       start: 40
       end: 45
-    - source: '"EUR"'
+    - source: "\"EUR\""
       style: secondary
       start: 40
       end: 45
-  ? |
-    currency = getattr(example_settings, "currency", "EUR")
-  : labels:
+  "currency = getattr(example_settings, \"currency\", \"EUR\")\n":
+    labels:
     - source: getattr(example_settings, "currency", "EUR")
       style: primary
       start: 11
@@ -116,33 +108,28 @@ snapshots:
       style: secondary
       start: 11
       end: 18
-    - source: '"currency"'
+    - source: "\"currency\""
       style: secondary
       start: 37
       end: 47
-    - source: '"currency"'
+    - source: "\"currency\""
       style: secondary
       start: 37
       end: 47
-  ? |
-    def example_book(example_id, carrier="fast"):
-        return carrier
-  : labels:
+  "def example_book(example_id, carrier=\"fast\"):\n    return carrier\n":
+    labels:
     - source: carrier="fast"
       style: primary
       start: 29
       end: 43
-  ? |
-    def example_book(example_id: str, carrier: str | None = None):
-        return carrier
-  : labels:
-    - source: 'carrier: str | None = None'
+  "def example_book(example_id: str, carrier: str | None = None):\n    return carrier\n":
+    labels:
+    - source: "carrier: str | None = None"
       style: primary
       start: 34
       end: 60
-  ? |
-    example_data.setdefault("currency", "EUR")
-  : labels:
+  "example_data.setdefault(\"currency\", \"EUR\")\n":
+    labels:
     - source: example_data.setdefault("currency", "EUR")
       style: primary
       start: 0
@@ -151,25 +138,22 @@ snapshots:
       style: secondary
       start: 0
       end: 23
-    - source: '"EUR"'
+    - source: "\"EUR\""
       style: secondary
       start: 36
       end: 41
-    - source: '"EUR"'
+    - source: "\"EUR\""
       style: secondary
       start: 36
       end: 41
-  ? |
-    example_id = example_id or new_example_id()
-  : labels:
+  "example_id = example_id or new_example_id()\n":
+    labels:
     - source: example_id or new_example_id()
       style: primary
       start: 13
       end: 43
-  ? |
-    if carrier is None:
-        carrier = "fast"
-  : labels:
+  "if carrier is None:\n    carrier = \"fast\"\n":
+    labels:
     - source: |-
         if carrier is None:
             carrier = "fast"
@@ -180,10 +164,8 @@ snapshots:
       style: secondary
       start: 3
       end: 18
-  ? |
-    if carrier is None:
-        carrier = DEFAULT_CARRIER
-  : labels:
+  "if carrier is None:\n    carrier = DEFAULT_CARRIER\n":
+    labels:
     - source: |-
         if carrier is None:
             carrier = DEFAULT_CARRIER
@@ -194,10 +176,8 @@ snapshots:
       style: secondary
       start: 3
       end: 18
-  ? |
-    if not carrier:
-        carrier = "fast"
-  : labels:
+  "if not carrier:\n    carrier = \"fast\"\n":
+    labels:
     - source: |-
         if not carrier:
             carrier = "fast"
@@ -208,9 +188,8 @@ snapshots:
       style: secondary
       start: 3
       end: 14
-  ? |
-    ok = carrier is not None
-  : labels:
+  "ok = carrier is not None\n":
+    labels:
     - source: carrier is not None
       style: primary
       start: 5

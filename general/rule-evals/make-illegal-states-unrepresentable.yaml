@@ -1,0 +1,150 @@
+cases:
+- name: a delivery's tracking number and delivery time are optional beside a status that decides which one exists
+  inputs:
+    file: shipping/delivery.py
+    after: |
+      from dataclasses import dataclass
+      from datetime import datetime
+      from typing import Literal
+
+
+      @dataclass(frozen=True)
+      class Delivery:
+          """A pending parcel has no tracking number yet; one in transit has a tracking
+          number; a delivered one has a tracking number and the time it was delivered."""
+
+          parcel_id: str
+          status: Literal["pending", "in_transit", "delivered"]
+          tracking_number: str | None = None
+          delivered_at: datetime | None = None
+  expected_output:
+    outcome: invalid
+- name: a delivery is one of three states, each with its own fields
+  inputs:
+    file: shipping/delivery.py
+    after: |
+      from dataclasses import dataclass
+      from datetime import datetime
+
+
+      @dataclass(frozen=True)
+      class Pending:
+          parcel_id: str
+
+
+      @dataclass(frozen=True)
+      class InTransit:
+          parcel_id: str
+          tracking_number: str
+
+
+      @dataclass(frozen=True)
+      class Delivered:
+          parcel_id: str
+          tracking_number: str
+          delivered_at: datetime
+          signed_by: str | None = None
+
+
+      Delivery = Pending | InTransit | Delivered
+  expected_output:
+    outcome: valid
+- name: a contact's company and phone are each optional on their own
+  inputs:
+    file: crm/contacts.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Contact:
+          name: str
+          email: str
+          company: str | None = None
+          phone: str | None = None
+  expected_output:
+    outcome: valid
+- name: a refund keeps a rejection reason and a payout reference beside the decision that says which applies
+  inputs:
+    file: refunds/models.py
+    after: |
+      from enum import Enum
+
+      from pydantic import BaseModel
+
+
+      class Decision(Enum):
+          REQUESTED = "requested"
+          APPROVED = "approved"
+          REJECTED = "rejected"
+
+
+      class Refund(BaseModel):
+          order_id: str
+          amount_cents: int
+          decision: Decision
+          payout_reference: str | None = None
+          rejection_reason: str | None = None
+  expected_output:
+    outcome: invalid
+- name: a Django subscription model keeps a status column beside nullable cancellation columns
+  inputs:
+    file: billing/models.py
+    after: |
+      from django.db import models
+
+
+      class Subscription(models.Model):
+          class Status(models.TextChoices):
+              ACTIVE = "active"
+              CANCELLED = "cancelled"
+
+          customer = models.ForeignKey("accounts.Customer", on_delete=models.CASCADE)
+          status = models.CharField(max_length=16, choices=Status.choices)
+          cancelled_at = models.DateTimeField(null=True)
+          cancel_reason = models.TextField(null=True)
+  expected_output:
+    outcome: valid
+- name: a function formats a contact's display name
+  inputs:
+    file: crm/display.py
+    after: |
+      def display_name(first: str, last: str) -> str:
+          return f"{first} {last}".strip()
+  expected_output:
+    outcome: skipped
+- name: an upload interface keeps progress, a URL and an error as optional fields beside its state
+  inputs:
+    file: uploads/upload.ts
+    after: |
+      export interface Upload {
+        fileName: string;
+        state: "uploading" | "done" | "failed";
+        percent?: number;
+        url?: string;
+        error?: string;
+      }
+  expected_output:
+    outcome: invalid
+- name: an upload is a union of states, each with its own fields
+  inputs:
+    file: uploads/upload.ts
+    after: |
+      export type Upload =
+        | { state: "uploading"; fileName: string; percent: number }
+        | { state: "done"; fileName: string; url: string }
+        | { state: "failed"; fileName: string; error: string };
+  expected_output:
+    outcome: valid
+- name: search filters are each optional on their own
+  inputs:
+    file: catalog/filters.ts
+    after: |
+      export interface SearchFilters {
+        query?: string;
+        category?: string;
+        maxPriceCents?: number;
+        inStockOnly?: boolean;
+      }
+  expected_output:
+    outcome: valid
