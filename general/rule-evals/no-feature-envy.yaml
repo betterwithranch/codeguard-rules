@@ -1,0 +1,528 @@
+cases:
+- name: the reminder module works out when a membership expires from its fields, so a change to how pauses extend a term misses reminders
+  inputs:
+    file: memberships/reminders.py
+    unchanged:
+      memberships/__init__.py: ""
+      memberships/models.py: |
+        from dataclasses import dataclass
+        from datetime import date
+
+
+        @dataclass(frozen=True)
+        class Membership:
+            member_email: str
+            started_on: date
+            term_days: int
+            paused_days: int
+    after: |
+      from datetime import date, timedelta
+
+      from memberships.models import Membership
+
+
+      def expires_on(membership: Membership) -> date:
+          return membership.started_on + timedelta(days=membership.term_days + membership.paused_days)
+  expected_output:
+    outcome: invalid
+- name: the reminder module asks the membership when it expires and only picks its own reminder day
+  inputs:
+    file: memberships/reminders.py
+    unchanged:
+      memberships/__init__.py: ""
+      memberships/models.py: |
+        from dataclasses import dataclass
+        from datetime import date, timedelta
+
+
+        @dataclass(frozen=True)
+        class Membership:
+            member_email: str
+            started_on: date
+            term_days: int
+            paused_days: int
+
+            def expires_on(self) -> date:
+                return self.started_on + timedelta(days=self.term_days + self.paused_days)
+    after: |
+      from datetime import date, timedelta
+
+      from memberships.models import Membership
+
+      REMINDER_LEAD = timedelta(days=7)
+
+
+      def reminder_day(membership: Membership) -> date:
+          return membership.expires_on() - REMINDER_LEAD
+  expected_output:
+    outcome: valid
+- name: a rota planner decides whether a shift runs into overtime from the shift's own hours, so a change to break rules misses the planner
+  inputs:
+    file: rota/planner.py
+    unchanged:
+      rota/__init__.py: ""
+      rota/shifts.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Shift:
+            worker_id: int
+            scheduled_hours: float
+            unpaid_break_hours: float
+            contracted_hours: float
+    after: |
+      from rota.shifts import Shift
+
+
+      class RotaPlanner:
+          def __init__(self, shifts: list[Shift]) -> None:
+              self.shifts = shifts
+
+          def runs_into_overtime(self, shift: Shift) -> bool:
+              worked = shift.scheduled_hours - shift.unpaid_break_hours
+              return worked > shift.contracted_hours
+  expected_output:
+    outcome: invalid
+- name: a shipping charge applies the shipping module's own rates to a parcel's weight, knowledge the parcel doesn't have
+  inputs:
+    file: shipping/rates.py
+    unchanged:
+      parcels/__init__.py: ""
+      parcels/models.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Parcel:
+            region: str
+            weight_kg: float
+    after: |
+      from parcels.models import Parcel
+
+      CENTS_PER_KG = {"EU": 450, "US": 620, "APAC": 880}
+
+
+      def charge_cents(parcel: Parcel) -> int:
+          return round(CENTS_PER_KG[parcel.region] * parcel.weight_kg)
+  expected_output:
+    outcome: valid
+- name: a payload builder copies a parcel's fields into the API's keys and decides nothing
+  inputs:
+    file: api/parcel_payloads.py
+    unchanged:
+      parcels/__init__.py: ""
+      parcels/models.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Parcel:
+            region: str
+            weight_kg: float
+    after: |
+      from parcels.models import Parcel
+
+
+      def parcel_payload(parcel: Parcel) -> dict[str, object]:
+          weight = {"value": parcel.weight_kg, "unit": "kg"}
+          return {"region": parcel.region, "weight": weight}
+  expected_output:
+    outcome: valid
+- name: a welcome message works out a booking's nights from its dates inline, so a change to how stays are counted misses the message
+  inputs:
+    file: messaging/welcome.py
+    unchanged:
+      bookings/__init__.py: ""
+      bookings/models.py: |
+        from dataclasses import dataclass
+        from datetime import date
+
+
+        @dataclass(frozen=True)
+        class Booking:
+            guest_name: str
+            check_in: date
+            check_out: date
+    after: |
+      from bookings.models import Booking
+
+
+      def welcome_text(booking: Booking) -> str:
+          nights = (booking.check_out - booking.check_in).days
+          greeting = f"Welcome, {booking.guest_name}!"
+          return f"{greeting} Your stay is {nights} nights."
+  expected_output:
+    outcome: invalid
+- name: a getter that only returns a booking's guest name is a one-line field read, too trivial for the function gate
+  inputs:
+    file: messaging/welcome.py
+    unchanged:
+      bookings/__init__.py: ""
+      bookings/models.py: |
+        from dataclasses import dataclass
+        from datetime import date
+
+
+        @dataclass(frozen=True)
+        class Booking:
+            guest_name: str
+            check_in: date
+            check_out: date
+    after: |
+      from bookings.models import Booking
+
+
+      def guest_of(booking: Booking) -> str:
+          return booking.guest_name
+  expected_output:
+    outcome: skipped
+- name: the warranty module gains a coverage check beside the warranty type, the module a change to warranty fields meets
+  inputs:
+    file: warranties/models.py
+    before: |
+      from dataclasses import dataclass
+      from datetime import date
+
+
+      @dataclass(frozen=True)
+      class Warranty:
+          serial_number: str
+          purchased_on: date
+          coverage_days: int
+          voided: bool
+    after: |
+      from dataclasses import dataclass
+      from datetime import date, timedelta
+
+
+      @dataclass(frozen=True)
+      class Warranty:
+          serial_number: str
+          purchased_on: date
+          coverage_days: int
+          voided: bool
+
+
+      def covers(warranty: Warranty, repair_day: date) -> bool:
+          last_day = warranty.purchased_on + timedelta(days=warranty.coverage_days)
+          return not warranty.voided and repair_day <= last_day
+  expected_output:
+    outcome: valid
+- name: a dispatcher matches a courier's shift against a delivery window, an answer neither type can give from its own fields
+  inputs:
+    file: dispatch/matching.py
+    unchanged:
+      couriers/__init__.py: ""
+      couriers/models.py: |
+        from dataclasses import dataclass
+        from datetime import time
+
+
+        @dataclass(frozen=True)
+        class Courier:
+            name: str
+            shift_start: time
+            shift_end: time
+      deliveries/__init__.py: ""
+      deliveries/models.py: |
+        from dataclasses import dataclass
+        from datetime import time
+
+
+        @dataclass(frozen=True)
+        class DeliveryWindow:
+            order_id: int
+            opens: time
+            closes: time
+    after: |
+      from couriers.models import Courier
+      from deliveries.models import DeliveryWindow
+
+
+      def can_deliver(courier: Courier, window: DeliveryWindow) -> bool:
+          return courier.shift_start <= window.opens and window.closes <= courier.shift_end
+  expected_output:
+    outcome: valid
+- name: a review queue orders applications by one field, when each was submitted, and works out nothing about an application
+  inputs:
+    file: admissions/queue.py
+    unchanged:
+      admissions/__init__.py: ""
+      admissions/applications.py: |
+        from dataclasses import dataclass
+        from datetime import datetime
+
+
+        @dataclass(frozen=True)
+        class Application:
+            applicant_name: str
+            programme: str
+            submitted_at: datetime
+    after: |
+      from admissions.applications import Application
+
+
+      def oldest_first(applications: list[Application]) -> list[Application]:
+          return sorted(applications, key=lambda application: application.submitted_at)
+  expected_output:
+    outcome: valid
+- name: a log pruner reads two fields of the standard library's stat result, a type the program doesn't define
+  inputs:
+    file: maintenance/pruning.py
+    after: |
+      import os
+
+
+      def is_prunable(entry: os.stat_result, older_than: float) -> bool:
+          return entry.st_size == 0 and entry.st_mtime < older_than
+  expected_output:
+    outcome: valid
+- name: an SLA check works out a ticket's deadline from its fields outside the ticket module, so a change to SLA hours misses it
+  inputs:
+    file: support/sla.ts
+    unchanged:
+      support/ticket.ts: |
+        export interface Ticket {
+          id: string;
+          openedAt: Date;
+          slaHours: number;
+          status: "open" | "pending" | "closed";
+        }
+    after: |
+      import type { Ticket } from "./ticket";
+
+      export function isBreached(ticket: Ticket, now: Date): boolean {
+        const deadline = ticket.openedAt.getTime() + ticket.slaHours * 3_600_000;
+        return ticket.status !== "closed" && deadline < now.getTime();
+      }
+  expected_output:
+    outcome: invalid
+- name: a dashboard counts breached tickets with the check the ticket module exports
+  inputs:
+    file: support/dashboard.ts
+    unchanged:
+      support/ticket.ts: |
+        export interface Ticket {
+          id: string;
+          openedAt: Date;
+          slaHours: number;
+          status: "open" | "pending" | "closed";
+        }
+
+        const HOUR_MS = 60 * 60 * 1000;
+
+        export function isBreached(ticket: Ticket, now: Date): boolean {
+          const deadline = ticket.openedAt.getTime() + ticket.slaHours * HOUR_MS;
+          return ticket.status !== "closed" && deadline < now.getTime();
+        }
+    after: |
+      import { isBreached, type Ticket } from "./ticket";
+
+      export function breachedCount(tickets: Ticket[], now: Date): number {
+        return tickets.filter((ticket) => isBreached(ticket, now)).length;
+      }
+  expected_output:
+    outcome: valid
+- name: a payout service works out a sale's net from the sale's own amounts, so a change to refunds misses payouts
+  inputs:
+    file: payouts/service.ts
+    unchanged:
+      sales/sale.ts: |
+        export type Country = "DE" | "FR" | "NL";
+
+        export interface Sale {
+          id: string;
+          sellerId: string;
+          grossCents: number;
+          refundedCents: number;
+          country: Country;
+        }
+    after: |
+      import type { Sale } from "../sales/sale";
+
+      export class PayoutService {
+        constructor(private readonly bankAccountId: string) {}
+
+        netCents(sale: Sale): number {
+          return sale.grossCents - sale.refundedCents;
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: a VAT function applies the tax module's own rates to a sale, knowledge the sale doesn't have
+  inputs:
+    file: tax/vat.ts
+    unchanged:
+      sales/sale.ts: |
+        export type Country = "DE" | "FR" | "NL";
+
+        export interface Sale {
+          id: string;
+          sellerId: string;
+          grossCents: number;
+          refundedCents: number;
+          country: Country;
+        }
+    after: |
+      import type { Country, Sale } from "../sales/sale";
+
+      const VAT_RATES: Record<Country, number> = { DE: 0.19, FR: 0.2, NL: 0.21 };
+
+      export function vatCents(sale: Sale): number {
+        return Math.round(sale.grossCents * VAT_RATES[sale.country]);
+      }
+  expected_output:
+    outcome: valid
+- name: a report row copies a sale's fields into columns and decides nothing
+  inputs:
+    file: reports/sales-rows.ts
+    unchanged:
+      sales/sale.ts: |
+        export type Country = "DE" | "FR" | "NL";
+
+        export interface Sale {
+          id: string;
+          sellerId: string;
+          grossCents: number;
+          refundedCents: number;
+          country: Country;
+        }
+    after: |
+      import type { Sale } from "../sales/sale";
+
+      export function toRow(sale: Sale): Record<string, string | number> {
+        return { id: sale.id, seller: sale.sellerId, gross: sale.grossCents, country: sale.country };
+      }
+  expected_output:
+    outcome: valid
+- name: the vehicle module gains a service-due check beside the vehicle interface, the module a change to vehicle fields meets
+  inputs:
+    file: fleet/vehicle.ts
+    before: |
+      export interface Vehicle {
+        plate: string;
+        odometerKm: number;
+        lastServiceKm: number;
+        serviceIntervalKm: number;
+      }
+    after: |
+      export interface Vehicle {
+        plate: string;
+        odometerKm: number;
+        lastServiceKm: number;
+        serviceIntervalKm: number;
+      }
+
+      export function serviceDue(vehicle: Vehicle): boolean {
+        return vehicle.odometerKm - vehicle.lastServiceKm >= vehicle.serviceIntervalKm;
+      }
+  expected_output:
+    outcome: valid
+- name: a rental check weighs a party against a kayak's seats and load limit, an answer neither type can give from its own fields
+  inputs:
+    file: rentals/fit.ts
+    unchanged:
+      rentals/kayak.ts: |
+        export interface Kayak {
+          id: string;
+          seats: number;
+          maxLoadKg: number;
+        }
+      rentals/party.ts: |
+        export interface Party {
+          leadName: string;
+          people: number;
+          totalWeightKg: number;
+        }
+    after: |
+      import type { Kayak } from "./kayak";
+      import type { Party } from "./party";
+
+      export function fits(party: Party, kayak: Kayak): boolean {
+        return party.people <= kayak.seats && party.totalWeightKg <= kayak.maxLoadKg;
+      }
+  expected_output:
+    outcome: valid
+- name: a manifest orders shipments by one field, when each was dispatched, and works out nothing about a shipment
+  inputs:
+    file: logistics/manifest.ts
+    unchanged:
+      logistics/shipment.ts: |
+        export interface Shipment {
+          trackingCode: string;
+          destination: string;
+          dispatchedAt: Date;
+        }
+    after: |
+      import type { Shipment } from "./shipment";
+
+      export function earliestFirst(shipments: readonly Shipment[]): Shipment[] {
+        return [...shipments].sort((a, b) => a.dispatchedAt.getTime() - b.dispatchedAt.getTime());
+      }
+  expected_output:
+    outcome: valid
+- name: a link checker reads two properties of the platform's URL class, a type the program doesn't define
+  inputs:
+    file: net/links.ts
+    after: |
+      export function usesDefaultHttpsPort(link: URL): boolean {
+        return link.protocol === "https:" && link.port === "";
+      }
+  expected_output:
+    outcome: valid
+- name: a picking batch decides inline whether an order is paid in full and off hold, so a new hold reason misses picking
+  inputs:
+    file: warehouse/picking.ts
+    unchanged:
+      orders/order.ts: |
+        export interface Order {
+          id: string;
+          totalCents: number;
+          paidCents: number;
+          onHold: boolean;
+        }
+    after: |
+      import type { Order } from "../orders/order";
+
+      export function nextBatch(orders: readonly Order[], limit: number): Order[] {
+        const batch: Order[] = [];
+        for (const order of orders) {
+          const readyToShip = order.paidCents >= order.totalCents && !order.onHold;
+          if (readyToShip) {
+            batch.push(order);
+          }
+        }
+        return batch.slice(0, limit);
+      }
+  expected_output:
+    outcome: invalid
+- name: a trial email copies a trial's fields but works out on the way whether the trial has lapsed, so a change to conversions misses the email
+  inputs:
+    file: notifications/trial-email.ts
+    unchanged:
+      trials/trial.ts: |
+        export interface Trial {
+          workspaceName: string;
+          ownerEmail: string;
+          endsAt: Date;
+          convertedAt: Date | null;
+        }
+    after: |
+      import type { Trial } from "../trials/trial";
+
+      export interface TrialEmail {
+        to: string;
+        workspace: string;
+        lapsed: boolean;
+      }
+
+      export function trialEmail(trial: Trial, now: Date): TrialEmail {
+        return {
+          to: trial.ownerEmail,
+          workspace: trial.workspaceName,
+          lapsed: trial.convertedAt === null && trial.endsAt.getTime() <= now.getTime(),
+        };
+      }
+  expected_output:
+    outcome: invalid
