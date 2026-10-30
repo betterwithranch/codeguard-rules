@@ -226,6 +226,21 @@ cases:
 - name: meter readings that fail to parse are filtered out, so the average is taken over a partial day without saying so
   inputs:
     file: meters/daily.ts
+    unchanged:
+      meters/reading.ts: |
+        export interface Reading {
+          meterId: string;
+          kwh: number;
+        }
+
+        export function parseReading(line: string): Reading | undefined {
+          const [meterId, kwh] = line.split(",");
+          const value = Number(kwh);
+          if (!meterId || Number.isNaN(value)) {
+            return undefined;
+          }
+          return { meterId, kwh: value };
+        }
     after: |
       import { parseReading, type Reading } from "./reading";
 
