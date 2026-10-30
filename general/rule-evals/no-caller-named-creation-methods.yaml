@@ -1,0 +1,311 @@
+cases:
+- name: an alternative constructor is named for the self-checkout kiosk that calls it, not the overnight loan it makes
+  inputs:
+    file: library/loans.py
+    after: |
+      from dataclasses import dataclass
+      from datetime import date, timedelta
+      from typing import Self
+
+
+      @dataclass(frozen=True)
+      class Loan:
+          book_id: str
+          member_id: str
+          due: date
+
+          @classmethod
+          def for_self_checkout_kiosk(cls, book_id: str, member_id: str, today: date) -> Self:
+              return cls(book_id=book_id, member_id=member_id, due=today + timedelta(days=1))
+  expected_output:
+    outcome: invalid
+- name: an alternative constructor is named for the overnight loan it makes
+  inputs:
+    file: library/loans.py
+    after: |
+      from dataclasses import dataclass
+      from datetime import date, timedelta
+      from typing import Self
+
+
+      @dataclass(frozen=True)
+      class Loan:
+          book_id: str
+          member_id: str
+          due: date
+
+          @classmethod
+          def overnight(cls, book_id: str, member_id: str, today: date) -> Self:
+              return cls(book_id=book_id, member_id=member_id, due=today + timedelta(days=1))
+  expected_output:
+    outcome: valid
+- name: an alternative constructor is named for the book hold it is made from
+  inputs:
+    file: library/loans.py
+    unchanged:
+      library/holds.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class BookHold:
+            book_id: str
+            member_id: str
+    after: |
+      from dataclasses import dataclass
+      from datetime import date, timedelta
+      from typing import Self
+
+      from library.holds import BookHold
+
+
+      @dataclass(frozen=True)
+      class Loan:
+          book_id: str
+          member_id: str
+          due: date
+
+          @classmethod
+          def from_hold(cls, hold: BookHold, today: date) -> Self:
+              return cls(book_id=hold.book_id, member_id=hold.member_id, due=today + timedelta(days=14))
+  expected_output:
+    outcome: valid
+- name: a for constructor names the country its VAT rate holds, not a caller
+  inputs:
+    file: tax/vat.py
+    after: |
+      from dataclasses import dataclass
+      from decimal import Decimal
+      from enum import Enum
+      from typing import Self
+
+
+      class Country(Enum):
+          DE = "DE"
+          FR = "FR"
+          IE = "IE"
+
+
+      RATES: dict[Country, Decimal] = {
+          Country.DE: Decimal("19"),
+          Country.FR: Decimal("20"),
+          Country.IE: Decimal("23"),
+      }
+
+
+      @dataclass(frozen=True)
+      class VatRate:
+          country: Country
+          percent: Decimal
+
+          @classmethod
+          def for_country(cls, country: Country) -> Self:
+              return cls(country=country, percent=RATES[country])
+  expected_output:
+    outcome: valid
+- name: a module-level create function is named for the reseller API that calls it, not the non-transferable ticket it makes
+  inputs:
+    file: events/tickets.py
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Ticket:
+          event_id: str
+          seat: str
+          transferable: bool
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Ticket:
+          event_id: str
+          seat: str
+          transferable: bool
+
+
+      def create_ticket_for_reseller_api(event_id: str, seat: str) -> Ticket:
+          return Ticket(event_id=event_id, seat=seat, transferable=False)
+  expected_output:
+    outcome: invalid
+- name: renaming a resident permit factory for the council portal names its caller instead of its product
+  inputs:
+    file: parking/permits.py
+    before: |
+      from dataclasses import dataclass
+      from datetime import date, timedelta
+
+
+      @dataclass(frozen=True)
+      class Permit:
+          plate: str
+          zone: str
+          expires: date
+
+
+      def create_resident_permit(plate: str, zone: str, today: date) -> Permit:
+          return Permit(plate=plate, zone=zone, expires=today + timedelta(days=365))
+    after: |
+      from dataclasses import dataclass
+      from datetime import date, timedelta
+
+
+      @dataclass(frozen=True)
+      class Permit:
+          plate: str
+          zone: str
+          expires: date
+
+
+      def create_permit_for_council_portal(plate: str, zone: str, today: date) -> Permit:
+          return Permit(plate=plate, zone=zone, expires=today + timedelta(days=365))
+  expected_output:
+    outcome: invalid
+- name: an edit to only the body of a caller-named creation function leaves its name alone
+  inputs:
+    file: parking/permits.py
+    before: |
+      from dataclasses import dataclass
+      from datetime import date, timedelta
+
+
+      @dataclass(frozen=True)
+      class Permit:
+          plate: str
+          zone: str
+          expires: date
+
+
+      def create_permit_for_council_portal(plate: str, zone: str, today: date) -> Permit:
+          return Permit(plate=plate, zone=zone, expires=today + timedelta(days=365))
+    after: |
+      from dataclasses import dataclass
+      from datetime import date, timedelta
+
+
+      @dataclass(frozen=True)
+      class Permit:
+          plate: str
+          zone: str
+          expires: date
+
+
+      def create_permit_for_council_portal(plate: str, zone: str, today: date) -> Permit:
+          return Permit(plate=plate, zone=zone, expires=today + timedelta(days=366))
+  expected_output:
+    outcome: skipped
+- name: a static constructor is named for the partner widget that calls it, not the trial subscription it makes
+  inputs:
+    file: billing/subscription.ts
+    after: |
+      export type Plan = "starter" | "team";
+
+      export class Subscription {
+        constructor(
+          readonly plan: Plan,
+          readonly trialDays: number,
+        ) {}
+
+        static forPartnerWidget(plan: Plan): Subscription {
+          return new Subscription(plan, 30);
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: a static constructor is named for the thirty-day trial its subscription has
+  inputs:
+    file: billing/subscription.ts
+    after: |
+      export type Plan = "starter" | "team";
+
+      export class Subscription {
+        constructor(
+          readonly plan: Plan,
+          readonly trialDays: number,
+        ) {}
+
+        static withThirtyDayTrial(plan: Plan): Subscription {
+          return new Subscription(plan, 30);
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a static constructor is named for the team invite it is made from
+  inputs:
+    file: billing/subscription.ts
+    unchanged:
+      billing/team-invite.ts: |
+        import type { Plan } from "./subscription";
+
+        export interface TeamInvite {
+          readonly plan: Plan;
+          readonly trialDays: number;
+        }
+    after: |
+      import type { TeamInvite } from "./team-invite";
+
+      export type Plan = "starter" | "team";
+
+      export class Subscription {
+        constructor(
+          readonly plan: Plan,
+          readonly trialDays: number,
+        ) {}
+
+        static fromInvite(invite: TeamInvite): Subscription {
+          return new Subscription(invite.plan, invite.trialDays);
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a for constructor names the region its postage holds, not a caller
+  inputs:
+    file: shipping/postage.ts
+    after: |
+      export type Region = "domestic" | "europe" | "world";
+
+      const PRICE_CENTS: Record<Region, number> = {
+        domestic: 85,
+        europe: 220,
+        world: 310,
+      };
+
+      export class Postage {
+        constructor(
+          readonly region: Region,
+          readonly priceCents: number,
+        ) {}
+
+        static forRegion(region: Region): Postage {
+          return new Postage(region, PRICE_CENTS[region]);
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: renaming a guest pass factory for the lobby tablet names its caller instead of its product
+  inputs:
+    file: visitors/passes.ts
+    before: |
+      export interface VisitorPass {
+        readonly visitorName: string;
+        readonly escorted: boolean;
+        readonly validUntil: Date;
+      }
+
+      export function createGuestPass(visitorName: string, now: Date): VisitorPass {
+        return { visitorName, escorted: true, validUntil: new Date(now.getTime() + 8 * 60 * 60 * 1000) };
+      }
+    after: |
+      export interface VisitorPass {
+        readonly visitorName: string;
+        readonly escorted: boolean;
+        readonly validUntil: Date;
+      }
+
+      export function createPassForLobbyTablet(visitorName: string, now: Date): VisitorPass {
+        return { visitorName, escorted: true, validUntil: new Date(now.getTime() + 8 * 60 * 60 * 1000) };
+      }
+  expected_output:
+    outcome: invalid
