@@ -10,9 +10,6 @@ cases:
 
       @dataclass(frozen=True)
       class Delivery:
-          """A pending parcel has no tracking number yet; one in transit has a tracking
-          number; a delivered one has a tracking number and the time it was delivered."""
-
           parcel_id: str
           status: Literal["pending", "in_transit", "delivered"]
           tracking_number: str | None = None
