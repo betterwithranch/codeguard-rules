@@ -1,31 +1,23 @@
 id: union-declares-discriminator
 language: typescript
 severity: warning
-message: This z.union of object schemas sharing a literal field names no discriminator.
+message: This z.union holds two or more object schemas defined in this file, with no discriminator named.
 note: |
-  Without a discriminator zod tries each schema in turn: parsing is slower, and a payload
-  that fits none fails with an error per schema. The schemas already share a literal
-  tag, so name it: `z.discriminatedUnion("kind", [cardPayment, bankPayment])`.
+  Without a discriminator zod tries each schema in turn: parsing is slower, a payload
+  that fits two schemas becomes whichever is tried first, and a payload that fits none
+  fails with an error per schema. Give each object schema a `z.literal` tag field, if it
+  has none, and name it: `z.discriminatedUnion("kind", [cardPayment, bankPayment])`.
 metadata:
   why: With the tag named, the parser reads one field, picks the schema, and reports errors against that schema alone.
 utils:
-  tagged-object:
+  object-schema:
     kind: call_expression
     pattern: z.object($$$)
-    has:
-      field: arguments
-      has:
-        kind: object
-        has:
-          kind: pair
-          all:
-          - has: {field: key, pattern: $K}
-          - has: {field: value, pattern: z.literal($$$)}
-  first-tagged:
+  first-object:
     any:
-    - matches: tagged-object
+    - matches: object-schema
     - kind: identifier
-      pattern: $S1
+      pattern: $FIRST
       inside:
         stopBy: end
         kind: program
@@ -33,13 +25,13 @@ utils:
           stopBy: end
           kind: variable_declarator
           all:
-          - has: {field: name, pattern: $S1}
-          - has: {field: value, matches: tagged-object}
-  second-tagged:
+          - has: {field: name, pattern: $FIRST}
+          - has: {field: value, matches: object-schema}
+  second-object:
     any:
-    - matches: tagged-object
+    - matches: object-schema
     - kind: identifier
-      pattern: $S2
+      pattern: $SECOND
       inside:
         stopBy: end
         kind: program
@@ -47,8 +39,8 @@ utils:
           stopBy: end
           kind: variable_declarator
           all:
-          - has: {field: name, pattern: $S2}
-          - has: {field: value, matches: tagged-object}
+          - has: {field: name, pattern: $SECOND}
+          - has: {field: value, matches: object-schema}
 rule:
   kind: call_expression
   pattern: z.union($$$)
@@ -56,6 +48,8 @@ rule:
     field: arguments
     has:
       kind: array
-      all:
-      - has: {nthChild: 1, matches: first-tagged}
-      - has: {nthChild: 2, matches: second-tagged}
+      has:
+        matches: first-object
+        precedes:
+          stopBy: end
+          matches: second-object

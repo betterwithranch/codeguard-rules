@@ -10,21 +10,14 @@ valid:
   - |
     export const example = z.union([z.string(), z.number()]);
 
-  # A union of object schemas with no literal field
+  # A union of one object schema and a plain value
   - |
     const exampleA = z.object({ name: z.string() });
-    const exampleB = z.object({ code: z.number() });
-    export const example = z.union([exampleA, exampleB]);
+    export const example = z.union([exampleA, z.string()]);
 
   # A union of schemas imported from elsewhere
   - |
     import { exampleA, exampleB } from "./examples";
-    export const example = z.union([exampleA, exampleB]);
-
-  # Object schemas whose literal fields have different keys
-  - |
-    const exampleA = z.object({ kind: z.literal("a"), name: z.string() });
-    const exampleB = z.object({ type: z.literal("b"), code: z.number() });
     export const example = z.union([exampleA, exampleB]);
 
 invalid:
@@ -40,3 +33,35 @@ invalid:
       z.object({ kind: z.literal("a"), name: z.string() }),
       z.object({ kind: z.literal("b"), code: z.number() }),
     ]);
+
+  # A union of named object schemas with no literal field
+  - |
+    const exampleA = z.object({ name: z.string() });
+    const exampleB = z.object({ code: z.number() });
+    export const example = z.union([exampleA, exampleB]);
+
+  # A union of one tagged and one untagged object schema
+  - |
+    const exampleA = z.object({ kind: z.literal("a"), name: z.string() });
+    const exampleB = z.object({ code: z.number() });
+    export const example = z.union([exampleA, exampleB]);
+
+  # A union mixing a named and an inline object schema
+  - |
+    const exampleA = z.object({ kind: z.literal("a"), name: z.string() });
+    export const example = z.union([
+      exampleA,
+      z.object({ kind: z.literal("b"), code: z.number() }),
+    ]);
+
+  # A union of object schemas whose tag key is quoted
+  - |
+    const exampleA = z.object({ "kind": z.literal("a"), name: z.string() });
+    const exampleB = z.object({ "kind": z.literal("b"), code: z.number() });
+    export const example = z.union([exampleA, exampleB]);
+
+  # A union whose object schemas aren't adjacent
+  - |
+    const exampleA = z.object({ kind: z.literal("a"), name: z.string() });
+    const exampleB = z.object({ kind: z.literal("b"), code: z.number() });
+    export const example = z.union([exampleA, z.string(), exampleB]);

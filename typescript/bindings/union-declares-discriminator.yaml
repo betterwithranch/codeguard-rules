@@ -6,3 +6,4 @@ exclude_paths:
   - "**/*.test.tsx"
   - "**/*.spec.ts"
   - "**/*.spec.tsx"
+  - "**/__tests__/**"

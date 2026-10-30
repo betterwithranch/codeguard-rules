@@ -23,9 +23,9 @@ name, and [basedpyright](https://docs.basedpyright.com) with these rules on:
 
 ### `general`
 
-Architecture rules for any language. Each is one judge rule: its `SKILL.md` states the
-convention in no language's terms, and a supplement beside it for each language,
-`python.md` and `typescript.md`, gives that language's forms and examples. The judge
+Architecture rules for any language. Most are judge rules. A judge rule's `SKILL.md`
+states the convention in no language's terms, and a supplement beside it for each
+language, `python.md` and `typescript.md`, gives that language's forms and examples. The judge
 gets the skill and the supplement for the file's language. Its binding's `paths` name
 the languages it runs on.
 
@@ -60,6 +60,14 @@ the languages it runs on.
 | `intention-revealing-names` | Intention-revealing names: a name says what its body mainly does, so readers needn't open the body to learn it. | Not yet |
 | `one-word-per-concept` | One word per concept: one operation goes by one verb, so names predict each other. | Not yet |
 | `comments-explain-why` | Comments explain why: a comment or docstring states a fact from outside the code, so it can't go stale as a restatement of it. | Not yet |
+
+Pattern rules (ast-grep), one per language where a convention's form is syntax. They
+start as `warning`s and skip test files:
+
+| Rule | Checks |
+|---|---|
+| `no-middle-man-python`, `no-middle-man-typescript` | No middle man: a class without a base doesn't forward every method to the same collaborator |
+| `no-class-level-mutable-container` | No class-level mutable container: a list, dict or set bound in a class body isn't mutated through `self`, which every instance shares (Python only) |
 
 Each judge rule passes 20 of 20 eval runs on Claude before it ships, and CI's 3 runs
 before it merges. One check follows, and doesn't hold up the next rule:
@@ -103,7 +111,7 @@ code skip test files:
 | `no-tuple-fixtures` | A pytest fixture returns or yields one object, never a tuple |
 | `one-form-per-input` | No parameter reconciled from another parameter when missing (`if index is None: index = build(catalog)`) |
 | `typed-dispatch-registries` | A class takes a registry, not a `dict[str, Callable]` |
-| `union-declares-discriminator` | Union declares discriminator: a pydantic field typed as a union of models defined in the file names its discriminator (the syntactic form of `discriminated-unions`) |
+| `union-declares-discriminator` | Union declares discriminator: a pydantic model's field whose type holds a union of two or more models defined in the file names its discriminator, tagged or not (the syntactic form of `discriminated-unions`) |
 
 The `python` ruleset has no judge rules yet. Its judge rules, and some pattern rules, are drafts in
 `drafts/python/`, which codeguard doesn't load. A draft moves into a ruleset one rule at a time, in the order in
@@ -124,6 +132,19 @@ flag. Its binding's `triggers` names that code: a change kind built into codegua
 as `fixture` or `import`, or a gate in the ruleset's `gates/`, an ast-grep rule
 such as `mock-use`. A rule ast-grep or the type checker can check is a pattern rule or a checker
 setting, never a judge rule.
+
+### `typescript`
+
+Rules for any TypeScript project. Each rule checks one thing, so a project can exclude
+any of them.
+
+Pattern rules (ast-grep). They start as `warning`s and skip test files:
+
+| Rule | Checks |
+|---|---|
+| `union-declares-discriminator` | Union declares discriminator: a `z.union` holding two or more object schemas defined in the file is a `z.discriminatedUnion`, tagged or not (the syntactic form of `discriminated-unions`) |
+
+The `typescript` ruleset has no judge rules; TypeScript's judge rules are in `general`.
 
 ## Use a ruleset
 
@@ -156,7 +177,7 @@ project that sets `ast-grep` in its config must pick a version in that range.
 
 ```
 codeguard-package.yaml       # name, rulesets, and supported ast-grep and codeguard versions
-general/, python/            # one directory per ruleset
+general/, python/, typescript/ # one directory per ruleset
   rules/pattern/<id>.yml     # ast-grep rules
   gates/<id>.yml             # ast-grep rules that decide when a judge rule runs
   rule-tests/<id>-test.yml   # tests for both, with __snapshots__/
