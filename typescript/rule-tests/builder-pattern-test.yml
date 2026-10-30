@@ -1,4 +1,4 @@
-id: builder-pattern-typescript
+id: builder-pattern
 valid:
   # A part method that assigns a property of this
   - |

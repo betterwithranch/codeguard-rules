@@ -1,4 +1,4 @@
-id: builder-pattern-python
+id: builder-pattern
 snapshots:
   "class ExampleBuilder:\n    @classmethod\n    def configure(cls, name):\n        cls.name = name\n\n    def build(self):\n        return Example(self.name)\n":
     labels:

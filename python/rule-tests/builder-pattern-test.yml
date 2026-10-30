@@ -1,4 +1,4 @@
-id: builder-pattern-python
+id: builder-pattern
 valid:
   # A part method that assigns an attribute of self
   - |

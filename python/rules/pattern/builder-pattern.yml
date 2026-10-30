@@ -1,4 +1,4 @@
-id: builder-pattern-python
+id: builder-pattern
 language: python
 severity: warning
 message: This Builder class has no method that stores a part of its product.

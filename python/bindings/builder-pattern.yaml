@@ -1,4 +1,4 @@
-rule: builder-pattern-python
+rule: builder-pattern
 paths: ["**/*.py"]
 exclude_paths:
   - "**/test_*.py"

@@ -1,4 +1,4 @@
-rule: builder-pattern-typescript
+rule: builder-pattern
 paths: ["**/*.ts", "**/*.tsx"]
 exclude_paths:
   - "**/tests/**"

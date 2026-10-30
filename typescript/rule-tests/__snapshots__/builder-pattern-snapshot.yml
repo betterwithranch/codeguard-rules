@@ -1,4 +1,4 @@
-id: builder-pattern-typescript
+id: builder-pattern
 snapshots:
   "class ExampleBuilder {\n  build(name: string, total: number): Example {\n    return new Example(name, total);\n  }\n}\n":
     labels:

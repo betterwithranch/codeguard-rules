@@ -23,9 +23,9 @@ name, and [basedpyright](https://docs.basedpyright.com) with these rules on:
 
 ### `general`
 
-Architecture rules for any language. Most are judge rules. A judge rule's `SKILL.md`
-states the convention in no language's terms, and a supplement beside it for each
-language, `python.md` and `typescript.md`, gives that language's forms and examples. The judge
+Architecture rules for any language. Each is one judge rule: its `SKILL.md` states the
+convention in no language's terms, and a supplement beside it for each language,
+`python.md` and `typescript.md`, gives that language's forms and examples. The judge
 gets the skill and the supplement for the file's language. Its binding's `paths` name
 the languages it runs on.
 
@@ -63,16 +63,6 @@ the languages it runs on.
 | `no-value-with-its-source` | No Value With Its Source: a call doesn't pass a value together with the input it was derived from | Not yet |
 | `threaded-state-own-module` | Threaded State Own Module: a workflow's threaded state has a module of its own | Not yet |
 
-Pattern rules (ast-grep), one per language where a convention's form is syntax. They
-start as `warning`s and skip test files:
-
-| Rule | Checks |
-|---|---|
-| `no-middle-man-python`, `no-middle-man-typescript` | No middle man: a class without a base doesn't forward every method to the same collaborator |
-| `no-class-level-mutable-container` | No class-level mutable container: a list, dict or set bound in a class body isn't mutated through `self`, which every instance shares (Python only) |
-| `union-declares-discriminator-python`, `union-declares-discriminator-typescript` | Union declares discriminator: a pydantic field typed as a union of models defined in the file names its discriminator, and a `z.union` of object schemas sharing a literal field is a `z.discriminatedUnion` (the syntactic form of `discriminated-unions`) |
-| `builder-pattern-python`, `builder-pattern-typescript` | Builder pattern: a class named `...Builder` has a method that stores a part of its product on the instance, before a separate call returns it |
-
 Each judge rule passes 20 of 20 eval runs on Claude before it ships, and CI's 3 runs
 before it merges. One check follows, and doesn't hold up the next rule:
 
@@ -98,6 +88,7 @@ code skip test files:
 | `no-assert-in-fixtures` | No `assert` inside a pytest fixture |
 | `no-asserting-action-helpers` | No test helper that asserts and then returns a call |
 | `no-clock-moves-in-fixtures` | No sleep or clock tick inside a pytest fixture |
+| `builder-pattern` | Builder pattern: a class named `...Builder` has a method that stores a part of its product on the instance, before a separate call returns it |
 | `no-append-in-every-branch` | No loop `if`/`else` that appends to the same list in every branch |
 | `no-assert-on-lookup-field` | Don't assert the field used to find an item |
 | `no-bucket-module-names` | No `utils`, `helpers`, `common`, `shared`, or `contracts` modules |

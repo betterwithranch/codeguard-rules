@@ -1,4 +1,4 @@
-id: builder-pattern-typescript
+id: builder-pattern
 language: typescript
 severity: warning
 message: This Builder class has no method that stores a part of its product.
