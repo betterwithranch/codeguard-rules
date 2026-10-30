@@ -1,0 +1,28 @@
+id: self-attribute-assignment
+valid:
+# Local variable in a method
+- |
+  class ExampleMailer:
+      def send(self, customer):
+          email = customer.email
+# Attribute of another object
+- |
+  class ExampleMailer:
+      def send(self, invoice):
+          invoice.sent = True
+invalid:
+# Assignment in __init__
+- |
+  class ExampleMailer:
+      def __init__(self, customer):
+          self.email = customer.email
+# Assignment in __post_init__
+- |
+  class ExampleMailer:
+      def __post_init__(self):
+          self.email = self.customer.email
+# Annotated assignment in another method
+- |
+  class ExampleMailer:
+      def bind(self, customer):
+          self.email: str = customer.email
