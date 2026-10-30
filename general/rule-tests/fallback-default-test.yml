@@ -1,0 +1,57 @@
+id: fallback-default
+valid:
+# get without a default
+- |
+  example_url = example_config.get("payments_url")
+# subscript lookup
+- |
+  example_url = example_config["payments_url"]
+# getattr without a default
+- |
+  example_value = getattr(example_settings, "EXAMPLE_KEY")
+# or between two names
+- |
+  example_name = example_user.nickname or example_user.full_name
+# and with a literal
+- |
+  example_ok = example_user.active and True
+# conditional expression without a None check
+- |
+  example_label = "big" if example_total > 100 else "small"
+invalid:
+# dict get with a default
+- |
+  example_url = example_config.get("payments_url", "")
+# environ get with a default
+- |
+  example_key = os.environ.get("EXAMPLE_KEY", "")
+# getenv with a default
+- |
+  example_key = os.getenv("EXAMPLE_KEY", "")
+# pop with a default
+- |
+  example_value = example_kwargs.pop("example", None)
+# getattr with a default
+- |
+  example_secret = getattr(example_settings, "EXAMPLE_SECRET", None)
+# or with a number
+- |
+  example_quantity = example_line.quantity or 0
+# or with a string
+- |
+  example_name = example_user.nickname or "Guest"
+# or with a negative number
+- |
+  example_offset = example_value or -1
+# or with an empty list
+- |
+  example_items = example_order.items or []
+# or with an empty dict
+- |
+  example_meta = example_order.meta or {}
+# or with a float
+- |
+  example_rate = EXAMPLE_RATES.get(example_currency) or 1.0
+# conditional expression on None
+- |
+  example_total = example_order.total if example_order.total is not None else 0

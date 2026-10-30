@@ -1,0 +1,54 @@
+id: error-handler
+snapshots:
+  "try:\n    example_gateway.charge(example_order)\nexcept ExampleDeclined as err:\n    raise ExamplePaymentFailed(example_order.id) from err\n":
+    labels:
+    - source: |-
+        except ExampleDeclined as err:
+            raise ExamplePaymentFailed(example_order.id) from err
+      style: primary
+      start: 47
+      end: 135
+  "try:\n    example_ledger.post(example_entry)\nexcept Exception:\n    pass\n":
+    labels:
+    - source: |-
+        except Exception:
+            pass
+      style: primary
+      start: 44
+      end: 70
+  "try:\n    example_ledger.post(example_entry)\nexcept:\n    example_log.warning(\"failed\")\n":
+    labels:
+    - source: |-
+        except:
+            example_log.warning("failed")
+      style: primary
+      start: 44
+      end: 85
+  "try:\n    example_run()\nexcept* ExampleError:\n    pass\n":
+    labels:
+    - source: |-
+        except* ExampleError:
+            pass
+      style: primary
+      start: 23
+      end: 53
+  "with contextlib.suppress(FileNotFoundError):\n    os.remove(example_path)\n":
+    labels:
+    - source: contextlib.suppress(FileNotFoundError)
+      style: primary
+      start: 5
+      end: 43
+    - source: contextlib.suppress
+      style: secondary
+      start: 5
+      end: 24
+  "with suppress(Exception):\n    example_ledger.post(example_entry)\n":
+    labels:
+    - source: suppress(Exception)
+      style: primary
+      start: 5
+      end: 24
+    - source: suppress
+      style: secondary
+      start: 5
+      end: 13
