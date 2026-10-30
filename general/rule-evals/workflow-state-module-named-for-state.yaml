@@ -1,0 +1,339 @@
+cases:
+- name: a hiring state alone in a module named models, changed in place by the stage steps
+  inputs:
+    file: hiring/models.py
+    unchanged:
+      hiring/stages.py: |
+        from hiring.models import HiringState
+
+
+        def screen(state: HiringState) -> None:
+            state.completed_stages.append("screen")
+
+
+        def interview(state: HiringState, interviewers: list[str]) -> None:
+            state.interviewers = interviewers
+            state.completed_stages.append("interview")
+    after: |
+      from dataclasses import dataclass, field
+
+
+      @dataclass
+      class HiringState:
+          candidate_id: str
+          completed_stages: list[str] = field(default_factory=list)
+          interviewers: list[str] = field(default_factory=list)
+  expected_output:
+    outcome: invalid
+- name: a field is added to the refund state alone in a module named types
+  inputs:
+    file: refunds/types.py
+    unchanged:
+      refunds/steps.py: |
+        from dataclasses import replace
+
+        from refunds.types import RefundState
+
+
+        def approve(state: RefundState, approver_id: str) -> RefundState:
+            return replace(state, approver_ids=(*state.approver_ids, approver_id))
+
+
+        def add_note(state: RefundState, note: str) -> RefundState:
+            return replace(state, notes=(*state.notes, note))
+    before: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class RefundState:
+          order_id: str
+          approver_ids: tuple[str, ...] = ()
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class RefundState:
+          order_id: str
+          approver_ids: tuple[str, ...] = ()
+          notes: tuple[str, ...] = ()
+  expected_output:
+    outcome: invalid
+- name: a langgraph enrichment state and the reducer its field names sit alone in a module named schemas
+  inputs:
+    file: enrichment/schemas.py
+    unchanged:
+      enrichment/graph.py: |
+        from langgraph.graph import END, START, StateGraph
+
+        from enrichment.schemas import EnrichmentState
+
+
+        def find_domain(state: EnrichmentState) -> dict[str, set[str]]:
+            return {"facts": {"domain:" + state["email"].rsplit("@", 1)[-1]}}
+
+
+        def find_initials(state: EnrichmentState) -> dict[str, set[str]]:
+            return {"facts": {"initials:" + "".join(part[0] for part in state["full_name"].split())}}
+
+
+        def build_enrichment_graph() -> StateGraph[EnrichmentState]:
+            graph = StateGraph(EnrichmentState)
+            graph.add_node("find_domain", find_domain)
+            graph.add_node("find_initials", find_initials)
+            graph.add_edge(START, "find_domain")
+            graph.add_edge("find_domain", "find_initials")
+            graph.add_edge("find_initials", END)
+            return graph
+    after: |
+      from typing import Annotated, TypedDict
+
+
+      def union_facts(current: set[str], update: set[str]) -> set[str]:
+          return current | update
+
+
+      class EnrichmentState(TypedDict):
+          email: str
+          full_name: str
+          facts: Annotated[set[str], union_facts]
+  expected_output:
+    outcome: invalid
+- name: a method body in the rating state module named models changes and the state is left alone
+  inputs:
+    file: ratings/models.py
+    unchanged:
+      ratings/steps.py: |
+        from ratings.models import RatingState
+
+
+        def add_vote(state: RatingState, stars: int) -> RatingState:
+            return state.with_vote(stars)
+    before: |
+      from dataclasses import dataclass, replace
+
+
+      @dataclass(frozen=True)
+      class RatingState:
+          product_id: str
+          votes: tuple[int, ...] = ()
+
+          def with_vote(self, stars: int) -> "RatingState":
+              return replace(self, votes=(*self.votes, stars))
+    after: |
+      from dataclasses import dataclass, replace
+
+
+      @dataclass(frozen=True)
+      class RatingState:
+          product_id: str
+          votes: tuple[int, ...] = ()
+
+          def with_vote(self, stars: int) -> "RatingState":
+              return replace(self, votes=(stars, *self.votes))
+  expected_output:
+    outcome: skipped
+- name: a render state sits alone in a module named after it
+  inputs:
+    file: rendering/render_state.py
+    unchanged:
+      rendering/passes.py: |
+        from dataclasses import replace
+
+        from rendering.render_state import RenderState
+
+
+        def inline_styles(state: RenderState, stylesheet: str) -> RenderState:
+            return replace(state, html=state.html.replace("</head>", f"<style>{stylesheet}</style></head>"))
+
+
+        def collapse_lines(state: RenderState) -> RenderState:
+            return replace(state, html="".join(line.strip() for line in state.html.splitlines()))
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class RenderState:
+          template_name: str
+          html: str
+  expected_output:
+    outcome: valid
+- name: a claim state sits alone in the state module of the claims package
+  inputs:
+    file: claims/state.py
+    unchanged:
+      claims/adjudication.py: |
+        from claims.state import ClaimState
+
+
+        def add_covered_item(state: ClaimState, item: str) -> ClaimState:
+            return state.model_copy(update={"covered_items": [*state.covered_items, item]})
+
+
+        def add_denied_item(state: ClaimState, item: str) -> ClaimState:
+            return state.model_copy(update={"denied_items": [*state.denied_items, item]})
+    after: |
+      from pydantic import BaseModel, Field
+
+
+      class ClaimState(BaseModel):
+          claim_id: str
+          covered_items: list[str] = Field(default_factory=list)
+          denied_items: list[str] = Field(default_factory=list)
+  expected_output:
+    outcome: valid
+- name: crawl limits that the fetch steps read but never update sit alone in a module named models
+  inputs:
+    file: crawler/models.py
+    unchanged:
+      crawler/fetching.py: |
+        from crawler.models import CrawlLimits
+
+
+        def pages_to_fetch(limits: CrawlLimits, depth: int, links: list[str]) -> list[str]:
+            if depth > limits.max_depth:
+                return []
+            return links[: limits.max_pages]
+
+
+        def should_follow(limits: CrawlLimits, depth: int, fetched_count: int) -> bool:
+            return depth < limits.max_depth and fetched_count < limits.max_pages
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class CrawlLimits:
+          max_depth: int
+          max_pages: int
+  expected_output:
+    outcome: valid
+- name: a typescript ledger state alone in a module named types
+  inputs:
+    file: ledger/types.ts
+    unchanged:
+      ledger/posting.ts: |
+        import type { LedgerState } from "./types";
+
+        export function post(state: LedgerState, entryId: string): LedgerState {
+          return { ...state, postedEntryIds: [...state.postedEntryIds, entryId] };
+        }
+
+        export function close(state: LedgerState): LedgerState {
+          return { ...state, closed: true };
+        }
+    after: |
+      export interface LedgerState {
+        readonly accountId: string;
+        readonly postedEntryIds: readonly string[];
+        readonly closed: boolean;
+      }
+  expected_output:
+    outcome: invalid
+- name: a langgraph.js research state and the reducer its field names sit alone in a module named schemas
+  inputs:
+    file: research/schemas.ts
+    unchanged:
+      research/graph.ts: |
+        import { END, START, StateGraph } from "@langchain/langgraph";
+
+        import { ResearchState } from "./schemas";
+
+        type Research = typeof ResearchState.State;
+
+        function collectLongWords(state: Research): Partial<Research> {
+          return { keywords: state.question.split(/\s+/).filter((word) => word.length > 6) };
+        }
+
+        function collectHashtags(state: Research): Partial<Research> {
+          return { keywords: state.question.split(/\s+/).filter((word) => word.startsWith("#")) };
+        }
+
+        export function buildResearchGraph() {
+          return new StateGraph(ResearchState)
+            .addNode("collectLongWords", collectLongWords)
+            .addNode("collectHashtags", collectHashtags)
+            .addEdge(START, "collectLongWords")
+            .addEdge("collectLongWords", "collectHashtags")
+            .addEdge("collectHashtags", END)
+            .compile();
+        }
+    after: |
+      import { Annotation } from "@langchain/langgraph";
+
+      export function appendKeywords(current: string[], update: string[]): string[] {
+        return [...current, ...update];
+      }
+
+      export const ResearchState = Annotation.Root({
+        question: Annotation<string>,
+        keywords: Annotation<string[]>({ reducer: appendKeywords, default: () => [] }),
+      });
+  expected_output:
+    outcome: invalid
+- name: a typescript dispatch state sits alone in a module named after it
+  inputs:
+    file: fleet/dispatchState.ts
+    unchanged:
+      fleet/dispatch.ts: |
+        import type { DispatchState } from "./dispatchState";
+
+        export function assignDriver(state: DispatchState, driverId: string): DispatchState {
+          return { ...state, driverIds: [...state.driverIds, driverId] };
+        }
+
+        export function releaseDriver(state: DispatchState, driverId: string): DispatchState {
+          return { ...state, driverIds: state.driverIds.filter((id) => id !== driverId) };
+        }
+    after: |
+      export interface DispatchState {
+        readonly zoneId: string;
+        readonly driverIds: readonly string[];
+      }
+  expected_output:
+    outcome: valid
+- name: a typescript enrollment state sits alone in the state module of the enrollment directory
+  inputs:
+    file: enrollment/state.ts
+    unchanged:
+      enrollment/steps.ts: |
+        import type { EnrollmentState } from "./state";
+
+        export function addCourse(state: EnrollmentState, courseId: string): void {
+          state.courseIds.push(courseId);
+        }
+
+        export function addWaitlisted(state: EnrollmentState, courseId: string): void {
+          state.waitlistedCourseIds.push(courseId);
+        }
+    after: |
+      export interface EnrollmentState {
+        readonly studentId: string;
+        courseIds: string[];
+        waitlistedCourseIds: string[];
+      }
+  expected_output:
+    outcome: valid
+- name: typescript ranking weights that the search steps read but never update sit alone in a module named types
+  inputs:
+    file: search/types.ts
+    unchanged:
+      search/ranking.ts: |
+        import type { RankingWeights } from "./types";
+
+        export function score(weights: RankingWeights, titleHits: number, bodyHits: number): number {
+          return weights.title * titleHits + weights.body * bodyHits;
+        }
+
+        export function maxScore(weights: RankingWeights, termCount: number): number {
+          return (weights.title + weights.body) * termCount;
+        }
+    after: |
+      export interface RankingWeights {
+        readonly title: number;
+        readonly body: number;
+      }
+  expected_output:
+    outcome: valid

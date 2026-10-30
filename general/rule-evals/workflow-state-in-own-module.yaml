@@ -1,0 +1,845 @@
+cases:
+- name: a cleanup workflow module defines the state its steps return updated copies of
+  inputs:
+    file: cleanup/workflow.py
+    after: |
+      from dataclasses import dataclass, replace
+
+
+      @dataclass(frozen=True)
+      class CleanupState:
+          source_name: str
+          text: str
+
+
+      def drop_blank_lines(state: CleanupState) -> CleanupState:
+          kept = [line for line in state.text.splitlines() if line.strip()]
+          return replace(state, text="\n".join(kept))
+
+
+      def strip_trailing_spaces(state: CleanupState) -> CleanupState:
+          stripped = [line.rstrip() for line in state.text.splitlines()]
+          return replace(state, text="\n".join(stripped))
+
+
+      def clean(source_name: str, text: str) -> CleanupState:
+          state = CleanupState(source_name=source_name, text=text)
+          return strip_trailing_spaces(drop_blank_lines(state))
+  expected_output:
+    outcome: invalid
+- name: a survey pipeline module defines the state its steps change in place
+  inputs:
+    file: surveys/pipeline.py
+    after: |
+      from collections import Counter
+      from dataclasses import dataclass, field
+
+
+      @dataclass
+      class TallyState:
+          answers: list[str]
+          counts: Counter[str] = field(default_factory=Counter)
+
+
+      def drop_blank_answers(state: TallyState) -> None:
+          state.answers = [answer for answer in state.answers if answer.strip()]
+
+
+      def count_choices(state: TallyState) -> None:
+          state.counts = Counter(state.answers)
+
+
+      def tally(answers: list[str]) -> TallyState:
+          state = TallyState(answers=answers)
+          drop_blank_answers(state)
+          count_choices(state)
+          return state
+  expected_output:
+    outcome: invalid
+- name: a langgraph triage graph module declares the state its nodes merge label updates into
+  inputs:
+    file: triage/graph.py
+    after: |
+      import operator
+      from typing import Annotated, TypedDict
+
+      from langgraph.graph import END, START, StateGraph
+
+
+      class TriageState(TypedDict):
+          ticket_text: str
+          labels: Annotated[list[str], operator.add]
+
+
+      def label_outage(state: TriageState) -> dict[str, list[str]]:
+          return {"labels": ["outage"] if "is down" in state["ticket_text"].lower() else []}
+
+
+      def label_long(state: TriageState) -> dict[str, list[str]]:
+          return {"labels": ["long"] if len(state["ticket_text"].split()) > 300 else []}
+
+
+      def build_triage_graph() -> StateGraph[TriageState]:
+          graph = StateGraph(TriageState)
+          graph.add_node("label_outage", label_outage)
+          graph.add_node("label_long", label_long)
+          graph.add_edge(START, "label_outage")
+          graph.add_edge("label_outage", "label_long")
+          graph.add_edge("label_long", END)
+          return graph
+  expected_output:
+    outcome: invalid
+- name: an index build runner module defines the state it checkpoints after each step
+  inputs:
+    file: indexing/runner.py
+    unchanged:
+      indexing/checkpoints.py: |
+        from typing import Protocol
+
+
+        class CheckpointStore(Protocol):
+            def save(self, key: str, payload: str) -> None: ...
+    after: |
+      from pydantic import BaseModel
+
+      from indexing.checkpoints import CheckpointStore
+
+      STOPWORDS = frozenset({"a", "an", "the", "of"})
+
+
+      class IndexBuildState(BaseModel):
+          build_id: str
+          terms: list[str]
+
+
+      def lowercase_terms(state: IndexBuildState) -> IndexBuildState:
+          return state.model_copy(update={"terms": [term.lower() for term in state.terms]})
+
+
+      def drop_stopwords(state: IndexBuildState) -> IndexBuildState:
+          return state.model_copy(update={"terms": [term for term in state.terms if term not in STOPWORDS]})
+
+
+      def build_index(state: IndexBuildState, checkpoints: CheckpointStore) -> IndexBuildState:
+          for step in (lowercase_terms, drop_stopwords):
+              state = step(state)
+              checkpoints.save(state.build_id, state.model_dump_json())
+          return state
+  expected_output:
+    outcome: invalid
+- name: an import state module also defines an unrelated supplier record
+  inputs:
+    file: imports/import_state.py
+    unchanged:
+      imports/pipeline.py: |
+        from dataclasses import replace
+
+        from imports.import_state import ImportState
+
+
+        def normalize_emails(state: ImportState) -> ImportState:
+            return replace(state, emails=tuple(email.strip().lower() for email in state.emails))
+
+
+        def reject_without_at_sign(state: ImportState) -> ImportState:
+            rejected = tuple(email for email in state.emails if "@" not in email)
+            kept = tuple(email for email in state.emails if email not in rejected)
+            return replace(state, emails=kept, rejected=state.rejected + rejected)
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class ImportState:
+          emails: tuple[str, ...]
+          rejected: tuple[str, ...] = ()
+
+
+      @dataclass(frozen=True)
+      class Supplier:
+          name: str
+          email: str
+  expected_output:
+    outcome: invalid
+- name: a step is added to the module that holds the onboarding state
+  inputs:
+    file: onboarding/state.py
+    unchanged:
+      onboarding/flow.py: |
+        from onboarding.state import OnboardingState
+
+
+        def verify_email(state: OnboardingState) -> OnboardingState:
+            return state.model_copy(update={"email_verified": True})
+    before: |
+      from pydantic import BaseModel
+
+
+      class OnboardingState(BaseModel):
+          user_id: str
+          email_verified: bool = False
+          country_code: str | None = None
+    after: |
+      from pydantic import BaseModel
+
+
+      class OnboardingState(BaseModel):
+          user_id: str
+          email_verified: bool = False
+          country_code: str | None = None
+
+
+      def record_country(state: OnboardingState, country_code: str) -> OnboardingState:
+          return state.model_copy(update={"country_code": country_code.upper()})
+  expected_output:
+    outcome: invalid
+- name: a field is added to the upload state its pipeline module defines beside the steps
+  inputs:
+    file: uploads/pipeline.py
+    before: |
+      from dataclasses import dataclass, replace
+
+
+      @dataclass(frozen=True)
+      class UploadState:
+          filename: str
+          size_bytes: int
+
+
+      def strip_directories(state: UploadState) -> UploadState:
+          return replace(state, filename=state.filename.rsplit("/", 1)[-1])
+
+
+      def lowercase_name(state: UploadState) -> UploadState:
+          return replace(state, filename=state.filename.lower())
+    after: |
+      from dataclasses import dataclass, replace
+
+
+      @dataclass(frozen=True)
+      class UploadState:
+          filename: str
+          size_bytes: int
+          checksum: str
+
+
+      def strip_directories(state: UploadState) -> UploadState:
+          return replace(state, filename=state.filename.rsplit("/", 1)[-1])
+
+
+      def lowercase_name(state: UploadState) -> UploadState:
+          return replace(state, filename=state.filename.lower())
+  expected_output:
+    outcome: invalid
+- name: a step body in the labelling workflow changes and its state is left alone
+  inputs:
+    file: labelling/workflow.py
+    before: |
+      from dataclasses import dataclass, replace
+
+
+      @dataclass(frozen=True)
+      class LabelState:
+          sku: str
+          label_text: str
+
+
+      def shorten(state: LabelState) -> LabelState:
+          return replace(state, label_text=state.label_text[:40])
+
+
+      def uppercase(state: LabelState) -> LabelState:
+          return replace(state, label_text=state.label_text.upper())
+    after: |
+      from dataclasses import dataclass, replace
+
+
+      @dataclass(frozen=True)
+      class LabelState:
+          sku: str
+          label_text: str
+
+
+      def shorten(state: LabelState) -> LabelState:
+          return replace(state, label_text=state.label_text[:32])
+
+
+      def uppercase(state: LabelState) -> LabelState:
+          return replace(state, label_text=state.label_text.upper())
+  expected_output:
+    outcome: skipped
+- name: a state module holds only the route state and its visit method
+  inputs:
+    file: routing/state.py
+    unchanged:
+      routing/planner.py: |
+        from routing.state import RouteState
+
+
+        def visit_depot(state: RouteState) -> RouteState:
+            return state.visit("depot")
+
+
+        def visit_stops(state: RouteState) -> RouteState:
+            for stop in state.stops:
+                state = state.visit(stop)
+            return state
+    after: |
+      from dataclasses import dataclass, replace
+
+
+      @dataclass(frozen=True)
+      class RouteState:
+          stops: tuple[str, ...]
+          visited: tuple[str, ...] = ()
+
+          def visit(self, stop: str) -> "RouteState":
+              return replace(self, visited=(*self.visited, stop))
+  expected_output:
+    outcome: valid
+- name: a moderation state module also defines the reducer its severity field names
+  inputs:
+    file: moderation/state.py
+    unchanged:
+      moderation/graph.py: |
+        from langgraph.graph import END, START, StateGraph
+
+        from moderation.state import ModerationState
+
+
+        def score_profanity(state: ModerationState) -> dict[str, int]:
+            return {"severity": 3 if "damn" in state["comment"].lower() else 0}
+
+
+        def score_links(state: ModerationState) -> dict[str, int]:
+            return {"severity": 2 if "http" in state["comment"] else 0}
+
+
+        def build_moderation_graph() -> StateGraph[ModerationState]:
+            graph = StateGraph(ModerationState)
+            graph.add_node("score_profanity", score_profanity)
+            graph.add_node("score_links", score_links)
+            graph.add_edge(START, "score_profanity")
+            graph.add_edge("score_profanity", "score_links")
+            graph.add_edge("score_links", END)
+            return graph
+    after: |
+      from typing import Annotated, TypedDict
+
+
+      def keep_highest(current: int, update: int) -> int:
+          return max(current, update)
+
+
+      class ModerationState(TypedDict):
+          comment: str
+          severity: Annotated[int, keep_highest]
+  expected_output:
+    outcome: valid
+- name: a packing state module also defines the parcel type used only in its fields
+  inputs:
+    file: packing/state.py
+    unchanged:
+      packing/steps.py: |
+        from dataclasses import replace
+
+        from packing.state import PackingState, Parcel
+
+
+        def add_parcel(state: PackingState, sku: str, weight_grams: int) -> PackingState:
+            return replace(state, parcels=(*state.parcels, Parcel(sku=sku, weight_grams=weight_grams)))
+
+
+        def drop_empty_parcels(state: PackingState) -> PackingState:
+            return replace(state, parcels=tuple(parcel for parcel in state.parcels if parcel.weight_grams > 0))
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class Parcel:
+          sku: str
+          weight_grams: int
+
+
+      @dataclass(frozen=True)
+      class PackingState:
+          order_id: str
+          parcels: tuple[Parcel, ...] = ()
+  expected_output:
+    outcome: valid
+- name: a delivery state module also defines a private attempt type the state uses
+  inputs:
+    file: webhooks/delivery_state.py
+    unchanged:
+      webhooks/delivery.py: |
+        from datetime import datetime
+
+        from webhooks.delivery_state import DeliveryState
+
+
+        def record_response(state: DeliveryState, status_code: int, sent_at: datetime) -> DeliveryState:
+            return state.with_attempt(status_code, sent_at)
+    after: |
+      from dataclasses import dataclass, replace
+      from datetime import datetime
+
+
+      @dataclass(frozen=True)
+      class _Attempt:
+          status_code: int
+          sent_at: datetime
+
+
+      @dataclass(frozen=True)
+      class DeliveryState:
+          webhook_id: str
+          attempts: tuple[_Attempt, ...] = ()
+
+          def with_attempt(self, status_code: int, sent_at: datetime) -> "DeliveryState":
+              return replace(self, attempts=(*self.attempts, _Attempt(status_code, sent_at)))
+
+          def succeeded(self) -> bool:
+              return any(200 <= attempt.status_code < 300 for attempt in self.attempts)
+  expected_output:
+    outcome: valid
+- name: a publishing workflow module adds a step on the article state it imports from its state module
+  inputs:
+    file: publishing/workflow.py
+    unchanged:
+      publishing/state.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class ArticleState:
+            title: str
+            body: str
+            tags: tuple[str, ...] = ()
+    before: |
+      from dataclasses import replace
+
+      from publishing.state import ArticleState
+
+
+      def normalize_title(state: ArticleState) -> ArticleState:
+          return replace(state, title=state.title.strip())
+    after: |
+      from dataclasses import replace
+
+      from publishing.state import ArticleState
+
+
+      def normalize_title(state: ArticleState) -> ArticleState:
+          return replace(state, title=state.title.strip())
+
+
+      def collect_hashtags(state: ArticleState) -> ArticleState:
+          hashtags = tuple(word[1:] for word in state.body.split() if word.startswith("#"))
+          return replace(state, tags=state.tags + hashtags)
+  expected_output:
+    outcome: valid
+- name: an invoice email is built once and returned beside the function that composes it
+  inputs:
+    file: invoices/email.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class InvoiceEmail:
+          to_address: str
+          subject: str
+          body: str
+
+
+      def compose_invoice_email(invoice_number: str, customer_email: str, amount_cents: int) -> InvoiceEmail:
+          return InvoiceEmail(
+              to_address=customer_email,
+              subject=f"Invoice {invoice_number}",
+              body=f"Amount due: {amount_cents // 100}.{amount_cents % 100:02d}",
+          )
+  expected_output:
+    outcome: valid
+- name: a price band is read by both steps of the price check but never updated
+  inputs:
+    file: pricing/price_check.py
+    after: |
+      from dataclasses import dataclass
+
+
+      @dataclass(frozen=True)
+      class PriceBand:
+          floor_cents: int
+          ceiling_cents: int
+
+
+      def drop_outside_band(band: PriceBand, prices: list[int]) -> list[int]:
+          return [price for price in prices if band.floor_cents <= price <= band.ceiling_cents]
+
+
+      def near_band_edges(band: PriceBand, prices: list[int]) -> list[int]:
+          return [
+              price
+              for price in prices
+              if price - band.floor_cents < 100 or band.ceiling_cents - price < 100
+          ]
+
+
+      def prices_to_review(band: PriceBand, prices: list[int]) -> list[int]:
+          return near_band_edges(band, drop_outside_band(band, prices))
+  expected_output:
+    outcome: valid
+- name: a typescript article pipeline module declares the state its steps spread into copies
+  inputs:
+    file: articles/pipeline.ts
+    after: |
+      export interface SlugState {
+        readonly articleId: string;
+        readonly slug: string;
+      }
+
+      export function lowercase(state: SlugState): SlugState {
+        return { ...state, slug: state.slug.toLowerCase() };
+      }
+
+      export function hyphenate(state: SlugState): SlugState {
+        return { ...state, slug: state.slug.trim().replace(/\s+/g, "-") };
+      }
+
+      export function slugify(articleId: string, title: string): SlugState {
+        return hyphenate(lowercase({ articleId, slug: title }));
+      }
+  expected_output:
+    outcome: invalid
+- name: a typescript recount module declares the state its steps change in place
+  inputs:
+    file: inventory/recount.ts
+    after: |
+      export interface RecountState {
+        scanned: string[];
+        missing: string[];
+      }
+
+      export function addScans(state: RecountState, scannedSkus: readonly string[]): void {
+        state.scanned.push(...scannedSkus);
+      }
+
+      export function findMissing(state: RecountState, expectedSkus: readonly string[]): void {
+        state.missing = expectedSkus.filter((sku) => !state.scanned.includes(sku));
+      }
+
+      export function recount(expectedSkus: readonly string[], scannedSkus: readonly string[]): RecountState {
+        const state: RecountState = { scanned: [], missing: [] };
+        addScans(state, scannedSkus);
+        findMissing(state, expectedSkus);
+        return state;
+      }
+  expected_output:
+    outcome: invalid
+- name: a langgraph.js escalation graph module declares the state its nodes merge flag updates into
+  inputs:
+    file: support/graph.ts
+    after: |
+      import { Annotation, END, START, StateGraph } from "@langchain/langgraph";
+
+      export const EscalationState = Annotation.Root({
+        message: Annotation<string>,
+        flags: Annotation<string[]>({
+          reducer: (current, update) => current.concat(update),
+          default: () => [],
+        }),
+      });
+
+      type Escalation = typeof EscalationState.State;
+
+      function flagRefund(state: Escalation): Partial<Escalation> {
+        return { flags: state.message.toLowerCase().includes("refund") ? ["refund"] : [] };
+      }
+
+      function flagUrgent(state: Escalation): Partial<Escalation> {
+        return { flags: /!{3,}/.test(state.message) ? ["urgent"] : [] };
+      }
+
+      export function buildEscalationGraph() {
+        return new StateGraph(EscalationState)
+          .addNode("flagRefund", flagRefund)
+          .addNode("flagUrgent", flagUrgent)
+          .addEdge(START, "flagRefund")
+          .addEdge("flagRefund", "flagUrgent")
+          .addEdge("flagUrgent", END)
+          .compile();
+      }
+  expected_output:
+    outcome: invalid
+- name: a typescript export runner module declares the state it checkpoints after each step
+  inputs:
+    file: exports/runner.ts
+    unchanged:
+      exports/checkpoints.ts: |
+        export interface CheckpointStore {
+          save(key: string, payload: string): Promise<void>;
+        }
+    after: |
+      import type { CheckpointStore } from "./checkpoints";
+
+      export interface ExportState {
+        readonly runId: string;
+        readonly lines: readonly string[];
+      }
+
+      export function trimLines(state: ExportState): ExportState {
+        return { ...state, lines: state.lines.map((line) => line.trim()) };
+      }
+
+      export function dropEmptyLines(state: ExportState): ExportState {
+        return { ...state, lines: state.lines.filter((line) => line.length > 0) };
+      }
+
+      export async function runExport(state: ExportState, checkpoints: CheckpointStore): Promise<ExportState> {
+        let current = state;
+        for (const step of [trimLines, dropEmptyLines]) {
+          current = step(current);
+          await checkpoints.save(current.runId, JSON.stringify(current));
+        }
+        return current;
+      }
+  expected_output:
+    outcome: invalid
+- name: a typescript sync state module also exports an unrelated webhook type
+  inputs:
+    file: sync/syncState.ts
+    unchanged:
+      sync/steps.ts: |
+        import type { SyncState } from "./syncState";
+
+        export function markSynced(state: SyncState, id: string): SyncState {
+          return {
+            pendingIds: state.pendingIds.filter((pending) => pending !== id),
+            syncedIds: [...state.syncedIds, id],
+          };
+        }
+    after: |
+      export interface SyncState {
+        readonly pendingIds: readonly string[];
+        readonly syncedIds: readonly string[];
+      }
+
+      export interface Webhook {
+        readonly url: string;
+        readonly secret: string;
+      }
+  expected_output:
+    outcome: invalid
+- name: a step is added to the typescript module that holds the trip state
+  inputs:
+    file: trips/state.ts
+    unchanged:
+      trips/planner.ts: |
+        import type { TripState } from "./state";
+
+        export function sortDestinations(state: TripState): TripState {
+          return { ...state, destinations: [...state.destinations].sort() };
+        }
+    before: |
+      export interface TripState {
+        readonly travelerId: string;
+        readonly destinations: readonly string[];
+      }
+    after: |
+      export interface TripState {
+        readonly travelerId: string;
+        readonly destinations: readonly string[];
+      }
+
+      export function dropBlockedDestinations(state: TripState, blocked: ReadonlySet<string>): TripState {
+        return { ...state, destinations: state.destinations.filter((city) => !blocked.has(city)) };
+      }
+  expected_output:
+    outcome: invalid
+- name: a typescript state module exports only the roster state class and its method
+  inputs:
+    file: roster/state.ts
+    unchanged:
+      roster/steps.ts: |
+        import type { RosterState } from "./state";
+
+        export function assignAll(state: RosterState, employeeIds: readonly string[]): RosterState {
+          return employeeIds.reduce((current, employeeId) => current.withAssigned(employeeId), state);
+        }
+    after: |
+      export class RosterState {
+        constructor(
+          readonly shiftId: string,
+          readonly assigned: readonly string[],
+        ) {}
+
+        withAssigned(employeeId: string): RosterState {
+          return new RosterState(this.shiftId, [...this.assigned, employeeId]);
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a typescript risk state module also exports the reducer its score field names
+  inputs:
+    file: scoring/state.ts
+    unchanged:
+      scoring/graph.ts: |
+        import { END, START, StateGraph } from "@langchain/langgraph";
+
+        import { RiskState } from "./state";
+
+        type Risk = typeof RiskState.State;
+
+        function scoreAmount(state: Risk): Partial<Risk> {
+          return { riskScore: state.amountCents > 1_000_000 ? 7 : 1 };
+        }
+
+        function scoreNewAccount(state: Risk): Partial<Risk> {
+          return { riskScore: state.accountAgeDays < 30 ? 5 : 1 };
+        }
+
+        export function buildRiskGraph() {
+          return new StateGraph(RiskState)
+            .addNode("scoreAmount", scoreAmount)
+            .addNode("scoreNewAccount", scoreNewAccount)
+            .addEdge(START, "scoreAmount")
+            .addEdge("scoreAmount", "scoreNewAccount")
+            .addEdge("scoreNewAccount", END)
+            .compile();
+        }
+    after: |
+      import { Annotation } from "@langchain/langgraph";
+
+      export function keepHighest(current: number, update: number): number {
+        return Math.max(current, update);
+      }
+
+      export const RiskState = Annotation.Root({
+        amountCents: Annotation<number>,
+        accountAgeDays: Annotation<number>,
+        riskScore: Annotation<number>({ reducer: keepHighest, default: () => 1 }),
+      });
+  expected_output:
+    outcome: valid
+- name: a typescript pick state module also exports the bin type used only in its fields
+  inputs:
+    file: picking/state.ts
+    unchanged:
+      picking/steps.ts: |
+        import type { Bin, PickState } from "./state";
+
+        export function addBin(state: PickState, bin: Bin): PickState {
+          return { ...state, bins: [...state.bins, bin] };
+        }
+
+        export function dropEmptyBins(state: PickState): PickState {
+          return { ...state, bins: state.bins.filter((bin) => bin.units > 0) };
+        }
+    after: |
+      export interface Bin {
+        readonly binId: string;
+        readonly units: number;
+      }
+
+      export interface PickState {
+        readonly orderId: string;
+        readonly bins: readonly Bin[];
+      }
+  expected_output:
+    outcome: valid
+- name: a typescript multipart state module keeps a private part type the state uses
+  inputs:
+    file: multipart/state.ts
+    unchanged:
+      multipart/steps.ts: |
+        import type { MultipartState } from "./state";
+
+        export function recordPart(state: MultipartState, index: number, etag: string): MultipartState {
+          return state.withPart(index, etag);
+        }
+    after: |
+      interface Part {
+        readonly index: number;
+        readonly etag: string;
+      }
+
+      export class MultipartState {
+        constructor(
+          readonly uploadId: string,
+          private readonly parts: readonly Part[],
+        ) {}
+
+        withPart(index: number, etag: string): MultipartState {
+          return new MultipartState(this.uploadId, [...this.parts, { index, etag }]);
+        }
+
+        partCount(): number {
+          return this.parts.length;
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a typescript recipe pipeline module imports its state from the state module
+  inputs:
+    file: recipes/pipeline.ts
+    unchanged:
+      recipes/state.ts: |
+        export interface RecipeState {
+          readonly servings: number;
+          readonly ingredients: readonly string[];
+        }
+    after: |
+      import type { RecipeState } from "./state";
+
+      export function dedupeIngredients(state: RecipeState): RecipeState {
+        return { ...state, ingredients: [...new Set(state.ingredients)] };
+      }
+
+      export function sortIngredients(state: RecipeState): RecipeState {
+        return { ...state, ingredients: [...state.ingredients].sort() };
+      }
+
+      export function prepare(state: RecipeState): RecipeState {
+        return sortIngredients(dedupeIngredients(state));
+      }
+  expected_output:
+    outcome: valid
+- name: a typescript page request is built once and returned beside the function that builds it
+  inputs:
+    file: alerts/pager.ts
+    after: |
+      export interface PageRequest {
+        readonly serviceName: string;
+        readonly summary: string;
+      }
+
+      export function pageRequestFor(serviceName: string, errorCount: number): PageRequest {
+        return { serviceName, summary: `${serviceName}: ${errorCount} errors in the last hour` };
+      }
+  expected_output:
+    outcome: valid
+- name: a typescript temperature band is read by both steps of the sensor check but never updated
+  inputs:
+    file: sensors/check.ts
+    after: |
+      export interface TemperatureBand {
+        readonly lowCelsius: number;
+        readonly highCelsius: number;
+      }
+
+      export function dropOutOfBand(band: TemperatureBand, readings: readonly number[]): number[] {
+        return readings.filter((reading) => band.lowCelsius <= reading && reading <= band.highCelsius);
+      }
+
+      export function nearBandEdges(band: TemperatureBand, readings: readonly number[]): number[] {
+        return readings.filter(
+          (reading) => reading - band.lowCelsius < 1 || band.highCelsius - reading < 1,
+        );
+      }
+
+      export function readingsToWatch(band: TemperatureBand, readings: readonly number[]): number[] {
+        return nearBandEdges(band, dropOutOfBand(band, readings));
+      }
+  expected_output:
+    outcome: valid
