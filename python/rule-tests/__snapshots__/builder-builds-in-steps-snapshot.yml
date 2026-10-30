@@ -1,0 +1,177 @@
+id: builder-builds-in-steps
+snapshots:
+  "class ExampleBuilder:\n    @staticmethod\n    def create(name: str) -> Example:\n        return Example(name)\n":
+    labels:
+    - source: |-
+        class ExampleBuilder:
+            @staticmethod
+            def create(name: str) -> Example:
+                return Example(name)
+      style: primary
+      start: 0
+      end: 106
+    - source: ExampleBuilder
+      style: secondary
+      start: 6
+      end: 20
+  "class ExampleBuilder:\n    def __init__(self, name: str) -> None:\n        self._name = name\n\n    def build(self) -> Example:\n        return Example(self._name)\n":
+    labels:
+    - source: |-
+        class ExampleBuilder:
+            def __init__(self, name: str) -> None:
+                self._name = name
+        
+            def build(self) -> Example:
+                return Example(self._name)
+      style: primary
+      start: 0
+      end: 158
+    - source: ExampleBuilder
+      style: secondary
+      start: 6
+      end: 20
+  "class ExampleBuilder:\n    def __init__(self, name: str) -> None:\n        self._name = name\n\n    def initial(self) -> str:\n        return self._name.upper()[:1]\n\n    def build(self) -> Example:\n        return Example(self._name)\n":
+    labels:
+    - source: |-
+        class ExampleBuilder:
+            def __init__(self, name: str) -> None:
+                self._name = name
+        
+            def initial(self) -> str:
+                return self._name.upper()[:1]
+        
+            def build(self) -> Example:
+                return Example(self._name)
+      style: primary
+      start: 0
+      end: 227
+    - source: ExampleBuilder
+      style: secondary
+      start: 6
+      end: 20
+  "class ExampleBuilder:\n    def __init__(self, name: str) -> None:\n        self._name = name\n\n    def label(self, suffix: str) -> str:\n        label = self._name\n        label += suffix\n        return label\n\n    def build(self) -> Example:\n        return Example(self._name)\n":
+    labels:
+    - source: |-
+        class ExampleBuilder:
+            def __init__(self, name: str) -> None:
+                self._name = name
+        
+            def label(self, suffix: str) -> str:
+                label = self._name
+                label += suffix
+                return label
+        
+            def build(self) -> Example:
+                return Example(self._name)
+      style: primary
+      start: 0
+      end: 272
+    - source: ExampleBuilder
+      style: secondary
+      start: 6
+      end: 20
+  "class ExampleBuilder:\n    def __init__(self, name: str) -> None:\n        self._name = name\n        self._built: Example | None = None\n\n    def build(self) -> Example:\n        self._built = Example(self._name)\n        return self._built\n":
+    labels:
+    - source: |-
+        class ExampleBuilder:
+            def __init__(self, name: str) -> None:
+                self._name = name
+                self._built: Example | None = None
+        
+            def build(self) -> Example:
+                self._built = Example(self._name)
+                return self._built
+      style: primary
+      start: 0
+      end: 235
+    - source: ExampleBuilder
+      style: secondary
+      start: 6
+      end: 20
+  "class ExampleBuilder:\n    def __init__(self, name: str) -> None:\n        self._name = name\n        self._created: Example | None = None\n\n    def create(self) -> Example:\n        self._created = Example(self._name)\n        return self._created\n":
+    labels:
+    - source: |-
+        class ExampleBuilder:
+            def __init__(self, name: str) -> None:
+                self._name = name
+                self._created: Example | None = None
+        
+            def create(self) -> Example:
+                self._created = Example(self._name)
+                return self._created
+      style: primary
+      start: 0
+      end: 242
+    - source: ExampleBuilder
+      style: secondary
+      start: 6
+      end: 20
+  "class ExampleBuilder:\n    def __init__(self, name: str) -> None:\n        self._name = name\n        self._history: list[Example] = []\n\n    def __call__(self) -> Example:\n        product = Example(self._name)\n        self._history.append(product)\n        return product\n":
+    labels:
+    - source: |-
+        class ExampleBuilder:
+            def __init__(self, name: str) -> None:
+                self._name = name
+                self._history: list[Example] = []
+        
+            def __call__(self) -> Example:
+                product = Example(self._name)
+                self._history.append(product)
+                return product
+      style: primary
+      start: 0
+      end: 267
+    - source: ExampleBuilder
+      style: secondary
+      start: 6
+      end: 20
+  "class ExampleBuilder:\n    def __init__(self, name: str) -> None:\n        self._name = name\n        self._made = 0\n\n    def make(self) -> Example:\n        self._made += 1\n        return Example(self._name)\n":
+    labels:
+    - source: |-
+        class ExampleBuilder:
+            def __init__(self, name: str) -> None:
+                self._name = name
+                self._made = 0
+        
+            def make(self) -> Example:
+                self._made += 1
+                return Example(self._name)
+      style: primary
+      start: 0
+      end: 204
+    - source: ExampleBuilder
+      style: secondary
+      start: 6
+      end: 20
+  "class ExampleBuilder:\n    def build(self, name: str, total: int) -> Example:\n        return Example(name, total)\n":
+    labels:
+    - source: |-
+        class ExampleBuilder:
+            def build(self, name: str, total: int) -> Example:
+                return Example(name, total)
+      style: primary
+      start: 0
+      end: 112
+    - source: ExampleBuilder
+      style: secondary
+      start: 6
+      end: 20
+  "class ExampleBuilder:\n    name = \"\"\n\n    @classmethod\n    def configure(cls, name: str) -> None:\n        cls.name = name\n\n    def build(self) -> Example:\n        return Example(self.name)\n":
+    labels:
+    - source: |-
+        class ExampleBuilder:
+            name = ""
+        
+            @classmethod
+            def configure(cls, name: str) -> None:
+                cls.name = name
+        
+            def build(self) -> Example:
+                return Example(self.name)
+      style: primary
+      start: 0
+      end: 187
+    - source: ExampleBuilder
+      style: secondary
+      start: 6
+      end: 20

@@ -1,0 +1,238 @@
+id: builder-builds-in-steps
+snapshots:
+  "abstract class ExampleBuilder {\n  build(name: string): Example {\n    return new Example(name);\n  }\n}\n":
+    labels:
+    - source: |-
+        abstract class ExampleBuilder {
+          build(name: string): Example {
+            return new Example(name);
+          }
+        }
+      style: primary
+      start: 0
+      end: 100
+    - source: ExampleBuilder
+      style: secondary
+      start: 15
+      end: 29
+  "class ExampleBuilder {\n  build(name: string, total: number): Example {\n    return new Example(name, total);\n  }\n}\n":
+    labels:
+    - source: |-
+        class ExampleBuilder {
+          build(name: string, total: number): Example {
+            return new Example(name, total);
+          }
+        }
+      style: primary
+      start: 0
+      end: 113
+    - source: ExampleBuilder
+      style: secondary
+      start: 6
+      end: 20
+  "class ExampleBuilder {\n  constructor(private readonly name: string) {}\n\n  build(): Example {\n    return new Example(this.name);\n  }\n}\n":
+    labels:
+    - source: |-
+        class ExampleBuilder {
+          constructor(private readonly name: string) {}
+        
+          build(): Example {
+            return new Example(this.name);
+          }
+        }
+      style: primary
+      start: 0
+      end: 133
+    - source: ExampleBuilder
+      style: secondary
+      start: 6
+      end: 20
+  "class ExampleBuilder {\n  constructor(private readonly name: string) {}\n\n  initial(): string {\n    return this.name.toUpperCase().slice(0, 1);\n  }\n\n  build(): Example {\n    return new Example(this.name);\n  }\n}\n":
+    labels:
+    - source: |-
+        class ExampleBuilder {
+          constructor(private readonly name: string) {}
+        
+          initial(): string {
+            return this.name.toUpperCase().slice(0, 1);
+          }
+        
+          build(): Example {
+            return new Example(this.name);
+          }
+        }
+      style: primary
+      start: 0
+      end: 208
+    - source: ExampleBuilder
+      style: secondary
+      start: 6
+      end: 20
+  "class ExampleBuilder {\n  constructor(private readonly name: string) {}\n\n  label(suffix: string): string {\n    let label = this.name;\n    label += suffix;\n    return label;\n  }\n\n  build(): Example {\n    return new Example(this.name);\n  }\n}\n":
+    labels:
+    - source: |-
+        class ExampleBuilder {
+          constructor(private readonly name: string) {}
+        
+          label(suffix: string): string {
+            let label = this.name;
+            label += suffix;
+            return label;
+          }
+        
+          build(): Example {
+            return new Example(this.name);
+          }
+        }
+      style: primary
+      start: 0
+      end: 238
+    - source: ExampleBuilder
+      style: secondary
+      start: 6
+      end: 20
+  "class ExampleBuilder {\n  private created?: Example;\n\n  constructor(private readonly name: string) {}\n\n  create(): Example {\n    this.created = new Example(this.name);\n    return this.created;\n  }\n}\n":
+    labels:
+    - source: |-
+        class ExampleBuilder {
+          private created?: Example;
+        
+          constructor(private readonly name: string) {}
+        
+          create(): Example {
+            this.created = new Example(this.name);
+            return this.created;
+          }
+        }
+      style: primary
+      start: 0
+      end: 197
+    - source: ExampleBuilder
+      style: secondary
+      start: 6
+      end: 20
+  "class ExampleBuilder {\n  private made = 0;\n\n  constructor(private readonly name: string) {}\n\n  make(): Example {\n    this.made += 1;\n    return new Example(this.name);\n  }\n}\n":
+    labels:
+    - source: |-
+        class ExampleBuilder {
+          private made = 0;
+        
+          constructor(private readonly name: string) {}
+        
+          make(): Example {
+            this.made += 1;
+            return new Example(this.name);
+          }
+        }
+      style: primary
+      start: 0
+      end: 173
+    - source: ExampleBuilder
+      style: secondary
+      start: 6
+      end: 20
+  "class ExampleBuilder {\n  private readonly counter = {\n    count: 0,\n    bump(): void {\n      this.count += 1;\n    },\n  };\n\n  constructor(private readonly name: string) {}\n\n  build(): Example {\n    this.counter.bump();\n    return new Example(this.name);\n  }\n}\n":
+    labels:
+    - source: |-
+        class ExampleBuilder {
+          private readonly counter = {
+            count: 0,
+            bump(): void {
+              this.count += 1;
+            },
+          };
+        
+          constructor(private readonly name: string) {}
+        
+          build(): Example {
+            this.counter.bump();
+            return new Example(this.name);
+          }
+        }
+      style: primary
+      start: 0
+      end: 258
+    - source: ExampleBuilder
+      style: secondary
+      start: 6
+      end: 20
+  "class ExampleBuilder {\n  static defaults: string[] = [];\n\n  static configure(name: string): void {\n    this.defaults.push(name);\n  }\n\n  build(): Example {\n    return new Example(ExampleBuilder.defaults);\n  }\n}\n":
+    labels:
+    - source: |-
+        class ExampleBuilder {
+          static defaults: string[] = [];
+        
+          static configure(name: string): void {
+            this.defaults.push(name);
+          }
+        
+          build(): Example {
+            return new Example(ExampleBuilder.defaults);
+          }
+        }
+      style: primary
+      start: 0
+      end: 209
+    - source: ExampleBuilder
+      style: secondary
+      start: 6
+      end: 20
+  "const ExampleBuilder = class {\n  build(name: string): Example {\n    return new Example(name);\n  }\n};\n":
+    labels:
+    - source: |-
+        class {
+          build(name: string): Example {
+            return new Example(name);
+          }
+        }
+      style: primary
+      start: 23
+      end: 99
+    - source: ExampleBuilder
+      style: secondary
+      start: 6
+      end: 20
+    - source: |-
+        ExampleBuilder = class {
+          build(name: string): Example {
+            return new Example(name);
+          }
+        }
+      style: secondary
+      start: 6
+      end: 99
+  "const exampleBuilder = class ExampleBuilder {\n  build(name: string): Example {\n    return new Example(name);\n  }\n};\n":
+    labels:
+    - source: |-
+        class ExampleBuilder {
+          build(name: string): Example {
+            return new Example(name);
+          }
+        }
+      style: primary
+      start: 23
+      end: 114
+    - source: ExampleBuilder
+      style: secondary
+      start: 29
+      end: 43
+  "export class ExampleBuilder {\n  private built?: Example;\n\n  constructor(private readonly name: string) {}\n\n  build(): Example {\n    this.built = new Example(this.name);\n    return this.built;\n  }\n}\n":
+    labels:
+    - source: |-
+        class ExampleBuilder {
+          private built?: Example;
+        
+          constructor(private readonly name: string) {}
+        
+          build(): Example {
+            this.built = new Example(this.name);
+            return this.built;
+          }
+        }
+      style: primary
+      start: 7
+      end: 197
+    - source: ExampleBuilder
+      style: secondary
+      start: 13
+      end: 27

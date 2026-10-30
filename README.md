@@ -94,6 +94,7 @@ code skip test files:
 | Rule | Checks |
 |---|---|
 | `all-only-in-init` | `__all__` only in `__init__.py` or a `.pyi` stub |
+| `builder-pattern` | Builder pattern: a class named `...Builder` has a method that stores a part of its product on the instance, before a separate call returns it |
 | `no-assert-in-fixtures` | No `assert` inside a pytest fixture |
 | `no-asserting-action-helpers` | No test helper that asserts and then returns a call |
 | `no-clock-moves-in-fixtures` | No sleep or clock tick inside a pytest fixture |
@@ -134,6 +135,17 @@ flag. Its binding's `triggers` names that code: a change kind built into codegua
 as `fixture` or `import`, or a gate in the ruleset's `gates/`, an ast-grep rule
 such as `mock-use`. A rule ast-grep or the type checker can check is a pattern rule or a checker
 setting, never a judge rule.
+
+### `typescript`
+
+Rules for any TypeScript project. No framework rules. Each rule checks one thing, so a
+project can exclude any of them.
+
+Pattern rules (ast-grep). They skip test files:
+
+| Rule | Checks |
+|---|---|
+| `builder-pattern` | Builder pattern: a class named `...Builder` has a method that stores a part of its product on the instance, before a separate call returns it |
 
 ## Use a ruleset
 
