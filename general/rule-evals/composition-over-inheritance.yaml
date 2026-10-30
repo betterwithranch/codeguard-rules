@@ -1,0 +1,603 @@
+cases:
+- name: a low-stock alerter inherits the SMS gateway to text buyers with it
+  inputs:
+    file: inventory/alerts.py
+    unchanged:
+      notifications/sms.py: |
+        import httpx
+
+
+        class SmsGateway:
+            def __init__(self, api_url: str, sender_id: str) -> None:
+                self.api_url = api_url
+                self.sender_id = sender_id
+
+            def send_text(self, phone: str, message: str) -> None:
+                response = httpx.post(
+                    self.api_url,
+                    json={"from": self.sender_id, "to": phone, "text": message},
+                )
+                response.raise_for_status()
+
+            def delivery_status(self, message_id: str) -> str:
+                response = httpx.get(f"{self.api_url}/{message_id}")
+                response.raise_for_status()
+                return response.text
+      inventory/stock.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class StockLevel:
+            sku: str
+            on_hand: int
+            buyer_phone: str
+    after: |
+      from inventory.stock import StockLevel
+      from notifications.sms import SmsGateway
+
+
+      class LowStockAlerter(SmsGateway):
+          def alert_low(self, level: StockLevel) -> None:
+              self.send_text(level.buyer_phone, f"{level.sku} is down to {level.on_hand} units")
+
+          def alert_sold_out(self, level: StockLevel) -> None:
+              self.send_text(level.buyer_phone, f"{level.sku} is sold out")
+  expected_output:
+    outcome: invalid
+- name: a low-stock alerter holds the SMS gateway it texts buyers with
+  inputs:
+    file: inventory/alerts.py
+    unchanged:
+      notifications/sms.py: |
+        import httpx
+
+
+        class SmsGateway:
+            def __init__(self, api_url: str, sender_id: str) -> None:
+                self.api_url = api_url
+                self.sender_id = sender_id
+
+            def send_text(self, phone: str, message: str) -> None:
+                response = httpx.post(
+                    self.api_url,
+                    json={"from": self.sender_id, "to": phone, "text": message},
+                )
+                response.raise_for_status()
+      inventory/stock.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class StockLevel:
+            sku: str
+            on_hand: int
+            buyer_phone: str
+    after: |
+      from inventory.stock import StockLevel
+      from notifications.sms import SmsGateway
+
+
+      class LowStockAlerter:
+          def __init__(self, sms: SmsGateway) -> None:
+              self._sms = sms
+
+          def alert_low(self, level: StockLevel) -> None:
+              self._sms.send_text(level.buyer_phone, f"{level.sku} is down to {level.on_hand} units")
+  expected_output:
+    outcome: valid
+- name: an oversize shipping method is a shipping method that prices parcels with a handling surcharge
+  inputs:
+    file: shipping/methods.py
+    unchanged:
+      shipping/base.py: |
+        from decimal import Decimal
+
+
+        class ShippingMethod:
+            def __init__(self, name: str, base_fee: Decimal, per_kg: Decimal) -> None:
+                self.name = name
+                self.base_fee = base_fee
+                self.per_kg = per_kg
+
+            def cost(self, weight_kg: Decimal) -> Decimal:
+                return self.base_fee + self.per_kg * weight_kg
+    after: |
+      from decimal import Decimal
+
+      from shipping.base import ShippingMethod
+
+
+      class OversizeShipping(ShippingMethod):
+          def __init__(
+              self, name: str, base_fee: Decimal, per_kg: Decimal, handling_fee: Decimal
+          ) -> None:
+              super().__init__(name, base_fee, per_kg)
+              self.handling_fee = handling_fee
+
+          def cost(self, weight_kg: Decimal) -> Decimal:
+              return super().cost(weight_kg) + self.handling_fee
+  expected_output:
+    outcome: valid
+- name: a markdown exporter implements the abstract exporter whose job it does
+  inputs:
+    file: reports/markdown.py
+    unchanged:
+      reports/model.py: |
+        from dataclasses import dataclass
+        from decimal import Decimal
+
+
+        @dataclass(frozen=True)
+        class RegionTotal:
+            region: str
+            total: Decimal
+
+
+        @dataclass(frozen=True)
+        class SalesReport:
+            title: str
+            rows: tuple[RegionTotal, ...]
+      reports/export.py: |
+        from abc import ABC, abstractmethod
+
+        from reports.model import SalesReport
+
+
+        class ReportExporter(ABC):
+            @abstractmethod
+            def export(self, report: SalesReport) -> bytes:
+                """Render the report as the bytes of one file."""
+    after: |
+      from reports.export import ReportExporter
+      from reports.model import SalesReport
+
+
+      class MarkdownExporter(ReportExporter):
+          def export(self, report: SalesReport) -> bytes:
+              lines = [f"# {report.title}", ""]
+              lines += [f"- {row.region}: {row.total}" for row in report.rows]
+              return "\n".join(lines).encode()
+  expected_output:
+    outcome: valid
+- name: warehouse and bin models inherit the ORM model base the framework requires
+  inputs:
+    file: warehouses/models.py
+    after: |
+      from django.db import models
+
+
+      class Warehouse(models.Model):
+          code = models.CharField(max_length=8, unique=True)
+          city = models.CharField(max_length=64)
+
+
+      class Bin(models.Model):
+          warehouse = models.ForeignKey(Warehouse, on_delete=models.CASCADE)
+          label = models.CharField(max_length=16)
+  expected_output:
+    outcome: valid
+- name: a supplier takes a documented mixin that orders instances by name
+  inputs:
+    file: purchasing/suppliers.py
+    unchanged:
+      purchasing/ordering.py: |
+        from typing import Self
+
+
+        class NameOrderMixin:
+            """Mixin for classes with a `name`: orders their instances by it."""
+
+            name: str
+
+            def __lt__(self, other: Self) -> bool:
+                return self.name < other.name
+    after: |
+      from dataclasses import dataclass
+
+      from purchasing.ordering import NameOrderMixin
+
+
+      @dataclass(frozen=True)
+      class Supplier(NameOrderMixin):
+          name: str
+          country: str
+  expected_output:
+    outcome: valid
+- name: an invoice archiver inherits a library's HTTP session to upload with it
+  inputs:
+    file: billing/archive.py
+    unchanged:
+      billing/invoice.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Invoice:
+            number: str
+            pdf: bytes
+    after: |
+      import requests
+
+      from billing.invoice import Invoice
+
+
+      class InvoiceArchiver(requests.Session):
+          def __init__(self, archive_url: str) -> None:
+              super().__init__()
+              self.archive_url = archive_url
+
+          def archive(self, invoice: Invoice) -> None:
+              response = self.put(f"{self.archive_url}/{invoice.number}.pdf", data=invoice.pdf)
+              response.raise_for_status()
+  expected_output:
+    outcome: invalid
+- name: a JSON log formatter is a standard library formatter that formats records its own way
+  inputs:
+    file: observability/formatting.py
+    after: |
+      import json
+      import logging
+
+
+      class JsonLineFormatter(logging.Formatter):
+          def format(self, record: logging.LogRecord) -> str:
+              return json.dumps(
+                  {
+                      "time": self.formatTime(record),
+                      "level": record.levelname,
+                      "logger": record.name,
+                      "message": record.getMessage(),
+                  }
+              )
+  expected_output:
+    outcome: valid
+- name: a delivery run inherits a depot to get its opening hours as its own fields
+  inputs:
+    file: logistics/runs.py
+    unchanged:
+      logistics/depots.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Depot:
+            code: str
+            latitude: float
+            longitude: float
+            opening_hour: int
+            closing_hour: int
+    after: |
+      from dataclasses import dataclass
+
+      from logistics.depots import Depot
+
+
+      @dataclass(frozen=True)
+      class DeliveryRun(Depot):
+          driver: str
+          departure_hour: int
+
+          def departs_while_open(self) -> bool:
+              return self.opening_hour <= self.departure_hour < self.closing_hour
+  expected_output:
+    outcome: invalid
+- name: an edit makes a payslip publisher inherit the SFTP uploader it used to hold
+  inputs:
+    file: payroll/publishing.py
+    unchanged:
+      transfer/sftp.py: |
+        import paramiko
+
+
+        class SftpUploader:
+            def __init__(self, host: str, username: str, key_path: str) -> None:
+                self.host = host
+                self.username = username
+                self.key_path = key_path
+
+            def upload(self, remote_path: str, data: bytes) -> None:
+                with paramiko.SSHClient() as ssh:
+                    ssh.load_system_host_keys()
+                    ssh.connect(self.host, username=self.username, key_filename=self.key_path)
+                    with ssh.open_sftp() as sftp, sftp.open(remote_path, "wb") as remote:
+                        remote.write(data)
+      payroll/payslips.py: |
+        from dataclasses import dataclass
+
+
+        @dataclass(frozen=True)
+        class Payslip:
+            employee_id: str
+            period: str
+            pdf: bytes
+    before: |
+      from payroll.payslips import Payslip
+      from transfer.sftp import SftpUploader
+
+
+      class PayslipPublisher:
+          def __init__(self, uploader: SftpUploader) -> None:
+              self._uploader = uploader
+
+          def publish(self, payslip: Payslip) -> None:
+              self._uploader.upload(
+                  f"payslips/{payslip.period}/{payslip.employee_id}.pdf", payslip.pdf
+              )
+    after: |
+      from payroll.payslips import Payslip
+      from transfer.sftp import SftpUploader
+
+
+      class PayslipPublisher(SftpUploader):
+          def publish(self, payslip: Payslip) -> None:
+              self.upload(f"payslips/{payslip.period}/{payslip.employee_id}.pdf", payslip.pdf)
+  expected_output:
+    outcome: invalid
+- name: a method is added to a class whose base the change leaves as it was
+  inputs:
+    file: airport/printing.py
+    unchanged:
+      devices/thermal.py: |
+        class ThermalPrinter:
+            def __init__(self, device_path: str) -> None:
+                self.device_path = device_path
+
+            def print_lines(self, lines: list[str]) -> None:
+                with open(self.device_path, "w") as device:
+                    device.write("\n".join(lines) + "\n\n\n")
+    before: |
+      from devices.thermal import ThermalPrinter
+
+
+      class BoardingPassPrinter(ThermalPrinter):
+          def print_pass(self, passenger: str, flight: str, gate: str) -> None:
+              self.print_lines([passenger, f"Flight {flight}", f"Gate {gate}"])
+    after: |
+      from devices.thermal import ThermalPrinter
+
+
+      class BoardingPassPrinter(ThermalPrinter):
+          def print_pass(self, passenger: str, flight: str, gate: str) -> None:
+              self.print_lines([passenger, f"Flight {flight}", f"Gate {gate}"])
+
+          def print_gate_change(self, flight: str, new_gate: str) -> None:
+              self.print_lines([f"Flight {flight}", f"now boards at gate {new_gate}"])
+  expected_output:
+    outcome: skipped
+- name: a shipment tracker extends a circuit breaker to guard its carrier calls
+  inputs:
+    file: shipping/tracker.ts
+    unchanged:
+      resilience/circuit-breaker.ts: |
+        export class CircuitBreaker {
+          private failures = 0;
+
+          constructor(private readonly threshold: number) {}
+
+          async execute<T>(work: () => Promise<T>): Promise<T> {
+            if (this.failures >= this.threshold) {
+              throw new Error("circuit open");
+            }
+            try {
+              const result = await work();
+              this.failures = 0;
+              return result;
+            } catch (error) {
+              this.failures += 1;
+              throw error;
+            }
+          }
+        }
+      carriers/carrier.ts: |
+        export type TrackingStatus = {
+          trackingNumber: string;
+          state: "in_transit" | "delivered" | "returned";
+        };
+
+        export interface CarrierApi {
+          trackingStatus(trackingNumber: string): Promise<TrackingStatus>;
+        }
+    after: |
+      import { CarrierApi, TrackingStatus } from "../carriers/carrier";
+      import { CircuitBreaker } from "../resilience/circuit-breaker";
+
+      export class ShipmentTracker extends CircuitBreaker {
+        constructor(private readonly carrier: CarrierApi) {
+          super(5);
+        }
+
+        async status(trackingNumber: string): Promise<TrackingStatus> {
+          return this.execute(() => this.carrier.trackingStatus(trackingNumber));
+        }
+      }
+  expected_output:
+    outcome: invalid
+- name: a shipment tracker holds the circuit breaker that guards its carrier calls
+  inputs:
+    file: shipping/tracker.ts
+    unchanged:
+      resilience/circuit-breaker.ts: |
+        export class CircuitBreaker {
+          private failures = 0;
+
+          constructor(private readonly threshold: number) {}
+
+          async execute<T>(work: () => Promise<T>): Promise<T> {
+            if (this.failures >= this.threshold) {
+              throw new Error("circuit open");
+            }
+            try {
+              const result = await work();
+              this.failures = 0;
+              return result;
+            } catch (error) {
+              this.failures += 1;
+              throw error;
+            }
+          }
+        }
+      carriers/carrier.ts: |
+        export type TrackingStatus = {
+          trackingNumber: string;
+          state: "in_transit" | "delivered" | "returned";
+        };
+
+        export interface CarrierApi {
+          trackingStatus(trackingNumber: string): Promise<TrackingStatus>;
+        }
+    after: |
+      import { CarrierApi, TrackingStatus } from "../carriers/carrier";
+      import { CircuitBreaker } from "../resilience/circuit-breaker";
+
+      export class ShipmentTracker {
+        constructor(
+          private readonly carrier: CarrierApi,
+          private readonly breaker: CircuitBreaker,
+        ) {}
+
+        async status(trackingNumber: string): Promise<TrackingStatus> {
+          return this.breaker.execute(() => this.carrier.trackingStatus(trackingNumber));
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a tiered tariff is a tariff that prices usage by tier
+  inputs:
+    file: energy/tiered-tariff.ts
+    unchanged:
+      energy/tariff.ts: |
+        import { MeterReading } from "./meter";
+
+        export class Tariff {
+          constructor(
+            readonly name: string,
+            protected readonly centsPerKwh: number,
+          ) {}
+
+          costCents(reading: MeterReading): number {
+            return Math.round(reading.kwh * this.centsPerKwh);
+          }
+        }
+      energy/meter.ts: |
+        export type MeterReading = {
+          meterId: string;
+          kwh: number;
+        };
+    after: |
+      import { MeterReading } from "./meter";
+      import { Tariff } from "./tariff";
+
+      export class TieredTariff extends Tariff {
+        constructor(
+          name: string,
+          centsPerKwh: number,
+          private readonly firstTierKwh: number,
+          private readonly firstTierCentsPerKwh: number,
+        ) {
+          super(name, centsPerKwh);
+        }
+
+        costCents(reading: MeterReading): number {
+          const firstTier = Math.min(reading.kwh, this.firstTierKwh);
+          const rest = reading.kwh - firstTier;
+          return Math.round(firstTier * this.firstTierCentsPerKwh + rest * this.centsPerKwh);
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a percent-off rule implements the price rule interface whose job it does
+  inputs:
+    file: pricing/percent-off.ts
+    unchanged:
+      pricing/rule.ts: |
+        export interface PriceRule {
+          readonly description: string;
+          apply(priceCents: number): number;
+        }
+    after: |
+      import { PriceRule } from "./rule";
+
+      export class PercentOff implements PriceRule {
+        readonly description: string;
+
+        constructor(private readonly percent: number) {
+          this.description = `${percent}% off`;
+        }
+
+        apply(priceCents: number): number {
+          return Math.round((priceCents * (100 - this.percent)) / 100);
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a quota error extends the standard Error class
+  inputs:
+    file: api/errors.ts
+    after: |
+      export class QuotaExceededError extends Error {
+        constructor(
+          readonly accountId: string,
+          readonly limit: number,
+        ) {
+          super(`account ${accountId} used all ${limit} requests in its quota`);
+          this.name = "QuotaExceededError";
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: a cart badge extends the web component base its framework requires
+  inputs:
+    file: components/cart-badge.ts
+    after: |
+      import { LitElement, html } from "lit";
+      import { customElement, property } from "lit/decorators.js";
+
+      @customElement("cart-badge")
+      export class CartBadge extends LitElement {
+        @property({ type: Number }) count = 0;
+
+        render() {
+          return html`<span class="badge">${this.count} items</span>`;
+        }
+      }
+  expected_output:
+    outcome: valid
+- name: an edit makes a visit tracker extend the cache it used to hold
+  inputs:
+    file: loyalty/visit-tracker.ts
+    unchanged:
+      cache/redis-cache.ts: |
+        import type { RedisClientType } from "redis";
+
+        export class RedisCache {
+          constructor(private readonly client: RedisClientType) {}
+
+          async get(key: string): Promise<string | null> {
+            return this.client.get(key);
+          }
+
+          async set(key: string, value: string): Promise<void> {
+            await this.client.set(key, value);
+          }
+        }
+    before: |
+      import { RedisCache } from "../cache/redis-cache";
+
+      export class VisitTracker {
+        constructor(private readonly cache: RedisCache) {}
+
+        async recordVisit(customerId: string, at: Date): Promise<void> {
+          await this.cache.set(`last-visit:${customerId}`, at.toISOString());
+        }
+      }
+    after: |
+      import { RedisCache } from "../cache/redis-cache";
+
+      export class VisitTracker extends RedisCache {
+        async recordVisit(customerId: string, at: Date): Promise<void> {
+          await this.set(`last-visit:${customerId}`, at.toISOString());
+        }
+      }
+  expected_output:
+    outcome: invalid
