@@ -1,0 +1,32 @@
+name: dry on Gemini 4 Argon, 20 runs (temporary)
+on:
+  push:
+    branches: [claude/dry-argon-20]
+env:
+  CODEGUARD_REF: v0.11.0
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: rules
+      - uses: actions/checkout@v7
+        with:
+          repository: jig-code/codeguard
+          ref: ${{ env.CODEGUARD_REF }}
+          path: codeguard
+      - uses: astral-sh/setup-uv@v10.2.0
+      - uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GOOGLE_CREDENTIALS }}
+      - name: codeguard eval dry with its binding's model, 20 times
+        working-directory: rules
+        run: uv run --frozen --project ../codeguard codeguard eval --rule dry --repeat 20
+        env:
+          LOGFIRE_TOKEN: ${{ secrets.LOGFIRE_TOKEN }}
+          GOOGLE_CLOUD_PROJECT: ${{ vars.GOOGLE_CLOUD_PROJECT }}
+          GOOGLE_CLOUD_LOCATION: global
