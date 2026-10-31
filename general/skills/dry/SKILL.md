@@ -23,7 +23,10 @@ that models the outside thing. Code uses the knowledge when it calls, reads, or 
 from that representation.
 
 The other representation is in the file under review or in a module of the program
-that file imports. Read those modules to compare.
+that file imports. The changed code alone never shows it: the file's imports may sit
+outside the change, and the modules they name aren't in it. Decide only after reading
+the whole file under review and each module of the program it imports, and comparing
+the changed code with what they state.
 
 ## Violation
 
