@@ -72,12 +72,14 @@ jobs:
         run: |
           args=()
           for rule in $RULES; do args+=(--rule "$rule"); done
+          repeat=3
           if [ "$PROVIDER" = claude-cli ]; then
             args+=(--provider claude-cli --model "$BEDROCK_MODEL")
+            repeat=20
           else
             export CODEGUARD_CONFIG=.github/codeguard-gemini-eval.yaml
           fi
-          uv run --frozen --project ../codeguard codeguard eval --repeat 3 "${args[@]}"
+          uv run --frozen --project ../codeguard codeguard eval --repeat "$repeat" "${args[@]}"
         env:
           RULES: ${{ steps.affected.outputs.rules }}
           PROVIDER: ${{ matrix.provider }}
