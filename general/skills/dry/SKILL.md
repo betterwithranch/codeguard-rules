@@ -51,8 +51,10 @@ a fix would replace with a use of the existing representation.
 
 - Code that calls, reads, or derives from the representation, including code that adds
   steps of its own around a call to it, and a collection built from another.
-- Steps that differ from the other's in a step: a different operation, condition, call,
-  or input or field read. Each states its own knowledge.
+- Steps that differ from the other's in a step: a different operation, condition or
+  call, or a different input or field. Each states its own knowledge. The same input or
+  field reached another way, such as through the object that holds it or a local name
+  for it, is not a different one.
 - A collection that selects some of a set's members, or maps them to values of its own.
   The selection, or each value, is knowledge of its own.
 - Two types with the same fields at different boundaries, such as a stored row and an
