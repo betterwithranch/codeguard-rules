@@ -86,8 +86,8 @@ conditions.
 
 Reviews and evals both judge a rule with its binding's `provider` and `model`, and a
 project can't override them, so a rule is only ever judged by the model its evals pass
-on. The bindings here set `provider: gemini` and `model: gemini-3.1-pro-preview`, so
-Gemini on Vertex AI judges them, in reviews, in local `task eval` and in CI. To move a
+on. The bindings here set `provider: gemini`, so Gemini on Vertex AI judges them, in
+reviews, in local `task eval` and in CI: `dry` with `gemini-4-argon`. To move a
 rule to another model, set them in its binding and pass its evals again. [drafts/README.md](drafts/README.md) lists them.
 
 A judge rule runs on a changed file only when a changed line falls inside code it could
@@ -160,10 +160,13 @@ CI judges only the rules a change can affect: a rule whose skill, binding, eval 
 trigger's gate changed, or every rule when `codeguard-package.yaml`, the workflow or
 `scripts/affected_judge_rules.py` changed. That script prints the affected rules, and
 CI passes each to `codeguard eval --rule`. The `eval` job runs once per provider in its
-matrix, `gemini` and `claude-cli`; each passes `--provider`, so a leg judges every rule
-with its own provider rather than the binding's. Locally, `codeguard eval --rule <id>
---repeat 20` judges one rule with its binding's model, and `--provider claude-cli`
-judges it with Claude instead.
+matrix, `gemini` and `claude-cli`. The `gemini` leg judges each rule with its binding's
+provider and model, 10 judge calls at once (`judge.calls_at_once` in
+`.github/codeguard-gemini-eval.yaml`, which the leg passes as `CODEGUARD_CONFIG`). The
+`claude-cli` leg passes `--provider claude-cli`, so it judges every rule with Claude.
+Locally, `codeguard eval --rule <id> --repeat 20` judges one rule with its binding's
+model, 2 calls at once unless `CODEGUARD_CONFIG` names that file, and
+`--provider claude-cli` judges it with Claude instead.
 
 [Which test to write](https://github.com/jig-code/codeguard#which-test-to-write)
 says which test covers which change. Every judge rule has a rule eval with `invalid`,
@@ -182,8 +185,9 @@ judged in any run fails the build. Pushes to `main` run only `test`. The `claude
 leg runs Claude Haiku 5.5 on Amazon Bedrock in `us-west-2`: the job signs in to AWS
 with GitHub's OIDC token by assuming the role in the repository variable
 `CLAUDE_AWS_ROLE`, and judges with the Haiku 5.5 inference profile in the variable
-`BEDROCK_MODEL`, passed to `codeguard eval --model`. Gemini runs `gemini-3.1-pro-preview` on Vertex AI in the
-`global` location: the job signs in with `google-github-actions/auth` using the secret
+`BEDROCK_MODEL`, passed to `codeguard eval --model`. The `gemini` leg runs each
+binding's model on Vertex AI in the `global` location, the only one that serves
+`gemini-4-argon`: the job signs in with `google-github-actions/auth` using the secret
 `GOOGLE_CREDENTIALS` (a service account key with the Vertex AI User role), and bills
 the project in the variable `GOOGLE_CLOUD_PROJECT`. codeguard's README, under "Judge with Gemini on Google
 Cloud", has the setup.

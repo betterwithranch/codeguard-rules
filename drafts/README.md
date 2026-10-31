@@ -10,8 +10,8 @@ back is `git mv` of its files into `python/`, in a commit whose CI passes. A jud
 moves its skill, binding and eval, once:
 
 - every `invalid` and `valid` eval case passes 20 of 20 runs (`codeguard eval --repeat 20`)
-  on the binding's model, `gemini-3.1-pro-preview` on Vertex AI (`provider: gemini`),
-  checked before the commit;
+  on the binding's model, a Gemini model on Vertex AI (`provider: gemini`), checked
+  before the commit;
 - every case passes CI's 3 runs on each provider in its matrix, `gemini` and
   `claude-cli`; a failure on either fails the build.
 
