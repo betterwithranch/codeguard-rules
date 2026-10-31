@@ -1,0 +1,56 @@
+name: dry 20 runs on Argon and Haiku (temporary)
+on:
+  push:
+    branches: [claude/dry-argon-20]
+env:
+  CODEGUARD_REF: v0.11.0
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        provider: [gemini]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          path: rules
+      - uses: actions/checkout@v7
+        with:
+          repository: jig-code/codeguard
+          ref: ${{ env.CODEGUARD_REF }}
+          path: codeguard
+      - uses: astral-sh/setup-uv@v10.2.0
+      - if: matrix.provider == 'claude-cli'
+        run: npm install --global @anthropic-ai/claude-code
+      - if: matrix.provider == 'claude-cli'
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.CLAUDE_AWS_ROLE }}
+          aws-region: us-west-2
+      - if: matrix.provider == 'gemini'
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GOOGLE_CREDENTIALS }}
+      - name: codeguard eval dry, 20 times
+        working-directory: rules
+        run: |
+          args=(--rule dry --repeat 20)
+          if [ "$PROVIDER" = claude-cli ]; then
+            args+=(--provider claude-cli --model "$BEDROCK_MODEL")
+          else
+            export CODEGUARD_CONFIG=.github/codeguard-gemini-eval.yaml
+          fi
+          uv run --frozen --project ../codeguard codeguard eval "${args[@]}"
+        env:
+          PROVIDER: ${{ matrix.provider }}
+          CLAUDE_CODE_USE_BEDROCK: 1
+          AWS_REGION: us-west-2
+          BEDROCK_MODEL: ${{ vars.BEDROCK_MODEL }}
+          LOGFIRE_TOKEN: ${{ secrets.LOGFIRE_TOKEN }}
+          GOOGLE_CLOUD_PROJECT: ${{ vars.GOOGLE_CLOUD_PROJECT }}
+          GOOGLE_CLOUD_LOCATION: global
