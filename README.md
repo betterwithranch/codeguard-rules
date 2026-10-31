@@ -33,8 +33,8 @@ the languages it runs on.
 |---|---|---|
 | `dry` | Don't Repeat Yourself: code the change adds doesn't state a computation, process, set or outside shape again when the file or a module it imports already states it | Not yet |
 
-Each rule passes 20 of 20 eval runs on Claude before it ships, and CI's 3 runs before it
-merges. One check follows, and doesn't hold up the next rule:
+Each rule passes 20 of 20 eval runs on its binding's model before it ships, and CI's 3
+runs on each provider before it merges. One check follows, and doesn't hold up the next rule:
 
 - **Validated**: its findings on real changes, read from codeguard's Logfire traces,
   show it flags what it should. Until then it's a `warning`: its findings print but don't
@@ -86,9 +86,9 @@ conditions.
 
 Reviews and evals both judge a rule with its binding's `provider` and `model`, and a
 project can't override them, so a rule is only ever judged by the model its evals pass
-on. The bindings here leave both out, so codeguard's default, `claude-sonnet-5-5`
-through the `claude` CLI, judges them. To move a rule to another model, set them in its
-binding and pass its evals again. [drafts/README.md](drafts/README.md) lists them.
+on. The bindings here set `provider: gemini`, so Gemini on Vertex AI judges them, in
+reviews, in local `task eval` and in CI: `dry` with `gemini-4-argon`. To move a
+rule to another model, set them in its binding and pass its evals again. [drafts/README.md](drafts/README.md) lists them.
 
 A judge rule runs on a changed file only when a changed line falls inside code it could
 flag. Its binding's `triggers` names that code: a change kind built into codeguard, such
@@ -144,10 +144,13 @@ codeguard rejects any other entry in a ruleset directory.
 ```sh
 task test                # codeguard test: pattern rule and gate tests, eval triggers
 task test -- -U          # the same, regenerating snapshots
-task eval                # codeguard eval: judge each judge rule eval case; calls Claude
+task eval                # codeguard eval: judge each judge rule eval case with its binding's model (Gemini)
 ```
 
 `CODEGUARD=<path>` runs another codeguard build, such as a checkout's `.venv/bin/codeguard`.
+`task eval` calls Gemini on Vertex AI, so it needs Google Cloud Application Default
+Credentials with the Vertex AI User role, `GOOGLE_CLOUD_PROJECT`, and
+`GOOGLE_CLOUD_LOCATION=global`.
 
 A Claude Code session here installs codeguard at the release CI pins (`CODEGUARD_REF`
 in `.github/workflows/ci.yaml`) when it starts, through `.claude/hooks/session-start.sh`,
@@ -157,9 +160,13 @@ CI judges only the rules a change can affect: a rule whose skill, binding, eval 
 trigger's gate changed, or every rule when `codeguard-package.yaml`, the workflow or
 `scripts/affected_judge_rules.py` changed. That script prints the affected rules, and
 CI passes each to `codeguard eval --rule`. The `eval` job runs once per provider in its
-matrix, `claude-cli`. Gemini is out of the matrix until codeguard's Gemini judge
-is faster and steadier; its auth step stays, so adding `gemini` back turns it on. Locally, `codeguard eval --rule <id> --repeat 20` judges one
-rule, and `--provider gemini` judges it with Gemini instead of its binding's model.
+matrix, `gemini` and `claude-cli`. The `gemini` leg judges each rule with its binding's
+provider and model, 10 judge calls at once (`judge.calls_at_once` in
+`.github/codeguard-gemini-eval.yaml`, which the leg passes as `CODEGUARD_CONFIG`). The
+`claude-cli` leg passes `--provider claude-cli`, so it judges every rule with Claude.
+Locally, `codeguard eval --rule <id> --repeat 20` judges one rule with its binding's
+model, 2 calls at once unless `CODEGUARD_CONFIG` names that file, and
+`--provider claude-cli` judges it with Claude instead.
 
 [Which test to write](https://github.com/jig-code/codeguard#which-test-to-write)
 says which test covers which change. Every judge rule has a rule eval with `invalid`,
@@ -174,14 +181,15 @@ re-run or loosen the gate. [CLAUDE.md](CLAUDE.md) has the details.
 The rules are tested only by their own cases, through codeguard, so they are shown
 accurate as codeguard runs them. CI's `test` job runs `codeguard test`, then, on a pull request, its `eval`
 job runs `codeguard eval --repeat 3` with each provider; a case that fails or isn't
-judged in any run fails the build. Pushes to `main` run only `test`. Claude runs on
-Amazon Bedrock in `us-west-2`: the job signs in to AWS with GitHub's OIDC token by
-assuming the role in the repository variable `CLAUDE_AWS_ROLE`, and judges with the
-model or inference profile in the variable `BEDROCK_MODEL`, passed to
-`codeguard eval --model`. For Gemini the `eval` job needs, in the repository's Actions
-settings, the secret
-`GOOGLE_CREDENTIALS` (a service account key with the Vertex AI User role) and the
-variable `GOOGLE_CLOUD_PROJECT`. codeguard's README, under "Judge with Gemini on Google
+judged in any run fails the build. Pushes to `main` run only `test`. The `claude-cli`
+leg runs Claude Haiku 5.5 on Amazon Bedrock in `us-west-2`: the job signs in to AWS
+with GitHub's OIDC token by assuming the role in the repository variable
+`CLAUDE_AWS_ROLE`, and judges with the Haiku 5.5 inference profile in the variable
+`BEDROCK_MODEL`, passed to `codeguard eval --model`. The `gemini` leg runs each
+binding's model on Vertex AI in the `global` location, the only one that serves
+`gemini-4-argon`: the job signs in with `google-github-actions/auth` using the secret
+`GOOGLE_CREDENTIALS` (a service account key with the Vertex AI User role), and bills
+the project in the variable `GOOGLE_CLOUD_PROJECT`. codeguard's README, under "Judge with Gemini on Google
 Cloud", has the setup.
 CI runs the codeguard release in `CODEGUARD_REF` in `.github/workflows/ci.yaml`, so
 moving to a new release is a change here, which judges every rule.

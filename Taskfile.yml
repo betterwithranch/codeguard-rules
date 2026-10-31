@@ -10,6 +10,6 @@ tasks:
       - "{{.CODEGUARD}} test {{.CLI_ARGS}}"
 
   eval:
-    desc: Judge each judge rule eval case. Calls Claude.
+    desc: Judge each judge rule eval case with its binding's model. Calls Gemini.
     cmds:
       - "{{.CODEGUARD}} eval {{.CLI_ARGS}}"

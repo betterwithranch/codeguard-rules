@@ -1,0 +1,4 @@
+# codeguard config for CI's gemini eval leg, through CODEGUARD_CONFIG. Ten judge calls at
+# once keep a run of dry's eval under Vertex AI's tokens-per-minute limit.
+judge:
+  calls_at_once: 10

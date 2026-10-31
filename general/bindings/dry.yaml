@@ -1,4 +1,6 @@
 skill: general/skills/dry
+provider: gemini
+model: gemini-4-argon
 severity: warning
 paths: ["**/*.py", "**/*.ts", "**/*.tsx"]
 exclude_paths:

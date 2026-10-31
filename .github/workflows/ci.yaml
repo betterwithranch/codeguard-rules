@@ -7,7 +7,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 env:
-  CODEGUARD_REF: v0.9.0
+  CODEGUARD_REF: v0.11.0
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -34,7 +34,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        provider: [claude-cli]
+        provider: [gemini, claude-cli]
     steps:
       - uses: actions/checkout@v7
         with:
@@ -72,8 +72,12 @@ jobs:
         run: |
           args=()
           for rule in $RULES; do args+=(--rule "$rule"); done
-          if [ "$PROVIDER" = claude-cli ]; then args+=(--model "$BEDROCK_MODEL"); fi
-          uv run --frozen --project ../codeguard codeguard eval --provider "$PROVIDER" --repeat 3 "${args[@]}"
+          if [ "$PROVIDER" = claude-cli ]; then
+            args+=(--provider claude-cli --model "$BEDROCK_MODEL")
+          else
+            export CODEGUARD_CONFIG=.github/codeguard-gemini-eval.yaml
+          fi
+          uv run --frozen --project ../codeguard codeguard eval --repeat 3 "${args[@]}"
         env:
           RULES: ${{ steps.affected.outputs.rules }}
           PROVIDER: ${{ matrix.provider }}

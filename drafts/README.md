@@ -10,11 +10,10 @@ back is `git mv` of its files into `python/`, in a commit whose CI passes. A jud
 moves its skill, binding and eval, once:
 
 - every `invalid` and `valid` eval case passes 20 of 20 runs (`codeguard eval --repeat 20`)
-  on `claude-sonnet-5-5` through the `claude` CLI, checked before the commit;
-- every case passes CI's 3 runs on each provider in its matrix. That is `claude-cli`
-  for now; `gemini` (`gemini-3.1-pro-preview` on Vertex AI, `--provider gemini`) comes
-  back once codeguard's Gemini judge is faster and steadier, and a failure on either
-  then fails the build.
+  on the binding's model, a Gemini model on Vertex AI (`provider: gemini`), checked
+  before the commit;
+- every case passes CI's 3 runs on each provider in its matrix, `gemini` and
+  `claude-cli`; a failure on either fails the build.
 
 One check comes after a rule ships and doesn't hold up the next rule. The README's
 rule table tracks it for each rule, and the plan isn't done until every rule has
@@ -74,7 +73,7 @@ for a job, one word for one operation) asks whether the change adds a second one
 names the one search that finds the first, and has eval cases whose `unchanged` files
 hold it.
 
-Judge rules on every `.py` file except test files (Claude reads each changed file
+Judge rules on every `.py` file except test files (the judge reads each changed file
 against the rule's skill):
 
 | Rule | Checks |
