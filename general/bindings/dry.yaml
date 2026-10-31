@@ -1,4 +1,6 @@
 skill: general/skills/dry
+provider: gemini
+model: gemini-3.1-pro-preview
 severity: warning
 paths: ["**/*.py", "**/*.ts", "**/*.tsx"]
 exclude_paths:
