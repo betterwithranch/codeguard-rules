@@ -37,8 +37,7 @@ that representation. When the knowledge changes, both statements have to change.
 This includes:
 
 - steps that repeat another function's steps, with different names, a different input
-  order, the same checks combined, split, reordered or negated, or only a different
-  literal or constant where the other has its own;
+  order, or only a different literal or constant where the other has its own;
 - a function that repeats the steps of a method the type it works on already has;
 - code that runs a process's stages in the process's order, outside the process;
 - a collection that lists exactly the members of another set and states nothing more;
@@ -59,9 +58,8 @@ a fix would replace with a use of the existing representation.
   steps of its own around that call, and a collection built from another.
 - Steps that differ from the other's within the sequence they share: a different
   operation, condition, call, or input or field read in place of one of the other's
-  steps. Each states its own knowledge. A condition is different when it decides
-  differently on some input, not when it states the same checks in another form. Steps
-  added before, after or around a repeated sequence leave it repeated.
+  steps. Each states its own knowledge. Steps added before, after or around a repeated
+  sequence leave it repeated.
 - A collection that selects some of a set's members, or maps them to values of its own.
   The selection, or each value, is knowledge of its own.
 - Two types with the same fields at different boundaries, such as a stored row and an
