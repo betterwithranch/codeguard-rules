@@ -16,7 +16,7 @@ judge rules. Reviewing other code, codeguard's included, is not part of that.
 
 Judge rules are judged with their binding's `provider` and `model`: Gemini
 (`gemini-3.1-pro-preview` on Vertex AI), in local `task eval` and in CI. CI's `eval`
-job also judges each affected rule with Claude on Bedrock. A rule moves to another
+job also judges each affected rule with Claude Haiku 5.5 on Bedrock. A rule moves to another
 model only by setting it in its binding and passing its evals there.
 
 ## Repositories

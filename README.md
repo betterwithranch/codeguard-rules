@@ -178,11 +178,11 @@ re-run or loosen the gate. [CLAUDE.md](CLAUDE.md) has the details.
 The rules are tested only by their own cases, through codeguard, so they are shown
 accurate as codeguard runs them. CI's `test` job runs `codeguard test`, then, on a pull request, its `eval`
 job runs `codeguard eval --repeat 3` with each provider; a case that fails or isn't
-judged in any run fails the build. Pushes to `main` run only `test`. Claude runs on
-Amazon Bedrock in `us-west-2`: the job signs in to AWS with GitHub's OIDC token by
-assuming the role in the repository variable `CLAUDE_AWS_ROLE`, and judges with the
-model or inference profile in the variable `BEDROCK_MODEL`, passed to
-`codeguard eval --model`. Gemini runs `gemini-3.1-pro-preview` on Vertex AI in the
+judged in any run fails the build. Pushes to `main` run only `test`. The `claude-cli`
+leg runs Claude Haiku 5.5 on Amazon Bedrock in `us-west-2`: the job signs in to AWS
+with GitHub's OIDC token by assuming the role in the repository variable
+`CLAUDE_AWS_ROLE`, and judges with the Haiku 5.5 inference profile in the variable
+`BEDROCK_MODEL`, passed to `codeguard eval --model`. Gemini runs `gemini-3.1-pro-preview` on Vertex AI in the
 `global` location: the job signs in with `google-github-actions/auth` using the secret
 `GOOGLE_CREDENTIALS` (a service account key with the Vertex AI User role), and bills
 the project in the variable `GOOGLE_CLOUD_PROJECT`. codeguard's README, under "Judge with Gemini on Google
